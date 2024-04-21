@@ -29,8 +29,7 @@ pub fn startupWindow() !glfw.Window {
 
     gl.makeProcTableCurrent(&gl_procs);
 
-    // Set configurations and callbacks
-
+    // MacOS reports resolution differently
     const size = window.getFramebufferSize();
     gl.Viewport(0, 0, @intCast(size.width), @intCast(size.height));
     gl.ClearColor(

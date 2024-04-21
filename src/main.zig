@@ -1,6 +1,7 @@
 const std = @import("std");
 const glfw = @import("mach-glfw");
 const gl = @import("./gl.zig");
+const shaders = @import("./shader.zig");
 const ww = @import("./window.zig");
 
 const vertices = [_]f32{
@@ -17,16 +18,22 @@ pub fn main() !void {
     const window = try ww.startupWindow();
     defer ww.shutdownWindow(window);
 
-    const vs = try gl.createShaderModuleFromFile("shaders/triangle.vs", gl.VERTEX_SHADER);
+    const vs = try shaders.createShaderModule(.{ 
+        .path = "shaders/triangle.vs",
+        .shader_type = .VERTEX,
+    });
     defer gl.DeleteShader(vs);
-    const fs = try gl.createShaderModuleFromFile("shaders/triangle.fs", gl.FRAGMENT_SHADER);
+    const fs = try shaders.createShaderModule(.{
+        .path ="shaders/triangle.fs",
+        .shader_type = .FRAGMENT,
+    });
     defer gl.DeleteShader(fs);
 
-    const program = try gl.createShaderProgram(vs, fs);
+    const program = try shaders.createShaderProgram(vs, fs);
 
-    const vao = try gl.createVao();
-    const vbo = try gl.createBuffer();
-    const ebo = try gl.createBuffer();
+    const vao = gl.createVao();
+    const vbo = gl.createBuffer();
+    const ebo = gl.createBuffer();
 
     gl.BindVertexArray(vao);
 
