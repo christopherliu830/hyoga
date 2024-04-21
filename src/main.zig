@@ -5,10 +5,10 @@ const shaders = @import("./shader.zig");
 const ww = @import("./window.zig");
 
 const vertices = [_]f32{
-    0.5, 0.5, 0.0, // top right
-    0.5, -0.5, 0.0, // bottom right
-    -0.5, -0.5, 0.0, // bottom left
-    -0.5, 0.5, 0.0, // top left
+    // positions         // colors
+    0.5, -0.5, 0.0,  1.0, 0.0, 0.0,   // bottom right
+    -0.5, -0.5, 0.0,  0.0, 1.0, 0.0,   // bottom let
+    0.0,  0.5, 0.0,  0.0, 0.0, 1.0    // top
 };
 
 const indices = [_]u32{ 0, 1, 3, 1, 2, 3 };
@@ -18,36 +18,44 @@ pub fn main() !void {
     const window = try ww.startupWindow();
     defer ww.shutdownWindow(window);
 
-
     const vs = try shaders.Module.create(.{
         .path = "shaders/triangle.vs",
         .shader_type = .VERTEX,
     });
-    defer vs.delete();
+    defer vs.destroy();
 
     const fs = try shaders.Module.create(.{
         .path ="shaders/triangle.fs",
         .shader_type = .FRAGMENT,
     });
-    defer fs.delete();
+    defer fs.destroy();
 
     const program = try shaders.Program.create(vs, fs);
 
-    const vao = gl.createVao();
-    const vbo = gl.createBuffer();
-    const ebo = gl.createBuffer();
+    var vao = gl.VertexArray.create();
+    defer vao.destroy();
+    var vbo = gl.Buffer.create();
+    defer vbo.destroy();
+    var ebo = gl.Buffer.create();
+    defer ebo.destroy();
 
-    gl.BindVertexArray(vao);
+    vao.bind();
 
-    gl.BindBuffer(gl.ARRAY_BUFFER, vbo);
-    gl.BufferData(gl.ARRAY_BUFFER, @sizeOf(@TypeOf(vertices)), &vertices, gl.STATIC_DRAW);
+    vbo.upload(&vertices, .ARRAY_BUFFER, .STATIC_DRAW);
+    ebo.upload(&indices, .ELEMENT_ARRAY_BUFFER, .STATIC_DRAW);
 
-    gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
-    gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, @sizeOf(@TypeOf(indices)), &indices, gl.STATIC_DRAW);
-
-    const attrib_0 = 0;
-    gl.VertexAttribPointer(attrib_0, 3, gl.FLOAT, gl.FALSE, 3 * @sizeOf(f32), 0);
-    gl.EnableVertexAttribArray(attrib_0);
+    var attr_builder = gl.VertexAttributes.start();
+    attr_builder.add(.{
+        // POS
+        .size = 3,
+        .type = .FLOAT,
+        .normalized = false,
+    }).add(.{
+        // COLOR
+        .size = 3,
+        .type = .FLOAT,
+        .normalized = false
+    }).use();
 
     while (!window.shouldClose()) {
         glfw.pollEvents();
@@ -58,13 +66,12 @@ pub fn main() !void {
 
         gl.Clear(gl.COLOR_BUFFER_BIT);
 
-        const color_location = gl.GetUniformLocation(program.id, "color");
         const time: f32 = @floatCast(std.math.sin(glfw.getTime()));
-        gl.Uniform4f(color_location, 0, time, 0, 0);
+        program.set("color", @Vector(4, f32){ 0, time, 0, 0 });
 
         program.use();
-        gl.BindVertexArray(vao);
-        gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, 0);
+        vao.bind();
+        gl.DrawArrays(gl.TRIANGLES, 0, 3);
 
         window.swapBuffers();
     }

@@ -37,11 +37,11 @@ pub const Module = struct {
         if (success == 0) {
             logShaderModuleError(s);
             return error.ShaderCompileError;
-            }
-        return .{.id = s};
         }
+        return .{.id = s};
+    }
 
-    pub fn delete(self: Module) void {
+    pub fn destroy(self: Module) void {
         gl.DeleteShader(self.id);
     }
 };
@@ -66,17 +66,37 @@ pub const Program = struct {
         }
         return .{.id = id};
     }
+
+    pub fn set(self: Program, name: [*:0]const u8, value: anytype) void {
+        self.use();
+        switch(@typeInfo(@TypeOf(value))) {
+            .Float => gl.Uniform1f(gl.GetUniformLocation(self.id, name), value),
+            .Bool => gl.Uniform1i(gl.GetUniformLocation(self.id, name), @intFromBool(value)),
+            .Int => gl.Uniform1i(gl.GetUniformLocation(self.id, name), value),
+            .Vector => |vec| {
+                switch (vec.len) {
+                    4 => gl.Uniform4f(gl.GetUniformLocation(self.id, name), value[0], value[1], value[2], value[3]),
+                    else => unreachable,
+                }
+            },
+            else => unreachable,
+        }
+    }
 };
 
 pub fn logShaderModuleError(module: u32) void {
     var buffer = [_]u8{0} ** 512;
-    gl.GetShaderInfoLog(module, 512, null, &buffer);
+    var length: c_int = undefined;
+    gl.GetShaderInfoLog(module, 512, &length, &buffer);
+    buffer[@intCast(length)] = 0;
     std.log.err("OpenGL Shader Compile Error: {s}\n", .{buffer});
 }
 
 pub fn logShaderLinkError(program: u32) void {
     var buffer = [_]u8{0} ** 512;
-    gl.GetProgramInfoLog(program, 512, null, &buffer);
+    var length: c_int = undefined;
+    gl.GetProgramInfoLog(program, 512, &length, &buffer);
+    buffer[@intCast(length)] = 0;
     std.log.err("OpenGL Shader Link Error: {s}\n", .{buffer});
 }
 
