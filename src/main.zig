@@ -18,18 +18,20 @@ pub fn main() !void {
     const window = try ww.startupWindow();
     defer ww.shutdownWindow(window);
 
-    const vs = try shaders.createShaderModule(.{ 
+
+    const vs = try shaders.Module.create(.{
         .path = "shaders/triangle.vs",
         .shader_type = .VERTEX,
     });
-    defer gl.DeleteShader(vs);
-    const fs = try shaders.createShaderModule(.{
+    defer vs.delete();
+
+    const fs = try shaders.Module.create(.{
         .path ="shaders/triangle.fs",
         .shader_type = .FRAGMENT,
     });
-    defer gl.DeleteShader(fs);
+    defer fs.delete();
 
-    const program = try shaders.createShaderProgram(vs, fs);
+    const program = try shaders.Program.create(vs, fs);
 
     const vao = gl.createVao();
     const vbo = gl.createBuffer();
@@ -56,11 +58,11 @@ pub fn main() !void {
 
         gl.Clear(gl.COLOR_BUFFER_BIT);
 
-        const color_location = gl.GetUniformLocation(program, "color");
+        const color_location = gl.GetUniformLocation(program.id, "color");
         const time: f32 = @floatCast(std.math.sin(glfw.getTime()));
         gl.Uniform4f(color_location, 0, time, 0, 0);
 
-        gl.UseProgram(program);
+        program.use();
         gl.BindVertexArray(vao);
         gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, 0);
 
