@@ -39,6 +39,14 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("mach-glfw", glfw_dep.module("mach-glfw"));
 
+    // stb_image
+    exe.addCSourceFile(.{
+        .file = std.Build.LazyPath.relative("thirdparty/stb_image.c"),
+        .flags = &[_][]const u8{"-std=c99"},
+    });
+    exe.addIncludePath(std.Build.LazyPath.relative("thirdparty"));
+
+    exe.linkLibC();
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default

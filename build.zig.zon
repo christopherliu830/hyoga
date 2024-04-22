@@ -23,6 +23,10 @@
             .url = "https://pkg.machengine.org/mach-glfw/1a9a03399058fd83f7fbb597f3f8304007ff6a3c.tar.gz",
             .hash = "1220b4d58ec6cf53abfd8d7547d39afb9bffa41822d4d58f52625230466e51cc93bb",
         },
+        .zigimg = .{
+            .url = "https://github.com/zigimg/zigimg/archive/bfc201cec69222dea816bcc2821f74a4acedf59b.tar.gz",
+            .hash = "122012026c3a65ff1d4acba3b3fe80785f7cee9c6b4cdaff7ed0fbf23b0a6c803989",
+        },
     },
     .paths = .{
         // This makes *all* files, recursively, included in this package. It is generally
