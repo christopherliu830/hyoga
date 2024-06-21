@@ -4,6 +4,7 @@ const c = @import("./c.zig");
 
 pub usingnamespace gl;
 
+
 const OpenGlError = error {
     ShaderCompileError,
     ShaderLinkError,
@@ -111,10 +112,12 @@ pub const VertexAttributes = struct {
 
 };
 
-const Texture = struct {
+pub const Texture = struct {
     id: u32,
 
     pub fn create(path: []const u8) !Texture {
+        c.stbi_set_flip_vertically_on_load(1);
+
         var handle: u32 = undefined;
         gl.GenTextures(1, @ptrCast(&handle));
         gl.BindTexture(gl.TEXTURE_2D, handle);
@@ -127,13 +130,25 @@ const Texture = struct {
         var w: c_int = 0;
         var h: c_int = 0;
         var n_channels: c_int = 0;
-        const data: *u8 = c.stbi_load(path, &w, &h, &n_channels, 0);
+        const data: *u8 = c.stbi_load(path.ptr, &w, &h, &n_channels, 0);
         defer c.stbi_image_free(data);
 
-        gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, w, h, 0, gl.RGB, gl.UNSIGNED_BYTE, data);
+        const ext = std.fs.path.extension(path);
+
+        var format: u32 = gl.RGB;
+        if (std.mem.eql(u8, ext, ".png")) {
+            format = gl.RGBA;
+        }
+        gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, w, h, 0, format, gl.UNSIGNED_BYTE, data);
+
         gl.GenerateMipmap(gl.TEXTURE_2D);
 
         return .{ .id = handle };
+    }
+
+    pub fn bind(self: Texture, slot: u32) void {
+        gl.ActiveTexture(gl.TEXTURE0 + slot);
+        gl.BindTexture(gl.TEXTURE_2D, self.id);
     }
 
 };

@@ -73,6 +73,7 @@ pub const Program = struct {
             .Float => gl.Uniform1f(gl.GetUniformLocation(self.id, name), value),
             .Bool => gl.Uniform1i(gl.GetUniformLocation(self.id, name), @intFromBool(value)),
             .Int => gl.Uniform1i(gl.GetUniformLocation(self.id, name), value),
+            .ComptimeInt => gl.Uniform1i(gl.GetUniformLocation(self.id, name), @as(i32, value)),
             .Vector => |vec| {
                 switch (vec.len) {
                     4 => gl.Uniform4f(gl.GetUniformLocation(self.id, name), value[0], value[1], value[2], value[3]),

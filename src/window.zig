@@ -4,6 +4,8 @@ const cfg = @import("./config.zig");
 
 var gl_procs: gl.ProcTable = undefined;
 
+pub const Key = enum { usingnamespace glfw.Key; };
+
 /// Sets gl variables and creates a glfw window.
 /// Returns the glfw window object.
 /// NOTE: Caller responsible for calling shutdownWindow() to
