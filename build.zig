@@ -17,7 +17,7 @@ pub fn build(b: *std.Build) void {
 
     const exe = b.addExecutable(.{
         .name = "hyoga-zig",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -41,10 +41,10 @@ pub fn build(b: *std.Build) void {
 
     // stb_image
     exe.addCSourceFile(.{
-        .file = std.Build.LazyPath.relative("thirdparty/stb_image.c"),
+        .file = b.path("thirdparty/stb_image.c"),
         .flags = &[_][]const u8{"-std=c99"},
     });
-    exe.addIncludePath(std.Build.LazyPath.relative("thirdparty"));
+    exe.addIncludePath(b.path("thirdparty"));
 
     exe.linkLibC();
 
@@ -77,7 +77,7 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 
     const exe_unit_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });

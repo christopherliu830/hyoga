@@ -2,18 +2,18 @@ const std = @import("std");
 const glfw = @import("mach-glfw");
 const gl = @import("./gl.zig");
 const ww = @import("./window.zig");
+const inp = @import("./input.zig");
 
 const vertices = [_]f32{
-    // positions          // colors           // texture coords
-    0.5,  0.5, 0.0,   1.0, 0.0, 0.0,   1.0, 1.0,   // top right
-    0.5, -0.5, 0.0,   0.0, 1.0, 0.0,   1.0, 0.0,   // bottom right
-    -0.5, -0.5, 0.0,   0.0, 0.0, 1.0,   0.0, 0.0,   // bottom left
-    -0.5,  0.5, 0.0,   1.0, 1.0, 0.0,   0.0, 1.0
+    0.5, 0.5, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, // top right
+    0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, // bottom right
+    -0.5, -0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, // bottom left
+    -0.5, 0.5, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, // top left
 };
 
 const indices = [_]u32{ 0, 1, 3, 1, 2, 3 };
 
-const tex_coords = [_]f32 {
+const tex_coords = [_]f32{
     0.0, 0.0,
     1.0, 0.0,
     0.5, 1.0,
@@ -21,25 +21,33 @@ const tex_coords = [_]f32 {
 
 // void main() {
 pub fn main() !void {
+    var general_allocator = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = general_allocator.allocator();
+
     const window = try ww.startupWindow();
     defer ww.shutdownWindow(window);
 
     const vs = try gl.Module.create(.{
-        .data = @embedFile("shaders/triangle.vs"),
+        .path = "shaders/triangle.vs",
         .shader_type = .VERTEX,
     });
     defer vs.destroy();
 
     const fs = try gl.Module.create(.{
-        .data = @embedFile("shaders/triangle.fs"),
+        .path = "shaders/triangle.fs",
         .shader_type = .FRAGMENT,
     });
     defer fs.destroy();
 
-    const tex = try gl.Texture.create(@embedFile("assets/IMG_9546.jpg"));
-    defer tex.destroy();
-
     const program = try gl.Program.create(vs, fs);
+
+    const tex = try gl.Texture.create("textures/wall.jpg");
+    defer tex.destroy();
+    const tex2 = try gl.Texture.create("textures/awesomeface.png");
+    defer tex2.destroy();
+
+    program.set("texture1", 0);
+    program.set("texture2", 1);
 
     const vao = gl.VertexArray.create();
     defer vao.destroy();
@@ -63,12 +71,15 @@ pub fn main() !void {
         // COLOR
         .size = 3,
         .type = .FLOAT,
-        .normalized = false
+        .normalized = false,
     }).add(.{
         .size = 2,
         .type = .FLOAT,
         .normalized = false,
     }).use();
+
+    var input = try inp.InputSystem.create(allocator);
+    _ = try input.register(.up, .{ .handler = mixUp });
 
     while (!window.shouldClose()) {
         glfw.pollEvents();
@@ -83,9 +94,15 @@ pub fn main() !void {
         program.set("color", @Vector(4, f32){ 0, time, 0, 0 });
 
         program.use();
+        tex.bind(0);
+        tex2.bind(1);
         vao.bind();
         gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, 0);
 
         window.swapBuffers();
     }
 }
+
+pub fn mixUp() void {}
+
+pub fn mixDown() void {}
