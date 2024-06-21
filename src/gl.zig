@@ -1,9 +1,10 @@
 const std = @import("std");
 const gl = @import("gl");
+const c = @import("./c.zig");
 
 pub usingnamespace gl;
 
-const OpenGlError = error{
+const OpenGlError = error {
     ShaderCompileError,
     ShaderLinkError,
 };
@@ -107,4 +108,32 @@ pub const VertexAttributes = struct {
             offset += attr.size * attr.type.size();
         }
     }
+
+};
+
+const Texture = struct {
+    id: u32,
+
+    pub fn create(path: []const u8) !Texture {
+        var handle: u32 = undefined;
+        gl.GenTextures(1, @ptrCast(&handle));
+        gl.BindTexture(gl.TEXTURE_2D, handle);
+
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+        var w: c_int = 0;
+        var h: c_int = 0;
+        var n_channels: c_int = 0;
+        const data: *u8 = c.stbi_load(path, &w, &h, &n_channels, 0);
+        defer c.stbi_image_free(data);
+
+        gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, w, h, 0, gl.RGB, gl.UNSIGNED_BYTE, data);
+        gl.GenerateMipmap(gl.TEXTURE_2D);
+
+        return .{ .id = handle };
+    }
+
 };

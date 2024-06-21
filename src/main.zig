@@ -5,10 +5,10 @@ const shaders = @import("./shader.zig");
 const ww = @import("./window.zig");
 
 const vertices = [_]f32{
-    // positions         // colors
-    0.5, -0.5, 0.0,  1.0, 0.0, 0.0,   // bottom right
-    -0.5, -0.5, 0.0,  0.0, 1.0, 0.0,   // bottom let
-    0.0,  0.5, 0.0,  0.0, 0.0, 1.0    // top
+     0.5,  0.5,  0.0,   1.0, 0.0, 0.0,  1.0, 1.0, // top right
+     0.5, -0.5,  0.0,   0.0, 1.0, 0.0,  1.0, 1.0, // bottom right
+    -0.5, -0.5,  0.0,   0.0, 0.0, 1.0,  0.0, 0.0, // bottom left
+    -0.5,  0.5,  0.0,   1.0, 1.0, 0.0,  0.0, 1.0, // top left
 };
 
 const indices = [_]u32{ 0, 1, 3, 1, 2, 3 };
@@ -55,6 +55,10 @@ pub fn main() !void {
         .size = 3,
         .type = .FLOAT,
         .normalized = false
+    }).add(.{
+        .size = 2,
+        .type = .FLOAT,
+        .normalized = false
     }).use();
 
     while (!window.shouldClose()) {
@@ -72,6 +76,12 @@ pub fn main() !void {
         program.use();
         vao.bind();
         gl.DrawArrays(gl.TRIANGLES, 0, 3);
+
+        const buffer = @embedFile("wall.jpg");
+        var x: c_int = 0;
+        var y: c_int = 0;
+        var n_channels: c_int = 0;
+        _ = c.stbi_load_from_memory(buffer, buffer.len, &x, &y, &n_channels, 0);
 
         window.swapBuffers();
     }

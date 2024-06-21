@@ -17,7 +17,7 @@ pub fn build(b: *std.Build) void {
 
     const exe = b.addExecutable(.{
         .name = "hyoga-zig",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -38,6 +38,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.root_module.addImport("mach-glfw", glfw_dep.module("mach-glfw"));
+
+    exe.addIncludePath(b.path("thirdparty/stb_image"));
+    // -g adds debug info
+    exe.addCSourceFiles(.{ .files = &[_][]const u8{ "thirdparty/stb_image/stb_image.c" }, 
+                           .flags = &[_][]const u8{"-g"}});
 
 
     // This declares intent for the executable to be installed into the
@@ -69,7 +74,7 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 
     const exe_unit_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
