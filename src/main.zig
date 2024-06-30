@@ -1,8 +1,11 @@
 const std = @import("std");
 const glfw = @import("mach-glfw");
-const gl = @import("./gl.zig");
-const ww = @import("./window.zig");
-const inp = @import("./input.zig");
+const gl = @import("gl.zig");
+const ww = @import("window.zig");
+const input = @import("input.zig");
+const zlm = @import ("zlm/zlm.zig");
+
+const Vec3 = zlm.Vec3;
 
 const vertices = [_]f32{
     0.5, 0.5, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, // top right
@@ -17,6 +20,11 @@ const tex_coords = [_]f32{
     0.0, 0.0,
     1.0, 0.0,
     0.5, 1.0,
+};
+
+const Context = struct {
+    program: gl.Program,
+    mix_amount: f32 = 0,
 };
 
 // void main() {
@@ -39,15 +47,16 @@ pub fn main() !void {
     });
     defer fs.destroy();
 
-    const program = try gl.Program.create(vs, fs);
+    // Create program and assign texture units (used later in texture.bind)
+    var program = try gl.Program.create(vs, fs);
+    program.set("texture1", 0);
+    program.set("texture2", 1);
 
     const tex = try gl.Texture.create("textures/wall.jpg");
     defer tex.destroy();
     const tex2 = try gl.Texture.create("textures/awesomeface.png");
     defer tex2.destroy();
 
-    program.set("texture1", 0);
-    program.set("texture2", 1);
 
     const vao = gl.VertexArray.create();
     defer vao.destroy();
@@ -78,9 +87,23 @@ pub fn main() !void {
         .normalized = false,
     }).use();
 
-    var input = try inp.InputSystem.create(allocator);
-    _ = try input.register(.up, .{ .handler = mixUp });
+    var context = Context { .program = program, .mix_amount = 0 };
 
+    try input.init(allocator, window);
+    try input.bind(.up, .{
+        .name = "mix-up",
+        .handler = mixUp,
+        .fire_on = .{ .down = true },
+        .ctx = &context,
+    });
+    try input.bind(.down, .{
+        .name = "mix-down",
+        .handler = mixDown,
+        .fire_on = .{ .down = true },
+        .ctx = &context,
+    });
+
+    std.log.debug("{}", .{program.id});
     while (!window.shouldClose()) {
         glfw.pollEvents();
 
@@ -96,6 +119,7 @@ pub fn main() !void {
         program.use();
         tex.bind(0);
         tex2.bind(1);
+        _ = zlm.Mat4.createLookAt(Vec3.new(0, 10, 0), Vec3.zero, Vec3.unitY);
         vao.bind();
         gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, 0);
 
@@ -103,6 +127,14 @@ pub fn main() !void {
     }
 }
 
-pub fn mixUp() void {}
+pub fn mixUp(context: *anyopaque) void {
+    const ctx: *Context = @ptrCast(@alignCast(context));
+    ctx.*.mix_amount += 0.1;
+    ctx.*.program.set("mix_amount", ctx.*.mix_amount);
+}
 
-pub fn mixDown() void {}
+pub fn mixDown(context: *anyopaque) void {
+    const ctx: *Context = @ptrCast(@alignCast(context));
+    ctx.*.mix_amount -= 0.1;
+    ctx.*.program.set("mix_amount", ctx.*.mix_amount);
+}

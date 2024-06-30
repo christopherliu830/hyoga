@@ -61,6 +61,21 @@ pub fn GenArray(comptime T: type) type {
             };
         }
 
+        pub fn at(self: Self, idx: u32) !*T {
+            if (idx >= self.len) return error.OutOfRange;
+            return switch (self.entries.items[idx]) {
+                .empty => error.Invalidated,
+                .occupied => |val| val.value
+            };
+        }
+
+        pub fn handle_at(self: Self, idx: u32) !Handle {
+            return switch (self.entries.items[idx]) {
+                .empty => error.Invalidated,
+                .occupied => |val| .{ .index = idx, .generation = val.generation }
+            };
+        }
+
         pub fn insert(self: *Self, value: T) !Handle {
             if (self.free_list != null) {
                 const idx = self.free_list.?;

@@ -121,7 +121,6 @@ pub const VertexAttributes = struct {
 
         for (self.attrs[0..self.n_attrs], 0..self.n_attrs) |attr, i| {
             const normalized: u8 = if (attr.normalized) gl.TRUE else gl.FALSE;
-            std.debug.print("{}, {}, {}, {}, {}, {}\n", .{ i, attr.size, attr.type, normalized, stride, offset });
             gl.VertexAttribPointer(@intCast(i), @intCast(attr.size), @intFromEnum(attr.type), normalized, @intCast(stride), offset);
             gl.EnableVertexAttribArray(@intCast(i));
             offset += attr.size * attr.type.size();
@@ -194,6 +193,7 @@ pub const Program = struct {
         self.use();
         switch (@typeInfo(@TypeOf(value))) {
             .Float => gl.Uniform1f(gl.GetUniformLocation(self.id, name), value),
+            .ComptimeFloat => gl.Uniform1f(gl.GetUniformLocation(self.id, name), @as(f32, value)),
             .Bool => gl.Uniform1i(gl.GetUniformLocation(self.id, name), @intFromBool(value)),
             .Int => gl.Uniform1i(gl.GetUniformLocation(self.id, name), value),
             .ComptimeInt => gl.Uniform1i(gl.GetUniformLocation(self.id, name), @as(i32, value)),
