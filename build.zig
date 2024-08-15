@@ -32,12 +32,8 @@ pub fn build(b: *std.Build) void {
 
     exe.root_module.addImport("gl", gl_bindings);
 
-    // Use mach-glfw
-    const glfw_dep = b.dependency("mach_glfw", .{
-        .target = target,
-        .optimize = optimize,
-    });
-    exe.root_module.addImport("mach-glfw", glfw_dep.module("mach-glfw"));
+    exe.linkLibC();
+    exe.linkSystemLibrary("SDL3");
 
     // stb_image
     exe.addCSourceFile(.{

@@ -1,9 +1,9 @@
 const std = @import("std");
-const glfw = @import("mach-glfw");
 const gl = @import("gl.zig");
 const ww = @import("window.zig");
 const input = @import("input.zig");
 const zlm = @import ("zlm/zlm.zig");
+const c = @import("c.zig");
 
 const Vec3 = zlm.Vec3;
 
@@ -15,6 +15,7 @@ const vertices = [_]f32{
 };
 
 const indices = [_]u32{ 0, 1, 3, 1, 2, 3 };
+var i: f32 = 0;
 
 const tex_coords = [_]f32{
     0.0, 0.0,
@@ -32,8 +33,11 @@ pub fn main() !void {
     var general_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = general_allocator.allocator();
 
+
     const window = try ww.startupWindow();
     defer ww.shutdownWindow(window);
+
+    try gl.init(window);
 
     const vs = try gl.Module.create(.{
         .path = "shaders/triangle.vs",
@@ -103,17 +107,22 @@ pub fn main() !void {
         .ctx = &context,
     });
 
-    std.log.debug("{}", .{program.id});
-    while (!window.shouldClose()) {
-        glfw.pollEvents();
-
-        if (window.getKey(.escape) == .press) {
-            window.setShouldClose(true);
+    var quit = false;
+    while (!quit) {
+        var event: c.SDL_Event = undefined;
+        while (c.SDL_PollEvent(&event) != 0) {
+            switch (event.type) {
+                c.SDL_EVENT_QUIT => {
+                    quit = true;
+                },
+                else => {},
+            }
         }
 
         gl.Clear(gl.COLOR_BUFFER_BIT);
 
-        const time: f32 = @floatCast(std.math.sin(glfw.getTime()));
+        const time: f32 = @floatCast(std.math.sin(i));
+        i += 1;
         program.set("color", @Vector(4, f32){ 0, time, 0, 0 });
 
         program.use();
@@ -123,7 +132,8 @@ pub fn main() !void {
         vao.bind();
         gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, 0);
 
-        window.swapBuffers();
+        ww.swapBuffers(window);
+        c.SDL_Delay(17);
     }
 }
 

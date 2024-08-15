@@ -1,10 +1,25 @@
 const std = @import("std");
 const gl = @import("gl");
 const c = @import("./c.zig");
+const ww = @import("window.zig");
 
 pub usingnamespace gl;
+var proc_table: gl.ProcTable = undefined;
 
-const OpenGlError = error{
+pub fn init(window: ww.Window) !void {
+    _ = c.SDL_GL_SetAttribute( c.SDL_GL_CONTEXT_MAJOR_VERSION, gl.info.version_major );
+    _ = c.SDL_GL_SetAttribute( c.SDL_GL_CONTEXT_MINOR_VERSION, gl.info.version_minor );
+    _ = c.SDL_GL_SetAttribute( c.SDL_GL_CONTEXT_PROFILE_MASK, c.SDL_GL_CONTEXT_PROFILE_CORE );
+    const context = c.SDL_GL_CreateContext(window);
+    _ = c.SDL_GL_MakeCurrent(window, context);
+    if (!proc_table.init(c.SDL_GL_GetProcAddress)) {
+        return error.InitFailed;
+    }
+    gl.makeProcTableCurrent(&proc_table);
+
+}
+
+const OpenGlError = error {
     ShaderCompileError,
     ShaderLinkError,
 };
@@ -149,6 +164,7 @@ pub const Module = struct {
 
         var s: u32 = undefined;
         const s_type: c_uint = @intFromEnum(builder.shader_type);
+        std.debug.print("abc {}", .{s_type});
         s = gl.CreateShader(s_type);
         gl.ShaderSource(s, 1, @ptrCast(&data), null);
         gl.CompileShader(s);
