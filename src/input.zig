@@ -1,12 +1,10 @@
 const std = @import("std");
 const genarray = @import("genarray.zig");
-const ww = @import("window.zig");
+const window = @import("window.zig");
 
 const Handler = fn (ctx: *anyopaque) void;
 
-pub const Key = enum { up, down };
-
-pub const InputAction = packed struct(u8) {
+pub const InputFlags = packed struct(u8) {
     up: bool = false,
     down: bool = false,
     held: bool = false,
@@ -14,11 +12,11 @@ pub const InputAction = packed struct(u8) {
     _padding: u5 = 0,
 };
 
-pub const Keybinds = std.AutoHashMap(Key, InputHandler);
+pub const Keybinds = std.AutoHashMap(window.Key, InputHandler);
 
 pub const InputHandler = struct {
     name: []const u8,
-    fire_on: InputAction,
+    fire_on: InputFlags,
     handler: *const Handler,
     ctx: *anyopaque,
 };
@@ -26,33 +24,30 @@ pub const InputHandler = struct {
 var keybinds: Keybinds = undefined;
 var input_inited = false;
 
-pub fn init(allocator: std.mem.Allocator, _: ww.Window) !void {
+pub fn init(allocator: std.mem.Allocator, _: window.Handle) !void {
     if (!input_inited) {
-        //window.setKeyCallback(handleInput);
         keybinds = Keybinds.init(allocator);
         input_inited = true;
     }
 }
 
-pub fn bind(key: Key, handler: InputHandler) !void {
+pub fn bind(key: window.Key, handler: InputHandler) !void {
     try keybinds.put(key, handler);
 }
 
-pub fn handleInput(window: ww.Window, _: Key, scancode: i32, _: anyopaque, mods: anyopaque) void {
-    _ = window;
-    _ = scancode;
+pub fn post(key: window.Key, mods: window.Mods, action: window.Action) void {
     _ = mods;
-    return;
+    const flags: InputFlags = switch(action) {
+        .keydown => .{ .down = true },
+        .hold => .{ .held = true },
+        .keyup => .{ .up = true },
+    };
 
-    // const action: InputAction = switch(glfw_action) {
-    //     .press => .{ .down = true },
-    //     .repeat => .{ .held = true },
-    //     .release => .{ .up = true },
-    // };
-
-    // if (keybinds.get(key)) |binded| {
-    //     const left: u8 = @bitCast(action);
-    //     const right: u8 = @bitCast(binded.fire_on);
-    //     if (left & right != 0) binded.handler(binded.ctx);
-    // }
+    if (keybinds.get(key)) |binded| {
+        // By bitcasting the struct, we can compare each
+        // field as if it was a bitmask.
+        const left: u8 = @bitCast(flags);
+        const right: u8 = @bitCast(binded.fire_on);
+        if (left & right != 0) binded.handler(binded.ctx);
+    }
 }
