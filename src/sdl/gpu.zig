@@ -1,15 +1,5 @@
 const c = @import("c.zig");
-
-pub const PropertiesID = u32;
-
-pub const FColor = extern struct { r: f32, g: f32, b: f32, a: f32 };
-
-pub const Rect = extern struct {
-    x: i32,
-    y: i32,
-    w: i32,
-    h: i32,
-};
+const sdl = @import("sdl.zig");
 
 pub const Device = c.SDL_GPUDevice;
 
@@ -129,7 +119,7 @@ pub const IndexElementSize = enum(c_int) {
 /// Unless D16_UNORM is sufficient for your purposes, always check which
 /// of D24/D32 is supported before creating a depth-stencil texture!
 pub const TextureFormat = enum(c_int) {
-    invalid = -1,
+    invalid,
 
     // Unsigned Normalized Float Color Formats
     a8_unorm,
@@ -209,7 +199,7 @@ pub const TextureUsageFlags = packed struct (c_int) {
     compute_storage_read: bool = false,
     compute_storage_write: bool = false,
 
-    _padding: u28 = 0,
+    _padding: u26 = 0,
 };
 
 pub const TextureType = enum(c_int) { 
@@ -267,6 +257,8 @@ pub const ShaderFormat = packed struct(u32) {
 };
 
 pub const VertexElementFormat = enum(c_int) {
+    invalid,
+
     // 32-bit Signed Integers */
     int,
     int2,
@@ -394,10 +386,11 @@ pub const BlendFactor = enum(c_int) {
 };
 
 pub const ColorComponentFlags = packed struct(u32) {
-    r: bool,
-    g: bool,
-    b: bool,
-    a: bool,
+    r: bool = false,
+    g: bool = false,
+    b: bool = false,
+    a: bool = false,
+    _padding: u28 = 0,
 };
 
 pub const Filter = enum(c_int) {
@@ -559,7 +552,7 @@ pub const SamplerCreateInfo = extern struct {
     padding1: u8,
     padding2: u8,
 
-    props: PropertiesID,
+    props: sdl.PropertiesID,
 };
 
 /// A structure specifying the parameters of vertex buffers used in a graphics
@@ -601,30 +594,30 @@ pub const VertexInputState = extern struct {
 };
 
 pub const StencilOpState = extern struct {
-    fail_op: StencilOp,
-    pass_op: StencilOp,
-    depth_fail_op: StencilOp,
-    compare_op: CompareOp,
+    fail_op: StencilOp = .invalid,
+    pass_op: StencilOp = .invalid,
+    depth_fail_op: StencilOp = .invalid,
+    compare_op: CompareOp = .invalid,
 };
 
 pub const ColorTargetBlendState = extern struct {
-    src_color_blend_factor: BlendFactor,
-    dst_color_blend_factor: BlendFactor,
-    color_blend_op: BlendOp,
-    src_alpha_blend_factor: BlendFactor,
-    dst_alpha_blend_factor: BlendFactor,
-    alpha_blend_op: BlendOp,
-    color_write_mask: ColorComponentFlags,
-    enable_blend: bool,
-    enable_color_write_mask: bool,
-    padding2: u8,
-    padding3: u8,
+    src_color_blend_factor: BlendFactor = .invalid,
+    dst_color_blend_factor: BlendFactor = .invalid,
+    color_blend_op: BlendOp = .invalid,
+    src_alpha_blend_factor: BlendFactor = .invalid,
+    dst_alpha_blend_factor: BlendFactor = .invalid,
+    alpha_blend_op: BlendOp = .invalid,
+    color_write_mask: ColorComponentFlags = .{},
+    enable_blend: bool = false,
+    enable_color_write_mask: bool = false,
+    padding2: u8 = 0,
+    padding3: u8 = 0,
 };
 
 pub const ShaderCreateInfo = extern struct {
-    codeSize: usize,
+    code_size: usize,
     code: [*]const u8,
-    entryPointName: [*:0]const u8,
+    entrypoint: [*:0]const u8,
     format: ShaderFormat,
     stage: ShaderStage,
     num_samplers: u32,
@@ -632,7 +625,7 @@ pub const ShaderCreateInfo = extern struct {
     num_storage_buffers: u32,
     num_uniform_buffers: u32,
 
-    props: PropertiesID,
+    props: sdl.PropertiesID,
 };
 
 pub const TextureCreateInfo = extern struct {
@@ -645,70 +638,70 @@ pub const TextureCreateInfo = extern struct {
     num_levels: u32,
     sample_count: SampleCount,
 
-    props: PropertiesID,
+    props: sdl.PropertiesID,
 };
 
 pub const BufferCreateInfo = extern struct {
     usage: BufferUsageFlags,
     size: u32,
-    props: PropertiesID,
+    props: sdl.PropertiesID,
 };
 
 pub const TransferBufferCreateInfo = extern struct {
     usage: TransferBufferUsage,
     size: u32,
-    props: PropertiesID,
+    props: sdl.PropertiesID,
 };
 
 pub const RasterizerState = extern struct {
-    fill_mode: FillMode,
-    cull_mode: CullMode,
-    front_face: FrontFace,
-    depth_bias_clamp: f32,
-    depth_bias_constant_factor: f32,
-    depth_bias_slope_factor: f32,
-    enable_depth_bias: bool,
-    padding1: u8,
-    padding2: u8,
-    padding3: u8,
+    fill_mode: FillMode = .fill,
+    cull_mode: CullMode = .none,
+    front_face: FrontFace = .counter_clockwise,
+    depth_bias_clamp: f32 = 0,
+    depth_bias_constant_factor: f32 = 0,
+    depth_bias_slope_factor: f32 = 0,
+    enable_depth_bias: bool = false,
+    padding1: u8 = 0,
+    padding2: u8 = 0,
+    padding3: u8 = 0,
 };
 
 pub const MultisampleState = extern struct {
-    sample_count: SampleCount,
-    sample_mask: u32,
-    enable_mask: bool,
-    padding1: u8,
-    padding2: u8,
-    padding3: u8,
+    sample_count: SampleCount = .@"1",
+    sample_mask: u32 = 0,
+    enable_mask: bool = false,
+    padding1: u8 = 0,
+    padding2: u8 = 0,
+    padding3: u8 = 0,
 };
 
 pub const DepthStencilState = extern struct {
-    compare_op: CompareOp,
-    back_stencil_state: StencilOpState,
-    front_stencil_state: StencilOpState,
-    compare_mask: u8,
-    write_mask: u8,
-    enable_depth_test: bool,
-    enable_depth_write: bool,
-    enable_stencil_test: bool,
-    padding1: u8,
-    padding2: u8,
-    padding3: u8,
+    compare_op: CompareOp = .invalid,
+    back_stencil_state: StencilOpState = .{},
+    front_stencil_state: StencilOpState = .{},
+    compare_mask: u8 = 0,
+    write_mask: u8 = 0,
+    enable_depth_test: bool = false,
+    enable_depth_write: bool = false,
+    enable_stencil_test: bool = false,
+    padding1: u8 = 0,
+    padding2: u8 = 0,
+    padding3: u8 = 0,
 };
 
 pub const ColorTargetDescription = extern struct {
     format: TextureFormat,
-    blend_state: ColorTargetBlendState,
+    blend_state: ColorTargetBlendState = .{},
 };
 
-pub const GraphicsPipelineAttachmentInfo = extern struct {
-    color_target_descriptions: [*]ColorTargetDescription,
+pub const GraphicsPipelineTargetInfo = extern struct {
+    color_target_descriptions: [*]const ColorTargetDescription,
     num_color_targets: u32,
     depth_stencil_format: TextureFormat,
-    has_depth_stencil_attachment: bool,
-    padding1: u8,
-    padding2: u8,
-    padding3: u8,
+    has_depth_stencil_target: bool,
+    padding1: u8 = 0,
+    padding2: u8 = 0,
+    padding3: u8 = 0,
 };
 
 pub const GraphicsPipelineCreateInfo = extern struct {
@@ -716,12 +709,12 @@ pub const GraphicsPipelineCreateInfo = extern struct {
     fragment_shader: *Shader,
     vertex_input_state: VertexInputState,
     primitive_type: PrimitiveType,
-    rasterizer_state: RasterizerState,
+    rasterizer_state: RasterizerState = .{},
     multisample_state: MultisampleState,
-    depth_stencil_state: DepthStencilState,
-    target_info: GraphicsPipelineAttachmentInfo,
+    depth_stencil_state: DepthStencilState = .{},
+    target_info: GraphicsPipelineTargetInfo,
 
-    props: PropertiesID,
+    props: sdl.PropertiesID = 0,
 };
 
 pub const ComputePipelineCreateInfo = extern struct {
@@ -738,47 +731,47 @@ pub const ComputePipelineCreateInfo = extern struct {
     threadcount_y: u32,
     threadcount_z: u32,
 
-    props: PropertiesID,
+    props: sdl.PropertiesID = 0,
 };
 
 pub const ColorTargetInfo= extern struct {
     // The texture that will be used as a color attachment by a render pass.
     texture: *Texture,
-    mip_level: u32,
-    layer_or_depth_plane: u32, // for 3d textures, you can bind an individual depth plane as an attachment. */
-    clear_color: FColor, // Can be ignored by RenderPass if CLEAR is not used
+    mip_level: u32 = 0,
+    layer_or_depth_plane: u32 = 0, // for 3d textures, you can bind an individual depth plane as an attachment. */
+    clear_color: sdl.FColor = .{}, // Can be ignored by RenderPass if CLEAR is not used
     load_op: LoadOp,
     store_op: StoreOp,
     cycle: bool, // if SDL_TRUE, cycles the texture if the texture is bound and loadOp is not LOAD */
-    padding1: u8,
-    padding2: u8,
-    padding3: u8,
+    padding1: u8 = 0,
+    padding2: u8 = 0,
+    padding3: u8 = 0,
 };
 
 pub const DepthStencilTargetInfo = extern struct {
     texture: *Texture,
-    clear_depth: f32,
-    load_op: LoadOp,
-    store_op: StoreOp,
-    stencil_load_op: LoadOp,
-    stencil_store_op: StoreOp,
+    clear_depth: f32 = 0,
+    load_op: LoadOp = .load,
+    store_op: StoreOp = .store,
+    stencil_load_op: LoadOp = .load,
+    stencil_store_op: StoreOp = .store,
     cycle: bool, // if SDL_TRUE, cycles the texture if the texture is bound and any load ops are not LOAD */
-    clear_stencil: u8,
-    padding1: u8,
-    padding2: u8
+    clear_stencil: u8 = 0,
+    padding1: u8 = 0,
+    padding2: u8 = 0
 };
 
 pub const BlitInfo = extern struct {
     source: BlitRegion,
     destination: BlitRegion,
     load_op: LoadOp,
-    clear_color: FColor,
+    clear_color: sdl.FColor,
     flip_mode: c.SDL_FlipMode,
     filter: Filter,
     cycle: bool,
-    padding1: u8,
-    padding2: u8,
-    padding3: u8,
+    padding1: u8 = 0,
+    padding2: u8 = 0,
+    padding3: u8 = 0,
 };
 
 // Binding Structs
@@ -796,9 +789,9 @@ pub const TextureSamplerBinding = extern struct {
 pub const StorageBufferWriteOnlyBinding = extern struct {
     buffer: ?*Buffer,
     cycle: bool,
-    padding1: u8,
-    padding2: u8,
-    padding3: u8,
+    padding1: u8 = 0,
+    padding2: u8 = 0,
+    padding3: u8 = 0,
 };
 
 pub const StorageTextureWriteOnlyBinding = extern struct {
@@ -806,9 +799,9 @@ pub const StorageTextureWriteOnlyBinding = extern struct {
     mip_level: u32,
     layer: u32,
     cycle: bool,
-    padding1: u8,
-    padding2: u8,
-    padding3: u8,
+    padding1: u8 = 0,
+    padding2: u8 = 0,
+    padding3: u8 = 0,
 };
 
 /// Checks for GPU runtime support.
@@ -836,7 +829,7 @@ pub const supportsShaderFormats = SDL_GPUSupportsShaderFormats;
 /// 
 /// \sa SDL_CreateGPUDeviceWithProperties
 /// 
-extern fn SDL_GPUSupportsProperties(props: PropertiesID) bool;
+extern fn SDL_GPUSupportsProperties(props: sdl.PropertiesID) bool;
 pub const supportsProperties = SDL_GPUSupportsProperties;
 
 /// Creates a GPU context.
@@ -898,7 +891,7 @@ pub const createDevice = SDL_CreateGPUDevice;
 /// \sa SDL_GetGPUDeviceDriver
 /// \sa SDL_DestroyGPUDevice
 /// \sa SDL_GPUSupportsProperties
-extern fn SDL_CreateGPUDeviceWithProperties(props: PropertiesID) ?*Device;
+extern fn SDL_CreateGPUDeviceWithProperties(props: sdl.PropertiesID) ?*Device;
 pub const createDeviceWithProperties = SDL_CreateGPUDeviceWithProperties;
 
 /// Destroys a GPU context previously returned by SDL_CreateGPUDevice.
@@ -1001,10 +994,10 @@ pub const bindGraphicsPipeline = SDL_BindGPUGraphicsPipeline;
 extern fn SDL_SetGPUViewport(render_pass: *RenderPass, viewport: *const Viewport) void;
 pub const setViewport = SDL_SetGPUViewport;
 
-extern fn SDL_SetGPUScissor(render_pass: *RenderPass, scissor: *const Rect) void;
+extern fn SDL_SetGPUScissor(render_pass: *RenderPass, scissor: *const sdl.Rect) void;
 pub const setScissor = SDL_SetGPUScissor;
 
-extern fn SDL_SetGPUBlendConstants(render_pass: *RenderPass, blend_constants: FColor) void;
+extern fn SDL_SetGPUBlendConstants(render_pass: *RenderPass, blend_constants: sdl.FColor) void;
 pub const setBlendConstants = c.SDL_SetGPUBlendConstants;
 
 extern fn SDL_SetGPUStencilReference(render_pass: *RenderPass, reference: u8) void;
@@ -1109,22 +1102,22 @@ pub const generateMipmapsForTexture = SDL_GenerateMipmapsForGPUTexture;
 extern fn SDL_BlitGPUTexture(command_buffer: *CommandBuffer, info: *const BlitInfo) void;
 pub const blitTexture = SDL_BlitGPUTexture;
 
-extern fn SDL_WindowSupportsGPUSwapchainComposition(device: *Device, window: *c.SDL_Window, swapchain_composition: SwapchainComposition) bool;
+extern fn SDL_WindowSupportsGPUSwapchainComposition(device: *Device, window: *sdl.Window, swapchain_composition: SwapchainComposition) bool;
 pub const windowSupportsSwapchainComposition = SDL_WindowSupportsGPUSwapchainComposition;
 
-extern fn SDL_WindowSupportsGPUPresentMode(device: *Device, window: *c.SDL_Window, present_mode: PresentMode) bool;
+extern fn SDL_WindowSupportsGPUPresentMode(device: *Device, window: *sdl.Window, present_mode: PresentMode) bool;
 pub const windowSupportsPresentMode = SDL_WindowSupportsGPUPresentMode;
 
-extern fn SDL_ClaimWindowForGPUDevice(device: *Device, window: *c.SDL_Window) bool;
+extern fn SDL_ClaimWindowForGPUDevice(device: *Device, window: *sdl.Window) bool;
 pub const claimWindowForDevice = SDL_ClaimWindowForGPUDevice;
 
-extern fn SDL_ReleaseWindowFromGPUDevice(device: *Device, window: *c.SDL_Window) void;
+extern fn SDL_ReleaseWindowFromGPUDevice(device: *Device, window: *sdl.Window) void;
 pub const releaseWindowFromDevice = SDL_ReleaseWindowFromGPUDevice;
 
-extern fn SDL_SetGPUSwapchainParameters(device: *Device, window: *c.SDL_Window, swapchain_composition: SwapchainComposition, present_mode: PresentMode) bool;
+extern fn SDL_SetGPUSwapchainParameters(device: *Device, window: *sdl.Window, swapchain_composition: SwapchainComposition, present_mode: PresentMode) bool;
 pub const setSwapchainParameters = SDL_SetGPUSwapchainParameters;
 
-extern fn SDL_GetGPUSwapchainTextureFormat(device: *Device, window: *c.SDL_Window) TextureFormat;
+extern fn SDL_GetGPUSwapchainTextureFormat(device: *Device, window: *sdl.Window) TextureFormat;
 pub const getSwapchainTextureFormat = SDL_GetGPUSwapchainTextureFormat;
 
 extern fn SDL_AcquireGPUSwapchainTexture(command_buffer: *CommandBuffer, window: *c.SDL_Window, w: [*c]u32, h: [*c]u32) ?*Texture;

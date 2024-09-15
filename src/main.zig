@@ -4,7 +4,7 @@ const window = @import("window.zig");
 const input = @import("input.zig");
 const zlm = @import ("zlm/zlm.zig");
 const math = @import("math.zig");
-const c = @import("c.zig");
+const sdl = @import("sdl/sdl.zig");
 const gpu = @import("gpu.zig");
 const hym = @import("hym/vec3.zig");
 
@@ -40,14 +40,14 @@ pub fn main() !void {
     try window.init();
     defer window.destroy();
 
-    try gpu.init(window.handle);
+    try gpu.init(window.instance);
 
     var quit = false;
     while (!quit) {
-        var event: c.SDL_Event = undefined;
-        while (c.SDL_PollEvent(&event)) {
+        var event: sdl.c.SDL_Event = undefined;
+        while (sdl.c.SDL_PollEvent(&event)) {
             switch (event.type) {
-                c.SDL_EVENT_QUIT => quit = true,
+                sdl.c.SDL_EVENT_QUIT => quit = true,
                 // c.SDL_EVENT_KEY_DOWN,
                 // c.SDL_EVENT_KEY_UP => {
                 //     const key: window.Key = @enumFromInt(event.key.key);
