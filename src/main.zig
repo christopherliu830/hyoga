@@ -6,7 +6,7 @@ const zlm = @import ("zlm/zlm.zig");
 const math = @import("math.zig");
 const sdl = @import("sdl/sdl.zig");
 const gpu = @import("gpu.zig");
-const hym = @import("hym/hym.zig");
+const vec3 = @import("hym/vec3.zig");
 
 const vertices = [_]f32{
     0.5, 0.5, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, // top right
@@ -40,24 +40,30 @@ pub fn main() !void {
     try gpu.init(window.instance);
 
     input.init(allocator);
-    try input.bind(sdl.keycode.up, .{ .name = "mixup", .handler =  mixUp, });
+    try input.bind(sdl.keycode.up, .{ .name = "mixup", .handler =  mixUp });
     try input.bind(sdl.keycode.down, .{ .name = "mixdown", .handler = mixDown });
+    try input.bind(sdl.keycode.left, .{ .name = "mixleft", .handler = mixLeft });
+    try input.bind(sdl.keycode.right, .{ .name = "mixright", .handler = mixRight });
 
     var quit = false;
     while (!quit) {
         var event: sdl.events.Event = undefined;
         while (sdl.events.poll(&event)) {
+            input.update(event);
             switch (event.type) {
                 sdl.events.quit => quit = true,
-                sdl.events.key_down => {
-                    std.log.debug("key pressed: {}, {}, {}", .{ event.key, sdl.keycode.up, sdl.keycode.down });
-                    const key = event.key.key;
-                    input.post(key, undefined, .{ .down = true });
+
+                sdl.events.mouse_motion => {
+                    if (input.mouse.button_1) {
+                        gpu.window_state.angle.add(vec3.mul(vec3.y, event.motion.xrel / 100));
+                        gpu.window_state.angle.add(vec3.mul(vec3.x, event.motion.yrel / 100));
+                    }
                 },
-                sdl.events.key_up => {
-                    const key = event.key.key;
-                    input.post(key, undefined, .{ .up = true });
+
+                sdl.events.mouse_wheel => {
+                    gpu.window_state.distance += event.wheel.y;
                 },
+
                 else => {},
             }
         }
@@ -68,9 +74,21 @@ pub fn main() !void {
 }
 
 pub fn mixUp(_: ?*anyopaque) void {
-    gpu.window_state.angle.add(hym.vec(.{ 1, 0, 0 }));
+    gpu.window_state.angle.add(vec3.create(0.1, 0, 0));
+    std.log.debug("{}", .{gpu.window_state.angle});
 }
 
 pub fn mixDown(_: ?*anyopaque) void {
-    gpu.window_state.angle.add(hym.vec(.{ 0, 1, 0 }));
+    gpu.window_state.angle.sub(vec3.create(0.1, 0, 0));
+    std.log.debug("{}", .{gpu.window_state.angle});
+}
+
+pub fn mixRight(_: ?*anyopaque) void {
+    gpu.window_state.angle.add(vec3.create(0 , 0.1, 0));
+    std.log.debug("{}", .{gpu.window_state.angle});
+}
+
+pub fn mixLeft(_: ?*anyopaque) void {
+    gpu.window_state.angle.sub(vec3.create(0, 0.1, 0));
+    std.log.debug("{}", .{gpu.window_state.angle});
 }

@@ -1,7 +1,11 @@
 const std = @import("std");
 const c = @import("c.zig");
 const window = @import("window.zig");
-const hym = @import("hym/hym.zig");
+
+const vec3 = @import("hym/vec3.zig");
+const mat4 = @import("hym/mat4.zig");
+const cam = @import("hym/cam.zig");
+
 const spirv = @import("cube_spirv.zig");
 const dxil = @import("cube_dxil.zig");
 const dxbc = @import("cube_dxbc.zig");
@@ -19,7 +23,8 @@ const RenderState = struct {
 
 const WindowState = struct {
     hdl_window: *sdl.Window = undefined,
-    angle: hym.Vec3 = hym.vec3.zero,
+    angle: vec3.Vec3 = vec3.x,
+    distance: f32 = 2.5,
     tex_depth: *sdl.gpu.Texture = undefined,
     msaa_tex: *sdl.gpu.Texture = undefined,
     prev_drawable_w: u32 = 0,
@@ -247,6 +252,8 @@ pub fn render() !void {
         std.log.err("could not acquire command buffer", .{});
         return error.SDLError;
     };
+    defer sdl.gpu.submitCommandBuffer(cmd);
+
     var drawable_w: u32 = undefined;
     var drawable_h: u32 = undefined;
 
@@ -288,13 +295,14 @@ pub fn render() !void {
     const w: f32 = @floatFromInt(drawable_w);
     const h: f32 = @floatFromInt(drawable_h);
 
-    var modelview = hym.mat4.identity;
+    var cam_pos = vec3.mul(vec3.x, window_state.distance);
+    cam_pos.rotate(vec3.y, -window_state.angle.y());
+    cam_pos.rotate(vec3.x, window_state.angle.x());
+    // cam_pos.rotate(vec3.z, window_state.angle.z());
 
-    modelview.translate(hym.vec(.{ 0, 0, -2.5 }));
-    modelview.spin(1, window_state.angle);
-
-    const persp = hym.cam.perspectiveMatrix(45, w / h, 0.01, 100);
-    const matrix_final = hym.mat4.mul(modelview, persp);
+    const view = cam.lookAt(cam_pos, vec3.zero, vec3.y);
+    const persp = cam.perspectiveMatrix(45, w / h, 0.01, 100);
+    const matrix_final = mat4.mul(view, persp);
 
     sdl.gpu.pushVertexUniformData(cmd, 0, std.mem.asBytes(&matrix_final), @sizeOf(@TypeOf(matrix_final)));
 
@@ -302,13 +310,11 @@ pub fn render() !void {
         std.log.err("could not begin render pass: {s}", .{ sdl.getError() });
         return error.SDLError;
     };
+    defer sdl.gpu.endRenderPass(pass);
 
     sdl.gpu.bindGraphicsPipeline(pass, render_state.pipeline);
     sdl.gpu.bindVertexBuffers(pass, 0, &vertex_binding, 1);
     sdl.gpu.drawPrimitives(pass, 36, 1, 0, 0);
-    sdl.gpu.endRenderPass(pass);
-
-    sdl.gpu.submitCommandBuffer(cmd);
 
     render_state.frames += 1;
 }

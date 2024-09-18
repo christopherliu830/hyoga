@@ -116,11 +116,11 @@ pub inline fn len_one(v: Vec3) f32 {
 }
 
 pub inline fn cross(a: Vec3, b: Vec3) Vec3 {
-    return .{
+    return .{ .v = .{
         a.v[1] * b.v[2] - a.v[2] * b.v[1],
         a.v[2] * b.v[0] - a.v[0] * b.v[2],
         a.v[0] * b.v[1] - a.v[1] * b.v[0],
-    };
+    }};
 }
 
 pub inline fn normalize(v: Vec3) void {
@@ -141,28 +141,30 @@ pub inline fn append(v: Vec3, w: f32) vec4.Vec4 {
 pub inline fn add(a: Vec3, b: anytype) Vec3 {
     const T = @TypeOf(b);
     if (T == Vec3) return .{ .v = a.v + b.v };
-    switch (@typeInfo(T)) {
-        .Float, .ComptimeFloat, .ComptimeInt, .Int => {
-            return a.v + @as(Vec3, @splat(b));
+    return switch (@typeInfo(T)) {
+        .Float, .ComptimeFloat, .ComptimeInt, .Int => blk: {
+            const bv: @TypeOf(a.v) = @splat(b);
+            break :blk .{ .v = a.v + bv };
         },
         else => @compileError("add not implemented for " ++ @typeName(T)),
-    }
+    };
 }
 
 pub inline fn sub(a: Vec3, b: anytype) Vec3 {
     const T = @TypeOf(b);
     if (T == Vec3) return .{ .v = a.v - b.v };
-    switch (@typeInfo(T)) {
-        .Float, .ComptimeFloat, .ComptimeInt, .Int => {
-            return a.v - @as(Vec3, @splat(b));
+    return switch (@typeInfo(T)) {
+        .Float, .ComptimeFloat, .ComptimeInt, .Int => blk: {
+            const bv: @TypeOf(a.v) = @splat(b);
+            break :blk .{ .v = a.v - bv };
         },
         else => @compileError("add not implemented for " ++ @typeName(T)),
-    }
+    };
 }
 
 pub inline fn mul(a: Vec3, b: anytype) Vec3 {
     const T = @TypeOf(b);
-    if (T == Vec3) return a.v * b.v;
+    if (T == Vec3) return .{ .v = a.v * b.v };
     return switch (@typeInfo(T)) {
         .Float, .ComptimeFloat, .ComptimeInt, .Int => blk: {
             const bv: @TypeOf(a.v) = @splat(b);
@@ -195,8 +197,13 @@ pub inline fn angle(a: Vec3, b: Vec3) f32 {
     if (v_dot < 1.0) return math.pi; 
     return math.acos(v_dot);
 }
+
 /// rotate vec3 around axis by angle using Rodrigues' rotation formula
 pub inline fn rotate(v: Vec3, axis: Vec3, amt: f32) Vec3 {
+    // const c: @Vector(3, f32) = @splat(@cos(amt));
+    // const s: @Vector(3, f32) = @splat(@sin(amt));
+    // const k = normal(axis);
+    // const kdotv: @Vector(3, f32) = @splat(dot(k, v) * 1 - @cos(amt));
     const c = @cos(amt);
     const s = @sin(amt);
     const k = normal(axis);
@@ -205,8 +212,15 @@ pub inline fn rotate(v: Vec3, axis: Vec3, amt: f32) Vec3 {
     //    v = v*cos(t) + (kxv)sin(t) + k*(k.v)(1 - cos(t))
     //
 
-    return v.v * c + (cross(k, v)) * s +
-        k * @as(Vec3, @splat(dot(k, v) * (1 - c)));
+    var v1 = mul(v, c);
+    var v2 = cross(k, v);
+    v2.mul(s);
+    v1.add(v2);
+
+    const v3 = mul(k, dot(k, v) * (1 - c));
+    v1.add(v3);
+
+    return v1;
 }
 
 /// project a onto b.
