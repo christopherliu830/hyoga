@@ -96,8 +96,10 @@ const vertex_data = [_][6]f32{
 
 
 var gpu_device: *sdl.gpu.Device = undefined;
-var render_state: RenderState = .{};
-var window_state: WindowState = .{};
+pub var render_state: RenderState = .{};
+pub var window_state: WindowState = .{};
+
+pub var speed: f32 = 1;
 
 pub fn init(hdl_window: *sdl.Window) !void {
     window_state.hdl_window = hdl_window;
@@ -289,7 +291,7 @@ pub fn render() !void {
     var modelview = hym.mat4.identity;
 
     modelview.translate(hym.vec(.{ 0, 0, -2.5 }));
-    modelview.spin(@as(f32, @floatFromInt(render_state.frames)) / 500, hym.vec(.{ 1, 1, 1 }));
+    modelview.spin(1, window_state.angle);
 
     const persp = hym.cam.perspectiveMatrix(45, w / h, 0.01, 100);
     const matrix_final = hym.mat4.mul(modelview, persp);

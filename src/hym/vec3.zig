@@ -33,27 +33,27 @@ pub const Vec3 = struct {
     }
 
     pub inline fn add(a: *Vec3, b: anytype) void {
-        a.v = root.add(a, b).v;
+        a.v = root.add(a.*, b).v;
     }
 
     pub inline fn sub(a: *Vec3, b: anytype) void {
-        a.v = root.sub(a, b).v;
+        a.v = root.sub(a.*, b).v;
     }
 
     pub inline fn mul(a: *Vec3, b: anytype) void {
-        a.v = root.mul(a, b).v;
+        a.v = root.mul(a.*, b).v;
     }
 
     pub inline fn div(a: *Vec3, b: anytype) void {
-        a.v = root.div(a, b).v;
+        a.v = root.div(a.*, b).v;
     }
 
     pub inline fn rotate(a: *Vec3, axis: Vec3, amt: f32) void {
-        a.v = root.rotate(a, axis, amt).v;
+        a.v = root.rotate(a.*, axis, amt).v;
     }
 
     pub inline fn clamp(a: *Vec3, min: f32, max: f32) void {
-        a.v = root.clamp(a, min, max).v;
+        a.v = root.clamp(a.*, min, max).v;
     }
 
 };
@@ -134,7 +134,7 @@ pub inline fn append(v: Vec3, w: f32) vec4.Vec4 {
 
 pub inline fn add(a: Vec3, b: anytype) Vec3 {
     const T = @TypeOf(b);
-    if (T == Vec3) return a.v + b.v;
+    if (T == Vec3) return .{ .v = a.v + b.v };
     switch (@typeInfo(T)) {
         .Float, .ComptimeFloat, .ComptimeInt, .Int => {
             return a.v + @as(Vec3, @splat(b));

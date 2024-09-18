@@ -6,9 +6,7 @@ const zlm = @import ("zlm/zlm.zig");
 const math = @import("math.zig");
 const sdl = @import("sdl/sdl.zig");
 const gpu = @import("gpu.zig");
-const hym = @import("hym/vec3.zig");
-
-const Vec3 = zlm.Vec3;
+const hym = @import("hym/hym.zig");
 
 const vertices = [_]f32{
     0.5, 0.5, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, // top right
@@ -35,25 +33,31 @@ const Context = struct {
 pub fn main() !void {
     var general_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = general_allocator.allocator();
-    _ = allocator;
 
     try window.init();
     defer window.destroy();
 
     try gpu.init(window.instance);
 
+    input.init(allocator);
+    try input.bind(sdl.keycode.up, .{ .name = "mixup", .handler =  mixUp, });
+    try input.bind(sdl.keycode.down, .{ .name = "mixdown", .handler = mixDown });
+
     var quit = false;
     while (!quit) {
-        var event: sdl.c.SDL_Event = undefined;
-        while (sdl.c.SDL_PollEvent(&event)) {
+        var event: sdl.events.Event = undefined;
+        while (sdl.events.poll(&event)) {
             switch (event.type) {
-                sdl.c.SDL_EVENT_QUIT => quit = true,
-                // c.SDL_EVENT_KEY_DOWN,
-                // c.SDL_EVENT_KEY_UP => {
-                //     const key: window.Key = @enumFromInt(event.key.key);
-                //     const action: window.Action = @enumFromInt(event.key.@"type");
-                //     input.post(key, undefined, action);
-                // },
+                sdl.events.quit => quit = true,
+                sdl.events.key_down => {
+                    std.log.debug("key pressed: {}, {}, {}", .{ event.key, sdl.keycode.up, sdl.keycode.down });
+                    const key = event.key.key;
+                    input.post(key, undefined, .{ .down = true });
+                },
+                sdl.events.key_up => {
+                    const key = event.key.key;
+                    input.post(key, undefined, .{ .up = true });
+                },
                 else => {},
             }
         }
@@ -63,14 +67,10 @@ pub fn main() !void {
     }
 }
 
-pub fn mixUp(context: *anyopaque) void {
-    const ctx: *Context = @ptrCast(@alignCast(context));
-    ctx.*.mix_amount += 0.1;
-    ctx.*.program.set("mix_amount", ctx.*.mix_amount);
+pub fn mixUp(_: ?*anyopaque) void {
+    gpu.window_state.angle.add(hym.vec(.{ 1, 0, 0 }));
 }
 
-pub fn mixDown(context: *anyopaque) void {
-    const ctx: *Context = @ptrCast(@alignCast(context));
-    ctx.*.mix_amount -= 0.1;
-    ctx.*.program.set("mix_amount", ctx.*.mix_amount);
+pub fn mixDown(_: ?*anyopaque) void {
+    gpu.window_state.angle.add(hym.vec(.{ 0, 1, 0 }));
 }
