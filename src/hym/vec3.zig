@@ -8,6 +8,12 @@ const root = @This();
 pub const Vec3 = struct {
     v: @Vector(3, f32),
 
+    pub inline fn x(self: Vec3) f32 { return self.v[0]; }
+
+    pub inline fn y(self: Vec3) f32 { return self.v[1]; }
+
+    pub inline fn z(self: Vec3) f32 { return self.v[2]; }
+
     pub inline fn dot(a: Vec3, b: Vec3) f32 {
         return root.dot(a, b);
     }
@@ -145,7 +151,7 @@ pub inline fn add(a: Vec3, b: anytype) Vec3 {
 
 pub inline fn sub(a: Vec3, b: anytype) Vec3 {
     const T = @TypeOf(b);
-    if (T == Vec3) return a.v - b.v;
+    if (T == Vec3) return .{ .v = a.v - b.v };
     switch (@typeInfo(T)) {
         .Float, .ComptimeFloat, .ComptimeInt, .Int => {
             return a.v - @as(Vec3, @splat(b));
