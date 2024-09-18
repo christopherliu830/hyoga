@@ -1,560 +1,512 @@
-const PixelFormat = @import("pixels.zig").PixelFormat;
-const Rect = @import("rect.zig").Rect;
-const PropertiesID = @import("properties.zig").PropertiesID;
-const Surface = @import("surface.zig").Surface;
-const FunctionPointer = fn (*anyopaque) void;
-
-const GLContext = unreachable;
-const EGLDisplay = unreachable;
-const EGLSurface = unreachable;
-const EGLConfig = unreachable;
-const EGLAttrib = unreachable;
-const EGLint = unreachable;
-
-const Point = extern struct {
-	x: i32,
-	y: i32
-};
-
-//pub const SDL_DisplayID = Uint32;
-pub const DisplayID = u32;
-//pub const SDL_WindowID = Uint32;
-pub const WindowID = u32;
-//pub const SDL_SYSTEM_THEME_UNKNOWN: c_int = 0;
-//pub const SDL_SYSTEM_THEME_LIGHT: c_int = 1;
-//pub const SDL_SYSTEM_THEME_DARK: c_int = 2;
-//pub const enum_SDL_SystemTheme = c_uint;
-pub const SystemTheme = enum (c_uint) {
+//pub const enum_SDL_PixelType = c_uint;
+pub const PixelType = enum (c_uint) {
 	unknown,
-	light,
-	dark,
+	index1,
+	index4,
+	index8,
+	packed8,
+	packed16,
+	packed32,
+	arrayu8,
+	arrayu16,
+	arrayu32,
+	arrayf16,
+	arrayf32,
+	index2,
 };
 
-//pub const SDL_SystemTheme = enum_SDL_SystemTheme;
-//pub const struct_SDL_DisplayModeData = opaque {};
-pub const DisplayModeData = opaque {};
-
-//pub const SDL_DisplayModeData = struct_SDL_DisplayModeData;
-//pub const struct_SDL_DisplayMode = extern struct {
-pub const DisplayMode = extern struct {
-//    displayID: SDL_DisplayID = @import("std").mem.zeroes(SDL_DisplayID),
-	displayid: DisplayID = @import("std").mem.zeroes(DisplayID),//    format: SDL_PixelFormat = @import("std").mem.zeroes(SDL_PixelFormat),
-	format: PixelFormat = @import("std").mem.zeroes(PixelFormat),//    w: c_int = @import("std").mem.zeroes(c_int),
-	w: c_int = @import("std").mem.zeroes(c_int),//    h: c_int = @import("std").mem.zeroes(c_int),
-	h: c_int = @import("std").mem.zeroes(c_int),//    pixel_density: f32 = @import("std").mem.zeroes(f32),
-	pixel_density: f32 = @import("std").mem.zeroes(f32),//    refresh_rate: f32 = @import("std").mem.zeroes(f32),
-	refresh_rate: f32 = @import("std").mem.zeroes(f32),//    refresh_rate_numerator: c_int = @import("std").mem.zeroes(c_int),
-	refresh_rate_numerator: c_int = @import("std").mem.zeroes(c_int),//    refresh_rate_denominator: c_int = @import("std").mem.zeroes(c_int),
-	refresh_rate_denominator: c_int = @import("std").mem.zeroes(c_int),//    internal: ?*SDL_DisplayModeData = @import("std").mem.zeroes(?*SDL_DisplayModeData),
-	internal: ?*DisplayModeData = @import("std").mem.zeroes(?*DisplayModeData),//};
-};
-//pub const SDL_DisplayMode = struct_SDL_DisplayMode;
-//pub const SDL_ORIENTATION_UNKNOWN: c_int = 0;
-//pub const SDL_ORIENTATION_LANDSCAPE: c_int = 1;
-//pub const SDL_ORIENTATION_LANDSCAPE_FLIPPED: c_int = 2;
-//pub const SDL_ORIENTATION_PORTRAIT: c_int = 3;
-//pub const SDL_ORIENTATION_PORTRAIT_FLIPPED: c_int = 4;
-//pub const enum_SDL_DisplayOrientation = c_uint;
-pub const DisplayOrientation = enum (c_uint) {
-	unknown,
-	landscape,
-	landscape_flipped,
-	portrait,
-	portrait_flipped,
+//pub const SDL_PixelType = enum_SDL_PixelType;
+//pub const SDL_BITMAPORDER_NONE: c_int = 0;
+//pub const SDL_BITMAPORDER_4321: c_int = 1;
+//pub const SDL_BITMAPORDER_1234: c_int = 2;
+//pub const enum_SDL_BitmapOrder = c_uint;
+pub const BitmapOrder = enum (c_uint) {
+	none,
+	@"4321",
+	@"1234",
 };
 
-//pub const SDL_DisplayOrientation = enum_SDL_DisplayOrientation;
-//pub const struct_SDL_Window = opaque {};
-pub const Window = opaque {};
-
-//pub const SDL_Window = struct_SDL_Window;
-//pub const SDL_WindowFlags = Uint64;
-pub const WindowFlags = u64;
-pub const WindowNames = packed struct (c_int) {
-
+//pub const SDL_BitmapOrder = enum_SDL_BitmapOrder;
+//pub const SDL_PACKEDORDER_NONE: c_int = 0;
+//pub const SDL_PACKEDORDER_XRGB: c_int = 1;
+//pub const SDL_PACKEDORDER_RGBX: c_int = 2;
+//pub const SDL_PACKEDORDER_ARGB: c_int = 3;
+//pub const SDL_PACKEDORDER_RGBA: c_int = 4;
+//pub const SDL_PACKEDORDER_XBGR: c_int = 5;
+//pub const SDL_PACKEDORDER_BGRX: c_int = 6;
+//pub const SDL_PACKEDORDER_ABGR: c_int = 7;
+//pub const SDL_PACKEDORDER_BGRA: c_int = 8;
+//pub const enum_SDL_PackedOrder = c_uint;
+pub const PackedOrder = enum (c_uint) {
+	none,
+	xrgb,
+	rgbx,
+	argb,
+	rgba,
+	xbgr,
+	bgrx,
+	abgr,
+	bgra,
 };
 
-//pub const SDL_FLASH_CANCEL: c_int = 0;
-//pub const SDL_FLASH_BRIEFLY: c_int = 1;
-//pub const SDL_FLASH_UNTIL_FOCUSED: c_int = 2;
-//pub const enum_SDL_FlashOperation = c_uint;
-pub const FlashOperation = enum (c_uint) {
-	flash_cancel,
-	flash_briefly,
-	flash_until_focused,
+//pub const SDL_PackedOrder = enum_SDL_PackedOrder;
+//pub const SDL_ARRAYORDER_NONE: c_int = 0;
+//pub const SDL_ARRAYORDER_RGB: c_int = 1;
+//pub const SDL_ARRAYORDER_RGBA: c_int = 2;
+//pub const SDL_ARRAYORDER_ARGB: c_int = 3;
+//pub const SDL_ARRAYORDER_BGR: c_int = 4;
+//pub const SDL_ARRAYORDER_BGRA: c_int = 5;
+//pub const SDL_ARRAYORDER_ABGR: c_int = 6;
+//pub const enum_SDL_ArrayOrder = c_uint;
+pub const ArrayOrder = enum (c_uint) {
+	none,
+	rgb,
+	rgba,
+	argb,
+	bgr,
+	bgra,
+	abgr,
 };
 
-//pub const SDL_FlashOperation = enum_SDL_FlashOperation;
-//pub const struct_SDL_GLContextState = opaque {};
-pub const GLContextState = opaque {};
-
-//pub const SDL_GLContext = ?*struct_SDL_GLContextState;
-//pub const SDL_EGLDisplay = ?*anyopaque;
-//pub const SDL_EGLConfig = ?*anyopaque;
-//pub const SDL_EGLSurface = ?*anyopaque;
-//pub const SDL_EGLAttrib = isize;
-//pub const SDL_EGLint = c_int;
-//pub const SDL_EGLAttribArrayCallback = ?*const fn () callconv(.C) [*c]SDL_EGLAttrib;
-pub const EGLAttribArrayCallback = ?*const fn () callconv(.C) [*c]EGLAttrib;
-//pub const SDL_EGLIntArrayCallback = ?*const fn () callconv(.C) [*c]SDL_EGLint;
-pub const EGLIntArrayCallback = ?*const fn () callconv(.C) [*c]EGLint;
-//pub const SDL_GL_RED_SIZE: c_int = 0;
-//pub const SDL_GL_GREEN_SIZE: c_int = 1;
-//pub const SDL_GL_BLUE_SIZE: c_int = 2;
-//pub const SDL_GL_ALPHA_SIZE: c_int = 3;
-//pub const SDL_GL_BUFFER_SIZE: c_int = 4;
-//pub const SDL_GL_DOUBLEBUFFER: c_int = 5;
-//pub const SDL_GL_DEPTH_SIZE: c_int = 6;
-//pub const SDL_GL_STENCIL_SIZE: c_int = 7;
-//pub const SDL_GL_ACCUM_RED_SIZE: c_int = 8;
-//pub const SDL_GL_ACCUM_GREEN_SIZE: c_int = 9;
-//pub const SDL_GL_ACCUM_BLUE_SIZE: c_int = 10;
-//pub const SDL_GL_ACCUM_ALPHA_SIZE: c_int = 11;
-//pub const SDL_GL_STEREO: c_int = 12;
-//pub const SDL_GL_MULTISAMPLEBUFFERS: c_int = 13;
-//pub const SDL_GL_MULTISAMPLESAMPLES: c_int = 14;
-//pub const SDL_GL_ACCELERATED_VISUAL: c_int = 15;
-//pub const SDL_GL_RETAINED_BACKING: c_int = 16;
-//pub const SDL_GL_CONTEXT_MAJOR_VERSION: c_int = 17;
-//pub const SDL_GL_CONTEXT_MINOR_VERSION: c_int = 18;
-//pub const SDL_GL_CONTEXT_FLAGS: c_int = 19;
-//pub const SDL_GL_CONTEXT_PROFILE_MASK: c_int = 20;
-//pub const SDL_GL_SHARE_WITH_CURRENT_CONTEXT: c_int = 21;
-//pub const SDL_GL_FRAMEBUFFER_SRGB_CAPABLE: c_int = 22;
-//pub const SDL_GL_CONTEXT_RELEASE_BEHAVIOR: c_int = 23;
-//pub const SDL_GL_CONTEXT_RESET_NOTIFICATION: c_int = 24;
-//pub const SDL_GL_CONTEXT_NO_ERROR: c_int = 25;
-//pub const SDL_GL_FLOATBUFFERS: c_int = 26;
-//pub const SDL_GL_EGL_PLATFORM: c_int = 27;
-//pub const enum_SDL_GLattr = c_uint;
-pub const GLattr = enum (c_uint) {
-	gl_red_size,
-	gl_green_size,
-	gl_blue_size,
-	gl_alpha_size,
-	gl_buffer_size,
-	gl_doublebuffer,
-	gl_depth_size,
-	gl_stencil_size,
-	gl_accum_red_size,
-	gl_accum_green_size,
-	gl_accum_blue_size,
-	gl_accum_alpha_size,
-	gl_stereo,
-	gl_multisamplebuffers,
-	gl_multisamplesamples,
-	gl_accelerated_visual,
-	gl_retained_backing,
-	gl_context_major_version,
-	gl_context_minor_version,
-	gl_context_flags,
-	gl_context_profile_mask,
-	gl_share_with_current_context,
-	gl_framebuffer_srgb_capable,
-	gl_context_release_behavior,
-	gl_context_reset_notification,
-	gl_context_no_error,
-	gl_floatbuffers,
-	gl_egl_platform,
+//pub const SDL_ArrayOrder = enum_SDL_ArrayOrder;
+//pub const SDL_PACKEDLAYOUT_NONE: c_int = 0;
+//pub const SDL_PACKEDLAYOUT_332: c_int = 1;
+//pub const SDL_PACKEDLAYOUT_4444: c_int = 2;
+//pub const SDL_PACKEDLAYOUT_1555: c_int = 3;
+//pub const SDL_PACKEDLAYOUT_5551: c_int = 4;
+//pub const SDL_PACKEDLAYOUT_565: c_int = 5;
+//pub const SDL_PACKEDLAYOUT_8888: c_int = 6;
+//pub const SDL_PACKEDLAYOUT_2101010: c_int = 7;
+//pub const SDL_PACKEDLAYOUT_1010102: c_int = 8;
+//pub const enum_SDL_PackedLayout = c_uint;
+pub const PackedLayout = enum (c_uint) {
+	none,
+	@"332",
+	@"4444",
+	@"1555",
+	@"5551",
+	@"565",
+	@"8888",
+	@"2101010",
+	@"1010102",
 };
 
-//pub const SDL_GLattr = enum_SDL_GLattr;
-//pub const SDL_GL_CONTEXT_PROFILE_CORE: c_int = 1;
-//pub const SDL_GL_CONTEXT_PROFILE_COMPATIBILITY: c_int = 2;
-//pub const SDL_GL_CONTEXT_PROFILE_ES: c_int = 4;
-//pub const enum_SDL_GLprofile = c_uint;
-pub const GLprofile = enum (c_uint) {
-	gl_context_profile_core = 1,
-	gl_context_profile_compatibility = 2,
-	gl_context_profile_es = 4,
+//pub const SDL_PackedLayout = enum_SDL_PackedLayout;
+//pub const SDL_PIXELFORMAT_UNKNOWN: c_int = 0;
+//pub const SDL_PIXELFORMAT_INDEX1LSB: c_int = 286261504;
+//pub const SDL_PIXELFORMAT_INDEX1MSB: c_int = 287310080;
+//pub const SDL_PIXELFORMAT_INDEX2LSB: c_int = 470811136;
+//pub const SDL_PIXELFORMAT_INDEX2MSB: c_int = 471859712;
+//pub const SDL_PIXELFORMAT_INDEX4LSB: c_int = 303039488;
+//pub const SDL_PIXELFORMAT_INDEX4MSB: c_int = 304088064;
+//pub const SDL_PIXELFORMAT_INDEX8: c_int = 318769153;
+//pub const SDL_PIXELFORMAT_RGB332: c_int = 336660481;
+//pub const SDL_PIXELFORMAT_XRGB4444: c_int = 353504258;
+//pub const SDL_PIXELFORMAT_XBGR4444: c_int = 357698562;
+//pub const SDL_PIXELFORMAT_XRGB1555: c_int = 353570562;
+//pub const SDL_PIXELFORMAT_XBGR1555: c_int = 357764866;
+//pub const SDL_PIXELFORMAT_ARGB4444: c_int = 355602434;
+//pub const SDL_PIXELFORMAT_RGBA4444: c_int = 356651010;
+//pub const SDL_PIXELFORMAT_ABGR4444: c_int = 359796738;
+//pub const SDL_PIXELFORMAT_BGRA4444: c_int = 360845314;
+//pub const SDL_PIXELFORMAT_ARGB1555: c_int = 355667970;
+//pub const SDL_PIXELFORMAT_RGBA5551: c_int = 356782082;
+//pub const SDL_PIXELFORMAT_ABGR1555: c_int = 359862274;
+//pub const SDL_PIXELFORMAT_BGRA5551: c_int = 360976386;
+//pub const SDL_PIXELFORMAT_RGB565: c_int = 353701890;
+//pub const SDL_PIXELFORMAT_BGR565: c_int = 357896194;
+//pub const SDL_PIXELFORMAT_RGB24: c_int = 386930691;
+//pub const SDL_PIXELFORMAT_BGR24: c_int = 390076419;
+//pub const SDL_PIXELFORMAT_XRGB8888: c_int = 370546692;
+//pub const SDL_PIXELFORMAT_RGBX8888: c_int = 371595268;
+//pub const SDL_PIXELFORMAT_XBGR8888: c_int = 374740996;
+//pub const SDL_PIXELFORMAT_BGRX8888: c_int = 375789572;
+//pub const SDL_PIXELFORMAT_ARGB8888: c_int = 372645892;
+//pub const SDL_PIXELFORMAT_RGBA8888: c_int = 373694468;
+//pub const SDL_PIXELFORMAT_ABGR8888: c_int = 376840196;
+//pub const SDL_PIXELFORMAT_BGRA8888: c_int = 377888772;
+//pub const SDL_PIXELFORMAT_XRGB2101010: c_int = 370614276;
+//pub const SDL_PIXELFORMAT_XBGR2101010: c_int = 374808580;
+//pub const SDL_PIXELFORMAT_ARGB2101010: c_int = 372711428;
+//pub const SDL_PIXELFORMAT_ABGR2101010: c_int = 376905732;
+//pub const SDL_PIXELFORMAT_RGB48: c_int = 403714054;
+//pub const SDL_PIXELFORMAT_BGR48: c_int = 406859782;
+//pub const SDL_PIXELFORMAT_RGBA64: c_int = 404766728;
+//pub const SDL_PIXELFORMAT_ARGB64: c_int = 405815304;
+//pub const SDL_PIXELFORMAT_BGRA64: c_int = 407912456;
+//pub const SDL_PIXELFORMAT_ABGR64: c_int = 408961032;
+//pub const SDL_PIXELFORMAT_RGB48_FLOAT: c_int = 437268486;
+//pub const SDL_PIXELFORMAT_BGR48_FLOAT: c_int = 440414214;
+//pub const SDL_PIXELFORMAT_RGBA64_FLOAT: c_int = 438321160;
+//pub const SDL_PIXELFORMAT_ARGB64_FLOAT: c_int = 439369736;
+//pub const SDL_PIXELFORMAT_BGRA64_FLOAT: c_int = 441466888;
+//pub const SDL_PIXELFORMAT_ABGR64_FLOAT: c_int = 442515464;
+//pub const SDL_PIXELFORMAT_RGB96_FLOAT: c_int = 454057996;
+//pub const SDL_PIXELFORMAT_BGR96_FLOAT: c_int = 457203724;
+//pub const SDL_PIXELFORMAT_RGBA128_FLOAT: c_int = 455114768;
+//pub const SDL_PIXELFORMAT_ARGB128_FLOAT: c_int = 456163344;
+//pub const SDL_PIXELFORMAT_BGRA128_FLOAT: c_int = 458260496;
+//pub const SDL_PIXELFORMAT_ABGR128_FLOAT: c_int = 459309072;
+//pub const SDL_PIXELFORMAT_YV12: c_int = 842094169;
+//pub const SDL_PIXELFORMAT_IYUV: c_int = 1448433993;
+//pub const SDL_PIXELFORMAT_YUY2: c_int = 844715353;
+//pub const SDL_PIXELFORMAT_UYVY: c_int = 1498831189;
+//pub const SDL_PIXELFORMAT_YVYU: c_int = 1431918169;
+//pub const SDL_PIXELFORMAT_NV12: c_int = 842094158;
+//pub const SDL_PIXELFORMAT_NV21: c_int = 825382478;
+//pub const SDL_PIXELFORMAT_P010: c_int = 808530000;
+//pub const SDL_PIXELFORMAT_EXTERNAL_OES: c_int = 542328143;
+//pub const enum_SDL_PixelFormat = c_uint;
+pub const PixelFormat = enum (c_uint) {
+	unknown = 0,
+	index1lsb = 286261504,
+	index1msb = 287310080,
+	index2lsb = 470811136,
+	index2msb = 471859712,
+	index4lsb = 303039488,
+	index4msb = 304088064,
+	index8 = 318769153,
+	rgb332 = 336660481,
+	xrgb4444 = 353504258,
+	xbgr4444 = 357698562,
+	xrgb1555 = 353570562,
+	xbgr1555 = 357764866,
+	argb4444 = 355602434,
+	rgba4444 = 356651010,
+	abgr4444 = 359796738,
+	bgra4444 = 360845314,
+	argb1555 = 355667970,
+	rgba5551 = 356782082,
+	abgr1555 = 359862274,
+	bgra5551 = 360976386,
+	rgb565 = 353701890,
+	bgr565 = 357896194,
+	rgb24 = 386930691,
+	bgr24 = 390076419,
+	xrgb8888 = 370546692,
+	rgbx8888 = 371595268,
+	xbgr8888 = 374740996,
+	bgrx8888 = 375789572,
+	argb8888 = 372645892,
+	rgba8888 = 373694468,
+	abgr8888 = 376840196,
+	bgra8888 = 377888772,
+	xrgb2101010 = 370614276,
+	xbgr2101010 = 374808580,
+	argb2101010 = 372711428,
+	abgr2101010 = 376905732,
+	rgb48 = 403714054,
+	bgr48 = 406859782,
+	rgba64 = 404766728,
+	argb64 = 405815304,
+	bgra64 = 407912456,
+	abgr64 = 408961032,
+	rgb48_float = 437268486,
+	bgr48_float = 440414214,
+	rgba64_float = 438321160,
+	argb64_float = 439369736,
+	bgra64_float = 441466888,
+	abgr64_float = 442515464,
+	rgb96_float = 454057996,
+	bgr96_float = 457203724,
+	rgba128_float = 455114768,
+	argb128_float = 456163344,
+	bgra128_float = 458260496,
+	abgr128_float = 459309072,
+	yv12 = 842094169,
+	iyuv = 1448433993,
+	yuy2 = 844715353,
+	uyvy = 1498831189,
+	yvyu = 1431918169,
+	nv12 = 842094158,
+	nv21 = 825382478,
+	p010 = 808530000,
+	external_oes = 542328143,
 };
 
-//pub const SDL_GLprofile = enum_SDL_GLprofile;
-//pub const SDL_GL_CONTEXT_DEBUG_FLAG: c_int = 1;
-//pub const SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG: c_int = 2;
-//pub const SDL_GL_CONTEXT_ROBUST_ACCESS_FLAG: c_int = 4;
-//pub const SDL_GL_CONTEXT_RESET_ISOLATION_FLAG: c_int = 8;
-//pub const enum_SDL_GLcontextFlag = c_uint;
-pub const GLcontextFlag = enum (c_uint) {
-	gl_context_debug_flag = 1,
-	gl_context_forward_compatible_flag = 2,
-	gl_context_robust_access_flag = 4,
-	gl_context_reset_isolation_flag = 8,
+//pub const SDL_PixelFormat = enum_SDL_PixelFormat;
+//pub const SDL_COLOR_TYPE_UNKNOWN: c_int = 0;
+//pub const SDL_COLOR_TYPE_RGB: c_int = 1;
+//pub const SDL_COLOR_TYPE_YCBCR: c_int = 2;
+//pub const enum_SDL_ColorType = c_uint;
+pub const ColorType = enum (c_uint) {
+	color_type_unknown,
+	color_type_rgb,
+	color_type_ycbcr,
 };
 
-//pub const SDL_GLcontextFlag = enum_SDL_GLcontextFlag;
-//pub const SDL_GL_CONTEXT_RELEASE_BEHAVIOR_NONE: c_int = 0;
-//pub const SDL_GL_CONTEXT_RELEASE_BEHAVIOR_FLUSH: c_int = 1;
-//pub const enum_SDL_GLcontextReleaseFlag = c_uint;
-pub const GLcontextReleaseFlag = enum (c_uint) {
-	gl_context_release_behavior_none,
-	gl_context_release_behavior_flush,
+//pub const SDL_ColorType = enum_SDL_ColorType;
+//pub const SDL_COLOR_RANGE_UNKNOWN: c_int = 0;
+//pub const SDL_COLOR_RANGE_LIMITED: c_int = 1;
+//pub const SDL_COLOR_RANGE_FULL: c_int = 2;
+//pub const enum_SDL_ColorRange = c_uint;
+pub const ColorRange = enum (c_uint) {
+	color_range_unknown,
+	color_range_limited,
+	color_range_full,
 };
 
-//pub const SDL_GLcontextReleaseFlag = enum_SDL_GLcontextReleaseFlag;
-//pub const SDL_GL_CONTEXT_RESET_NO_NOTIFICATION: c_int = 0;
-//pub const SDL_GL_CONTEXT_RESET_LOSE_CONTEXT: c_int = 1;
-//pub const enum_SDL_GLContextResetNotification = c_uint;
-pub const GLContextResetNotification = enum (c_uint) {
-	gl_context_reset_no_notification,
-	gl_context_reset_lose_context,
+//pub const SDL_ColorRange = enum_SDL_ColorRange;
+//pub const SDL_COLOR_PRIMARIES_UNKNOWN: c_int = 0;
+//pub const SDL_COLOR_PRIMARIES_BT709: c_int = 1;
+//pub const SDL_COLOR_PRIMARIES_UNSPECIFIED: c_int = 2;
+//pub const SDL_COLOR_PRIMARIES_BT470M: c_int = 4;
+//pub const SDL_COLOR_PRIMARIES_BT470BG: c_int = 5;
+//pub const SDL_COLOR_PRIMARIES_BT601: c_int = 6;
+//pub const SDL_COLOR_PRIMARIES_SMPTE240: c_int = 7;
+//pub const SDL_COLOR_PRIMARIES_GENERIC_FILM: c_int = 8;
+//pub const SDL_COLOR_PRIMARIES_BT2020: c_int = 9;
+//pub const SDL_COLOR_PRIMARIES_XYZ: c_int = 10;
+//pub const SDL_COLOR_PRIMARIES_SMPTE431: c_int = 11;
+//pub const SDL_COLOR_PRIMARIES_SMPTE432: c_int = 12;
+//pub const SDL_COLOR_PRIMARIES_EBU3213: c_int = 22;
+//pub const SDL_COLOR_PRIMARIES_CUSTOM: c_int = 31;
+//pub const enum_SDL_ColorPrimaries = c_uint;
+pub const ColorPrimaries = enum (c_uint) {
+	color_primaries_unknown = 0,
+	color_primaries_bt709 = 1,
+	color_primaries_unspecified = 2,
+	color_primaries_bt470m = 4,
+	color_primaries_bt470bg = 5,
+	color_primaries_bt601 = 6,
+	color_primaries_smpte240 = 7,
+	color_primaries_generic_film = 8,
+	color_primaries_bt2020 = 9,
+	color_primaries_xyz = 10,
+	color_primaries_smpte431 = 11,
+	color_primaries_smpte432 = 12,
+	color_primaries_ebu3213 = 22,
+	color_primaries_custom = 31,
 };
 
-//pub const SDL_GLContextResetNotification = enum_SDL_GLContextResetNotification;
-//pub extern fn SDL_GetNumVideoDrivers() c_int;
-pub extern fn SDL_GetNumVideoDrivers() c_int;
-pub const getNumVideoDrivers = SDL_GetNumVideoDrivers;
-//pub extern fn SDL_GetVideoDriver(index: c_int) [*c]const u8;
-pub extern fn SDL_GetVideoDriver(index: c_int) [*c]const u8;
-pub const getVideoDriver = SDL_GetVideoDriver;
-//pub extern fn SDL_GetCurrentVideoDriver() [*c]const u8;
-pub extern fn SDL_GetCurrentVideoDriver() [*c]const u8;
-pub const getCurrentVideoDriver = SDL_GetCurrentVideoDriver;
-//pub extern fn SDL_GetSystemTheme() SDL_SystemTheme;
-pub extern fn SDL_GetSystemTheme() SystemTheme;
-pub const getSystemTheme = SDL_GetSystemTheme;
-//pub extern fn SDL_GetDisplays(count: [*c]c_int) [*c]SDL_DisplayID;
-pub extern fn SDL_GetDisplays(count: [*c]c_int) [*c]DisplayID;
-pub const getDisplays = SDL_GetDisplays;
-//pub extern fn SDL_GetPrimaryDisplay() SDL_DisplayID;
-pub extern fn SDL_GetPrimaryDisplay() DisplayID;
-pub const getPrimaryDisplay = SDL_GetPrimaryDisplay;
-//pub extern fn SDL_GetDisplayProperties(displayID: SDL_DisplayID) SDL_PropertiesID;
-pub extern fn SDL_GetDisplayProperties(displayID: DisplayID) PropertiesID;
-pub const getDisplayProperties = SDL_GetDisplayProperties;
-//pub extern fn SDL_GetDisplayName(displayID: SDL_DisplayID) [*c]const u8;
-pub extern fn SDL_GetDisplayName(displayID: DisplayID) [*c]const u8;
-pub const getDisplayName = SDL_GetDisplayName;
-//pub extern fn SDL_GetDisplayBounds(displayID: SDL_DisplayID, rect: [*c]SDL_Rect) SDL_bool;
-pub extern fn SDL_GetDisplayBounds(displayID: DisplayID, rect: [*c]Rect) bool;
-pub const getDisplayBounds = SDL_GetDisplayBounds;
-//pub extern fn SDL_GetDisplayUsableBounds(displayID: SDL_DisplayID, rect: [*c]SDL_Rect) SDL_bool;
-pub extern fn SDL_GetDisplayUsableBounds(displayID: DisplayID, rect: [*c]Rect) bool;
-pub const getDisplayUsableBounds = SDL_GetDisplayUsableBounds;
-//pub extern fn SDL_GetNaturalDisplayOrientation(displayID: SDL_DisplayID) SDL_DisplayOrientation;
-pub extern fn SDL_GetNaturalDisplayOrientation(displayID: DisplayID) DisplayOrientation;
-pub const getNaturalDisplayOrientation = SDL_GetNaturalDisplayOrientation;
-//pub extern fn SDL_GetCurrentDisplayOrientation(displayID: SDL_DisplayID) SDL_DisplayOrientation;
-pub extern fn SDL_GetCurrentDisplayOrientation(displayID: DisplayID) DisplayOrientation;
-pub const getCurrentDisplayOrientation = SDL_GetCurrentDisplayOrientation;
-//pub extern fn SDL_GetDisplayContentScale(displayID: SDL_DisplayID) f32;
-pub extern fn SDL_GetDisplayContentScale(displayID: DisplayID) f32;
-pub const getDisplayContentScale = SDL_GetDisplayContentScale;
-//pub extern fn SDL_GetFullscreenDisplayModes(displayID: SDL_DisplayID, count: [*c]c_int) [*c][*c]SDL_DisplayMode;
-pub extern fn SDL_GetFullscreenDisplayModes(displayID: DisplayID, count: [*c]c_int) [*c][*c]DisplayMode;
-pub const getFullscreenDisplayModes = SDL_GetFullscreenDisplayModes;
-//pub extern fn SDL_GetClosestFullscreenDisplayMode(displayID: SDL_DisplayID, w: c_int, h: c_int, refresh_rate: f32, include_high_density_modes: SDL_bool, mode: [*c]SDL_DisplayMode) SDL_bool;
-pub extern fn SDL_GetClosestFullscreenDisplayMode(displayID: DisplayID, w: c_int, h: c_int, refresh_rate: f32, include_high_density_modes: bool, mode: [*c]DisplayMode) bool;
-pub const getClosestFullscreenDisplayMode = SDL_GetClosestFullscreenDisplayMode;
-//pub extern fn SDL_GetDesktopDisplayMode(displayID: SDL_DisplayID) [*c]const SDL_DisplayMode;
-pub extern fn SDL_GetDesktopDisplayMode(displayID: DisplayID) [*c]const DisplayMode;
-pub const getDesktopDisplayMode = SDL_GetDesktopDisplayMode;
-//pub extern fn SDL_GetCurrentDisplayMode(displayID: SDL_DisplayID) [*c]const SDL_DisplayMode;
-pub extern fn SDL_GetCurrentDisplayMode(displayID: DisplayID) [*c]const DisplayMode;
-pub const getCurrentDisplayMode = SDL_GetCurrentDisplayMode;
-//pub extern fn SDL_GetDisplayForPoint(point: [*c]const SDL_Point) SDL_DisplayID;
-pub extern fn SDL_GetDisplayForPoint(point: [*c]const Point) DisplayID;
-pub const getDisplayForPoint = SDL_GetDisplayForPoint;
-//pub extern fn SDL_GetDisplayForRect(rect: [*c]const SDL_Rect) SDL_DisplayID;
-pub extern fn SDL_GetDisplayForRect(rect: [*c]const Rect) DisplayID;
-pub const getDisplayForRect = SDL_GetDisplayForRect;
-//pub extern fn SDL_GetDisplayForWindow(window: ?*SDL_Window) SDL_DisplayID;
-pub extern fn SDL_GetDisplayForWindow(window: ?*Window) DisplayID;
-pub const getDisplayForWindow = SDL_GetDisplayForWindow;
-//pub extern fn SDL_GetWindowPixelDensity(window: ?*SDL_Window) f32;
-pub extern fn SDL_GetWindowPixelDensity(window: ?*Window) f32;
-pub const getWindowPixelDensity = SDL_GetWindowPixelDensity;
-//pub extern fn SDL_GetWindowDisplayScale(window: ?*SDL_Window) f32;
-pub extern fn SDL_GetWindowDisplayScale(window: ?*Window) f32;
-pub const getWindowDisplayScale = SDL_GetWindowDisplayScale;
-//pub extern fn SDL_SetWindowFullscreenMode(window: ?*SDL_Window, mode: [*c]const SDL_DisplayMode) SDL_bool;
-pub extern fn SDL_SetWindowFullscreenMode(window: ?*Window, mode: [*c]const DisplayMode) bool;
-pub const setWindowFullscreenMode = SDL_SetWindowFullscreenMode;
-//pub extern fn SDL_GetWindowFullscreenMode(window: ?*SDL_Window) [*c]const SDL_DisplayMode;
-pub extern fn SDL_GetWindowFullscreenMode(window: ?*Window) [*c]const DisplayMode;
-pub const getWindowFullscreenMode = SDL_GetWindowFullscreenMode;
-//pub extern fn SDL_GetWindowICCProfile(window: ?*SDL_Window, size: [*c]usize) ?*anyopaque;
-pub extern fn SDL_GetWindowICCProfile(window: ?*Window, size: [*c]usize) ?*anyopaque;
-pub const getWindowICCProfile = SDL_GetWindowICCProfile;
-//pub extern fn SDL_GetWindowPixelFormat(window: ?*SDL_Window) SDL_PixelFormat;
-pub extern fn SDL_GetWindowPixelFormat(window: ?*Window) PixelFormat;
-pub const getWindowPixelFormat = SDL_GetWindowPixelFormat;
-//pub extern fn SDL_GetWindows(count: [*c]c_int) [*c]?*SDL_Window;
-pub extern fn SDL_GetWindows(count: [*c]c_int) [*c]?*Window;
-pub const getWindows = SDL_GetWindows;
-//pub extern fn SDL_CreateWindow(title: [*c]const u8, w: c_int, h: c_int, flags: SDL_WindowFlags) ?*SDL_Window;
-pub extern fn SDL_CreateWindow(title: [*c]const u8, w: c_int, h: c_int, flags: WindowFlags) ?*Window;
-pub const createWindow = SDL_CreateWindow;
-//pub extern fn SDL_CreatePopupWindow(parent: ?*SDL_Window, offset_x: c_int, offset_y: c_int, w: c_int, h: c_int, flags: SDL_WindowFlags) ?*SDL_Window;
-pub extern fn SDL_CreatePopupWindow(parent: ?*Window, offset_x: c_int, offset_y: c_int, w: c_int, h: c_int, flags: WindowFlags) ?*Window;
-pub const createPopupWindow = SDL_CreatePopupWindow;
-//pub extern fn SDL_CreateWindowWithProperties(props: SDL_PropertiesID) ?*SDL_Window;
-pub extern fn SDL_CreateWindowWithProperties(props: PropertiesID) ?*Window;
-pub const createWindowWithProperties = SDL_CreateWindowWithProperties;
-//pub extern fn SDL_GetWindowID(window: ?*SDL_Window) SDL_WindowID;
-pub extern fn SDL_GetWindowID(window: ?*Window) WindowID;
-pub const getWindowID = SDL_GetWindowID;
-//pub extern fn SDL_GetWindowFromID(id: SDL_WindowID) ?*SDL_Window;
-pub extern fn SDL_GetWindowFromID(id: WindowID) ?*Window;
-pub const getWindowFromID = SDL_GetWindowFromID;
-//pub extern fn SDL_GetWindowParent(window: ?*SDL_Window) ?*SDL_Window;
-pub extern fn SDL_GetWindowParent(window: ?*Window) ?*Window;
-pub const getWindowParent = SDL_GetWindowParent;
-//pub extern fn SDL_GetWindowProperties(window: ?*SDL_Window) SDL_PropertiesID;
-pub extern fn SDL_GetWindowProperties(window: ?*Window) PropertiesID;
-pub const getWindowProperties = SDL_GetWindowProperties;
-//pub extern fn SDL_GetWindowFlags(window: ?*SDL_Window) SDL_WindowFlags;
-pub extern fn SDL_GetWindowFlags(window: ?*Window) WindowFlags;
-pub const getWindowFlags = SDL_GetWindowFlags;
-//pub extern fn SDL_SetWindowTitle(window: ?*SDL_Window, title: [*c]const u8) SDL_bool;
-pub extern fn SDL_SetWindowTitle(window: ?*Window, title: [*c]const u8) bool;
-pub const setWindowTitle = SDL_SetWindowTitle;
-//pub extern fn SDL_GetWindowTitle(window: ?*SDL_Window) [*c]const u8;
-pub extern fn SDL_GetWindowTitle(window: ?*Window) [*c]const u8;
-pub const getWindowTitle = SDL_GetWindowTitle;
-//pub extern fn SDL_SetWindowIcon(window: ?*SDL_Window, icon: [*c]SDL_Surface) SDL_bool;
-pub extern fn SDL_SetWindowIcon(window: ?*Window, icon: [*c]Surface) bool;
-pub const setWindowIcon = SDL_SetWindowIcon;
-//pub extern fn SDL_SetWindowPosition(window: ?*SDL_Window, x: c_int, y: c_int) SDL_bool;
-pub extern fn SDL_SetWindowPosition(window: ?*Window, x: c_int, y: c_int) bool;
-pub const setWindowPosition = SDL_SetWindowPosition;
-//pub extern fn SDL_GetWindowPosition(window: ?*SDL_Window, x: [*c]c_int, y: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowPosition(window: ?*Window, x: [*c]c_int, y: [*c]c_int) bool;
-pub const getWindowPosition = SDL_GetWindowPosition;
-//pub extern fn SDL_SetWindowSize(window: ?*SDL_Window, w: c_int, h: c_int) SDL_bool;
-pub extern fn SDL_SetWindowSize(window: ?*Window, w: c_int, h: c_int) bool;
-pub const setWindowSize = SDL_SetWindowSize;
-//pub extern fn SDL_GetWindowSize(window: ?*SDL_Window, w: [*c]c_int, h: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowSize(window: ?*Window, w: [*c]c_int, h: [*c]c_int) bool;
-pub const getWindowSize = SDL_GetWindowSize;
-//pub extern fn SDL_GetWindowSafeArea(window: ?*SDL_Window, rect: [*c]SDL_Rect) SDL_bool;
-pub extern fn SDL_GetWindowSafeArea(window: ?*Window, rect: [*c]Rect) bool;
-pub const getWindowSafeArea = SDL_GetWindowSafeArea;
-//pub extern fn SDL_SetWindowAspectRatio(window: ?*SDL_Window, min_aspect: f32, max_aspect: f32) SDL_bool;
-pub extern fn SDL_SetWindowAspectRatio(window: ?*Window, min_aspect: f32, max_aspect: f32) bool;
-pub const setWindowAspectRatio = SDL_SetWindowAspectRatio;
-//pub extern fn SDL_GetWindowAspectRatio(window: ?*SDL_Window, min_aspect: [*c]f32, max_aspect: [*c]f32) SDL_bool;
-pub extern fn SDL_GetWindowAspectRatio(window: ?*Window, min_aspect: [*c]f32, max_aspect: [*c]f32) bool;
-pub const getWindowAspectRatio = SDL_GetWindowAspectRatio;
-//pub extern fn SDL_GetWindowBordersSize(window: ?*SDL_Window, top: [*c]c_int, left: [*c]c_int, bottom: [*c]c_int, right: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowBordersSize(window: ?*Window, top: [*c]c_int, left: [*c]c_int, bottom: [*c]c_int, right: [*c]c_int) bool;
-pub const getWindowBordersSize = SDL_GetWindowBordersSize;
-//pub extern fn SDL_GetWindowSizeInPixels(window: ?*SDL_Window, w: [*c]c_int, h: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowSizeInPixels(window: ?*Window, w: [*c]c_int, h: [*c]c_int) bool;
-pub const getWindowSizeInPixels = SDL_GetWindowSizeInPixels;
-//pub extern fn SDL_SetWindowMinimumSize(window: ?*SDL_Window, min_w: c_int, min_h: c_int) SDL_bool;
-pub extern fn SDL_SetWindowMinimumSize(window: ?*Window, min_w: c_int, min_h: c_int) bool;
-pub const setWindowMinimumSize = SDL_SetWindowMinimumSize;
-//pub extern fn SDL_GetWindowMinimumSize(window: ?*SDL_Window, w: [*c]c_int, h: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowMinimumSize(window: ?*Window, w: [*c]c_int, h: [*c]c_int) bool;
-pub const getWindowMinimumSize = SDL_GetWindowMinimumSize;
-//pub extern fn SDL_SetWindowMaximumSize(window: ?*SDL_Window, max_w: c_int, max_h: c_int) SDL_bool;
-pub extern fn SDL_SetWindowMaximumSize(window: ?*Window, max_w: c_int, max_h: c_int) bool;
-pub const setWindowMaximumSize = SDL_SetWindowMaximumSize;
-//pub extern fn SDL_GetWindowMaximumSize(window: ?*SDL_Window, w: [*c]c_int, h: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowMaximumSize(window: ?*Window, w: [*c]c_int, h: [*c]c_int) bool;
-pub const getWindowMaximumSize = SDL_GetWindowMaximumSize;
-//pub extern fn SDL_SetWindowBordered(window: ?*SDL_Window, bordered: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowBordered(window: ?*Window, bordered: bool) bool;
-pub const setWindowBordered = SDL_SetWindowBordered;
-//pub extern fn SDL_SetWindowResizable(window: ?*SDL_Window, resizable: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowResizable(window: ?*Window, resizable: bool) bool;
-pub const setWindowResizable = SDL_SetWindowResizable;
-//pub extern fn SDL_SetWindowAlwaysOnTop(window: ?*SDL_Window, on_top: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowAlwaysOnTop(window: ?*Window, on_top: bool) bool;
-pub const setWindowAlwaysOnTop = SDL_SetWindowAlwaysOnTop;
-//pub extern fn SDL_ShowWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_ShowWindow(window: ?*Window) bool;
-pub const showWindow = SDL_ShowWindow;
-//pub extern fn SDL_HideWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_HideWindow(window: ?*Window) bool;
-pub const hideWindow = SDL_HideWindow;
-//pub extern fn SDL_RaiseWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_RaiseWindow(window: ?*Window) bool;
-pub const raiseWindow = SDL_RaiseWindow;
-//pub extern fn SDL_MaximizeWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_MaximizeWindow(window: ?*Window) bool;
-pub const maximizeWindow = SDL_MaximizeWindow;
-//pub extern fn SDL_MinimizeWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_MinimizeWindow(window: ?*Window) bool;
-pub const minimizeWindow = SDL_MinimizeWindow;
-//pub extern fn SDL_RestoreWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_RestoreWindow(window: ?*Window) bool;
-pub const restoreWindow = SDL_RestoreWindow;
-//pub extern fn SDL_SetWindowFullscreen(window: ?*SDL_Window, fullscreen: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowFullscreen(window: ?*Window, fullscreen: bool) bool;
-pub const setWindowFullscreen = SDL_SetWindowFullscreen;
-//pub extern fn SDL_SyncWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_SyncWindow(window: ?*Window) bool;
-pub const syncWindow = SDL_SyncWindow;
-//pub extern fn SDL_WindowHasSurface(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_WindowHasSurface(window: ?*Window) bool;
-pub const windowHasSurface = SDL_WindowHasSurface;
-//pub extern fn SDL_GetWindowSurface(window: ?*SDL_Window) [*c]SDL_Surface;
-pub extern fn SDL_GetWindowSurface(window: ?*Window) [*c]Surface;
-pub const getWindowSurface = SDL_GetWindowSurface;
-//pub extern fn SDL_SetWindowSurfaceVSync(window: ?*SDL_Window, vsync: c_int) SDL_bool;
-pub extern fn SDL_SetWindowSurfaceVSync(window: ?*Window, vsync: c_int) bool;
-pub const setWindowSurfaceVSync = SDL_SetWindowSurfaceVSync;
-//pub extern fn SDL_GetWindowSurfaceVSync(window: ?*SDL_Window, vsync: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowSurfaceVSync(window: ?*Window, vsync: [*c]c_int) bool;
-pub const getWindowSurfaceVSync = SDL_GetWindowSurfaceVSync;
-//pub extern fn SDL_UpdateWindowSurface(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_UpdateWindowSurface(window: ?*Window) bool;
-pub const updateWindowSurface = SDL_UpdateWindowSurface;
-//pub extern fn SDL_UpdateWindowSurfaceRects(window: ?*SDL_Window, rects: [*c]const SDL_Rect, numrects: c_int) SDL_bool;
-pub extern fn SDL_UpdateWindowSurfaceRects(window: ?*Window, rects: [*c]const Rect, numrects: c_int) bool;
-pub const updateWindowSurfaceRects = SDL_UpdateWindowSurfaceRects;
-//pub extern fn SDL_DestroyWindowSurface(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_DestroyWindowSurface(window: ?*Window) bool;
-pub const destroyWindowSurface = SDL_DestroyWindowSurface;
-//pub extern fn SDL_SetWindowKeyboardGrab(window: ?*SDL_Window, grabbed: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowKeyboardGrab(window: ?*Window, grabbed: bool) bool;
-pub const setWindowKeyboardGrab = SDL_SetWindowKeyboardGrab;
-//pub extern fn SDL_SetWindowMouseGrab(window: ?*SDL_Window, grabbed: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowMouseGrab(window: ?*Window, grabbed: bool) bool;
-pub const setWindowMouseGrab = SDL_SetWindowMouseGrab;
-//pub extern fn SDL_GetWindowKeyboardGrab(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_GetWindowKeyboardGrab(window: ?*Window) bool;
-pub const getWindowKeyboardGrab = SDL_GetWindowKeyboardGrab;
-//pub extern fn SDL_GetWindowMouseGrab(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_GetWindowMouseGrab(window: ?*Window) bool;
-pub const getWindowMouseGrab = SDL_GetWindowMouseGrab;
-//pub extern fn SDL_GetGrabbedWindow() ?*SDL_Window;
-pub extern fn SDL_GetGrabbedWindow() ?*Window;
-pub const getGrabbedWindow = SDL_GetGrabbedWindow;
-//pub extern fn SDL_SetWindowMouseRect(window: ?*SDL_Window, rect: [*c]const SDL_Rect) SDL_bool;
-pub extern fn SDL_SetWindowMouseRect(window: ?*Window, rect: [*c]const Rect) bool;
-pub const setWindowMouseRect = SDL_SetWindowMouseRect;
-//pub extern fn SDL_GetWindowMouseRect(window: ?*SDL_Window) [*c]const SDL_Rect;
-pub extern fn SDL_GetWindowMouseRect(window: ?*Window) [*c]const Rect;
-pub const getWindowMouseRect = SDL_GetWindowMouseRect;
-//pub extern fn SDL_SetWindowOpacity(window: ?*SDL_Window, opacity: f32) SDL_bool;
-pub extern fn SDL_SetWindowOpacity(window: ?*Window, opacity: f32) bool;
-pub const setWindowOpacity = SDL_SetWindowOpacity;
-//pub extern fn SDL_GetWindowOpacity(window: ?*SDL_Window) f32;
-pub extern fn SDL_GetWindowOpacity(window: ?*Window) f32;
-pub const getWindowOpacity = SDL_GetWindowOpacity;
-//pub extern fn SDL_SetWindowParent(window: ?*SDL_Window, parent: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_SetWindowParent(window: ?*Window, parent: ?*Window) bool;
-pub const setWindowParent = SDL_SetWindowParent;
-//pub extern fn SDL_SetWindowModal(window: ?*SDL_Window, modal: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowModal(window: ?*Window, modal: bool) bool;
-pub const setWindowModal = SDL_SetWindowModal;
-//pub extern fn SDL_SetWindowFocusable(window: ?*SDL_Window, focusable: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowFocusable(window: ?*Window, focusable: bool) bool;
-pub const setWindowFocusable = SDL_SetWindowFocusable;
-//pub extern fn SDL_ShowWindowSystemMenu(window: ?*SDL_Window, x: c_int, y: c_int) SDL_bool;
-pub extern fn SDL_ShowWindowSystemMenu(window: ?*Window, x: c_int, y: c_int) bool;
-pub const showWindowSystemMenu = SDL_ShowWindowSystemMenu;
-//pub const SDL_HITTEST_NORMAL: c_int = 0;
-//pub const SDL_HITTEST_DRAGGABLE: c_int = 1;
-//pub const SDL_HITTEST_RESIZE_TOPLEFT: c_int = 2;
-//pub const SDL_HITTEST_RESIZE_TOP: c_int = 3;
-//pub const SDL_HITTEST_RESIZE_TOPRIGHT: c_int = 4;
-//pub const SDL_HITTEST_RESIZE_RIGHT: c_int = 5;
-//pub const SDL_HITTEST_RESIZE_BOTTOMRIGHT: c_int = 6;
-//pub const SDL_HITTEST_RESIZE_BOTTOM: c_int = 7;
-//pub const SDL_HITTEST_RESIZE_BOTTOMLEFT: c_int = 8;
-//pub const SDL_HITTEST_RESIZE_LEFT: c_int = 9;
-//pub const enum_SDL_HitTestResult = c_uint;
-pub const HitTestResult = enum (c_uint) {
-	hittest_normal = 0,
-	hittest_draggable = 1,
-	hittest_resize_topleft = 2,
-	hittest_resize_top = 3,
-	hittest_resize_topright = 4,
-	hittest_resize_right = 5,
-	hittest_resize_bottomright = 6,
-	hittest_resize_bottom = 7,
-	hittest_resize_bottomleft = 8,
-	hittest_resize_left = 9,
+//pub const SDL_ColorPrimaries = enum_SDL_ColorPrimaries;
+//pub const SDL_TRANSFER_CHARACTERISTICS_UNKNOWN: c_int = 0;
+//pub const SDL_TRANSFER_CHARACTERISTICS_BT709: c_int = 1;
+//pub const SDL_TRANSFER_CHARACTERISTICS_UNSPECIFIED: c_int = 2;
+//pub const SDL_TRANSFER_CHARACTERISTICS_GAMMA22: c_int = 4;
+//pub const SDL_TRANSFER_CHARACTERISTICS_GAMMA28: c_int = 5;
+//pub const SDL_TRANSFER_CHARACTERISTICS_BT601: c_int = 6;
+//pub const SDL_TRANSFER_CHARACTERISTICS_SMPTE240: c_int = 7;
+//pub const SDL_TRANSFER_CHARACTERISTICS_LINEAR: c_int = 8;
+//pub const SDL_TRANSFER_CHARACTERISTICS_LOG100: c_int = 9;
+//pub const SDL_TRANSFER_CHARACTERISTICS_LOG100_SQRT10: c_int = 10;
+//pub const SDL_TRANSFER_CHARACTERISTICS_IEC61966: c_int = 11;
+//pub const SDL_TRANSFER_CHARACTERISTICS_BT1361: c_int = 12;
+//pub const SDL_TRANSFER_CHARACTERISTICS_SRGB: c_int = 13;
+//pub const SDL_TRANSFER_CHARACTERISTICS_BT2020_10BIT: c_int = 14;
+//pub const SDL_TRANSFER_CHARACTERISTICS_BT2020_12BIT: c_int = 15;
+//pub const SDL_TRANSFER_CHARACTERISTICS_PQ: c_int = 16;
+//pub const SDL_TRANSFER_CHARACTERISTICS_SMPTE428: c_int = 17;
+//pub const SDL_TRANSFER_CHARACTERISTICS_HLG: c_int = 18;
+//pub const SDL_TRANSFER_CHARACTERISTICS_CUSTOM: c_int = 31;
+//pub const enum_SDL_TransferCharacteristics = c_uint;
+pub const TransferCharacteristics = enum (c_uint) {
+	unknown = 0,
+	bt709 = 1,
+	unspecified = 2,
+	gamma22 = 4,
+	gamma28 = 5,
+	bt601 = 6,
+	smpte240 = 7,
+	linear = 8,
+	log100 = 9,
+	log100_sqrt10 = 10,
+	iec61966 = 11,
+	bt1361 = 12,
+	srgb = 13,
+	bt2020_10bit = 14,
+	bt2020_12bit = 15,
+	pq = 16,
+	smpte428 = 17,
+	hlg = 18,
+	custom = 31,
 };
 
-//pub const SDL_HitTestResult = enum_SDL_HitTestResult;
-//pub const SDL_HitTest = ?*const fn (?*SDL_Window, [*c]const SDL_Point, ?*anyopaque) callconv(.C) SDL_HitTestResult;
-pub const HitTest = ?*const fn (?*Window, [*c]const Point, ?*anyopaque) callconv(.C) HitTestResult;
-//pub extern fn SDL_SetWindowHitTest(window: ?*SDL_Window, callback: SDL_HitTest, callback_data: ?*anyopaque) SDL_bool;
-pub extern fn SDL_SetWindowHitTest(window: ?*Window, callback: HitTest, callback_data: ?*anyopaque) bool;
-pub const setWindowHitTest = SDL_SetWindowHitTest;
-//pub extern fn SDL_SetWindowShape(window: ?*SDL_Window, shape: [*c]SDL_Surface) SDL_bool;
-pub extern fn SDL_SetWindowShape(window: ?*Window, shape: [*c]Surface) bool;
-pub const setWindowShape = SDL_SetWindowShape;
-//pub extern fn SDL_FlashWindow(window: ?*SDL_Window, operation: SDL_FlashOperation) SDL_bool;
-pub extern fn SDL_FlashWindow(window: ?*Window, operation: FlashOperation) bool;
-pub const flashWindow = SDL_FlashWindow;
-//pub extern fn SDL_DestroyWindow(window: ?*SDL_Window) void;
-pub extern fn SDL_DestroyWindow(window: ?*Window) void;
-pub const destroyWindow = SDL_DestroyWindow;
-//pub extern fn SDL_ScreenSaverEnabled() SDL_bool;
-pub extern fn SDL_ScreenSaverEnabled() bool;
-pub const screenSaverEnabled = SDL_ScreenSaverEnabled;
-//pub extern fn SDL_EnableScreenSaver() SDL_bool;
-pub extern fn SDL_EnableScreenSaver() bool;
-pub const enableScreenSaver = SDL_EnableScreenSaver;
-//pub extern fn SDL_DisableScreenSaver() SDL_bool;
-pub extern fn SDL_DisableScreenSaver() bool;
-pub const disableScreenSaver = SDL_DisableScreenSaver;
-//pub extern fn SDL_GL_LoadLibrary(path: [*c]const u8) SDL_bool;
-pub extern fn SDL_GL_LoadLibrary(path: [*c]const u8) bool;
-pub const gL_LoadLibrary = SDL_GL_LoadLibrary;
-//pub extern fn SDL_GL_GetProcAddress(proc: [*c]const u8) SDL_FunctionPointer;
-pub extern fn SDL_GL_GetProcAddress(proc: [*c]const u8) FunctionPointer;
-pub const gL_GetProcAddress = SDL_GL_GetProcAddress;
-//pub extern fn SDL_EGL_GetProcAddress(proc: [*c]const u8) SDL_FunctionPointer;
-pub extern fn SDL_EGL_GetProcAddress(proc: [*c]const u8) FunctionPointer;
-pub const eGL_GetProcAddress = SDL_EGL_GetProcAddress;
-//pub extern fn SDL_GL_UnloadLibrary() void;
-pub extern fn SDL_GL_UnloadLibrary() void;
-pub const gL_UnloadLibrary = SDL_GL_UnloadLibrary;
-//pub extern fn SDL_GL_ExtensionSupported(extension: [*c]const u8) SDL_bool;
-pub extern fn SDL_GL_ExtensionSupported(extension: [*c]const u8) bool;
-pub const gL_ExtensionSupported = SDL_GL_ExtensionSupported;
-//pub extern fn SDL_GL_ResetAttributes() void;
-pub extern fn SDL_GL_ResetAttributes() void;
-pub const gL_ResetAttributes = SDL_GL_ResetAttributes;
-//pub extern fn SDL_GL_SetAttribute(attr: SDL_GLattr, value: c_int) SDL_bool;
-pub extern fn SDL_GL_SetAttribute(attr: GLattr, value: c_int) bool;
-pub const gL_SetAttribute = SDL_GL_SetAttribute;
-//pub extern fn SDL_GL_GetAttribute(attr: SDL_GLattr, value: [*c]c_int) SDL_bool;
-pub extern fn SDL_GL_GetAttribute(attr: GLattr, value: [*c]c_int) bool;
-pub const gL_GetAttribute = SDL_GL_GetAttribute;
-//pub extern fn SDL_GL_CreateContext(window: ?*SDL_Window) SDL_GLContext;
-pub extern fn SDL_GL_CreateContext(window: ?*Window) GLContext;
-pub const gL_CreateContext = SDL_GL_CreateContext;
-//pub extern fn SDL_GL_MakeCurrent(window: ?*SDL_Window, context: SDL_GLContext) SDL_bool;
-pub extern fn SDL_GL_MakeCurrent(window: ?*Window, context: GLContext) bool;
-pub const gL_MakeCurrent = SDL_GL_MakeCurrent;
-//pub extern fn SDL_GL_GetCurrentWindow() ?*SDL_Window;
-pub extern fn SDL_GL_GetCurrentWindow() ?*Window;
-pub const gL_GetCurrentWindow = SDL_GL_GetCurrentWindow;
-//pub extern fn SDL_GL_GetCurrentContext() SDL_GLContext;
-pub extern fn SDL_GL_GetCurrentContext() GLContext;
-pub const gL_GetCurrentContext = SDL_GL_GetCurrentContext;
-//pub extern fn SDL_EGL_GetCurrentDisplay() SDL_EGLDisplay;
-pub extern fn SDL_EGL_GetCurrentDisplay() EGLDisplay;
-pub const eGL_GetCurrentDisplay = SDL_EGL_GetCurrentDisplay;
-//pub extern fn SDL_EGL_GetCurrentConfig() SDL_EGLConfig;
-pub extern fn SDL_EGL_GetCurrentConfig() EGLConfig;
-pub const eGL_GetCurrentConfig = SDL_EGL_GetCurrentConfig;
-//pub extern fn SDL_EGL_GetWindowSurface(window: ?*SDL_Window) SDL_EGLSurface;
-pub extern fn SDL_EGL_GetWindowSurface(window: ?*Window) EGLSurface;
-pub const eGL_GetWindowSurface = SDL_EGL_GetWindowSurface;
-//pub extern fn SDL_EGL_SetAttributeCallbacks(platformAttribCallback: SDL_EGLAttribArrayCallback, surfaceAttribCallback: SDL_EGLIntArrayCallback, contextAttribCallback: SDL_EGLIntArrayCallback) void;
-pub extern fn SDL_EGL_SetAttributeCallbacks(platformAttribCallback: EGLAttribArrayCallback, surfaceAttribCallback: EGLIntArrayCallback, contextAttribCallback: EGLIntArrayCallback) void;
-pub const eGL_SetAttributeCallbacks = SDL_EGL_SetAttributeCallbacks;
-//pub extern fn SDL_GL_SetSwapInterval(interval: c_int) SDL_bool;
-pub extern fn SDL_GL_SetSwapInterval(interval: c_int) bool;
-pub const gL_SetSwapInterval = SDL_GL_SetSwapInterval;
-//pub extern fn SDL_GL_GetSwapInterval(interval: [*c]c_int) SDL_bool;
-pub extern fn SDL_GL_GetSwapInterval(interval: [*c]c_int) bool;
-pub const gL_GetSwapInterval = SDL_GL_GetSwapInterval;
-//pub extern fn SDL_GL_SwapWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_GL_SwapWindow(window: ?*Window) bool;
-pub const gL_SwapWindow = SDL_GL_SwapWindow;
-//pub extern fn SDL_GL_DestroyContext(context: SDL_GLContext) SDL_bool;
-pub extern fn SDL_GL_DestroyContext(context: GLContext) bool;
-pub const gL_DestroyContext = SDL_GL_DestroyContext;
+//pub const SDL_TransferCharacteristics = enum_SDL_TransferCharacteristics;
+//pub const SDL_MATRIX_COEFFICIENTS_IDENTITY: c_int = 0;
+//pub const SDL_MATRIX_COEFFICIENTS_BT709: c_int = 1;
+//pub const SDL_MATRIX_COEFFICIENTS_UNSPECIFIED: c_int = 2;
+//pub const SDL_MATRIX_COEFFICIENTS_FCC: c_int = 4;
+//pub const SDL_MATRIX_COEFFICIENTS_BT470BG: c_int = 5;
+//pub const SDL_MATRIX_COEFFICIENTS_BT601: c_int = 6;
+//pub const SDL_MATRIX_COEFFICIENTS_SMPTE240: c_int = 7;
+//pub const SDL_MATRIX_COEFFICIENTS_YCGCO: c_int = 8;
+//pub const SDL_MATRIX_COEFFICIENTS_BT2020_NCL: c_int = 9;
+//pub const SDL_MATRIX_COEFFICIENTS_BT2020_CL: c_int = 10;
+//pub const SDL_MATRIX_COEFFICIENTS_SMPTE2085: c_int = 11;
+//pub const SDL_MATRIX_COEFFICIENTS_CHROMA_DERIVED_NCL: c_int = 12;
+//pub const SDL_MATRIX_COEFFICIENTS_CHROMA_DERIVED_CL: c_int = 13;
+//pub const SDL_MATRIX_COEFFICIENTS_ICTCP: c_int = 14;
+//pub const SDL_MATRIX_COEFFICIENTS_CUSTOM: c_int = 31;
+//pub const enum_SDL_MatrixCoefficients = c_uint;
+pub const MatrixCoefficients = enum (c_uint) {
+	identity = 0,
+	bt709 = 1,
+	unspecified = 2,
+	fcc = 4,
+	bt470bg = 5,
+	bt601 = 6,
+	smpte240 = 7,
+	ycgco = 8,
+	bt2020_ncl = 9,
+	bt2020_cl = 10,
+	smpte2085 = 11,
+	chroma_derived_ncl = 12,
+	chroma_derived_cl = 13,
+	ictcp = 14,
+	custom = 31,
+};
+
+//pub const SDL_MatrixCoefficients = enum_SDL_MatrixCoefficients;
+//pub const SDL_CHROMA_LOCATION_NONE: c_int = 0;
+//pub const SDL_CHROMA_LOCATION_LEFT: c_int = 1;
+//pub const SDL_CHROMA_LOCATION_CENTER: c_int = 2;
+//pub const SDL_CHROMA_LOCATION_TOPLEFT: c_int = 3;
+//pub const enum_SDL_ChromaLocation = c_uint;
+pub const ChromaLocation = enum (c_uint) {
+	_none,
+	_left,
+	_center,
+	_topleft,
+};
+
+//pub const SDL_ChromaLocation = enum_SDL_ChromaLocation;
+//pub const SDL_COLORSPACE_UNKNOWN: c_int = 0;
+//pub const SDL_COLORSPACE_SRGB: c_int = 301991328;
+//pub const SDL_COLORSPACE_SRGB_LINEAR: c_int = 301991168;
+//pub const SDL_COLORSPACE_HDR10: c_int = 301999616;
+//pub const SDL_COLORSPACE_JPEG: c_int = 570426566;
+//pub const SDL_COLORSPACE_BT601_LIMITED: c_int = 554703046;
+//pub const SDL_COLORSPACE_BT601_FULL: c_int = 571480262;
+//pub const SDL_COLORSPACE_BT709_LIMITED: c_int = 554697761;
+//pub const SDL_COLORSPACE_BT709_FULL: c_int = 571474977;
+//pub const SDL_COLORSPACE_BT2020_LIMITED: c_int = 554706441;
+//pub const SDL_COLORSPACE_BT2020_FULL: c_int = 571483657;
+//pub const enum_SDL_Colorspace = c_uint;
+pub const Colorspace = enum (c_uint) {
+	unknown = 0,
+	srgb = 301991328,
+	srgb_linear = 301991168,
+	hdr10 = 301999616,
+	jpeg = 570426566,
+	bt601_limited = 554703046,
+	bt601_full = 571480262,
+	bt709_limited = 554697761,
+	bt709_full = 571474977,
+	bt2020_limited = 554706441,
+	bt2020_full = 571483657,
+};
+
+//pub const SDL_Colorspace = enum_SDL_Colorspace;
+//pub const struct_SDL_Color = extern struct {
+pub const Color = extern struct {
+//    r: Uint8 = @import("std").mem.zeroes(Uint8),
+    r: u8,
+//    g: Uint8 = @import("std").mem.zeroes(Uint8),
+    g: u8,
+//    b: Uint8 = @import("std").mem.zeroes(Uint8),
+    b: u8,
+//    a: Uint8 = @import("std").mem.zeroes(Uint8),
+    a: u8,
+//};
+};
+//pub const SDL_Color = struct_SDL_Color;
+//pub const struct_SDL_FColor = extern struct {
+pub const FColor = extern struct {
+//    r: f32 = @import("std").mem.zeroes(f32),
+    r: f32,
+//    g: f32 = @import("std").mem.zeroes(f32),
+    g: f32,
+//    b: f32 = @import("std").mem.zeroes(f32),
+    b: f32,
+//    a: f32 = @import("std").mem.zeroes(f32),
+    a: f32,
+//};
+};
+//pub const SDL_FColor = struct_SDL_FColor;
+//pub const struct_SDL_Palette = extern struct {
+pub const Palette = extern struct {
+//    ncolors: c_int = @import("std").mem.zeroes(c_int),
+    ncolors: c_int,
+//    colors: [*c]SDL_Color = @import("std").mem.zeroes([*c]SDL_Color),
+    colors: [*c]Color,
+//    version: Uint32 = @import("std").mem.zeroes(Uint32),
+    version: u32,
+//    refcount: c_int = @import("std").mem.zeroes(c_int),
+    refcount: c_int,
+//};
+};
+//pub const SDL_Palette = struct_SDL_Palette;
+//pub const struct_SDL_PixelFormatDetails = extern struct {
+pub const PixelFormatDetails = extern struct {
+//    format: SDL_PixelFormat = @import("std").mem.zeroes(SDL_PixelFormat),
+    format: PixelFormat,
+//    bits_per_pixel: Uint8 = @import("std").mem.zeroes(Uint8),
+    bits_per_pixel: u8,
+//    bytes_per_pixel: Uint8 = @import("std").mem.zeroes(Uint8),
+    bytes_per_pixel: u8,
+//    padding: [2]Uint8 = @import("std").mem.zeroes([2]Uint8),
+    padding: [2]u8,
+//    Rmask: Uint32 = @import("std").mem.zeroes(Uint32),
+    rmask: u32,
+//    Gmask: Uint32 = @import("std").mem.zeroes(Uint32),
+    gmask: u32,
+//    Bmask: Uint32 = @import("std").mem.zeroes(Uint32),
+    bmask: u32,
+//    Amask: Uint32 = @import("std").mem.zeroes(Uint32),
+    amask: u32,
+//    Rbits: Uint8 = @import("std").mem.zeroes(Uint8),
+    rbits: u8,
+//    Gbits: Uint8 = @import("std").mem.zeroes(Uint8),
+    gbits: u8,
+//    Bbits: Uint8 = @import("std").mem.zeroes(Uint8),
+    bbits: u8,
+//    Abits: Uint8 = @import("std").mem.zeroes(Uint8),
+    abits: u8,
+//    Rshift: Uint8 = @import("std").mem.zeroes(Uint8),
+    rshift: u8,
+//    Gshift: Uint8 = @import("std").mem.zeroes(Uint8),
+    gshift: u8,
+//    Bshift: Uint8 = @import("std").mem.zeroes(Uint8),
+    bshift: u8,
+//    Ashift: Uint8 = @import("std").mem.zeroes(Uint8),
+    ashift: u8,
+//};
+};
+//pub const SDL_PixelFormatDetails = struct_SDL_PixelFormatDetails;
+//pub extern fn SDL_GetPixelFormatName(format: SDL_PixelFormat) [*c]const u8;
+pub extern fn GetPixelFormatName(format: PixelFormat) [*c]const u8;
+pub const getPixelFormatName = GetPixelFormatName;
+//pub extern fn SDL_GetMasksForPixelFormat(format: SDL_PixelFormat, bpp: [*c]c_int, Rmask: [*c]Uint32, Gmask: [*c]Uint32, Bmask: [*c]Uint32, Amask: [*c]Uint32) SDL_bool;
+pub extern fn GetMasksForPixelFormat(format: PixelFormat, bpp: [*c]c_int, Rmask: [*c]u32, Gmask: [*c]u32, Bmask: [*c]u32, Amask: [*c]u32) bool;
+pub const getMasksForPixelFormat = GetMasksForPixelFormat;
+//pub extern fn SDL_GetPixelFormatForMasks(bpp: c_int, Rmask: Uint32, Gmask: Uint32, Bmask: Uint32, Amask: Uint32) SDL_PixelFormat;
+pub extern fn GetPixelFormatForMasks(bpp: c_int, Rmask: u32, Gmask: u32, Bmask: u32, Amask: u32) PixelFormat;
+pub const getPixelFormatForMasks = GetPixelFormatForMasks;
+//pub extern fn SDL_GetPixelFormatDetails(format: SDL_PixelFormat) [*c]const SDL_PixelFormatDetails;
+pub extern fn GetPixelFormatDetails(format: PixelFormat) [*c]const PixelFormatDetails;
+pub const getPixelFormatDetails = GetPixelFormatDetails;
+//pub extern fn SDL_CreatePalette(ncolors: c_int) [*c]SDL_Palette;
+pub extern fn CreatePalette(ncolors: c_int) [*c]Palette;
+pub const createPalette = CreatePalette;
+//pub extern fn SDL_SetPaletteColors(palette: [*c]SDL_Palette, colors: [*c]const SDL_Color, firstcolor: c_int, ncolors: c_int) SDL_bool;
+pub extern fn SetPaletteColors(palette: [*c]Palette, colors: [*c]const Color, firstcolor: c_int, ncolors: c_int) bool;
+pub const setPaletteColors = SetPaletteColors;
+//pub extern fn SDL_DestroyPalette(palette: [*c]SDL_Palette) void;
+pub extern fn DestroyPalette(palette: [*c]Palette) void;
+pub const destroyPalette = DestroyPalette;
+//pub extern fn SDL_MapRGB(format: [*c]const SDL_PixelFormatDetails, palette: [*c]const SDL_Palette, r: Uint8, g: Uint8, b: Uint8) Uint32;
+pub extern fn MapRGB(format: [*c]const PixelFormatDetails, palette: [*c]const Palette, r: u8, g: u8, b: u8) u32;
+pub const mapRGB = MapRGB;
+//pub extern fn SDL_MapRGBA(format: [*c]const SDL_PixelFormatDetails, palette: [*c]const SDL_Palette, r: Uint8, g: Uint8, b: Uint8, a: Uint8) Uint32;
+pub extern fn MapRGBA(format: [*c]const PixelFormatDetails, palette: [*c]const Palette, r: u8, g: u8, b: u8, a: u8) u32;
+pub const mapRGBA = MapRGBA;
+//pub extern fn SDL_GetRGB(pixel: Uint32, format: [*c]const SDL_PixelFormatDetails, palette: [*c]const SDL_Palette, r: [*c]Uint8, g: [*c]Uint8, b: [*c]Uint8) void;
+pub extern fn GetRGB(pixel: u32, format: [*c]const PixelFormatDetails, palette: [*c]const Palette, r: [*c]u8, g: [*c]u8, b: [*c]u8) void;
+pub const getRGB = GetRGB;
+//pub extern fn SDL_GetRGBA(pixel: Uint32, format: [*c]const SDL_PixelFormatDetails, palette: [*c]const SDL_Palette, r: [*c]Uint8, g: [*c]Uint8, b: [*c]Uint8, a: [*c]Uint8) void;
+pub extern fn GetRGBA(pixel: u32, format: [*c]const PixelFormatDetails, palette: [*c]const Palette, r: [*c]u8, g: [*c]u8, b: [*c]u8, a: [*c]u8) void;
+pub const getRGBA = GetRGBA;
 //pub const __llvm__ = @as(c_int, 1);
 //pub const __clang__ = @as(c_int, 1);
 //pub const __clang_major__ = @as(c_int, 18);
@@ -1027,7 +979,7 @@ pub const gL_DestroyContext = SDL_GL_DestroyContext;
 //pub const __MSVCRT_VERSION__ = @as(c_int, 0xE00);
 //pub const _WIN32_WINNT = @as(c_int, 0x0a00);
 //pub const _DEBUG = @as(c_int, 1);
-//pub const SDL_video_h_ = "";
+//pub const SDL_pixels_h_ = "";
 //pub const SDL_stdinc_h_ = "";
 //pub const SDL_platform_defines_h_ = "";
 //pub const SDL_PLATFORM_WINDOWS = @as(c_int, 1);
@@ -1933,7 +1885,6 @@ pub const gL_DestroyContext = SDL_GL_DestroyContext;
 //    _ = &param;
 //    return SDL_SetError("Parameter '%s' is invalid", param);
 //}
-//pub const SDL_pixels_h_ = "";
 //pub const SDL_endian_h_ = "";
 //pub const SDL_LIL_ENDIAN = @as(c_int, 1234);
 //pub const SDL_BIG_ENDIAN = @as(c_int, 4321);
@@ -2121,153 +2072,6 @@ pub const gL_DestroyContext = SDL_GL_DestroyContext;
 //}
 //pub const SDL_COLORSPACE_RGB_DEFAULT = SDL_COLORSPACE_SRGB;
 //pub const SDL_COLORSPACE_YUV_DEFAULT = SDL_COLORSPACE_JPEG;
-//pub const SDL_properties_h_ = "";
-//pub const SDL_rect_h_ = "";
-//pub const SDL_surface_h_ = "";
-//pub const SDL_blendmode_h_ = "";
-//pub const SDL_BLENDMODE_NONE = @as(c_uint, 0x00000000);
-//pub const SDL_BLENDMODE_BLEND = @as(c_uint, 0x00000001);
-//pub const SDL_BLENDMODE_BLEND_PREMULTIPLIED = @as(c_uint, 0x00000010);
-//pub const SDL_BLENDMODE_ADD = @as(c_uint, 0x00000002);
-//pub const SDL_BLENDMODE_ADD_PREMULTIPLIED = @as(c_uint, 0x00000020);
-//pub const SDL_BLENDMODE_MOD = @as(c_uint, 0x00000004);
-//pub const SDL_BLENDMODE_MUL = @as(c_uint, 0x00000008);
-//pub const SDL_BLENDMODE_INVALID = @import("std").zig.c_translation.promoteIntLiteral(c_uint, 0x7FFFFFFF, .hex);
-//pub const SDL_iostream_h_ = "";
-//pub const SDL_PROP_IOSTREAM_WINDOWS_HANDLE_POINTER = "SDL.iostream.windows.handle";
-//pub const SDL_PROP_IOSTREAM_STDIO_FILE_POINTER = "SDL.iostream.stdio.file";
-//pub const SDL_PROP_IOSTREAM_FILE_DESCRIPTOR_NUMBER = "SDL.iostream.file_descriptor";
-//pub const SDL_PROP_IOSTREAM_ANDROID_AASSET_POINTER = "SDL.iostream.android.aasset";
-//pub const SDL_PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER = "SDL.iostream.dynamic.memory";
-//pub const SDL_PROP_IOSTREAM_DYNAMIC_CHUNKSIZE_NUMBER = "SDL.iostream.dynamic.chunksize";
-//pub const SDL_SURFACE_PREALLOCATED = @as(c_uint, 0x00000001);
-//pub const SDL_SURFACE_LOCK_NEEDED = @as(c_uint, 0x00000002);
-//pub const SDL_SURFACE_LOCKED = @as(c_uint, 0x00000004);
-//pub const SDL_SURFACE_SIMD_ALIGNED = @as(c_uint, 0x00000008);
-//pub inline fn SDL_MUSTLOCK(S: anytype) @TypeOf((S.*.flags & SDL_SURFACE_LOCK_NEEDED) == SDL_SURFACE_LOCK_NEEDED) {
-//    _ = &S;
-//    return (S.*.flags & SDL_SURFACE_LOCK_NEEDED) == SDL_SURFACE_LOCK_NEEDED;
-//}
-//pub const SDL_PROP_SURFACE_SDR_WHITE_POINT_FLOAT = "SDL.surface.SDR_white_point";
-//pub const SDL_PROP_SURFACE_HDR_HEADROOM_FLOAT = "SDL.surface.HDR_headroom";
-//pub const SDL_PROP_SURFACE_TONEMAP_OPERATOR_STRING = "SDL.surface.tonemap";
-//pub const SDL_PROP_GLOBAL_VIDEO_WAYLAND_WL_DISPLAY_POINTER = "SDL.video.wayland.wl_display";
-//pub const SDL_WINDOW_FULLSCREEN = SDL_UINT64_C(@as(c_int, 0x0000000000000001));
-//pub const SDL_WINDOW_OPENGL = SDL_UINT64_C(@as(c_int, 0x0000000000000002));
-//pub const SDL_WINDOW_OCCLUDED = SDL_UINT64_C(@as(c_int, 0x0000000000000004));
-//pub const SDL_WINDOW_HIDDEN = SDL_UINT64_C(@as(c_int, 0x0000000000000008));
-//pub const SDL_WINDOW_BORDERLESS = SDL_UINT64_C(@as(c_int, 0x0000000000000010));
-//pub const SDL_WINDOW_RESIZABLE = SDL_UINT64_C(@as(c_int, 0x0000000000000020));
-//pub const SDL_WINDOW_MINIMIZED = SDL_UINT64_C(@as(c_int, 0x0000000000000040));
-//pub const SDL_WINDOW_MAXIMIZED = SDL_UINT64_C(@as(c_int, 0x0000000000000080));
-//pub const SDL_WINDOW_MOUSE_GRABBED = SDL_UINT64_C(@as(c_int, 0x0000000000000100));
-//pub const SDL_WINDOW_INPUT_FOCUS = SDL_UINT64_C(@as(c_int, 0x0000000000000200));
-//pub const SDL_WINDOW_MOUSE_FOCUS = SDL_UINT64_C(@as(c_int, 0x0000000000000400));
-//pub const SDL_WINDOW_EXTERNAL = SDL_UINT64_C(@as(c_int, 0x0000000000000800));
-//pub const SDL_WINDOW_MODAL = SDL_UINT64_C(@as(c_int, 0x0000000000001000));
-//pub const SDL_WINDOW_HIGH_PIXEL_DENSITY = SDL_UINT64_C(@as(c_int, 0x0000000000002000));
-//pub const SDL_WINDOW_MOUSE_CAPTURE = SDL_UINT64_C(@as(c_int, 0x0000000000004000));
-//pub const SDL_WINDOW_MOUSE_RELATIVE_MODE = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000000008000, .hex));
-//pub const SDL_WINDOW_ALWAYS_ON_TOP = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000000010000, .hex));
-//pub const SDL_WINDOW_UTILITY = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000000020000, .hex));
-//pub const SDL_WINDOW_TOOLTIP = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000000040000, .hex));
-//pub const SDL_WINDOW_POPUP_MENU = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000000080000, .hex));
-//pub const SDL_WINDOW_KEYBOARD_GRABBED = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000000100000, .hex));
-//pub const SDL_WINDOW_VULKAN = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000010000000, .hex));
-//pub const SDL_WINDOW_METAL = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000020000000, .hex));
-//pub const SDL_WINDOW_TRANSPARENT = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000040000000, .hex));
-//pub const SDL_WINDOW_NOT_FOCUSABLE = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000080000000, .hex));
-//pub const SDL_WINDOWPOS_UNDEFINED_MASK = @import("std").zig.c_translation.promoteIntLiteral(c_uint, 0x1FFF0000, .hex);
-//pub inline fn SDL_WINDOWPOS_UNDEFINED_DISPLAY(X: anytype) @TypeOf(SDL_WINDOWPOS_UNDEFINED_MASK | X) {
-//    _ = &X;
-//    return SDL_WINDOWPOS_UNDEFINED_MASK | X;
-//}
-//pub const SDL_WINDOWPOS_UNDEFINED = SDL_WINDOWPOS_UNDEFINED_DISPLAY(@as(c_int, 0));
-//pub inline fn SDL_WINDOWPOS_ISUNDEFINED(X: anytype) @TypeOf((X & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xFFFF0000, .hex)) == SDL_WINDOWPOS_UNDEFINED_MASK) {
-//    _ = &X;
-//    return (X & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xFFFF0000, .hex)) == SDL_WINDOWPOS_UNDEFINED_MASK;
-//}
-//pub const SDL_WINDOWPOS_CENTERED_MASK = @import("std").zig.c_translation.promoteIntLiteral(c_uint, 0x2FFF0000, .hex);
-//pub inline fn SDL_WINDOWPOS_CENTERED_DISPLAY(X: anytype) @TypeOf(SDL_WINDOWPOS_CENTERED_MASK | X) {
-//    _ = &X;
-//    return SDL_WINDOWPOS_CENTERED_MASK | X;
-//}
-//pub const SDL_WINDOWPOS_CENTERED = SDL_WINDOWPOS_CENTERED_DISPLAY(@as(c_int, 0));
-//pub inline fn SDL_WINDOWPOS_ISCENTERED(X: anytype) @TypeOf((X & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xFFFF0000, .hex)) == SDL_WINDOWPOS_CENTERED_MASK) {
-//    _ = &X;
-//    return (X & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xFFFF0000, .hex)) == SDL_WINDOWPOS_CENTERED_MASK;
-//}
-//pub const SDL_PROP_DISPLAY_HDR_ENABLED_BOOLEAN = "SDL.display.HDR_enabled";
-//pub const SDL_PROP_DISPLAY_KMSDRM_PANEL_ORIENTATION_NUMBER = "SDL.display.KMSDRM.panel_orientation";
-//pub const SDL_PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN = "SDL.window.create.always_on_top";
-//pub const SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN = "SDL.window.create.borderless";
-//pub const SDL_PROP_WINDOW_CREATE_FOCUSABLE_BOOLEAN = "SDL.window.create.focusable";
-//pub const SDL_PROP_WINDOW_CREATE_EXTERNAL_GRAPHICS_CONTEXT_BOOLEAN = "SDL.window.create.external_graphics_context";
-//pub const SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER = "SDL.window.create.flags";
-//pub const SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN = "SDL.window.create.fullscreen";
-//pub const SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER = "SDL.window.create.height";
-//pub const SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN = "SDL.window.create.hidden";
-//pub const SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN = "SDL.window.create.high_pixel_density";
-//pub const SDL_PROP_WINDOW_CREATE_MAXIMIZED_BOOLEAN = "SDL.window.create.maximized";
-//pub const SDL_PROP_WINDOW_CREATE_MENU_BOOLEAN = "SDL.window.create.menu";
-//pub const SDL_PROP_WINDOW_CREATE_METAL_BOOLEAN = "SDL.window.create.metal";
-//pub const SDL_PROP_WINDOW_CREATE_MINIMIZED_BOOLEAN = "SDL.window.create.minimized";
-//pub const SDL_PROP_WINDOW_CREATE_MODAL_BOOLEAN = "SDL.window.create.modal";
-//pub const SDL_PROP_WINDOW_CREATE_MOUSE_GRABBED_BOOLEAN = "SDL.window.create.mouse_grabbed";
-//pub const SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN = "SDL.window.create.opengl";
-//pub const SDL_PROP_WINDOW_CREATE_PARENT_POINTER = "SDL.window.create.parent";
-//pub const SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN = "SDL.window.create.resizable";
-//pub const SDL_PROP_WINDOW_CREATE_TITLE_STRING = "SDL.window.create.title";
-//pub const SDL_PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN = "SDL.window.create.transparent";
-//pub const SDL_PROP_WINDOW_CREATE_TOOLTIP_BOOLEAN = "SDL.window.create.tooltip";
-//pub const SDL_PROP_WINDOW_CREATE_UTILITY_BOOLEAN = "SDL.window.create.utility";
-//pub const SDL_PROP_WINDOW_CREATE_VULKAN_BOOLEAN = "SDL.window.create.vulkan";
-//pub const SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER = "SDL.window.create.width";
-//pub const SDL_PROP_WINDOW_CREATE_X_NUMBER = "SDL.window.create.x";
-//pub const SDL_PROP_WINDOW_CREATE_Y_NUMBER = "SDL.window.create.y";
-//pub const SDL_PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER = "SDL.window.create.cocoa.window";
-//pub const SDL_PROP_WINDOW_CREATE_COCOA_VIEW_POINTER = "SDL.window.create.cocoa.view";
-//pub const SDL_PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN = "SDL.window.create.wayland.surface_role_custom";
-//pub const SDL_PROP_WINDOW_CREATE_WAYLAND_CREATE_EGL_WINDOW_BOOLEAN = "SDL.window.create.wayland.create_egl_window";
-//pub const SDL_PROP_WINDOW_CREATE_WAYLAND_WL_SURFACE_POINTER = "SDL.window.create.wayland.wl_surface";
-//pub const SDL_PROP_WINDOW_CREATE_WIN32_HWND_POINTER = "SDL.window.create.win32.hwnd";
-//pub const SDL_PROP_WINDOW_CREATE_WIN32_PIXEL_FORMAT_HWND_POINTER = "SDL.window.create.win32.pixel_format_hwnd";
-//pub const SDL_PROP_WINDOW_CREATE_X11_WINDOW_NUMBER = "SDL.window.create.x11.window";
-//pub const SDL_PROP_WINDOW_SHAPE_POINTER = "SDL.window.shape";
-//pub const SDL_PROP_WINDOW_HDR_ENABLED_BOOLEAN = "SDL.window.HDR_enabled";
-//pub const SDL_PROP_WINDOW_SDR_WHITE_LEVEL_FLOAT = "SDL.window.SDR_white_level";
-//pub const SDL_PROP_WINDOW_HDR_HEADROOM_FLOAT = "SDL.window.HDR_headroom";
-//pub const SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER = "SDL.window.android.window";
-//pub const SDL_PROP_WINDOW_ANDROID_SURFACE_POINTER = "SDL.window.android.surface";
-//pub const SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER = "SDL.window.uikit.window";
-//pub const SDL_PROP_WINDOW_UIKIT_METAL_VIEW_TAG_NUMBER = "SDL.window.uikit.metal_view_tag";
-//pub const SDL_PROP_WINDOW_UIKIT_OPENGL_FRAMEBUFFER_NUMBER = "SDL.window.uikit.opengl.framebuffer";
-//pub const SDL_PROP_WINDOW_UIKIT_OPENGL_RENDERBUFFER_NUMBER = "SDL.window.uikit.opengl.renderbuffer";
-//pub const SDL_PROP_WINDOW_UIKIT_OPENGL_RESOLVE_FRAMEBUFFER_NUMBER = "SDL.window.uikit.opengl.resolve_framebuffer";
-//pub const SDL_PROP_WINDOW_KMSDRM_DEVICE_INDEX_NUMBER = "SDL.window.kmsdrm.dev_index";
-//pub const SDL_PROP_WINDOW_KMSDRM_DRM_FD_NUMBER = "SDL.window.kmsdrm.drm_fd";
-//pub const SDL_PROP_WINDOW_KMSDRM_GBM_DEVICE_POINTER = "SDL.window.kmsdrm.gbm_dev";
-//pub const SDL_PROP_WINDOW_COCOA_WINDOW_POINTER = "SDL.window.cocoa.window";
-//pub const SDL_PROP_WINDOW_COCOA_METAL_VIEW_TAG_NUMBER = "SDL.window.cocoa.metal_view_tag";
-//pub const SDL_PROP_WINDOW_VIVANTE_DISPLAY_POINTER = "SDL.window.vivante.display";
-//pub const SDL_PROP_WINDOW_VIVANTE_WINDOW_POINTER = "SDL.window.vivante.window";
-//pub const SDL_PROP_WINDOW_VIVANTE_SURFACE_POINTER = "SDL.window.vivante.surface";
-//pub const SDL_PROP_WINDOW_WIN32_HWND_POINTER = "SDL.window.win32.hwnd";
-//pub const SDL_PROP_WINDOW_WIN32_HDC_POINTER = "SDL.window.win32.hdc";
-//pub const SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER = "SDL.window.win32.instance";
-//pub const SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER = "SDL.window.wayland.display";
-//pub const SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER = "SDL.window.wayland.surface";
-//pub const SDL_PROP_WINDOW_WAYLAND_EGL_WINDOW_POINTER = "SDL.window.wayland.egl_window";
-//pub const SDL_PROP_WINDOW_WAYLAND_XDG_SURFACE_POINTER = "SDL.window.wayland.xdg_surface";
-//pub const SDL_PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_POINTER = "SDL.window.wayland.xdg_toplevel";
-//pub const SDL_PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_EXPORT_HANDLE_STRING = "SDL.window.wayland.xdg_toplevel_export_handle";
-//pub const SDL_PROP_WINDOW_WAYLAND_XDG_POPUP_POINTER = "SDL.window.wayland.xdg_popup";
-//pub const SDL_PROP_WINDOW_WAYLAND_XDG_POSITIONER_POINTER = "SDL.window.wayland.xdg_positioner";
-//pub const SDL_PROP_WINDOW_X11_DISPLAY_POINTER = "SDL.window.x11.display";
-//pub const SDL_PROP_WINDOW_X11_SCREEN_NUMBER = "SDL.window.x11.screen";
-//pub const SDL_PROP_WINDOW_X11_WINDOW_NUMBER = "SDL.window.x11.window";
-//pub const SDL_WINDOW_SURFACE_VSYNC_DISABLED = @as(c_int, 0);
-//pub const SDL_WINDOW_SURFACE_VSYNC_ADAPTIVE = -@as(c_int, 1);
 //pub const threadlocaleinfostruct = struct_threadlocaleinfostruct;
 //pub const threadmbcinfostruct = struct_threadmbcinfostruct;
 //pub const __lc_time_data = struct___lc_time_data;
@@ -2285,4 +2089,3 @@ pub const gL_DestroyContext = SDL_GL_DestroyContext;
 //pub const _stat64 = struct__stat64;
 //pub const tm = struct_tm;
 //pub const SDL_iconv_data_t = struct_SDL_iconv_data_t;
-//pub const SDL_GLContextState = struct_SDL_GLContextState;

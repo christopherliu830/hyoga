@@ -124,7 +124,7 @@ pub const KeyboardEvent = extern struct {
     type: c.SDL_EventType = Names.first,
     reserved: u32 = 0,
     timestamp: u64 = 0,
-    windowID: video.Id = 0,
+    windowID: video.WindowID = 0,
     which: keyboard.Id = 0,
     scancode: scancode.Scancode,
     key: keycode.Keycode,

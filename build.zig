@@ -51,6 +51,20 @@ pub fn build(b: *std.Build) void {
     });
     exe.addIncludePath(b.path("thirdparty"));
 
+    exe.addCSourceFile(.{ .file = b.path("thirdparty/cimgui/cimgui.cpp") });
+    exe.addCSourceFiles(.{
+        .root = b.path("thirdparty/cimgui/imgui"),
+        .files = &.{
+            "imgui_demo.cpp",
+            "imgui_draw.cpp",
+            "imgui_tables.cpp",
+            "imgui_widgets.cpp",
+            "imgui.cpp",
+        },
+    });
+
+    exe.linkLibCpp();
+
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).

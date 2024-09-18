@@ -21,14 +21,14 @@ pub fn init() !void {
         return error.SDLInitializationFailed;
     }
 
-    instance = sdl.c.SDL_CreateWindow("My Game Window", 640, 480, sdl.c.SDL_WINDOW_RESIZABLE) orelse {
+    instance = sdl.video.createWindow("My Game Window", 640, 480, sdl.c.SDL_WINDOW_RESIZABLE) orelse {
         sdl.c.SDL_Log("Unable to create window: %s", c.SDL_GetError());
         return error.SDLInitializationFailed;
     };
 }
 
 pub fn destroy() void {
-    sdl.c.SDL_DestroyWindow(instance);
+    sdl.video.destroyWindow(instance);
     sdl.c.SDL_Quit();
 }
 

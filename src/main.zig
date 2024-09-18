@@ -7,27 +7,8 @@ const math = @import("math.zig");
 const sdl = @import("sdl/sdl.zig");
 const gpu = @import("gpu.zig");
 const vec3 = @import("hym/vec3.zig");
+// const imgui = @import("imgui.zig");
 
-const vertices = [_]f32{
-    0.5, 0.5, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, // top right
-    0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, // bottom right
-    -0.5, -0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, // bottom left
-    -0.5, 0.5, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, // top left
-};
-
-const indices = [_]u32{ 0, 1, 3, 1, 2, 3 };
-var i: f32 = 0;
-
-const tex_coords = [_]f32{
-    0.0, 0.0,
-    1.0, 0.0,
-    0.5, 1.0,
-};
-
-const Context = struct {
-    program: gl.Program,
-    mix_amount: f32 = 0,
-};
 
 // void main() {
 pub fn main() !void {
@@ -38,6 +19,9 @@ pub fn main() !void {
     defer window.destroy();
 
     try gpu.init(window.instance);
+
+    // const ctx = imgui.igCreateContext(null).?;
+    // defer imgui.igDestroyContext(ctx);
 
     input.init(allocator);
     try input.bind(sdl.keycode.up, .{ .name = "mixup", .handler =  mixUp });
@@ -68,7 +52,6 @@ pub fn main() !void {
             }
         }
 
-        i += 1;
         try gpu.render();
     }
 }

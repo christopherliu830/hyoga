@@ -1,560 +1,89 @@
-const PixelFormat = @import("pixels.zig").PixelFormat;
-const Rect = @import("rect.zig").Rect;
-const PropertiesID = @import("properties.zig").PropertiesID;
-const Surface = @import("surface.zig").Surface;
-const FunctionPointer = fn (*anyopaque) void;
-
-const GLContext = unreachable;
-const EGLDisplay = unreachable;
-const EGLSurface = unreachable;
-const EGLConfig = unreachable;
-const EGLAttrib = unreachable;
-const EGLint = unreachable;
-
-const Point = extern struct {
-	x: i32,
-	y: i32
+//pub const SDL_PropertiesID = Uint32;
+pub const PropertiesID = u32;
+//pub const SDL_PROPERTY_TYPE_INVALID: c_int = 0;
+//pub const SDL_PROPERTY_TYPE_POINTER: c_int = 1;
+//pub const SDL_PROPERTY_TYPE_STRING: c_int = 2;
+//pub const SDL_PROPERTY_TYPE_NUMBER: c_int = 3;
+//pub const SDL_PROPERTY_TYPE_FLOAT: c_int = 4;
+//pub const SDL_PROPERTY_TYPE_BOOLEAN: c_int = 5;
+//pub const enum_SDL_PropertyType = c_uint;
+pub const PropertyType = enum (c_uint) {
+	_invalid,
+	_pointer,
+	_string,
+	_number,
+	_float,
+	_boolean,
 };
 
-//pub const SDL_DisplayID = Uint32;
-pub const DisplayID = u32;
-//pub const SDL_WindowID = Uint32;
-pub const WindowID = u32;
-//pub const SDL_SYSTEM_THEME_UNKNOWN: c_int = 0;
-//pub const SDL_SYSTEM_THEME_LIGHT: c_int = 1;
-//pub const SDL_SYSTEM_THEME_DARK: c_int = 2;
-//pub const enum_SDL_SystemTheme = c_uint;
-pub const SystemTheme = enum (c_uint) {
-	unknown,
-	light,
-	dark,
-};
-
-//pub const SDL_SystemTheme = enum_SDL_SystemTheme;
-//pub const struct_SDL_DisplayModeData = opaque {};
-pub const DisplayModeData = opaque {};
-
-//pub const SDL_DisplayModeData = struct_SDL_DisplayModeData;
-//pub const struct_SDL_DisplayMode = extern struct {
-pub const DisplayMode = extern struct {
-//    displayID: SDL_DisplayID = @import("std").mem.zeroes(SDL_DisplayID),
-	displayid: DisplayID = @import("std").mem.zeroes(DisplayID),//    format: SDL_PixelFormat = @import("std").mem.zeroes(SDL_PixelFormat),
-	format: PixelFormat = @import("std").mem.zeroes(PixelFormat),//    w: c_int = @import("std").mem.zeroes(c_int),
-	w: c_int = @import("std").mem.zeroes(c_int),//    h: c_int = @import("std").mem.zeroes(c_int),
-	h: c_int = @import("std").mem.zeroes(c_int),//    pixel_density: f32 = @import("std").mem.zeroes(f32),
-	pixel_density: f32 = @import("std").mem.zeroes(f32),//    refresh_rate: f32 = @import("std").mem.zeroes(f32),
-	refresh_rate: f32 = @import("std").mem.zeroes(f32),//    refresh_rate_numerator: c_int = @import("std").mem.zeroes(c_int),
-	refresh_rate_numerator: c_int = @import("std").mem.zeroes(c_int),//    refresh_rate_denominator: c_int = @import("std").mem.zeroes(c_int),
-	refresh_rate_denominator: c_int = @import("std").mem.zeroes(c_int),//    internal: ?*SDL_DisplayModeData = @import("std").mem.zeroes(?*SDL_DisplayModeData),
-	internal: ?*DisplayModeData = @import("std").mem.zeroes(?*DisplayModeData),//};
-};
-//pub const SDL_DisplayMode = struct_SDL_DisplayMode;
-//pub const SDL_ORIENTATION_UNKNOWN: c_int = 0;
-//pub const SDL_ORIENTATION_LANDSCAPE: c_int = 1;
-//pub const SDL_ORIENTATION_LANDSCAPE_FLIPPED: c_int = 2;
-//pub const SDL_ORIENTATION_PORTRAIT: c_int = 3;
-//pub const SDL_ORIENTATION_PORTRAIT_FLIPPED: c_int = 4;
-//pub const enum_SDL_DisplayOrientation = c_uint;
-pub const DisplayOrientation = enum (c_uint) {
-	unknown,
-	landscape,
-	landscape_flipped,
-	portrait,
-	portrait_flipped,
-};
-
-//pub const SDL_DisplayOrientation = enum_SDL_DisplayOrientation;
-//pub const struct_SDL_Window = opaque {};
-pub const Window = opaque {};
-
-//pub const SDL_Window = struct_SDL_Window;
-//pub const SDL_WindowFlags = Uint64;
-pub const WindowFlags = u64;
-pub const WindowNames = packed struct (c_int) {
-
-};
-
-//pub const SDL_FLASH_CANCEL: c_int = 0;
-//pub const SDL_FLASH_BRIEFLY: c_int = 1;
-//pub const SDL_FLASH_UNTIL_FOCUSED: c_int = 2;
-//pub const enum_SDL_FlashOperation = c_uint;
-pub const FlashOperation = enum (c_uint) {
-	flash_cancel,
-	flash_briefly,
-	flash_until_focused,
-};
-
-//pub const SDL_FlashOperation = enum_SDL_FlashOperation;
-//pub const struct_SDL_GLContextState = opaque {};
-pub const GLContextState = opaque {};
-
-//pub const SDL_GLContext = ?*struct_SDL_GLContextState;
-//pub const SDL_EGLDisplay = ?*anyopaque;
-//pub const SDL_EGLConfig = ?*anyopaque;
-//pub const SDL_EGLSurface = ?*anyopaque;
-//pub const SDL_EGLAttrib = isize;
-//pub const SDL_EGLint = c_int;
-//pub const SDL_EGLAttribArrayCallback = ?*const fn () callconv(.C) [*c]SDL_EGLAttrib;
-pub const EGLAttribArrayCallback = ?*const fn () callconv(.C) [*c]EGLAttrib;
-//pub const SDL_EGLIntArrayCallback = ?*const fn () callconv(.C) [*c]SDL_EGLint;
-pub const EGLIntArrayCallback = ?*const fn () callconv(.C) [*c]EGLint;
-//pub const SDL_GL_RED_SIZE: c_int = 0;
-//pub const SDL_GL_GREEN_SIZE: c_int = 1;
-//pub const SDL_GL_BLUE_SIZE: c_int = 2;
-//pub const SDL_GL_ALPHA_SIZE: c_int = 3;
-//pub const SDL_GL_BUFFER_SIZE: c_int = 4;
-//pub const SDL_GL_DOUBLEBUFFER: c_int = 5;
-//pub const SDL_GL_DEPTH_SIZE: c_int = 6;
-//pub const SDL_GL_STENCIL_SIZE: c_int = 7;
-//pub const SDL_GL_ACCUM_RED_SIZE: c_int = 8;
-//pub const SDL_GL_ACCUM_GREEN_SIZE: c_int = 9;
-//pub const SDL_GL_ACCUM_BLUE_SIZE: c_int = 10;
-//pub const SDL_GL_ACCUM_ALPHA_SIZE: c_int = 11;
-//pub const SDL_GL_STEREO: c_int = 12;
-//pub const SDL_GL_MULTISAMPLEBUFFERS: c_int = 13;
-//pub const SDL_GL_MULTISAMPLESAMPLES: c_int = 14;
-//pub const SDL_GL_ACCELERATED_VISUAL: c_int = 15;
-//pub const SDL_GL_RETAINED_BACKING: c_int = 16;
-//pub const SDL_GL_CONTEXT_MAJOR_VERSION: c_int = 17;
-//pub const SDL_GL_CONTEXT_MINOR_VERSION: c_int = 18;
-//pub const SDL_GL_CONTEXT_FLAGS: c_int = 19;
-//pub const SDL_GL_CONTEXT_PROFILE_MASK: c_int = 20;
-//pub const SDL_GL_SHARE_WITH_CURRENT_CONTEXT: c_int = 21;
-//pub const SDL_GL_FRAMEBUFFER_SRGB_CAPABLE: c_int = 22;
-//pub const SDL_GL_CONTEXT_RELEASE_BEHAVIOR: c_int = 23;
-//pub const SDL_GL_CONTEXT_RESET_NOTIFICATION: c_int = 24;
-//pub const SDL_GL_CONTEXT_NO_ERROR: c_int = 25;
-//pub const SDL_GL_FLOATBUFFERS: c_int = 26;
-//pub const SDL_GL_EGL_PLATFORM: c_int = 27;
-//pub const enum_SDL_GLattr = c_uint;
-pub const GLattr = enum (c_uint) {
-	gl_red_size,
-	gl_green_size,
-	gl_blue_size,
-	gl_alpha_size,
-	gl_buffer_size,
-	gl_doublebuffer,
-	gl_depth_size,
-	gl_stencil_size,
-	gl_accum_red_size,
-	gl_accum_green_size,
-	gl_accum_blue_size,
-	gl_accum_alpha_size,
-	gl_stereo,
-	gl_multisamplebuffers,
-	gl_multisamplesamples,
-	gl_accelerated_visual,
-	gl_retained_backing,
-	gl_context_major_version,
-	gl_context_minor_version,
-	gl_context_flags,
-	gl_context_profile_mask,
-	gl_share_with_current_context,
-	gl_framebuffer_srgb_capable,
-	gl_context_release_behavior,
-	gl_context_reset_notification,
-	gl_context_no_error,
-	gl_floatbuffers,
-	gl_egl_platform,
-};
-
-//pub const SDL_GLattr = enum_SDL_GLattr;
-//pub const SDL_GL_CONTEXT_PROFILE_CORE: c_int = 1;
-//pub const SDL_GL_CONTEXT_PROFILE_COMPATIBILITY: c_int = 2;
-//pub const SDL_GL_CONTEXT_PROFILE_ES: c_int = 4;
-//pub const enum_SDL_GLprofile = c_uint;
-pub const GLprofile = enum (c_uint) {
-	gl_context_profile_core = 1,
-	gl_context_profile_compatibility = 2,
-	gl_context_profile_es = 4,
-};
-
-//pub const SDL_GLprofile = enum_SDL_GLprofile;
-//pub const SDL_GL_CONTEXT_DEBUG_FLAG: c_int = 1;
-//pub const SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG: c_int = 2;
-//pub const SDL_GL_CONTEXT_ROBUST_ACCESS_FLAG: c_int = 4;
-//pub const SDL_GL_CONTEXT_RESET_ISOLATION_FLAG: c_int = 8;
-//pub const enum_SDL_GLcontextFlag = c_uint;
-pub const GLcontextFlag = enum (c_uint) {
-	gl_context_debug_flag = 1,
-	gl_context_forward_compatible_flag = 2,
-	gl_context_robust_access_flag = 4,
-	gl_context_reset_isolation_flag = 8,
-};
-
-//pub const SDL_GLcontextFlag = enum_SDL_GLcontextFlag;
-//pub const SDL_GL_CONTEXT_RELEASE_BEHAVIOR_NONE: c_int = 0;
-//pub const SDL_GL_CONTEXT_RELEASE_BEHAVIOR_FLUSH: c_int = 1;
-//pub const enum_SDL_GLcontextReleaseFlag = c_uint;
-pub const GLcontextReleaseFlag = enum (c_uint) {
-	gl_context_release_behavior_none,
-	gl_context_release_behavior_flush,
-};
-
-//pub const SDL_GLcontextReleaseFlag = enum_SDL_GLcontextReleaseFlag;
-//pub const SDL_GL_CONTEXT_RESET_NO_NOTIFICATION: c_int = 0;
-//pub const SDL_GL_CONTEXT_RESET_LOSE_CONTEXT: c_int = 1;
-//pub const enum_SDL_GLContextResetNotification = c_uint;
-pub const GLContextResetNotification = enum (c_uint) {
-	gl_context_reset_no_notification,
-	gl_context_reset_lose_context,
-};
-
-//pub const SDL_GLContextResetNotification = enum_SDL_GLContextResetNotification;
-//pub extern fn SDL_GetNumVideoDrivers() c_int;
-pub extern fn SDL_GetNumVideoDrivers() c_int;
-pub const getNumVideoDrivers = SDL_GetNumVideoDrivers;
-//pub extern fn SDL_GetVideoDriver(index: c_int) [*c]const u8;
-pub extern fn SDL_GetVideoDriver(index: c_int) [*c]const u8;
-pub const getVideoDriver = SDL_GetVideoDriver;
-//pub extern fn SDL_GetCurrentVideoDriver() [*c]const u8;
-pub extern fn SDL_GetCurrentVideoDriver() [*c]const u8;
-pub const getCurrentVideoDriver = SDL_GetCurrentVideoDriver;
-//pub extern fn SDL_GetSystemTheme() SDL_SystemTheme;
-pub extern fn SDL_GetSystemTheme() SystemTheme;
-pub const getSystemTheme = SDL_GetSystemTheme;
-//pub extern fn SDL_GetDisplays(count: [*c]c_int) [*c]SDL_DisplayID;
-pub extern fn SDL_GetDisplays(count: [*c]c_int) [*c]DisplayID;
-pub const getDisplays = SDL_GetDisplays;
-//pub extern fn SDL_GetPrimaryDisplay() SDL_DisplayID;
-pub extern fn SDL_GetPrimaryDisplay() DisplayID;
-pub const getPrimaryDisplay = SDL_GetPrimaryDisplay;
-//pub extern fn SDL_GetDisplayProperties(displayID: SDL_DisplayID) SDL_PropertiesID;
-pub extern fn SDL_GetDisplayProperties(displayID: DisplayID) PropertiesID;
-pub const getDisplayProperties = SDL_GetDisplayProperties;
-//pub extern fn SDL_GetDisplayName(displayID: SDL_DisplayID) [*c]const u8;
-pub extern fn SDL_GetDisplayName(displayID: DisplayID) [*c]const u8;
-pub const getDisplayName = SDL_GetDisplayName;
-//pub extern fn SDL_GetDisplayBounds(displayID: SDL_DisplayID, rect: [*c]SDL_Rect) SDL_bool;
-pub extern fn SDL_GetDisplayBounds(displayID: DisplayID, rect: [*c]Rect) bool;
-pub const getDisplayBounds = SDL_GetDisplayBounds;
-//pub extern fn SDL_GetDisplayUsableBounds(displayID: SDL_DisplayID, rect: [*c]SDL_Rect) SDL_bool;
-pub extern fn SDL_GetDisplayUsableBounds(displayID: DisplayID, rect: [*c]Rect) bool;
-pub const getDisplayUsableBounds = SDL_GetDisplayUsableBounds;
-//pub extern fn SDL_GetNaturalDisplayOrientation(displayID: SDL_DisplayID) SDL_DisplayOrientation;
-pub extern fn SDL_GetNaturalDisplayOrientation(displayID: DisplayID) DisplayOrientation;
-pub const getNaturalDisplayOrientation = SDL_GetNaturalDisplayOrientation;
-//pub extern fn SDL_GetCurrentDisplayOrientation(displayID: SDL_DisplayID) SDL_DisplayOrientation;
-pub extern fn SDL_GetCurrentDisplayOrientation(displayID: DisplayID) DisplayOrientation;
-pub const getCurrentDisplayOrientation = SDL_GetCurrentDisplayOrientation;
-//pub extern fn SDL_GetDisplayContentScale(displayID: SDL_DisplayID) f32;
-pub extern fn SDL_GetDisplayContentScale(displayID: DisplayID) f32;
-pub const getDisplayContentScale = SDL_GetDisplayContentScale;
-//pub extern fn SDL_GetFullscreenDisplayModes(displayID: SDL_DisplayID, count: [*c]c_int) [*c][*c]SDL_DisplayMode;
-pub extern fn SDL_GetFullscreenDisplayModes(displayID: DisplayID, count: [*c]c_int) [*c][*c]DisplayMode;
-pub const getFullscreenDisplayModes = SDL_GetFullscreenDisplayModes;
-//pub extern fn SDL_GetClosestFullscreenDisplayMode(displayID: SDL_DisplayID, w: c_int, h: c_int, refresh_rate: f32, include_high_density_modes: SDL_bool, mode: [*c]SDL_DisplayMode) SDL_bool;
-pub extern fn SDL_GetClosestFullscreenDisplayMode(displayID: DisplayID, w: c_int, h: c_int, refresh_rate: f32, include_high_density_modes: bool, mode: [*c]DisplayMode) bool;
-pub const getClosestFullscreenDisplayMode = SDL_GetClosestFullscreenDisplayMode;
-//pub extern fn SDL_GetDesktopDisplayMode(displayID: SDL_DisplayID) [*c]const SDL_DisplayMode;
-pub extern fn SDL_GetDesktopDisplayMode(displayID: DisplayID) [*c]const DisplayMode;
-pub const getDesktopDisplayMode = SDL_GetDesktopDisplayMode;
-//pub extern fn SDL_GetCurrentDisplayMode(displayID: SDL_DisplayID) [*c]const SDL_DisplayMode;
-pub extern fn SDL_GetCurrentDisplayMode(displayID: DisplayID) [*c]const DisplayMode;
-pub const getCurrentDisplayMode = SDL_GetCurrentDisplayMode;
-//pub extern fn SDL_GetDisplayForPoint(point: [*c]const SDL_Point) SDL_DisplayID;
-pub extern fn SDL_GetDisplayForPoint(point: [*c]const Point) DisplayID;
-pub const getDisplayForPoint = SDL_GetDisplayForPoint;
-//pub extern fn SDL_GetDisplayForRect(rect: [*c]const SDL_Rect) SDL_DisplayID;
-pub extern fn SDL_GetDisplayForRect(rect: [*c]const Rect) DisplayID;
-pub const getDisplayForRect = SDL_GetDisplayForRect;
-//pub extern fn SDL_GetDisplayForWindow(window: ?*SDL_Window) SDL_DisplayID;
-pub extern fn SDL_GetDisplayForWindow(window: ?*Window) DisplayID;
-pub const getDisplayForWindow = SDL_GetDisplayForWindow;
-//pub extern fn SDL_GetWindowPixelDensity(window: ?*SDL_Window) f32;
-pub extern fn SDL_GetWindowPixelDensity(window: ?*Window) f32;
-pub const getWindowPixelDensity = SDL_GetWindowPixelDensity;
-//pub extern fn SDL_GetWindowDisplayScale(window: ?*SDL_Window) f32;
-pub extern fn SDL_GetWindowDisplayScale(window: ?*Window) f32;
-pub const getWindowDisplayScale = SDL_GetWindowDisplayScale;
-//pub extern fn SDL_SetWindowFullscreenMode(window: ?*SDL_Window, mode: [*c]const SDL_DisplayMode) SDL_bool;
-pub extern fn SDL_SetWindowFullscreenMode(window: ?*Window, mode: [*c]const DisplayMode) bool;
-pub const setWindowFullscreenMode = SDL_SetWindowFullscreenMode;
-//pub extern fn SDL_GetWindowFullscreenMode(window: ?*SDL_Window) [*c]const SDL_DisplayMode;
-pub extern fn SDL_GetWindowFullscreenMode(window: ?*Window) [*c]const DisplayMode;
-pub const getWindowFullscreenMode = SDL_GetWindowFullscreenMode;
-//pub extern fn SDL_GetWindowICCProfile(window: ?*SDL_Window, size: [*c]usize) ?*anyopaque;
-pub extern fn SDL_GetWindowICCProfile(window: ?*Window, size: [*c]usize) ?*anyopaque;
-pub const getWindowICCProfile = SDL_GetWindowICCProfile;
-//pub extern fn SDL_GetWindowPixelFormat(window: ?*SDL_Window) SDL_PixelFormat;
-pub extern fn SDL_GetWindowPixelFormat(window: ?*Window) PixelFormat;
-pub const getWindowPixelFormat = SDL_GetWindowPixelFormat;
-//pub extern fn SDL_GetWindows(count: [*c]c_int) [*c]?*SDL_Window;
-pub extern fn SDL_GetWindows(count: [*c]c_int) [*c]?*Window;
-pub const getWindows = SDL_GetWindows;
-//pub extern fn SDL_CreateWindow(title: [*c]const u8, w: c_int, h: c_int, flags: SDL_WindowFlags) ?*SDL_Window;
-pub extern fn SDL_CreateWindow(title: [*c]const u8, w: c_int, h: c_int, flags: WindowFlags) ?*Window;
-pub const createWindow = SDL_CreateWindow;
-//pub extern fn SDL_CreatePopupWindow(parent: ?*SDL_Window, offset_x: c_int, offset_y: c_int, w: c_int, h: c_int, flags: SDL_WindowFlags) ?*SDL_Window;
-pub extern fn SDL_CreatePopupWindow(parent: ?*Window, offset_x: c_int, offset_y: c_int, w: c_int, h: c_int, flags: WindowFlags) ?*Window;
-pub const createPopupWindow = SDL_CreatePopupWindow;
-//pub extern fn SDL_CreateWindowWithProperties(props: SDL_PropertiesID) ?*SDL_Window;
-pub extern fn SDL_CreateWindowWithProperties(props: PropertiesID) ?*Window;
-pub const createWindowWithProperties = SDL_CreateWindowWithProperties;
-//pub extern fn SDL_GetWindowID(window: ?*SDL_Window) SDL_WindowID;
-pub extern fn SDL_GetWindowID(window: ?*Window) WindowID;
-pub const getWindowID = SDL_GetWindowID;
-//pub extern fn SDL_GetWindowFromID(id: SDL_WindowID) ?*SDL_Window;
-pub extern fn SDL_GetWindowFromID(id: WindowID) ?*Window;
-pub const getWindowFromID = SDL_GetWindowFromID;
-//pub extern fn SDL_GetWindowParent(window: ?*SDL_Window) ?*SDL_Window;
-pub extern fn SDL_GetWindowParent(window: ?*Window) ?*Window;
-pub const getWindowParent = SDL_GetWindowParent;
-//pub extern fn SDL_GetWindowProperties(window: ?*SDL_Window) SDL_PropertiesID;
-pub extern fn SDL_GetWindowProperties(window: ?*Window) PropertiesID;
-pub const getWindowProperties = SDL_GetWindowProperties;
-//pub extern fn SDL_GetWindowFlags(window: ?*SDL_Window) SDL_WindowFlags;
-pub extern fn SDL_GetWindowFlags(window: ?*Window) WindowFlags;
-pub const getWindowFlags = SDL_GetWindowFlags;
-//pub extern fn SDL_SetWindowTitle(window: ?*SDL_Window, title: [*c]const u8) SDL_bool;
-pub extern fn SDL_SetWindowTitle(window: ?*Window, title: [*c]const u8) bool;
-pub const setWindowTitle = SDL_SetWindowTitle;
-//pub extern fn SDL_GetWindowTitle(window: ?*SDL_Window) [*c]const u8;
-pub extern fn SDL_GetWindowTitle(window: ?*Window) [*c]const u8;
-pub const getWindowTitle = SDL_GetWindowTitle;
-//pub extern fn SDL_SetWindowIcon(window: ?*SDL_Window, icon: [*c]SDL_Surface) SDL_bool;
-pub extern fn SDL_SetWindowIcon(window: ?*Window, icon: [*c]Surface) bool;
-pub const setWindowIcon = SDL_SetWindowIcon;
-//pub extern fn SDL_SetWindowPosition(window: ?*SDL_Window, x: c_int, y: c_int) SDL_bool;
-pub extern fn SDL_SetWindowPosition(window: ?*Window, x: c_int, y: c_int) bool;
-pub const setWindowPosition = SDL_SetWindowPosition;
-//pub extern fn SDL_GetWindowPosition(window: ?*SDL_Window, x: [*c]c_int, y: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowPosition(window: ?*Window, x: [*c]c_int, y: [*c]c_int) bool;
-pub const getWindowPosition = SDL_GetWindowPosition;
-//pub extern fn SDL_SetWindowSize(window: ?*SDL_Window, w: c_int, h: c_int) SDL_bool;
-pub extern fn SDL_SetWindowSize(window: ?*Window, w: c_int, h: c_int) bool;
-pub const setWindowSize = SDL_SetWindowSize;
-//pub extern fn SDL_GetWindowSize(window: ?*SDL_Window, w: [*c]c_int, h: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowSize(window: ?*Window, w: [*c]c_int, h: [*c]c_int) bool;
-pub const getWindowSize = SDL_GetWindowSize;
-//pub extern fn SDL_GetWindowSafeArea(window: ?*SDL_Window, rect: [*c]SDL_Rect) SDL_bool;
-pub extern fn SDL_GetWindowSafeArea(window: ?*Window, rect: [*c]Rect) bool;
-pub const getWindowSafeArea = SDL_GetWindowSafeArea;
-//pub extern fn SDL_SetWindowAspectRatio(window: ?*SDL_Window, min_aspect: f32, max_aspect: f32) SDL_bool;
-pub extern fn SDL_SetWindowAspectRatio(window: ?*Window, min_aspect: f32, max_aspect: f32) bool;
-pub const setWindowAspectRatio = SDL_SetWindowAspectRatio;
-//pub extern fn SDL_GetWindowAspectRatio(window: ?*SDL_Window, min_aspect: [*c]f32, max_aspect: [*c]f32) SDL_bool;
-pub extern fn SDL_GetWindowAspectRatio(window: ?*Window, min_aspect: [*c]f32, max_aspect: [*c]f32) bool;
-pub const getWindowAspectRatio = SDL_GetWindowAspectRatio;
-//pub extern fn SDL_GetWindowBordersSize(window: ?*SDL_Window, top: [*c]c_int, left: [*c]c_int, bottom: [*c]c_int, right: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowBordersSize(window: ?*Window, top: [*c]c_int, left: [*c]c_int, bottom: [*c]c_int, right: [*c]c_int) bool;
-pub const getWindowBordersSize = SDL_GetWindowBordersSize;
-//pub extern fn SDL_GetWindowSizeInPixels(window: ?*SDL_Window, w: [*c]c_int, h: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowSizeInPixels(window: ?*Window, w: [*c]c_int, h: [*c]c_int) bool;
-pub const getWindowSizeInPixels = SDL_GetWindowSizeInPixels;
-//pub extern fn SDL_SetWindowMinimumSize(window: ?*SDL_Window, min_w: c_int, min_h: c_int) SDL_bool;
-pub extern fn SDL_SetWindowMinimumSize(window: ?*Window, min_w: c_int, min_h: c_int) bool;
-pub const setWindowMinimumSize = SDL_SetWindowMinimumSize;
-//pub extern fn SDL_GetWindowMinimumSize(window: ?*SDL_Window, w: [*c]c_int, h: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowMinimumSize(window: ?*Window, w: [*c]c_int, h: [*c]c_int) bool;
-pub const getWindowMinimumSize = SDL_GetWindowMinimumSize;
-//pub extern fn SDL_SetWindowMaximumSize(window: ?*SDL_Window, max_w: c_int, max_h: c_int) SDL_bool;
-pub extern fn SDL_SetWindowMaximumSize(window: ?*Window, max_w: c_int, max_h: c_int) bool;
-pub const setWindowMaximumSize = SDL_SetWindowMaximumSize;
-//pub extern fn SDL_GetWindowMaximumSize(window: ?*SDL_Window, w: [*c]c_int, h: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowMaximumSize(window: ?*Window, w: [*c]c_int, h: [*c]c_int) bool;
-pub const getWindowMaximumSize = SDL_GetWindowMaximumSize;
-//pub extern fn SDL_SetWindowBordered(window: ?*SDL_Window, bordered: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowBordered(window: ?*Window, bordered: bool) bool;
-pub const setWindowBordered = SDL_SetWindowBordered;
-//pub extern fn SDL_SetWindowResizable(window: ?*SDL_Window, resizable: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowResizable(window: ?*Window, resizable: bool) bool;
-pub const setWindowResizable = SDL_SetWindowResizable;
-//pub extern fn SDL_SetWindowAlwaysOnTop(window: ?*SDL_Window, on_top: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowAlwaysOnTop(window: ?*Window, on_top: bool) bool;
-pub const setWindowAlwaysOnTop = SDL_SetWindowAlwaysOnTop;
-//pub extern fn SDL_ShowWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_ShowWindow(window: ?*Window) bool;
-pub const showWindow = SDL_ShowWindow;
-//pub extern fn SDL_HideWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_HideWindow(window: ?*Window) bool;
-pub const hideWindow = SDL_HideWindow;
-//pub extern fn SDL_RaiseWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_RaiseWindow(window: ?*Window) bool;
-pub const raiseWindow = SDL_RaiseWindow;
-//pub extern fn SDL_MaximizeWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_MaximizeWindow(window: ?*Window) bool;
-pub const maximizeWindow = SDL_MaximizeWindow;
-//pub extern fn SDL_MinimizeWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_MinimizeWindow(window: ?*Window) bool;
-pub const minimizeWindow = SDL_MinimizeWindow;
-//pub extern fn SDL_RestoreWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_RestoreWindow(window: ?*Window) bool;
-pub const restoreWindow = SDL_RestoreWindow;
-//pub extern fn SDL_SetWindowFullscreen(window: ?*SDL_Window, fullscreen: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowFullscreen(window: ?*Window, fullscreen: bool) bool;
-pub const setWindowFullscreen = SDL_SetWindowFullscreen;
-//pub extern fn SDL_SyncWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_SyncWindow(window: ?*Window) bool;
-pub const syncWindow = SDL_SyncWindow;
-//pub extern fn SDL_WindowHasSurface(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_WindowHasSurface(window: ?*Window) bool;
-pub const windowHasSurface = SDL_WindowHasSurface;
-//pub extern fn SDL_GetWindowSurface(window: ?*SDL_Window) [*c]SDL_Surface;
-pub extern fn SDL_GetWindowSurface(window: ?*Window) [*c]Surface;
-pub const getWindowSurface = SDL_GetWindowSurface;
-//pub extern fn SDL_SetWindowSurfaceVSync(window: ?*SDL_Window, vsync: c_int) SDL_bool;
-pub extern fn SDL_SetWindowSurfaceVSync(window: ?*Window, vsync: c_int) bool;
-pub const setWindowSurfaceVSync = SDL_SetWindowSurfaceVSync;
-//pub extern fn SDL_GetWindowSurfaceVSync(window: ?*SDL_Window, vsync: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowSurfaceVSync(window: ?*Window, vsync: [*c]c_int) bool;
-pub const getWindowSurfaceVSync = SDL_GetWindowSurfaceVSync;
-//pub extern fn SDL_UpdateWindowSurface(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_UpdateWindowSurface(window: ?*Window) bool;
-pub const updateWindowSurface = SDL_UpdateWindowSurface;
-//pub extern fn SDL_UpdateWindowSurfaceRects(window: ?*SDL_Window, rects: [*c]const SDL_Rect, numrects: c_int) SDL_bool;
-pub extern fn SDL_UpdateWindowSurfaceRects(window: ?*Window, rects: [*c]const Rect, numrects: c_int) bool;
-pub const updateWindowSurfaceRects = SDL_UpdateWindowSurfaceRects;
-//pub extern fn SDL_DestroyWindowSurface(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_DestroyWindowSurface(window: ?*Window) bool;
-pub const destroyWindowSurface = SDL_DestroyWindowSurface;
-//pub extern fn SDL_SetWindowKeyboardGrab(window: ?*SDL_Window, grabbed: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowKeyboardGrab(window: ?*Window, grabbed: bool) bool;
-pub const setWindowKeyboardGrab = SDL_SetWindowKeyboardGrab;
-//pub extern fn SDL_SetWindowMouseGrab(window: ?*SDL_Window, grabbed: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowMouseGrab(window: ?*Window, grabbed: bool) bool;
-pub const setWindowMouseGrab = SDL_SetWindowMouseGrab;
-//pub extern fn SDL_GetWindowKeyboardGrab(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_GetWindowKeyboardGrab(window: ?*Window) bool;
-pub const getWindowKeyboardGrab = SDL_GetWindowKeyboardGrab;
-//pub extern fn SDL_GetWindowMouseGrab(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_GetWindowMouseGrab(window: ?*Window) bool;
-pub const getWindowMouseGrab = SDL_GetWindowMouseGrab;
-//pub extern fn SDL_GetGrabbedWindow() ?*SDL_Window;
-pub extern fn SDL_GetGrabbedWindow() ?*Window;
-pub const getGrabbedWindow = SDL_GetGrabbedWindow;
-//pub extern fn SDL_SetWindowMouseRect(window: ?*SDL_Window, rect: [*c]const SDL_Rect) SDL_bool;
-pub extern fn SDL_SetWindowMouseRect(window: ?*Window, rect: [*c]const Rect) bool;
-pub const setWindowMouseRect = SDL_SetWindowMouseRect;
-//pub extern fn SDL_GetWindowMouseRect(window: ?*SDL_Window) [*c]const SDL_Rect;
-pub extern fn SDL_GetWindowMouseRect(window: ?*Window) [*c]const Rect;
-pub const getWindowMouseRect = SDL_GetWindowMouseRect;
-//pub extern fn SDL_SetWindowOpacity(window: ?*SDL_Window, opacity: f32) SDL_bool;
-pub extern fn SDL_SetWindowOpacity(window: ?*Window, opacity: f32) bool;
-pub const setWindowOpacity = SDL_SetWindowOpacity;
-//pub extern fn SDL_GetWindowOpacity(window: ?*SDL_Window) f32;
-pub extern fn SDL_GetWindowOpacity(window: ?*Window) f32;
-pub const getWindowOpacity = SDL_GetWindowOpacity;
-//pub extern fn SDL_SetWindowParent(window: ?*SDL_Window, parent: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_SetWindowParent(window: ?*Window, parent: ?*Window) bool;
-pub const setWindowParent = SDL_SetWindowParent;
-//pub extern fn SDL_SetWindowModal(window: ?*SDL_Window, modal: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowModal(window: ?*Window, modal: bool) bool;
-pub const setWindowModal = SDL_SetWindowModal;
-//pub extern fn SDL_SetWindowFocusable(window: ?*SDL_Window, focusable: SDL_bool) SDL_bool;
-pub extern fn SDL_SetWindowFocusable(window: ?*Window, focusable: bool) bool;
-pub const setWindowFocusable = SDL_SetWindowFocusable;
-//pub extern fn SDL_ShowWindowSystemMenu(window: ?*SDL_Window, x: c_int, y: c_int) SDL_bool;
-pub extern fn SDL_ShowWindowSystemMenu(window: ?*Window, x: c_int, y: c_int) bool;
-pub const showWindowSystemMenu = SDL_ShowWindowSystemMenu;
-//pub const SDL_HITTEST_NORMAL: c_int = 0;
-//pub const SDL_HITTEST_DRAGGABLE: c_int = 1;
-//pub const SDL_HITTEST_RESIZE_TOPLEFT: c_int = 2;
-//pub const SDL_HITTEST_RESIZE_TOP: c_int = 3;
-//pub const SDL_HITTEST_RESIZE_TOPRIGHT: c_int = 4;
-//pub const SDL_HITTEST_RESIZE_RIGHT: c_int = 5;
-//pub const SDL_HITTEST_RESIZE_BOTTOMRIGHT: c_int = 6;
-//pub const SDL_HITTEST_RESIZE_BOTTOM: c_int = 7;
-//pub const SDL_HITTEST_RESIZE_BOTTOMLEFT: c_int = 8;
-//pub const SDL_HITTEST_RESIZE_LEFT: c_int = 9;
-//pub const enum_SDL_HitTestResult = c_uint;
-pub const HitTestResult = enum (c_uint) {
-	hittest_normal = 0,
-	hittest_draggable = 1,
-	hittest_resize_topleft = 2,
-	hittest_resize_top = 3,
-	hittest_resize_topright = 4,
-	hittest_resize_right = 5,
-	hittest_resize_bottomright = 6,
-	hittest_resize_bottom = 7,
-	hittest_resize_bottomleft = 8,
-	hittest_resize_left = 9,
-};
-
-//pub const SDL_HitTestResult = enum_SDL_HitTestResult;
-//pub const SDL_HitTest = ?*const fn (?*SDL_Window, [*c]const SDL_Point, ?*anyopaque) callconv(.C) SDL_HitTestResult;
-pub const HitTest = ?*const fn (?*Window, [*c]const Point, ?*anyopaque) callconv(.C) HitTestResult;
-//pub extern fn SDL_SetWindowHitTest(window: ?*SDL_Window, callback: SDL_HitTest, callback_data: ?*anyopaque) SDL_bool;
-pub extern fn SDL_SetWindowHitTest(window: ?*Window, callback: HitTest, callback_data: ?*anyopaque) bool;
-pub const setWindowHitTest = SDL_SetWindowHitTest;
-//pub extern fn SDL_SetWindowShape(window: ?*SDL_Window, shape: [*c]SDL_Surface) SDL_bool;
-pub extern fn SDL_SetWindowShape(window: ?*Window, shape: [*c]Surface) bool;
-pub const setWindowShape = SDL_SetWindowShape;
-//pub extern fn SDL_FlashWindow(window: ?*SDL_Window, operation: SDL_FlashOperation) SDL_bool;
-pub extern fn SDL_FlashWindow(window: ?*Window, operation: FlashOperation) bool;
-pub const flashWindow = SDL_FlashWindow;
-//pub extern fn SDL_DestroyWindow(window: ?*SDL_Window) void;
-pub extern fn SDL_DestroyWindow(window: ?*Window) void;
-pub const destroyWindow = SDL_DestroyWindow;
-//pub extern fn SDL_ScreenSaverEnabled() SDL_bool;
-pub extern fn SDL_ScreenSaverEnabled() bool;
-pub const screenSaverEnabled = SDL_ScreenSaverEnabled;
-//pub extern fn SDL_EnableScreenSaver() SDL_bool;
-pub extern fn SDL_EnableScreenSaver() bool;
-pub const enableScreenSaver = SDL_EnableScreenSaver;
-//pub extern fn SDL_DisableScreenSaver() SDL_bool;
-pub extern fn SDL_DisableScreenSaver() bool;
-pub const disableScreenSaver = SDL_DisableScreenSaver;
-//pub extern fn SDL_GL_LoadLibrary(path: [*c]const u8) SDL_bool;
-pub extern fn SDL_GL_LoadLibrary(path: [*c]const u8) bool;
-pub const gL_LoadLibrary = SDL_GL_LoadLibrary;
-//pub extern fn SDL_GL_GetProcAddress(proc: [*c]const u8) SDL_FunctionPointer;
-pub extern fn SDL_GL_GetProcAddress(proc: [*c]const u8) FunctionPointer;
-pub const gL_GetProcAddress = SDL_GL_GetProcAddress;
-//pub extern fn SDL_EGL_GetProcAddress(proc: [*c]const u8) SDL_FunctionPointer;
-pub extern fn SDL_EGL_GetProcAddress(proc: [*c]const u8) FunctionPointer;
-pub const eGL_GetProcAddress = SDL_EGL_GetProcAddress;
-//pub extern fn SDL_GL_UnloadLibrary() void;
-pub extern fn SDL_GL_UnloadLibrary() void;
-pub const gL_UnloadLibrary = SDL_GL_UnloadLibrary;
-//pub extern fn SDL_GL_ExtensionSupported(extension: [*c]const u8) SDL_bool;
-pub extern fn SDL_GL_ExtensionSupported(extension: [*c]const u8) bool;
-pub const gL_ExtensionSupported = SDL_GL_ExtensionSupported;
-//pub extern fn SDL_GL_ResetAttributes() void;
-pub extern fn SDL_GL_ResetAttributes() void;
-pub const gL_ResetAttributes = SDL_GL_ResetAttributes;
-//pub extern fn SDL_GL_SetAttribute(attr: SDL_GLattr, value: c_int) SDL_bool;
-pub extern fn SDL_GL_SetAttribute(attr: GLattr, value: c_int) bool;
-pub const gL_SetAttribute = SDL_GL_SetAttribute;
-//pub extern fn SDL_GL_GetAttribute(attr: SDL_GLattr, value: [*c]c_int) SDL_bool;
-pub extern fn SDL_GL_GetAttribute(attr: GLattr, value: [*c]c_int) bool;
-pub const gL_GetAttribute = SDL_GL_GetAttribute;
-//pub extern fn SDL_GL_CreateContext(window: ?*SDL_Window) SDL_GLContext;
-pub extern fn SDL_GL_CreateContext(window: ?*Window) GLContext;
-pub const gL_CreateContext = SDL_GL_CreateContext;
-//pub extern fn SDL_GL_MakeCurrent(window: ?*SDL_Window, context: SDL_GLContext) SDL_bool;
-pub extern fn SDL_GL_MakeCurrent(window: ?*Window, context: GLContext) bool;
-pub const gL_MakeCurrent = SDL_GL_MakeCurrent;
-//pub extern fn SDL_GL_GetCurrentWindow() ?*SDL_Window;
-pub extern fn SDL_GL_GetCurrentWindow() ?*Window;
-pub const gL_GetCurrentWindow = SDL_GL_GetCurrentWindow;
-//pub extern fn SDL_GL_GetCurrentContext() SDL_GLContext;
-pub extern fn SDL_GL_GetCurrentContext() GLContext;
-pub const gL_GetCurrentContext = SDL_GL_GetCurrentContext;
-//pub extern fn SDL_EGL_GetCurrentDisplay() SDL_EGLDisplay;
-pub extern fn SDL_EGL_GetCurrentDisplay() EGLDisplay;
-pub const eGL_GetCurrentDisplay = SDL_EGL_GetCurrentDisplay;
-//pub extern fn SDL_EGL_GetCurrentConfig() SDL_EGLConfig;
-pub extern fn SDL_EGL_GetCurrentConfig() EGLConfig;
-pub const eGL_GetCurrentConfig = SDL_EGL_GetCurrentConfig;
-//pub extern fn SDL_EGL_GetWindowSurface(window: ?*SDL_Window) SDL_EGLSurface;
-pub extern fn SDL_EGL_GetWindowSurface(window: ?*Window) EGLSurface;
-pub const eGL_GetWindowSurface = SDL_EGL_GetWindowSurface;
-//pub extern fn SDL_EGL_SetAttributeCallbacks(platformAttribCallback: SDL_EGLAttribArrayCallback, surfaceAttribCallback: SDL_EGLIntArrayCallback, contextAttribCallback: SDL_EGLIntArrayCallback) void;
-pub extern fn SDL_EGL_SetAttributeCallbacks(platformAttribCallback: EGLAttribArrayCallback, surfaceAttribCallback: EGLIntArrayCallback, contextAttribCallback: EGLIntArrayCallback) void;
-pub const eGL_SetAttributeCallbacks = SDL_EGL_SetAttributeCallbacks;
-//pub extern fn SDL_GL_SetSwapInterval(interval: c_int) SDL_bool;
-pub extern fn SDL_GL_SetSwapInterval(interval: c_int) bool;
-pub const gL_SetSwapInterval = SDL_GL_SetSwapInterval;
-//pub extern fn SDL_GL_GetSwapInterval(interval: [*c]c_int) SDL_bool;
-pub extern fn SDL_GL_GetSwapInterval(interval: [*c]c_int) bool;
-pub const gL_GetSwapInterval = SDL_GL_GetSwapInterval;
-//pub extern fn SDL_GL_SwapWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_GL_SwapWindow(window: ?*Window) bool;
-pub const gL_SwapWindow = SDL_GL_SwapWindow;
-//pub extern fn SDL_GL_DestroyContext(context: SDL_GLContext) SDL_bool;
-pub extern fn SDL_GL_DestroyContext(context: GLContext) bool;
-pub const gL_DestroyContext = SDL_GL_DestroyContext;
+//pub const SDL_PropertyType = enum_SDL_PropertyType;
+//pub extern fn SDL_GetGlobalProperties() SDL_PropertiesID;
+pub extern fn GetGlobalProperties() PropertiesID;
+pub const getGlobalProperties = GetGlobalProperties;
+//pub extern fn SDL_CreateProperties() SDL_PropertiesID;
+pub extern fn CreateProperties() PropertiesID;
+pub const createProperties = CreateProperties;
+//pub extern fn SDL_CopyProperties(src: SDL_PropertiesID, dst: SDL_PropertiesID) SDL_bool;
+pub extern fn CopyProperties(src: PropertiesID, dst: PropertiesID) bool;
+pub const copyProperties = CopyProperties;
+//pub extern fn SDL_LockProperties(props: SDL_PropertiesID) SDL_bool;
+pub extern fn LockProperties(props: PropertiesID) bool;
+pub const lockProperties = LockProperties;
+//pub extern fn SDL_UnlockProperties(props: SDL_PropertiesID) void;
+pub extern fn UnlockProperties(props: PropertiesID) void;
+pub const unlockProperties = UnlockProperties;
+//pub const SDL_CleanupPropertyCallback = ?*const fn (?*anyopaque, ?*anyopaque) callconv(.C) void;
+pub const CleanupPropertyCallback = ?*const fn (?*anyopaque, ?*anyopaque) callconv(.C) void;
+//pub extern fn SDL_SetPointerPropertyWithCleanup(props: SDL_PropertiesID, name: [*c]const u8, value: ?*anyopaque, cleanup: SDL_CleanupPropertyCallback, userdata: ?*anyopaque) SDL_bool;
+pub extern fn SetPointerPropertyWithCleanup(props: PropertiesID, name: [*c]const u8, value: ?*anyopaque, cleanup: CleanupPropertyCallback, userdata: ?*anyopaque) bool;
+pub const setPointerPropertyWithCleanup = SetPointerPropertyWithCleanup;
+//pub extern fn SDL_SetPointerProperty(props: SDL_PropertiesID, name: [*c]const u8, value: ?*anyopaque) SDL_bool;
+pub extern fn SetPointerProperty(props: PropertiesID, name: [*c]const u8, value: ?*anyopaque) bool;
+pub const setPointerProperty = SetPointerProperty;
+//pub extern fn SDL_SetStringProperty(props: SDL_PropertiesID, name: [*c]const u8, value: [*c]const u8) SDL_bool;
+pub extern fn SetStringProperty(props: PropertiesID, name: [*c]const u8, value: [*c]const u8) bool;
+pub const setStringProperty = SetStringProperty;
+//pub extern fn SDL_SetNumberProperty(props: SDL_PropertiesID, name: [*c]const u8, value: Sint64) SDL_bool;
+pub extern fn SetNumberProperty(props: PropertiesID, name: [*c]const u8, value: i64) bool;
+pub const setNumberProperty = SetNumberProperty;
+//pub extern fn SDL_SetFloatProperty(props: SDL_PropertiesID, name: [*c]const u8, value: f32) SDL_bool;
+pub extern fn SetFloatProperty(props: PropertiesID, name: [*c]const u8, value: f32) bool;
+pub const setFloatProperty = SetFloatProperty;
+//pub extern fn SDL_SetBooleanProperty(props: SDL_PropertiesID, name: [*c]const u8, value: SDL_bool) SDL_bool;
+pub extern fn SetBooleanProperty(props: PropertiesID, name: [*c]const u8, value: bool) bool;
+pub const setBooleanProperty = SetBooleanProperty;
+//pub extern fn SDL_HasProperty(props: SDL_PropertiesID, name: [*c]const u8) SDL_bool;
+pub extern fn HasProperty(props: PropertiesID, name: [*c]const u8) bool;
+pub const hasProperty = HasProperty;
+//pub extern fn SDL_GetPropertyType(props: SDL_PropertiesID, name: [*c]const u8) SDL_PropertyType;
+pub extern fn GetPropertyType(props: PropertiesID, name: [*c]const u8) PropertyType;
+pub const getPropertyType = GetPropertyType;
+//pub extern fn SDL_GetPointerProperty(props: SDL_PropertiesID, name: [*c]const u8, default_value: ?*anyopaque) ?*anyopaque;
+pub extern fn GetPointerProperty(props: PropertiesID, name: [*c]const u8, default_value: ?*anyopaque) ?*anyopaque;
+pub const getPointerProperty = GetPointerProperty;
+//pub extern fn SDL_GetStringProperty(props: SDL_PropertiesID, name: [*c]const u8, default_value: [*c]const u8) [*c]const u8;
+pub extern fn GetStringProperty(props: PropertiesID, name: [*c]const u8, default_value: [*c]const u8) [*c]const u8;
+pub const getStringProperty = GetStringProperty;
+//pub extern fn SDL_GetNumberProperty(props: SDL_PropertiesID, name: [*c]const u8, default_value: Sint64) Sint64;
+pub extern fn GetNumberProperty(props: PropertiesID, name: [*c]const u8, default_value: i64) i64;
+pub const getNumberProperty = GetNumberProperty;
+//pub extern fn SDL_GetFloatProperty(props: SDL_PropertiesID, name: [*c]const u8, default_value: f32) f32;
+pub extern fn GetFloatProperty(props: PropertiesID, name: [*c]const u8, default_value: f32) f32;
+pub const getFloatProperty = GetFloatProperty;
+//pub extern fn SDL_GetBooleanProperty(props: SDL_PropertiesID, name: [*c]const u8, default_value: SDL_bool) SDL_bool;
+pub extern fn GetBooleanProperty(props: PropertiesID, name: [*c]const u8, default_value: bool) bool;
+pub const getBooleanProperty = GetBooleanProperty;
+//pub extern fn SDL_ClearProperty(props: SDL_PropertiesID, name: [*c]const u8) SDL_bool;
+pub extern fn ClearProperty(props: PropertiesID, name: [*c]const u8) bool;
+pub const clearProperty = ClearProperty;
+//pub const SDL_EnumeratePropertiesCallback = ?*const fn (?*anyopaque, SDL_PropertiesID, [*c]const u8) callconv(.C) void;
+pub const EnumeratePropertiesCallback = ?*const fn (?*anyopaque, PropertiesID, [*c]const u8) callconv(.C) void;
+//pub extern fn SDL_EnumerateProperties(props: SDL_PropertiesID, callback: SDL_EnumeratePropertiesCallback, userdata: ?*anyopaque) SDL_bool;
+pub extern fn EnumerateProperties(props: PropertiesID, callback: EnumeratePropertiesCallback, userdata: ?*anyopaque) bool;
+pub const enumerateProperties = EnumerateProperties;
+//pub extern fn SDL_DestroyProperties(props: SDL_PropertiesID) void;
+pub extern fn DestroyProperties(props: PropertiesID) void;
+pub const destroyProperties = DestroyProperties;
 //pub const __llvm__ = @as(c_int, 1);
 //pub const __clang__ = @as(c_int, 1);
 //pub const __clang_major__ = @as(c_int, 18);
@@ -1027,7 +556,7 @@ pub const gL_DestroyContext = SDL_GL_DestroyContext;
 //pub const __MSVCRT_VERSION__ = @as(c_int, 0xE00);
 //pub const _WIN32_WINNT = @as(c_int, 0x0a00);
 //pub const _DEBUG = @as(c_int, 1);
-//pub const SDL_video_h_ = "";
+//pub const SDL_properties_h_ = "";
 //pub const SDL_stdinc_h_ = "";
 //pub const SDL_platform_defines_h_ = "";
 //pub const SDL_PLATFORM_WINDOWS = @as(c_int, 1);
@@ -1933,341 +1462,6 @@ pub const gL_DestroyContext = SDL_GL_DestroyContext;
 //    _ = &param;
 //    return SDL_SetError("Parameter '%s' is invalid", param);
 //}
-//pub const SDL_pixels_h_ = "";
-//pub const SDL_endian_h_ = "";
-//pub const SDL_LIL_ENDIAN = @as(c_int, 1234);
-//pub const SDL_BIG_ENDIAN = @as(c_int, 4321);
-//pub const SDL_BYTEORDER = SDL_LIL_ENDIAN;
-//pub const SDL_FLOATWORDORDER = SDL_BYTEORDER;
-//pub const HAS_BUILTIN_BSWAP16 = (SDL_HAS_BUILTIN(__builtin_bswap16) != 0) or ((__GNUC__ > @as(c_int, 4)) or ((__GNUC__ == @as(c_int, 4)) and (__GNUC_MINOR__ >= @as(c_int, 8))));
-//pub const HAS_BUILTIN_BSWAP32 = (SDL_HAS_BUILTIN(__builtin_bswap32) != 0) or ((__GNUC__ > @as(c_int, 4)) or ((__GNUC__ == @as(c_int, 4)) and (__GNUC_MINOR__ >= @as(c_int, 3))));
-//pub const HAS_BUILTIN_BSWAP64 = (SDL_HAS_BUILTIN(__builtin_bswap64) != 0) or ((__GNUC__ > @as(c_int, 4)) or ((__GNUC__ == @as(c_int, 4)) and (__GNUC_MINOR__ >= @as(c_int, 3))));
-//pub const HAS_BROKEN_BSWAP = (__GNUC__ == @as(c_int, 2)) and (__GNUC_MINOR__ <= @as(c_int, 95));
-//pub inline fn SDL_Swap16(x: anytype) @TypeOf(__builtin_bswap16(x)) {
-//    _ = &x;
-//    return __builtin_bswap16(x);
-//}
-//pub inline fn SDL_Swap32(x: anytype) @TypeOf(__builtin_bswap32(x)) {
-//    _ = &x;
-//    return __builtin_bswap32(x);
-//}
-//pub inline fn SDL_Swap64(x: anytype) @TypeOf(__builtin_bswap64(x)) {
-//    _ = &x;
-//    return __builtin_bswap64(x);
-//}
-//pub inline fn SDL_Swap16LE(x: anytype) @TypeOf(x) {
-//    _ = &x;
-//    return x;
-//}
-//pub inline fn SDL_Swap32LE(x: anytype) @TypeOf(x) {
-//    _ = &x;
-//    return x;
-//}
-//pub inline fn SDL_Swap64LE(x: anytype) @TypeOf(x) {
-//    _ = &x;
-//    return x;
-//}
-//pub inline fn SDL_SwapFloatLE(x: anytype) @TypeOf(x) {
-//    _ = &x;
-//    return x;
-//}
-//pub inline fn SDL_Swap16BE(x: anytype) @TypeOf(SDL_Swap16(x)) {
-//    _ = &x;
-//    return SDL_Swap16(x);
-//}
-//pub inline fn SDL_Swap32BE(x: anytype) @TypeOf(SDL_Swap32(x)) {
-//    _ = &x;
-//    return SDL_Swap32(x);
-//}
-//pub inline fn SDL_Swap64BE(x: anytype) @TypeOf(SDL_Swap64(x)) {
-//    _ = &x;
-//    return SDL_Swap64(x);
-//}
-//pub inline fn SDL_SwapFloatBE(x: anytype) @TypeOf(SDL_SwapFloat(x)) {
-//    _ = &x;
-//    return SDL_SwapFloat(x);
-//}
-//pub const SDL_ALPHA_OPAQUE = @as(c_int, 255);
-//pub const SDL_ALPHA_OPAQUE_FLOAT = @as(f32, 1.0);
-//pub const SDL_ALPHA_TRANSPARENT = @as(c_int, 0);
-//pub const SDL_ALPHA_TRANSPARENT_FLOAT = @as(f32, 0.0);
-//pub inline fn SDL_DEFINE_PIXELFOURCC(A: anytype, B: anytype, C: anytype, D: anytype) @TypeOf(SDL_FOURCC(A, B, C, D)) {
-//    _ = &A;
-//    _ = &B;
-//    _ = &C;
-//    _ = &D;
-//    return SDL_FOURCC(A, B, C, D);
-//}
-//pub inline fn SDL_DEFINE_PIXELFORMAT(@"type": anytype, order: anytype, layout: anytype, bits: anytype, bytes: anytype) @TypeOf((((((@as(c_int, 1) << @as(c_int, 28)) | (@"type" << @as(c_int, 24))) | (order << @as(c_int, 20))) | (layout << @as(c_int, 16))) | (bits << @as(c_int, 8))) | (bytes << @as(c_int, 0))) {
-//    _ = &@"type";
-//    _ = &order;
-//    _ = &layout;
-//    _ = &bits;
-//    _ = &bytes;
-//    return (((((@as(c_int, 1) << @as(c_int, 28)) | (@"type" << @as(c_int, 24))) | (order << @as(c_int, 20))) | (layout << @as(c_int, 16))) | (bits << @as(c_int, 8))) | (bytes << @as(c_int, 0));
-//}
-//pub inline fn SDL_PIXELFLAG(X: anytype) @TypeOf((X >> @as(c_int, 28)) & @as(c_int, 0x0F)) {
-//    _ = &X;
-//    return (X >> @as(c_int, 28)) & @as(c_int, 0x0F);
-//}
-//pub inline fn SDL_PIXELTYPE(X: anytype) @TypeOf((X >> @as(c_int, 24)) & @as(c_int, 0x0F)) {
-//    _ = &X;
-//    return (X >> @as(c_int, 24)) & @as(c_int, 0x0F);
-//}
-//pub inline fn SDL_PIXELORDER(X: anytype) @TypeOf((X >> @as(c_int, 20)) & @as(c_int, 0x0F)) {
-//    _ = &X;
-//    return (X >> @as(c_int, 20)) & @as(c_int, 0x0F);
-//}
-//pub inline fn SDL_PIXELLAYOUT(X: anytype) @TypeOf((X >> @as(c_int, 16)) & @as(c_int, 0x0F)) {
-//    _ = &X;
-//    return (X >> @as(c_int, 16)) & @as(c_int, 0x0F);
-//}
-//pub inline fn SDL_BITSPERPIXEL(X: anytype) @TypeOf(if (SDL_ISPIXELFORMAT_FOURCC(X)) @as(c_int, 0) else (X >> @as(c_int, 8)) & @as(c_int, 0xFF)) {
-//    _ = &X;
-//    return if (SDL_ISPIXELFORMAT_FOURCC(X)) @as(c_int, 0) else (X >> @as(c_int, 8)) & @as(c_int, 0xFF);
-//}
-//pub inline fn SDL_BYTESPERPIXEL(X: anytype) @TypeOf(if (SDL_ISPIXELFORMAT_FOURCC(X)) if ((((X == SDL_PIXELFORMAT_YUY2) or (X == SDL_PIXELFORMAT_UYVY)) or (X == SDL_PIXELFORMAT_YVYU)) or (X == SDL_PIXELFORMAT_P010)) @as(c_int, 2) else @as(c_int, 1) else (X >> @as(c_int, 0)) & @as(c_int, 0xFF)) {
-//    _ = &X;
-//    return if (SDL_ISPIXELFORMAT_FOURCC(X)) if ((((X == SDL_PIXELFORMAT_YUY2) or (X == SDL_PIXELFORMAT_UYVY)) or (X == SDL_PIXELFORMAT_YVYU)) or (X == SDL_PIXELFORMAT_P010)) @as(c_int, 2) else @as(c_int, 1) else (X >> @as(c_int, 0)) & @as(c_int, 0xFF);
-//}
-//pub inline fn SDL_ISPIXELFORMAT_INDEXED(format: anytype) @TypeOf(!(SDL_ISPIXELFORMAT_FOURCC(format) != 0) and ((((SDL_PIXELTYPE(format) == SDL_PIXELTYPE_INDEX1) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_INDEX2)) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_INDEX4)) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_INDEX8))) {
-//    _ = &format;
-//    return !(SDL_ISPIXELFORMAT_FOURCC(format) != 0) and ((((SDL_PIXELTYPE(format) == SDL_PIXELTYPE_INDEX1) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_INDEX2)) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_INDEX4)) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_INDEX8));
-//}
-//pub inline fn SDL_ISPIXELFORMAT_PACKED(format: anytype) @TypeOf(!(SDL_ISPIXELFORMAT_FOURCC(format) != 0) and (((SDL_PIXELTYPE(format) == SDL_PIXELTYPE_PACKED8) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_PACKED16)) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_PACKED32))) {
-//    _ = &format;
-//    return !(SDL_ISPIXELFORMAT_FOURCC(format) != 0) and (((SDL_PIXELTYPE(format) == SDL_PIXELTYPE_PACKED8) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_PACKED16)) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_PACKED32));
-//}
-//pub inline fn SDL_ISPIXELFORMAT_ARRAY(format: anytype) @TypeOf(!(SDL_ISPIXELFORMAT_FOURCC(format) != 0) and (((((SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYU8) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYU16)) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYU32)) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYF16)) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYF32))) {
-//    _ = &format;
-//    return !(SDL_ISPIXELFORMAT_FOURCC(format) != 0) and (((((SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYU8) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYU16)) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYU32)) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYF16)) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYF32));
-//}
-//pub inline fn SDL_ISPIXELFORMAT_ALPHA(format: anytype) @TypeOf((SDL_ISPIXELFORMAT_PACKED(format) != 0) and ((((SDL_PIXELORDER(format) == SDL_PACKEDORDER_ARGB) or (SDL_PIXELORDER(format) == SDL_PACKEDORDER_RGBA)) or (SDL_PIXELORDER(format) == SDL_PACKEDORDER_ABGR)) or (SDL_PIXELORDER(format) == SDL_PACKEDORDER_BGRA))) {
-//    _ = &format;
-//    return (SDL_ISPIXELFORMAT_PACKED(format) != 0) and ((((SDL_PIXELORDER(format) == SDL_PACKEDORDER_ARGB) or (SDL_PIXELORDER(format) == SDL_PACKEDORDER_RGBA)) or (SDL_PIXELORDER(format) == SDL_PACKEDORDER_ABGR)) or (SDL_PIXELORDER(format) == SDL_PACKEDORDER_BGRA));
-//}
-//pub inline fn SDL_ISPIXELFORMAT_10BIT(format: anytype) @TypeOf(!(SDL_ISPIXELFORMAT_FOURCC(format) != 0) and ((SDL_PIXELTYPE(format) == SDL_PIXELTYPE_PACKED32) and (SDL_PIXELLAYOUT(format) == SDL_PACKEDLAYOUT_2101010))) {
-//    _ = &format;
-//    return !(SDL_ISPIXELFORMAT_FOURCC(format) != 0) and ((SDL_PIXELTYPE(format) == SDL_PIXELTYPE_PACKED32) and (SDL_PIXELLAYOUT(format) == SDL_PACKEDLAYOUT_2101010));
-//}
-//pub inline fn SDL_ISPIXELFORMAT_FLOAT(format: anytype) @TypeOf(!(SDL_ISPIXELFORMAT_FOURCC(format) != 0) and ((SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYF16) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYF32))) {
-//    _ = &format;
-//    return !(SDL_ISPIXELFORMAT_FOURCC(format) != 0) and ((SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYF16) or (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYF32));
-//}
-//pub inline fn SDL_ISPIXELFORMAT_FOURCC(format: anytype) @TypeOf((format != 0) and (SDL_PIXELFLAG(format) != @as(c_int, 1))) {
-//    _ = &format;
-//    return (format != 0) and (SDL_PIXELFLAG(format) != @as(c_int, 1));
-//}
-//pub const SDL_PIXELFORMAT_RGBA32 = SDL_PIXELFORMAT_ABGR8888;
-//pub const SDL_PIXELFORMAT_ARGB32 = SDL_PIXELFORMAT_BGRA8888;
-//pub const SDL_PIXELFORMAT_BGRA32 = SDL_PIXELFORMAT_ARGB8888;
-//pub const SDL_PIXELFORMAT_ABGR32 = SDL_PIXELFORMAT_RGBA8888;
-//pub const SDL_PIXELFORMAT_RGBX32 = SDL_PIXELFORMAT_XBGR8888;
-//pub const SDL_PIXELFORMAT_XRGB32 = SDL_PIXELFORMAT_BGRX8888;
-//pub const SDL_PIXELFORMAT_BGRX32 = SDL_PIXELFORMAT_XRGB8888;
-//pub const SDL_PIXELFORMAT_XBGR32 = SDL_PIXELFORMAT_RGBX8888;
-//pub inline fn SDL_DEFINE_COLORSPACE(@"type": anytype, range: anytype, primaries: anytype, transfer: anytype, matrix: anytype, chroma: anytype) @TypeOf((((((@import("std").zig.c_translation.cast(Uint32, @"type") << @as(c_int, 28)) | (@import("std").zig.c_translation.cast(Uint32, range) << @as(c_int, 24))) | (@import("std").zig.c_translation.cast(Uint32, chroma) << @as(c_int, 20))) | (@import("std").zig.c_translation.cast(Uint32, primaries) << @as(c_int, 10))) | (@import("std").zig.c_translation.cast(Uint32, transfer) << @as(c_int, 5))) | (@import("std").zig.c_translation.cast(Uint32, matrix) << @as(c_int, 0))) {
-//    _ = &@"type";
-//    _ = &range;
-//    _ = &primaries;
-//    _ = &transfer;
-//    _ = &matrix;
-//    _ = &chroma;
-//    return (((((@import("std").zig.c_translation.cast(Uint32, @"type") << @as(c_int, 28)) | (@import("std").zig.c_translation.cast(Uint32, range) << @as(c_int, 24))) | (@import("std").zig.c_translation.cast(Uint32, chroma) << @as(c_int, 20))) | (@import("std").zig.c_translation.cast(Uint32, primaries) << @as(c_int, 10))) | (@import("std").zig.c_translation.cast(Uint32, transfer) << @as(c_int, 5))) | (@import("std").zig.c_translation.cast(Uint32, matrix) << @as(c_int, 0));
-//}
-//pub inline fn SDL_COLORSPACETYPE(X: anytype) SDL_ColorType {
-//    _ = &X;
-//    return @import("std").zig.c_translation.cast(SDL_ColorType, (X >> @as(c_int, 28)) & @as(c_int, 0x0F));
-//}
-//pub inline fn SDL_COLORSPACERANGE(X: anytype) SDL_ColorRange {
-//    _ = &X;
-//    return @import("std").zig.c_translation.cast(SDL_ColorRange, (X >> @as(c_int, 24)) & @as(c_int, 0x0F));
-//}
-//pub inline fn SDL_COLORSPACECHROMA(X: anytype) SDL_ChromaLocation {
-//    _ = &X;
-//    return @import("std").zig.c_translation.cast(SDL_ChromaLocation, (X >> @as(c_int, 20)) & @as(c_int, 0x0F));
-//}
-//pub inline fn SDL_COLORSPACEPRIMARIES(X: anytype) SDL_ColorPrimaries {
-//    _ = &X;
-//    return @import("std").zig.c_translation.cast(SDL_ColorPrimaries, (X >> @as(c_int, 10)) & @as(c_int, 0x1F));
-//}
-//pub inline fn SDL_COLORSPACETRANSFER(X: anytype) SDL_TransferCharacteristics {
-//    _ = &X;
-//    return @import("std").zig.c_translation.cast(SDL_TransferCharacteristics, (X >> @as(c_int, 5)) & @as(c_int, 0x1F));
-//}
-//pub inline fn SDL_COLORSPACEMATRIX(X: anytype) SDL_MatrixCoefficients {
-//    _ = &X;
-//    return @import("std").zig.c_translation.cast(SDL_MatrixCoefficients, X & @as(c_int, 0x1F));
-//}
-//pub inline fn SDL_ISCOLORSPACE_MATRIX_BT601(X: anytype) @TypeOf((SDL_COLORSPACEMATRIX(X) == SDL_MATRIX_COEFFICIENTS_BT601) or (SDL_COLORSPACEMATRIX(X) == SDL_MATRIX_COEFFICIENTS_BT470BG)) {
-//    _ = &X;
-//    return (SDL_COLORSPACEMATRIX(X) == SDL_MATRIX_COEFFICIENTS_BT601) or (SDL_COLORSPACEMATRIX(X) == SDL_MATRIX_COEFFICIENTS_BT470BG);
-//}
-//pub inline fn SDL_ISCOLORSPACE_MATRIX_BT709(X: anytype) @TypeOf(SDL_COLORSPACEMATRIX(X) == SDL_MATRIX_COEFFICIENTS_BT709) {
-//    _ = &X;
-//    return SDL_COLORSPACEMATRIX(X) == SDL_MATRIX_COEFFICIENTS_BT709;
-//}
-//pub inline fn SDL_ISCOLORSPACE_MATRIX_BT2020_NCL(X: anytype) @TypeOf(SDL_COLORSPACEMATRIX(X) == SDL_MATRIX_COEFFICIENTS_BT2020_NCL) {
-//    _ = &X;
-//    return SDL_COLORSPACEMATRIX(X) == SDL_MATRIX_COEFFICIENTS_BT2020_NCL;
-//}
-//pub inline fn SDL_ISCOLORSPACE_LIMITED_RANGE(X: anytype) @TypeOf(SDL_COLORSPACERANGE(X) != SDL_COLOR_RANGE_FULL) {
-//    _ = &X;
-//    return SDL_COLORSPACERANGE(X) != SDL_COLOR_RANGE_FULL;
-//}
-//pub inline fn SDL_ISCOLORSPACE_FULL_RANGE(X: anytype) @TypeOf(SDL_COLORSPACERANGE(X) == SDL_COLOR_RANGE_FULL) {
-//    _ = &X;
-//    return SDL_COLORSPACERANGE(X) == SDL_COLOR_RANGE_FULL;
-//}
-//pub const SDL_COLORSPACE_RGB_DEFAULT = SDL_COLORSPACE_SRGB;
-//pub const SDL_COLORSPACE_YUV_DEFAULT = SDL_COLORSPACE_JPEG;
-//pub const SDL_properties_h_ = "";
-//pub const SDL_rect_h_ = "";
-//pub const SDL_surface_h_ = "";
-//pub const SDL_blendmode_h_ = "";
-//pub const SDL_BLENDMODE_NONE = @as(c_uint, 0x00000000);
-//pub const SDL_BLENDMODE_BLEND = @as(c_uint, 0x00000001);
-//pub const SDL_BLENDMODE_BLEND_PREMULTIPLIED = @as(c_uint, 0x00000010);
-//pub const SDL_BLENDMODE_ADD = @as(c_uint, 0x00000002);
-//pub const SDL_BLENDMODE_ADD_PREMULTIPLIED = @as(c_uint, 0x00000020);
-//pub const SDL_BLENDMODE_MOD = @as(c_uint, 0x00000004);
-//pub const SDL_BLENDMODE_MUL = @as(c_uint, 0x00000008);
-//pub const SDL_BLENDMODE_INVALID = @import("std").zig.c_translation.promoteIntLiteral(c_uint, 0x7FFFFFFF, .hex);
-//pub const SDL_iostream_h_ = "";
-//pub const SDL_PROP_IOSTREAM_WINDOWS_HANDLE_POINTER = "SDL.iostream.windows.handle";
-//pub const SDL_PROP_IOSTREAM_STDIO_FILE_POINTER = "SDL.iostream.stdio.file";
-//pub const SDL_PROP_IOSTREAM_FILE_DESCRIPTOR_NUMBER = "SDL.iostream.file_descriptor";
-//pub const SDL_PROP_IOSTREAM_ANDROID_AASSET_POINTER = "SDL.iostream.android.aasset";
-//pub const SDL_PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER = "SDL.iostream.dynamic.memory";
-//pub const SDL_PROP_IOSTREAM_DYNAMIC_CHUNKSIZE_NUMBER = "SDL.iostream.dynamic.chunksize";
-//pub const SDL_SURFACE_PREALLOCATED = @as(c_uint, 0x00000001);
-//pub const SDL_SURFACE_LOCK_NEEDED = @as(c_uint, 0x00000002);
-//pub const SDL_SURFACE_LOCKED = @as(c_uint, 0x00000004);
-//pub const SDL_SURFACE_SIMD_ALIGNED = @as(c_uint, 0x00000008);
-//pub inline fn SDL_MUSTLOCK(S: anytype) @TypeOf((S.*.flags & SDL_SURFACE_LOCK_NEEDED) == SDL_SURFACE_LOCK_NEEDED) {
-//    _ = &S;
-//    return (S.*.flags & SDL_SURFACE_LOCK_NEEDED) == SDL_SURFACE_LOCK_NEEDED;
-//}
-//pub const SDL_PROP_SURFACE_SDR_WHITE_POINT_FLOAT = "SDL.surface.SDR_white_point";
-//pub const SDL_PROP_SURFACE_HDR_HEADROOM_FLOAT = "SDL.surface.HDR_headroom";
-//pub const SDL_PROP_SURFACE_TONEMAP_OPERATOR_STRING = "SDL.surface.tonemap";
-//pub const SDL_PROP_GLOBAL_VIDEO_WAYLAND_WL_DISPLAY_POINTER = "SDL.video.wayland.wl_display";
-//pub const SDL_WINDOW_FULLSCREEN = SDL_UINT64_C(@as(c_int, 0x0000000000000001));
-//pub const SDL_WINDOW_OPENGL = SDL_UINT64_C(@as(c_int, 0x0000000000000002));
-//pub const SDL_WINDOW_OCCLUDED = SDL_UINT64_C(@as(c_int, 0x0000000000000004));
-//pub const SDL_WINDOW_HIDDEN = SDL_UINT64_C(@as(c_int, 0x0000000000000008));
-//pub const SDL_WINDOW_BORDERLESS = SDL_UINT64_C(@as(c_int, 0x0000000000000010));
-//pub const SDL_WINDOW_RESIZABLE = SDL_UINT64_C(@as(c_int, 0x0000000000000020));
-//pub const SDL_WINDOW_MINIMIZED = SDL_UINT64_C(@as(c_int, 0x0000000000000040));
-//pub const SDL_WINDOW_MAXIMIZED = SDL_UINT64_C(@as(c_int, 0x0000000000000080));
-//pub const SDL_WINDOW_MOUSE_GRABBED = SDL_UINT64_C(@as(c_int, 0x0000000000000100));
-//pub const SDL_WINDOW_INPUT_FOCUS = SDL_UINT64_C(@as(c_int, 0x0000000000000200));
-//pub const SDL_WINDOW_MOUSE_FOCUS = SDL_UINT64_C(@as(c_int, 0x0000000000000400));
-//pub const SDL_WINDOW_EXTERNAL = SDL_UINT64_C(@as(c_int, 0x0000000000000800));
-//pub const SDL_WINDOW_MODAL = SDL_UINT64_C(@as(c_int, 0x0000000000001000));
-//pub const SDL_WINDOW_HIGH_PIXEL_DENSITY = SDL_UINT64_C(@as(c_int, 0x0000000000002000));
-//pub const SDL_WINDOW_MOUSE_CAPTURE = SDL_UINT64_C(@as(c_int, 0x0000000000004000));
-//pub const SDL_WINDOW_MOUSE_RELATIVE_MODE = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000000008000, .hex));
-//pub const SDL_WINDOW_ALWAYS_ON_TOP = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000000010000, .hex));
-//pub const SDL_WINDOW_UTILITY = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000000020000, .hex));
-//pub const SDL_WINDOW_TOOLTIP = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000000040000, .hex));
-//pub const SDL_WINDOW_POPUP_MENU = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000000080000, .hex));
-//pub const SDL_WINDOW_KEYBOARD_GRABBED = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000000100000, .hex));
-//pub const SDL_WINDOW_VULKAN = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000010000000, .hex));
-//pub const SDL_WINDOW_METAL = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000020000000, .hex));
-//pub const SDL_WINDOW_TRANSPARENT = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000040000000, .hex));
-//pub const SDL_WINDOW_NOT_FOCUSABLE = SDL_UINT64_C(@import("std").zig.c_translation.promoteIntLiteral(c_int, 0x0000000080000000, .hex));
-//pub const SDL_WINDOWPOS_UNDEFINED_MASK = @import("std").zig.c_translation.promoteIntLiteral(c_uint, 0x1FFF0000, .hex);
-//pub inline fn SDL_WINDOWPOS_UNDEFINED_DISPLAY(X: anytype) @TypeOf(SDL_WINDOWPOS_UNDEFINED_MASK | X) {
-//    _ = &X;
-//    return SDL_WINDOWPOS_UNDEFINED_MASK | X;
-//}
-//pub const SDL_WINDOWPOS_UNDEFINED = SDL_WINDOWPOS_UNDEFINED_DISPLAY(@as(c_int, 0));
-//pub inline fn SDL_WINDOWPOS_ISUNDEFINED(X: anytype) @TypeOf((X & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xFFFF0000, .hex)) == SDL_WINDOWPOS_UNDEFINED_MASK) {
-//    _ = &X;
-//    return (X & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xFFFF0000, .hex)) == SDL_WINDOWPOS_UNDEFINED_MASK;
-//}
-//pub const SDL_WINDOWPOS_CENTERED_MASK = @import("std").zig.c_translation.promoteIntLiteral(c_uint, 0x2FFF0000, .hex);
-//pub inline fn SDL_WINDOWPOS_CENTERED_DISPLAY(X: anytype) @TypeOf(SDL_WINDOWPOS_CENTERED_MASK | X) {
-//    _ = &X;
-//    return SDL_WINDOWPOS_CENTERED_MASK | X;
-//}
-//pub const SDL_WINDOWPOS_CENTERED = SDL_WINDOWPOS_CENTERED_DISPLAY(@as(c_int, 0));
-//pub inline fn SDL_WINDOWPOS_ISCENTERED(X: anytype) @TypeOf((X & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xFFFF0000, .hex)) == SDL_WINDOWPOS_CENTERED_MASK) {
-//    _ = &X;
-//    return (X & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0xFFFF0000, .hex)) == SDL_WINDOWPOS_CENTERED_MASK;
-//}
-//pub const SDL_PROP_DISPLAY_HDR_ENABLED_BOOLEAN = "SDL.display.HDR_enabled";
-//pub const SDL_PROP_DISPLAY_KMSDRM_PANEL_ORIENTATION_NUMBER = "SDL.display.KMSDRM.panel_orientation";
-//pub const SDL_PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN = "SDL.window.create.always_on_top";
-//pub const SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN = "SDL.window.create.borderless";
-//pub const SDL_PROP_WINDOW_CREATE_FOCUSABLE_BOOLEAN = "SDL.window.create.focusable";
-//pub const SDL_PROP_WINDOW_CREATE_EXTERNAL_GRAPHICS_CONTEXT_BOOLEAN = "SDL.window.create.external_graphics_context";
-//pub const SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER = "SDL.window.create.flags";
-//pub const SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN = "SDL.window.create.fullscreen";
-//pub const SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER = "SDL.window.create.height";
-//pub const SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN = "SDL.window.create.hidden";
-//pub const SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN = "SDL.window.create.high_pixel_density";
-//pub const SDL_PROP_WINDOW_CREATE_MAXIMIZED_BOOLEAN = "SDL.window.create.maximized";
-//pub const SDL_PROP_WINDOW_CREATE_MENU_BOOLEAN = "SDL.window.create.menu";
-//pub const SDL_PROP_WINDOW_CREATE_METAL_BOOLEAN = "SDL.window.create.metal";
-//pub const SDL_PROP_WINDOW_CREATE_MINIMIZED_BOOLEAN = "SDL.window.create.minimized";
-//pub const SDL_PROP_WINDOW_CREATE_MODAL_BOOLEAN = "SDL.window.create.modal";
-//pub const SDL_PROP_WINDOW_CREATE_MOUSE_GRABBED_BOOLEAN = "SDL.window.create.mouse_grabbed";
-//pub const SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN = "SDL.window.create.opengl";
-//pub const SDL_PROP_WINDOW_CREATE_PARENT_POINTER = "SDL.window.create.parent";
-//pub const SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN = "SDL.window.create.resizable";
-//pub const SDL_PROP_WINDOW_CREATE_TITLE_STRING = "SDL.window.create.title";
-//pub const SDL_PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN = "SDL.window.create.transparent";
-//pub const SDL_PROP_WINDOW_CREATE_TOOLTIP_BOOLEAN = "SDL.window.create.tooltip";
-//pub const SDL_PROP_WINDOW_CREATE_UTILITY_BOOLEAN = "SDL.window.create.utility";
-//pub const SDL_PROP_WINDOW_CREATE_VULKAN_BOOLEAN = "SDL.window.create.vulkan";
-//pub const SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER = "SDL.window.create.width";
-//pub const SDL_PROP_WINDOW_CREATE_X_NUMBER = "SDL.window.create.x";
-//pub const SDL_PROP_WINDOW_CREATE_Y_NUMBER = "SDL.window.create.y";
-//pub const SDL_PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER = "SDL.window.create.cocoa.window";
-//pub const SDL_PROP_WINDOW_CREATE_COCOA_VIEW_POINTER = "SDL.window.create.cocoa.view";
-//pub const SDL_PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN = "SDL.window.create.wayland.surface_role_custom";
-//pub const SDL_PROP_WINDOW_CREATE_WAYLAND_CREATE_EGL_WINDOW_BOOLEAN = "SDL.window.create.wayland.create_egl_window";
-//pub const SDL_PROP_WINDOW_CREATE_WAYLAND_WL_SURFACE_POINTER = "SDL.window.create.wayland.wl_surface";
-//pub const SDL_PROP_WINDOW_CREATE_WIN32_HWND_POINTER = "SDL.window.create.win32.hwnd";
-//pub const SDL_PROP_WINDOW_CREATE_WIN32_PIXEL_FORMAT_HWND_POINTER = "SDL.window.create.win32.pixel_format_hwnd";
-//pub const SDL_PROP_WINDOW_CREATE_X11_WINDOW_NUMBER = "SDL.window.create.x11.window";
-//pub const SDL_PROP_WINDOW_SHAPE_POINTER = "SDL.window.shape";
-//pub const SDL_PROP_WINDOW_HDR_ENABLED_BOOLEAN = "SDL.window.HDR_enabled";
-//pub const SDL_PROP_WINDOW_SDR_WHITE_LEVEL_FLOAT = "SDL.window.SDR_white_level";
-//pub const SDL_PROP_WINDOW_HDR_HEADROOM_FLOAT = "SDL.window.HDR_headroom";
-//pub const SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER = "SDL.window.android.window";
-//pub const SDL_PROP_WINDOW_ANDROID_SURFACE_POINTER = "SDL.window.android.surface";
-//pub const SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER = "SDL.window.uikit.window";
-//pub const SDL_PROP_WINDOW_UIKIT_METAL_VIEW_TAG_NUMBER = "SDL.window.uikit.metal_view_tag";
-//pub const SDL_PROP_WINDOW_UIKIT_OPENGL_FRAMEBUFFER_NUMBER = "SDL.window.uikit.opengl.framebuffer";
-//pub const SDL_PROP_WINDOW_UIKIT_OPENGL_RENDERBUFFER_NUMBER = "SDL.window.uikit.opengl.renderbuffer";
-//pub const SDL_PROP_WINDOW_UIKIT_OPENGL_RESOLVE_FRAMEBUFFER_NUMBER = "SDL.window.uikit.opengl.resolve_framebuffer";
-//pub const SDL_PROP_WINDOW_KMSDRM_DEVICE_INDEX_NUMBER = "SDL.window.kmsdrm.dev_index";
-//pub const SDL_PROP_WINDOW_KMSDRM_DRM_FD_NUMBER = "SDL.window.kmsdrm.drm_fd";
-//pub const SDL_PROP_WINDOW_KMSDRM_GBM_DEVICE_POINTER = "SDL.window.kmsdrm.gbm_dev";
-//pub const SDL_PROP_WINDOW_COCOA_WINDOW_POINTER = "SDL.window.cocoa.window";
-//pub const SDL_PROP_WINDOW_COCOA_METAL_VIEW_TAG_NUMBER = "SDL.window.cocoa.metal_view_tag";
-//pub const SDL_PROP_WINDOW_VIVANTE_DISPLAY_POINTER = "SDL.window.vivante.display";
-//pub const SDL_PROP_WINDOW_VIVANTE_WINDOW_POINTER = "SDL.window.vivante.window";
-//pub const SDL_PROP_WINDOW_VIVANTE_SURFACE_POINTER = "SDL.window.vivante.surface";
-//pub const SDL_PROP_WINDOW_WIN32_HWND_POINTER = "SDL.window.win32.hwnd";
-//pub const SDL_PROP_WINDOW_WIN32_HDC_POINTER = "SDL.window.win32.hdc";
-//pub const SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER = "SDL.window.win32.instance";
-//pub const SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER = "SDL.window.wayland.display";
-//pub const SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER = "SDL.window.wayland.surface";
-//pub const SDL_PROP_WINDOW_WAYLAND_EGL_WINDOW_POINTER = "SDL.window.wayland.egl_window";
-//pub const SDL_PROP_WINDOW_WAYLAND_XDG_SURFACE_POINTER = "SDL.window.wayland.xdg_surface";
-//pub const SDL_PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_POINTER = "SDL.window.wayland.xdg_toplevel";
-//pub const SDL_PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_EXPORT_HANDLE_STRING = "SDL.window.wayland.xdg_toplevel_export_handle";
-//pub const SDL_PROP_WINDOW_WAYLAND_XDG_POPUP_POINTER = "SDL.window.wayland.xdg_popup";
-//pub const SDL_PROP_WINDOW_WAYLAND_XDG_POSITIONER_POINTER = "SDL.window.wayland.xdg_positioner";
-//pub const SDL_PROP_WINDOW_X11_DISPLAY_POINTER = "SDL.window.x11.display";
-//pub const SDL_PROP_WINDOW_X11_SCREEN_NUMBER = "SDL.window.x11.screen";
-//pub const SDL_PROP_WINDOW_X11_WINDOW_NUMBER = "SDL.window.x11.window";
-//pub const SDL_WINDOW_SURFACE_VSYNC_DISABLED = @as(c_int, 0);
-//pub const SDL_WINDOW_SURFACE_VSYNC_ADAPTIVE = -@as(c_int, 1);
 //pub const threadlocaleinfostruct = struct_threadlocaleinfostruct;
 //pub const threadmbcinfostruct = struct_threadmbcinfostruct;
 //pub const __lc_time_data = struct___lc_time_data;
@@ -2285,4 +1479,3 @@ pub const gL_DestroyContext = SDL_GL_DestroyContext;
 //pub const _stat64 = struct__stat64;
 //pub const tm = struct_tm;
 //pub const SDL_iconv_data_t = struct_SDL_iconv_data_t;
-//pub const SDL_GLContextState = struct_SDL_GLContextState;

@@ -109,11 +109,9 @@ pub var speed: f32 = 1;
 pub fn init(hdl_window: *sdl.Window) !void {
     window_state.hdl_window = hdl_window;
 
-    const formats = sdl.gpu.ShaderFormat {
-        .dxbc = true,
-        .dxil = true,
-        .spirv = true,
-    };
+    const formats: sdl.gpu.ShaderFormat = sdl.gpu.ShaderFormatNames.dxbc |
+                                          sdl.gpu.ShaderFormatNames.dxil |
+                                          sdl.gpu.ShaderFormatNames.spirv;
 
     gpu_device = sdl.gpu.createDevice(formats, true, null) orelse {
         std.log.debug("Could not create GPU device: {s}", .{ sdl.c.SDL_GetError() });
@@ -130,7 +128,7 @@ pub fn init(hdl_window: *sdl.Window) !void {
     defer sdl.gpu.releaseShader(gpu_device, fragment_shader);
 
     var buffer_desc = sdl.gpu.BufferCreateInfo {
-        .usage = .{ .vertex = true },
+        .usage = sdl.gpu.BufferUsageNames.vertex,
         .size = @sizeOf(@TypeOf(vertex_data)),
         .props = 0,
     };
@@ -154,7 +152,7 @@ pub fn init(hdl_window: *sdl.Window) !void {
     };
     defer sdl.gpu.releaseTransferBuffer(gpu_device, buf_transfer);
 
-    const map: [*]u8 = sdl.gpu.mapTransferBuffer(gpu_device, buf_transfer, false).?;
+    const map: [*]u8 = @ptrCast(sdl.gpu.mapTransferBuffer(gpu_device, buf_transfer, false).?);
     @memcpy(map, std.mem.asBytes(&vertex_data));
     sdl.gpu.unmapTransferBuffer(gpu_device, buf_transfer);
 
@@ -223,7 +221,7 @@ pub fn init(hdl_window: *sdl.Window) !void {
             .compare_op = .less_or_equal,
         },
         .multisample_state = .{ .sample_count = render_state.sample_count },
-        .primitive_type = .triangle_list,
+        .primitive_type = .trianglelist,
         .vertex_shader = vertex_shader,
         .fragment_shader = fragment_shader,
         .vertex_input_state = .{ 
@@ -242,7 +240,7 @@ pub fn init(hdl_window: *sdl.Window) !void {
 
     var w: c_int = 0;
     var h: c_int = 0;
-    _ = sdl.c.SDL_GetWindowSizeInPixels(hdl_window, &w, &h);
+    _ = sdl.video.getWindowSizeInPixels(hdl_window, &w, &h);
     window_state.tex_depth = try createDepthTexture(@intCast(w), @intCast(h));
 
 }
@@ -328,7 +326,7 @@ pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
         .layer_count_or_depth = 1,
         .num_levels = 1,
         .sample_count = render_state.sample_count,
-        .usage = .{ .depth_stencil_target = true },
+        .usage = sdl.gpu.TextureUsageNames.depth_stencil_target,
         .props = 0,
     };
 
@@ -343,33 +341,33 @@ fn loadShader(shader_type: ShaderType) !*sdl.gpu.Shader {
     std.log.debug("selected format: {}", .{ format });
 
     var create_info: sdl.gpu.ShaderCreateInfo = undefined;
-    if (format.dxbc) {
+    if (format & sdl.gpu.ShaderFormatNames.dxbc != 0) {
         create_info = .{
             .num_samplers = 0,
             .num_storage_buffers = 0,
             .num_storage_textures = 0,
             .num_uniform_buffers = if (shader_type == .vertex) 1 else 0,
             .props = 0,
-            .format = .{ .dxbc = true },
+            .format = sdl.gpu.ShaderFormatNames.dxbc,
             .code = if (shader_type == .vertex) dxbc.D3D11_CubeVert else dxbc.D3D11_CubeFrag,
             .code_size = if (shader_type == .vertex) dxbc.D3D11_CubeVert.len else dxbc.D3D11_CubeFrag.len,
             .entrypoint = if (shader_type == .vertex) "VSMain" else "PSMain",
             .stage = if (shader_type == .vertex) .vertex else .fragment,
         };
-    } else if (format.dxil) {
+    } else if (format & sdl.gpu.ShaderFormatNames.dxil != 0) {
         create_info = .{
             .num_samplers = 0,
             .num_storage_buffers = 0,
             .num_storage_textures = 0,
             .num_uniform_buffers = if (shader_type == .vertex) 1 else 0,
             .props = 0,
-            .format = .{ .dxil = true },
+            .format = sdl.gpu.ShaderFormatNames.dxil,
             .code = if (shader_type == .vertex) dxil.D3D12_CubeVert else dxil.D3D12_CubeFrag,
             .code_size = if (shader_type == .vertex) dxil.D3D12_CubeVert.len else dxil.D3D12_CubeFrag.len,
             .entrypoint = if (shader_type == .vertex) "VSMain" else "PSMain",
             .stage = if (shader_type == .vertex) .vertex else .fragment,
         };
-    } else if (format.metallib) {
+    } else if (format & sdl.gpu.ShaderFormatNames.metallib != 0) {
         std.log.debug("selected format: metallib", .{});
         create_info = .{
             .num_samplers = 0,
@@ -377,7 +375,7 @@ fn loadShader(shader_type: ShaderType) !*sdl.gpu.Shader {
             .num_storage_textures = 0,
             .num_uniform_buffers = if (shader_type == .vertex) 1 else 0,
             .props = 0,
-            .format = .{ .metallib = true },
+            .format = sdl.gpu.ShaderFormatNames.metallib,
             .code = undefined,
             .code_size = 0,
             .entrypoint = "",
@@ -391,7 +389,7 @@ fn loadShader(shader_type: ShaderType) !*sdl.gpu.Shader {
             .num_storage_textures = 0,
             .num_uniform_buffers = if (shader_type == .vertex) 1 else 0,
             .props = 0,
-            .format = .{ .spirv = true },
+            .format = sdl.gpu.ShaderFormatNames.spirv,
             .code = if (shader_type == .vertex) spirv.cube_vert_spv else spirv.cube_frag_spv,
             .code_size = if (shader_type == .vertex) spirv.cube_vert_spv.len else spirv.cube_frag_spv.len,
             .entrypoint = "main",
