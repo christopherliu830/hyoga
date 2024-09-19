@@ -38,15 +38,24 @@ pub const DisplayModeData = opaque {};
 //pub const struct_SDL_DisplayMode = extern struct {
 pub const DisplayMode = extern struct {
 //    displayID: SDL_DisplayID = @import("std").mem.zeroes(SDL_DisplayID),
-	displayid: DisplayID = @import("std").mem.zeroes(DisplayID),//    format: SDL_PixelFormat = @import("std").mem.zeroes(SDL_PixelFormat),
-	format: PixelFormat = @import("std").mem.zeroes(PixelFormat),//    w: c_int = @import("std").mem.zeroes(c_int),
-	w: c_int = @import("std").mem.zeroes(c_int),//    h: c_int = @import("std").mem.zeroes(c_int),
-	h: c_int = @import("std").mem.zeroes(c_int),//    pixel_density: f32 = @import("std").mem.zeroes(f32),
-	pixel_density: f32 = @import("std").mem.zeroes(f32),//    refresh_rate: f32 = @import("std").mem.zeroes(f32),
-	refresh_rate: f32 = @import("std").mem.zeroes(f32),//    refresh_rate_numerator: c_int = @import("std").mem.zeroes(c_int),
-	refresh_rate_numerator: c_int = @import("std").mem.zeroes(c_int),//    refresh_rate_denominator: c_int = @import("std").mem.zeroes(c_int),
-	refresh_rate_denominator: c_int = @import("std").mem.zeroes(c_int),//    internal: ?*SDL_DisplayModeData = @import("std").mem.zeroes(?*SDL_DisplayModeData),
-	internal: ?*DisplayModeData = @import("std").mem.zeroes(?*DisplayModeData),//};
+	displayid: DisplayID = @import("std").mem.zeroes(DisplayID),
+//    format: SDL_PixelFormat = @import("std").mem.zeroes(SDL_PixelFormat),
+	format: PixelFormat = @import("std").mem.zeroes(PixelFormat),
+//    w: c_int = @import("std").mem.zeroes(c_int),
+	w: c_int = @import("std").mem.zeroes(c_int),
+//    h: c_int = @import("std").mem.zeroes(c_int),
+	h: c_int = @import("std").mem.zeroes(c_int),
+//    pixel_density: f32 = @import("std").mem.zeroes(f32),
+	pixel_density: f32 = @import("std").mem.zeroes(f32),
+//    refresh_rate: f32 = @import("std").mem.zeroes(f32),
+	refresh_rate: f32 = @import("std").mem.zeroes(f32),
+//    refresh_rate_numerator: c_int = @import("std").mem.zeroes(c_int),
+	refresh_rate_numerator: c_int = @import("std").mem.zeroes(c_int),
+//    refresh_rate_denominator: c_int = @import("std").mem.zeroes(c_int),
+	refresh_rate_denominator: c_int = @import("std").mem.zeroes(c_int),
+//    internal: ?*SDL_DisplayModeData = @import("std").mem.zeroes(?*SDL_DisplayModeData),
+	internal: ?*DisplayModeData = @import("std").mem.zeroes(?*DisplayModeData),
+//};
 };
 //pub const SDL_DisplayMode = struct_SDL_DisplayMode;
 //pub const SDL_ORIENTATION_UNKNOWN: c_int = 0;
@@ -56,11 +65,11 @@ pub const DisplayMode = extern struct {
 //pub const SDL_ORIENTATION_PORTRAIT_FLIPPED: c_int = 4;
 //pub const enum_SDL_DisplayOrientation = c_uint;
 pub const DisplayOrientation = enum (c_uint) {
-	unknown,
-	landscape,
-	landscape_flipped,
-	portrait,
-	portrait_flipped,
+	orientation_unknown,
+	orientation_landscape,
+	orientation_landscape_flipped,
+	orientation_portrait,
+	orientation_portrait_flipped,
 };
 
 //pub const SDL_DisplayOrientation = enum_SDL_DisplayOrientation;
@@ -69,9 +78,33 @@ pub const Window = opaque {};
 
 //pub const SDL_Window = struct_SDL_Window;
 //pub const SDL_WindowFlags = Uint64;
-pub const WindowFlags = u64;
-pub const WindowNames = packed struct (c_int) {
-
+pub const WindowFlags = packed struct (u64) {
+	fullscreen: bool = false,
+	opengl: bool = false,
+	occluded: bool = false,
+	hidden: bool = false,
+	borderless: bool = false,
+	resizeable: bool = false,
+	minimized: bool = false,
+	maximized: bool = false,
+	mouse_grabbed: bool = false,
+	input_focus: bool = false,
+	mouse_focus: bool = false,
+	external: bool = false,
+	modal: bool = false,
+	high_pixel_density: bool = false,
+	mouse_capture: bool = false,
+	mouse_relative_mode: bool = false,
+	always_on_top: bool = false,
+	utility: bool = false,
+	tooltip: bool = false,
+	popup_menu: bool = false,
+	keyboard_grabbed: bool = false,
+	vulkan: bool = false,
+	metal: bool = false,
+	transparent: bool = false,
+	not_focusable: bool = false,
+	_padding: u39 = 0,
 };
 
 //pub const SDL_FLASH_CANCEL: c_int = 0;
@@ -497,64 +530,64 @@ pub extern fn SDL_DisableScreenSaver() bool;
 pub const disableScreenSaver = SDL_DisableScreenSaver;
 //pub extern fn SDL_GL_LoadLibrary(path: [*c]const u8) SDL_bool;
 pub extern fn SDL_GL_LoadLibrary(path: [*c]const u8) bool;
-pub const gL_LoadLibrary = SDL_GL_LoadLibrary;
+pub const glLoadLibrary = SDL_GL_LoadLibrary;
 //pub extern fn SDL_GL_GetProcAddress(proc: [*c]const u8) SDL_FunctionPointer;
 pub extern fn SDL_GL_GetProcAddress(proc: [*c]const u8) FunctionPointer;
-pub const gL_GetProcAddress = SDL_GL_GetProcAddress;
+pub const glGetProcAddress = SDL_GL_GetProcAddress;
 //pub extern fn SDL_EGL_GetProcAddress(proc: [*c]const u8) SDL_FunctionPointer;
 pub extern fn SDL_EGL_GetProcAddress(proc: [*c]const u8) FunctionPointer;
-pub const eGL_GetProcAddress = SDL_EGL_GetProcAddress;
+pub const eglGetProcAddress = SDL_EGL_GetProcAddress;
 //pub extern fn SDL_GL_UnloadLibrary() void;
 pub extern fn SDL_GL_UnloadLibrary() void;
-pub const gL_UnloadLibrary = SDL_GL_UnloadLibrary;
+pub const glUnloadLibrary = SDL_GL_UnloadLibrary;
 //pub extern fn SDL_GL_ExtensionSupported(extension: [*c]const u8) SDL_bool;
 pub extern fn SDL_GL_ExtensionSupported(extension: [*c]const u8) bool;
-pub const gL_ExtensionSupported = SDL_GL_ExtensionSupported;
+pub const glExtensionSupported = SDL_GL_ExtensionSupported;
 //pub extern fn SDL_GL_ResetAttributes() void;
 pub extern fn SDL_GL_ResetAttributes() void;
-pub const gL_ResetAttributes = SDL_GL_ResetAttributes;
+pub const glResetAttributes = SDL_GL_ResetAttributes;
 //pub extern fn SDL_GL_SetAttribute(attr: SDL_GLattr, value: c_int) SDL_bool;
 pub extern fn SDL_GL_SetAttribute(attr: GLattr, value: c_int) bool;
-pub const gL_SetAttribute = SDL_GL_SetAttribute;
+pub const glSetAttribute = SDL_GL_SetAttribute;
 //pub extern fn SDL_GL_GetAttribute(attr: SDL_GLattr, value: [*c]c_int) SDL_bool;
 pub extern fn SDL_GL_GetAttribute(attr: GLattr, value: [*c]c_int) bool;
-pub const gL_GetAttribute = SDL_GL_GetAttribute;
+pub const glGetAttribute = SDL_GL_GetAttribute;
 //pub extern fn SDL_GL_CreateContext(window: ?*SDL_Window) SDL_GLContext;
 pub extern fn SDL_GL_CreateContext(window: ?*Window) GLContext;
-pub const gL_CreateContext = SDL_GL_CreateContext;
+pub const glCreateContext = SDL_GL_CreateContext;
 //pub extern fn SDL_GL_MakeCurrent(window: ?*SDL_Window, context: SDL_GLContext) SDL_bool;
 pub extern fn SDL_GL_MakeCurrent(window: ?*Window, context: GLContext) bool;
-pub const gL_MakeCurrent = SDL_GL_MakeCurrent;
+pub const glMakeCurrent = SDL_GL_MakeCurrent;
 //pub extern fn SDL_GL_GetCurrentWindow() ?*SDL_Window;
 pub extern fn SDL_GL_GetCurrentWindow() ?*Window;
-pub const gL_GetCurrentWindow = SDL_GL_GetCurrentWindow;
+pub const glGetCurrentWindow = SDL_GL_GetCurrentWindow;
 //pub extern fn SDL_GL_GetCurrentContext() SDL_GLContext;
 pub extern fn SDL_GL_GetCurrentContext() GLContext;
-pub const gL_GetCurrentContext = SDL_GL_GetCurrentContext;
+pub const glGetCurrentContext = SDL_GL_GetCurrentContext;
 //pub extern fn SDL_EGL_GetCurrentDisplay() SDL_EGLDisplay;
 pub extern fn SDL_EGL_GetCurrentDisplay() EGLDisplay;
-pub const eGL_GetCurrentDisplay = SDL_EGL_GetCurrentDisplay;
+pub const eglGetCurrentDisplay = SDL_EGL_GetCurrentDisplay;
 //pub extern fn SDL_EGL_GetCurrentConfig() SDL_EGLConfig;
 pub extern fn SDL_EGL_GetCurrentConfig() EGLConfig;
-pub const eGL_GetCurrentConfig = SDL_EGL_GetCurrentConfig;
+pub const eglGetCurrentConfig = SDL_EGL_GetCurrentConfig;
 //pub extern fn SDL_EGL_GetWindowSurface(window: ?*SDL_Window) SDL_EGLSurface;
 pub extern fn SDL_EGL_GetWindowSurface(window: ?*Window) EGLSurface;
-pub const eGL_GetWindowSurface = SDL_EGL_GetWindowSurface;
+pub const eglGetWindowSurface = SDL_EGL_GetWindowSurface;
 //pub extern fn SDL_EGL_SetAttributeCallbacks(platformAttribCallback: SDL_EGLAttribArrayCallback, surfaceAttribCallback: SDL_EGLIntArrayCallback, contextAttribCallback: SDL_EGLIntArrayCallback) void;
 pub extern fn SDL_EGL_SetAttributeCallbacks(platformAttribCallback: EGLAttribArrayCallback, surfaceAttribCallback: EGLIntArrayCallback, contextAttribCallback: EGLIntArrayCallback) void;
-pub const eGL_SetAttributeCallbacks = SDL_EGL_SetAttributeCallbacks;
+pub const eglSetAttributeCallbacks = SDL_EGL_SetAttributeCallbacks;
 //pub extern fn SDL_GL_SetSwapInterval(interval: c_int) SDL_bool;
 pub extern fn SDL_GL_SetSwapInterval(interval: c_int) bool;
-pub const gL_SetSwapInterval = SDL_GL_SetSwapInterval;
+pub const glSetSwapInterval = SDL_GL_SetSwapInterval;
 //pub extern fn SDL_GL_GetSwapInterval(interval: [*c]c_int) SDL_bool;
 pub extern fn SDL_GL_GetSwapInterval(interval: [*c]c_int) bool;
-pub const gL_GetSwapInterval = SDL_GL_GetSwapInterval;
+pub const glGetSwapInterval = SDL_GL_GetSwapInterval;
 //pub extern fn SDL_GL_SwapWindow(window: ?*SDL_Window) SDL_bool;
 pub extern fn SDL_GL_SwapWindow(window: ?*Window) bool;
-pub const gL_SwapWindow = SDL_GL_SwapWindow;
+pub const glSwapWindow = SDL_GL_SwapWindow;
 //pub extern fn SDL_GL_DestroyContext(context: SDL_GLContext) SDL_bool;
 pub extern fn SDL_GL_DestroyContext(context: GLContext) bool;
-pub const gL_DestroyContext = SDL_GL_DestroyContext;
+pub const glDestroyContext = SDL_GL_DestroyContext;
 //pub const __llvm__ = @as(c_int, 1);
 //pub const __clang__ = @as(c_int, 1);
 //pub const __clang_major__ = @as(c_int, 18);

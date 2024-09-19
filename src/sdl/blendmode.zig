@@ -1,14 +1,14 @@
 //pub const SDL_BlendMode = Uint32;
-pub const BlendModeFlags = u32;
-pub const BlendModeNames = packed struct (c_int) {
-	pub const none = @as(c_uint, 0x00000000);
-	pub const blend = @as(c_uint, 0x00000001);
-	pub const blend_premultiplied = @as(c_uint, 0x00000010);
-	pub const add = @as(c_uint, 0x00000002);
-	pub const add_premultiplied = @as(c_uint, 0x00000020);
-	pub const mod = @as(c_uint, 0x00000004);
-	pub const mul = @as(c_uint, 0x00000008);
-	pub const invalid = @import("std").zig.c_translation.promoteIntLiteral(c_uint, 0x7FFFFFFF, .hex);
+pub const BlendMode = packed struct (c_int) {
+	none: bool = false,
+	blend: bool = false,
+	blend_premultiplied: bool = false,
+	add: bool = false,
+	add_premultiplied: bool = false,
+	mod: bool = false,
+	mul: bool = false,
+	invalid: bool = false,
+	_padding: u24 = 0,
 };
 
 //pub const SDL_BLENDOPERATION_ADD: c_int = 1;
@@ -52,8 +52,8 @@ pub const BlendFactor = enum (c_uint) {
 
 //pub const SDL_BlendFactor = enum_SDL_BlendFactor;
 //pub extern fn SDL_ComposeCustomBlendMode(srcColorFactor: SDL_BlendFactor, dstColorFactor: SDL_BlendFactor, colorOperation: SDL_BlendOperation, srcAlphaFactor: SDL_BlendFactor, dstAlphaFactor: SDL_BlendFactor, alphaOperation: SDL_BlendOperation) SDL_BlendMode;
-pub extern fn ComposeCustomBlendModeFlags(srcColorFactor: BlendFactor, dstColorFactor: BlendFactor, colorOperation: BlendOperation, srcAlphaFactor: BlendFactor, dstAlphaFactor: BlendFactor, alphaOperation: BlendOperation) BlendModeFlags;
-pub const composeCustomBlendModeFlags = ComposeCustomBlendModeFlags;
+pub extern fn SDL_ComposeCustomBlendMode(srcColorFactor: BlendFactor, dstColorFactor: BlendFactor, colorOperation: BlendOperation, srcAlphaFactor: BlendFactor, dstAlphaFactor: BlendFactor, alphaOperation: BlendOperation) BlendMode;
+pub const composeCustomBlendMode = SDL_ComposeCustomBlendMode;
 //pub const __llvm__ = @as(c_int, 1);
 //pub const __clang__ = @as(c_int, 1);
 //pub const __clang_major__ = @as(c_int, 18);

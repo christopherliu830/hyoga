@@ -8,82 +8,82 @@ pub const PropertiesID = u32;
 //pub const SDL_PROPERTY_TYPE_BOOLEAN: c_int = 5;
 //pub const enum_SDL_PropertyType = c_uint;
 pub const PropertyType = enum (c_uint) {
-	_invalid,
-	_pointer,
-	_string,
-	_number,
-	_float,
-	_boolean,
+	invalid,
+	pointer,
+	string,
+	number,
+	float,
+	boolean,
 };
 
 //pub const SDL_PropertyType = enum_SDL_PropertyType;
 //pub extern fn SDL_GetGlobalProperties() SDL_PropertiesID;
-pub extern fn GetGlobalProperties() PropertiesID;
-pub const getGlobalProperties = GetGlobalProperties;
+pub extern fn SDL_GetGlobalProperties() PropertiesID;
+pub const getGlobalProperties = SDL_GetGlobalProperties;
 //pub extern fn SDL_CreateProperties() SDL_PropertiesID;
-pub extern fn CreateProperties() PropertiesID;
-pub const createProperties = CreateProperties;
+pub extern fn SDL_CreateProperties() PropertiesID;
+pub const createProperties = SDL_CreateProperties;
 //pub extern fn SDL_CopyProperties(src: SDL_PropertiesID, dst: SDL_PropertiesID) SDL_bool;
-pub extern fn CopyProperties(src: PropertiesID, dst: PropertiesID) bool;
-pub const copyProperties = CopyProperties;
+pub extern fn SDL_CopyProperties(src: PropertiesID, dst: PropertiesID) bool;
+pub const copyProperties = SDL_CopyProperties;
 //pub extern fn SDL_LockProperties(props: SDL_PropertiesID) SDL_bool;
-pub extern fn LockProperties(props: PropertiesID) bool;
-pub const lockProperties = LockProperties;
+pub extern fn SDL_LockProperties(props: PropertiesID) bool;
+pub const lockProperties = SDL_LockProperties;
 //pub extern fn SDL_UnlockProperties(props: SDL_PropertiesID) void;
-pub extern fn UnlockProperties(props: PropertiesID) void;
-pub const unlockProperties = UnlockProperties;
+pub extern fn SDL_UnlockProperties(props: PropertiesID) void;
+pub const unlockProperties = SDL_UnlockProperties;
 //pub const SDL_CleanupPropertyCallback = ?*const fn (?*anyopaque, ?*anyopaque) callconv(.C) void;
 pub const CleanupPropertyCallback = ?*const fn (?*anyopaque, ?*anyopaque) callconv(.C) void;
 //pub extern fn SDL_SetPointerPropertyWithCleanup(props: SDL_PropertiesID, name: [*c]const u8, value: ?*anyopaque, cleanup: SDL_CleanupPropertyCallback, userdata: ?*anyopaque) SDL_bool;
-pub extern fn SetPointerPropertyWithCleanup(props: PropertiesID, name: [*c]const u8, value: ?*anyopaque, cleanup: CleanupPropertyCallback, userdata: ?*anyopaque) bool;
-pub const setPointerPropertyWithCleanup = SetPointerPropertyWithCleanup;
+pub extern fn SDL_SetPointerPropertyWithCleanup(props: PropertiesID, name: [*c]const u8, value: ?*anyopaque, cleanup: CleanupPropertyCallback, userdata: ?*anyopaque) bool;
+pub const setPointerPropertyWithCleanup = SDL_SetPointerPropertyWithCleanup;
 //pub extern fn SDL_SetPointerProperty(props: SDL_PropertiesID, name: [*c]const u8, value: ?*anyopaque) SDL_bool;
-pub extern fn SetPointerProperty(props: PropertiesID, name: [*c]const u8, value: ?*anyopaque) bool;
-pub const setPointerProperty = SetPointerProperty;
+pub extern fn SDL_SetPointerProperty(props: PropertiesID, name: [*c]const u8, value: ?*anyopaque) bool;
+pub const setPointerProperty = SDL_SetPointerProperty;
 //pub extern fn SDL_SetStringProperty(props: SDL_PropertiesID, name: [*c]const u8, value: [*c]const u8) SDL_bool;
-pub extern fn SetStringProperty(props: PropertiesID, name: [*c]const u8, value: [*c]const u8) bool;
-pub const setStringProperty = SetStringProperty;
+pub extern fn SDL_SetStringProperty(props: PropertiesID, name: [*c]const u8, value: [*c]const u8) bool;
+pub const setStringProperty = SDL_SetStringProperty;
 //pub extern fn SDL_SetNumberProperty(props: SDL_PropertiesID, name: [*c]const u8, value: Sint64) SDL_bool;
-pub extern fn SetNumberProperty(props: PropertiesID, name: [*c]const u8, value: i64) bool;
-pub const setNumberProperty = SetNumberProperty;
+pub extern fn SDL_SetNumberProperty(props: PropertiesID, name: [*c]const u8, value: i64) bool;
+pub const setNumberProperty = SDL_SetNumberProperty;
 //pub extern fn SDL_SetFloatProperty(props: SDL_PropertiesID, name: [*c]const u8, value: f32) SDL_bool;
-pub extern fn SetFloatProperty(props: PropertiesID, name: [*c]const u8, value: f32) bool;
-pub const setFloatProperty = SetFloatProperty;
+pub extern fn SDL_SetFloatProperty(props: PropertiesID, name: [*c]const u8, value: f32) bool;
+pub const setFloatProperty = SDL_SetFloatProperty;
 //pub extern fn SDL_SetBooleanProperty(props: SDL_PropertiesID, name: [*c]const u8, value: SDL_bool) SDL_bool;
-pub extern fn SetBooleanProperty(props: PropertiesID, name: [*c]const u8, value: bool) bool;
-pub const setBooleanProperty = SetBooleanProperty;
+pub extern fn SDL_SetBooleanProperty(props: PropertiesID, name: [*c]const u8, value: bool) bool;
+pub const setBooleanProperty = SDL_SetBooleanProperty;
 //pub extern fn SDL_HasProperty(props: SDL_PropertiesID, name: [*c]const u8) SDL_bool;
-pub extern fn HasProperty(props: PropertiesID, name: [*c]const u8) bool;
-pub const hasProperty = HasProperty;
+pub extern fn SDL_HasProperty(props: PropertiesID, name: [*c]const u8) bool;
+pub const hasProperty = SDL_HasProperty;
 //pub extern fn SDL_GetPropertyType(props: SDL_PropertiesID, name: [*c]const u8) SDL_PropertyType;
-pub extern fn GetPropertyType(props: PropertiesID, name: [*c]const u8) PropertyType;
-pub const getPropertyType = GetPropertyType;
+pub extern fn SDL_GetPropertyType(props: PropertiesID, name: [*c]const u8) PropertyType;
+pub const getPropertyType = SDL_GetPropertyType;
 //pub extern fn SDL_GetPointerProperty(props: SDL_PropertiesID, name: [*c]const u8, default_value: ?*anyopaque) ?*anyopaque;
-pub extern fn GetPointerProperty(props: PropertiesID, name: [*c]const u8, default_value: ?*anyopaque) ?*anyopaque;
-pub const getPointerProperty = GetPointerProperty;
+pub extern fn SDL_GetPointerProperty(props: PropertiesID, name: [*c]const u8, default_value: ?*anyopaque) ?*anyopaque;
+pub const getPointerProperty = SDL_GetPointerProperty;
 //pub extern fn SDL_GetStringProperty(props: SDL_PropertiesID, name: [*c]const u8, default_value: [*c]const u8) [*c]const u8;
-pub extern fn GetStringProperty(props: PropertiesID, name: [*c]const u8, default_value: [*c]const u8) [*c]const u8;
-pub const getStringProperty = GetStringProperty;
+pub extern fn SDL_GetStringProperty(props: PropertiesID, name: [*c]const u8, default_value: [*c]const u8) [*c]const u8;
+pub const getStringProperty = SDL_GetStringProperty;
 //pub extern fn SDL_GetNumberProperty(props: SDL_PropertiesID, name: [*c]const u8, default_value: Sint64) Sint64;
-pub extern fn GetNumberProperty(props: PropertiesID, name: [*c]const u8, default_value: i64) i64;
-pub const getNumberProperty = GetNumberProperty;
+pub extern fn SDL_GetNumberProperty(props: PropertiesID, name: [*c]const u8, default_value: i64) i64;
+pub const getNumberProperty = SDL_GetNumberProperty;
 //pub extern fn SDL_GetFloatProperty(props: SDL_PropertiesID, name: [*c]const u8, default_value: f32) f32;
-pub extern fn GetFloatProperty(props: PropertiesID, name: [*c]const u8, default_value: f32) f32;
-pub const getFloatProperty = GetFloatProperty;
+pub extern fn SDL_GetFloatProperty(props: PropertiesID, name: [*c]const u8, default_value: f32) f32;
+pub const getFloatProperty = SDL_GetFloatProperty;
 //pub extern fn SDL_GetBooleanProperty(props: SDL_PropertiesID, name: [*c]const u8, default_value: SDL_bool) SDL_bool;
-pub extern fn GetBooleanProperty(props: PropertiesID, name: [*c]const u8, default_value: bool) bool;
-pub const getBooleanProperty = GetBooleanProperty;
+pub extern fn SDL_GetBooleanProperty(props: PropertiesID, name: [*c]const u8, default_value: bool) bool;
+pub const getBooleanProperty = SDL_GetBooleanProperty;
 //pub extern fn SDL_ClearProperty(props: SDL_PropertiesID, name: [*c]const u8) SDL_bool;
-pub extern fn ClearProperty(props: PropertiesID, name: [*c]const u8) bool;
-pub const clearProperty = ClearProperty;
+pub extern fn SDL_ClearProperty(props: PropertiesID, name: [*c]const u8) bool;
+pub const clearProperty = SDL_ClearProperty;
 //pub const SDL_EnumeratePropertiesCallback = ?*const fn (?*anyopaque, SDL_PropertiesID, [*c]const u8) callconv(.C) void;
 pub const EnumeratePropertiesCallback = ?*const fn (?*anyopaque, PropertiesID, [*c]const u8) callconv(.C) void;
 //pub extern fn SDL_EnumerateProperties(props: SDL_PropertiesID, callback: SDL_EnumeratePropertiesCallback, userdata: ?*anyopaque) SDL_bool;
-pub extern fn EnumerateProperties(props: PropertiesID, callback: EnumeratePropertiesCallback, userdata: ?*anyopaque) bool;
-pub const enumerateProperties = EnumerateProperties;
+pub extern fn SDL_EnumerateProperties(props: PropertiesID, callback: EnumeratePropertiesCallback, userdata: ?*anyopaque) bool;
+pub const enumerateProperties = SDL_EnumerateProperties;
 //pub extern fn SDL_DestroyProperties(props: SDL_PropertiesID) void;
-pub extern fn DestroyProperties(props: PropertiesID) void;
-pub const destroyProperties = DestroyProperties;
+pub extern fn SDL_DestroyProperties(props: PropertiesID) void;
+pub const destroyProperties = SDL_DestroyProperties;
 //pub const __llvm__ = @as(c_int, 1);
 //pub const __clang__ = @as(c_int, 1);
 //pub const __clang_major__ = @as(c_int, 18);

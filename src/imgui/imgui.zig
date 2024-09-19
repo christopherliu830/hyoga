@@ -326,7 +326,7 @@ pub const struct_ImGuiViewport = extern struct {
     PlatformRequestResize: bool = @import("std").mem.zeroes(bool),
     PlatformRequestClose: bool = @import("std").mem.zeroes(bool),
 };
-pub const ImGuiViewport = struct_ImGuiViewport;
+pub const Viewport = struct_ImGuiViewport;
 
 pub const struct_ImDrawData = extern struct {
     Valid: bool = @import("std").mem.zeroes(bool),
@@ -337,7 +337,7 @@ pub const struct_ImDrawData = extern struct {
     DisplayPos: Vec2 = @import("std").mem.zeroes(Vec2),
     DisplaySize: Vec2 = @import("std").mem.zeroes(Vec2),
     FramebufferScale: Vec2 = @import("std").mem.zeroes(Vec2),
-    OwnerViewport: [*c]ImGuiViewport = @import("std").mem.zeroes([*c]ImGuiViewport),
+    OwnerViewport: [*c]Viewport = @import("std").mem.zeroes([*c]Viewport),
 };
 pub const struct_ImVector_u32 = extern struct {
     Size: c_int = @import("std").mem.zeroes(c_int),
@@ -506,7 +506,7 @@ pub const ImVector_ImGuiPlatformMonitor = struct_ImVector_ImGuiPlatformMonitor;
 pub const struct_ImVector_ImGuiViewportPtr = extern struct {
     Size: c_int = @import("std").mem.zeroes(c_int),
     Capacity: c_int = @import("std").mem.zeroes(c_int),
-    Data: [*c][*c]ImGuiViewport = @import("std").mem.zeroes([*c][*c]ImGuiViewport),
+    Data: [*c][*c]Viewport = @import("std").mem.zeroes([*c][*c]Viewport),
 };
 pub const ImVector_ImGuiViewportPtr = struct_ImVector_ImGuiViewportPtr;
 
@@ -516,33 +516,33 @@ pub const struct_ImGuiPlatformIO = extern struct {
     Platform_ClipboardUserData: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
     Platform_OpenInShellFn: ?*const fn (?*Context, [*c]const u8) callconv(.C) bool = @import("std").mem.zeroes(?*const fn (?*Context, [*c]const u8) callconv(.C) bool),
     Platform_OpenInShellUserData: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
-    Platform_SetImeDataFn: ?*const fn (?*Context, [*c]ImGuiViewport, [*c]ImGuiPlatformImeData) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*Context, [*c]ImGuiViewport, [*c]ImGuiPlatformImeData) callconv(.C) void),
+    Platform_SetImeDataFn: ?*const fn (?*Context, [*c]Viewport, [*c]ImGuiPlatformImeData) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*Context, [*c]Viewport, [*c]ImGuiPlatformImeData) callconv(.C) void),
     Platform_ImeUserData: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
     Platform_LocaleDecimalPoint: ImWchar = @import("std").mem.zeroes(ImWchar),
-    Platform_CreateWindow: ?*const fn ([*c]ImGuiViewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) void),
-    Platform_DestroyWindow: ?*const fn ([*c]ImGuiViewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) void),
-    Platform_ShowWindow: ?*const fn ([*c]ImGuiViewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) void),
-    Platform_SetWindowPos: ?*const fn ([*c]ImGuiViewport, Vec2) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport, Vec2) callconv(.C) void),
-    Platform_GetWindowPos: ?*const fn ([*c]ImGuiViewport) callconv(.C) Vec2 = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) Vec2),
-    Platform_SetWindowSize: ?*const fn ([*c]ImGuiViewport, Vec2) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport, Vec2) callconv(.C) void),
-    Platform_GetWindowSize: ?*const fn ([*c]ImGuiViewport) callconv(.C) Vec2 = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) Vec2),
-    Platform_SetWindowFocus: ?*const fn ([*c]ImGuiViewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) void),
-    Platform_GetWindowFocus: ?*const fn ([*c]ImGuiViewport) callconv(.C) bool = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) bool),
-    Platform_GetWindowMinimized: ?*const fn ([*c]ImGuiViewport) callconv(.C) bool = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) bool),
-    Platform_SetWindowTitle: ?*const fn ([*c]ImGuiViewport, [*c]const u8) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport, [*c]const u8) callconv(.C) void),
-    Platform_SetWindowAlpha: ?*const fn ([*c]ImGuiViewport, f32) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport, f32) callconv(.C) void),
-    Platform_UpdateWindow: ?*const fn ([*c]ImGuiViewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) void),
-    Platform_RenderWindow: ?*const fn ([*c]ImGuiViewport, ?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport, ?*anyopaque) callconv(.C) void),
-    Platform_SwapBuffers: ?*const fn ([*c]ImGuiViewport, ?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport, ?*anyopaque) callconv(.C) void),
-    Platform_GetWindowDpiScale: ?*const fn ([*c]ImGuiViewport) callconv(.C) f32 = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) f32),
-    Platform_OnChangedViewport: ?*const fn ([*c]ImGuiViewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) void),
-    Platform_GetWindowWorkAreaInsets: ?*const fn ([*c]ImGuiViewport) callconv(.C) Vec4 = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) Vec4),
-    Platform_CreateVkSurface: ?*const fn ([*c]ImGuiViewport, ImU64, ?*const anyopaque, [*c]ImU64) callconv(.C) c_int = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport, ImU64, ?*const anyopaque, [*c]ImU64) callconv(.C) c_int),
-    Renderer_CreateWindow: ?*const fn ([*c]ImGuiViewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) void),
-    Renderer_DestroyWindow: ?*const fn ([*c]ImGuiViewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport) callconv(.C) void),
-    Renderer_SetWindowSize: ?*const fn ([*c]ImGuiViewport, Vec2) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport, Vec2) callconv(.C) void),
-    Renderer_RenderWindow: ?*const fn ([*c]ImGuiViewport, ?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport, ?*anyopaque) callconv(.C) void),
-    Renderer_SwapBuffers: ?*const fn ([*c]ImGuiViewport, ?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]ImGuiViewport, ?*anyopaque) callconv(.C) void),
+    Platform_CreateWindow: ?*const fn ([*c]Viewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) void),
+    Platform_DestroyWindow: ?*const fn ([*c]Viewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) void),
+    Platform_ShowWindow: ?*const fn ([*c]Viewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) void),
+    Platform_SetWindowPos: ?*const fn ([*c]Viewport, Vec2) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport, Vec2) callconv(.C) void),
+    Platform_GetWindowPos: ?*const fn ([*c]Viewport) callconv(.C) Vec2 = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) Vec2),
+    Platform_SetWindowSize: ?*const fn ([*c]Viewport, Vec2) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport, Vec2) callconv(.C) void),
+    Platform_GetWindowSize: ?*const fn ([*c]Viewport) callconv(.C) Vec2 = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) Vec2),
+    Platform_SetWindowFocus: ?*const fn ([*c]Viewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) void),
+    Platform_GetWindowFocus: ?*const fn ([*c]Viewport) callconv(.C) bool = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) bool),
+    Platform_GetWindowMinimized: ?*const fn ([*c]Viewport) callconv(.C) bool = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) bool),
+    Platform_SetWindowTitle: ?*const fn ([*c]Viewport, [*c]const u8) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport, [*c]const u8) callconv(.C) void),
+    Platform_SetWindowAlpha: ?*const fn ([*c]Viewport, f32) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport, f32) callconv(.C) void),
+    Platform_UpdateWindow: ?*const fn ([*c]Viewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) void),
+    Platform_RenderWindow: ?*const fn ([*c]Viewport, ?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport, ?*anyopaque) callconv(.C) void),
+    Platform_SwapBuffers: ?*const fn ([*c]Viewport, ?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport, ?*anyopaque) callconv(.C) void),
+    Platform_GetWindowDpiScale: ?*const fn ([*c]Viewport) callconv(.C) f32 = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) f32),
+    Platform_OnChangedViewport: ?*const fn ([*c]Viewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) void),
+    Platform_GetWindowWorkAreaInsets: ?*const fn ([*c]Viewport) callconv(.C) Vec4 = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) Vec4),
+    Platform_CreateVkSurface: ?*const fn ([*c]Viewport, ImU64, ?*const anyopaque, [*c]ImU64) callconv(.C) c_int = @import("std").mem.zeroes(?*const fn ([*c]Viewport, ImU64, ?*const anyopaque, [*c]ImU64) callconv(.C) c_int),
+    Renderer_CreateWindow: ?*const fn ([*c]Viewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) void),
+    Renderer_DestroyWindow: ?*const fn ([*c]Viewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) void),
+    Renderer_SetWindowSize: ?*const fn ([*c]Viewport, Vec2) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport, Vec2) callconv(.C) void),
+    Renderer_RenderWindow: ?*const fn ([*c]Viewport, ?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport, ?*anyopaque) callconv(.C) void),
+    Renderer_SwapBuffers: ?*const fn ([*c]Viewport, ?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport, ?*anyopaque) callconv(.C) void),
     Monitors: ImVector_ImGuiPlatformMonitor = @import("std").mem.zeroes(ImVector_ImGuiPlatformMonitor),
     Viewports: ImVector_ImGuiViewportPtr = @import("std").mem.zeroes(ImVector_ImGuiViewportPtr),
 };
@@ -704,7 +704,7 @@ pub const struct_ImDrawDataBuilder = extern struct {
 pub const ImDrawDataBuilder = struct_ImDrawDataBuilder;
 
 pub const struct_ImGuiViewportP = extern struct {
-    _ImGuiViewport: ImGuiViewport = @import("std").mem.zeroes(ImGuiViewport),
+    _ImGuiViewport: Viewport = @import("std").mem.zeroes(Viewport),
     Window: ?*ImGuiWindow = @import("std").mem.zeroes(?*ImGuiWindow),
     Idx: c_int = @import("std").mem.zeroes(c_int),
     LastFrameActive: c_int = @import("std").mem.zeroes(c_int),
@@ -4206,7 +4206,7 @@ pub extern fn igGetWindowPos(pOut: [*c]Vec2) void;
 pub extern fn igGetWindowSize(pOut: [*c]Vec2) void;
 pub extern fn igGetWindowWidth() f32;
 pub extern fn igGetWindowHeight() f32;
-pub extern fn igGetWindowViewport() [*c]ImGuiViewport;
+pub extern fn igGetWindowViewport() [*c]Viewport;
 pub extern fn igSetNextWindowPos(pos: Vec2, cond: ImGuiCond, pivot: Vec2) void;
 pub extern fn igSetNextWindowSize(size: Vec2, cond: ImGuiCond) void;
 pub extern fn igSetNextWindowSizeConstraints(size_min: Vec2, size_max: Vec2, custom_callback: ImGuiSizeCallback, custom_callback_data: ?*anyopaque) void;
@@ -4469,7 +4469,7 @@ pub extern fn igEndTabItem() void;
 pub extern fn igTabItemButton(label: [*c]const u8, flags: ImGuiTabItemFlags) bool;
 pub extern fn igSetTabItemClosed(tab_or_docked_window_label: [*c]const u8) void;
 pub extern fn igDockSpace(dockspace_id: ImGuiID, size: Vec2, flags: ImGuiDockNodeFlags, window_class: [*c]const ImGuiWindowClass) ImGuiID;
-pub extern fn igDockSpaceOverViewport(dockspace_id: ImGuiID, viewport: [*c]const ImGuiViewport, flags: ImGuiDockNodeFlags, window_class: [*c]const ImGuiWindowClass) ImGuiID;
+pub extern fn igDockSpaceOverViewport(dockspace_id: ImGuiID, viewport: [*c]const Viewport, flags: ImGuiDockNodeFlags, window_class: [*c]const ImGuiWindowClass) ImGuiID;
 pub extern fn igSetNextWindowDockID(dock_id: ImGuiID, cond: ImGuiCond) void;
 pub extern fn igSetNextWindowClass(window_class: [*c]const ImGuiWindowClass) void;
 pub extern fn igGetWindowDockID() ImGuiID;
@@ -4511,9 +4511,12 @@ pub extern fn igGetItemID() ImGuiID;
 pub extern fn igGetItemRectMin(pOut: [*c]Vec2) void;
 pub extern fn igGetItemRectMax(pOut: [*c]Vec2) void;
 pub extern fn igGetItemRectSize(pOut: [*c]Vec2) void;
-pub extern fn igGetMainViewport() [*c]ImGuiViewport;
-pub extern fn igGetBackgroundDrawList(viewport: [*c]ImGuiViewport) [*c]ImDrawList;
-pub extern fn igGetForegroundDrawList_ViewportPtr(viewport: [*c]ImGuiViewport) [*c]ImDrawList;
+
+pub extern fn igGetMainViewport() *Viewport;
+pub const getMainViewport = igGetMainViewport;
+
+pub extern fn igGetBackgroundDrawList(viewport: [*c]Viewport) [*c]ImDrawList;
+pub extern fn igGetForegroundDrawList_ViewportPtr(viewport: [*c]Viewport) [*c]ImDrawList;
 pub extern fn igIsRectVisible_Nil(size: Vec2) bool;
 pub extern fn igIsRectVisible_Vec2(rect_min: Vec2, rect_max: Vec2) bool;
 pub extern fn igGetTime() f64;
@@ -4572,8 +4575,8 @@ pub extern fn igMemFree(ptr: ?*anyopaque) void;
 pub extern fn igUpdatePlatformWindows() void;
 pub extern fn igRenderPlatformWindowsDefault(platform_render_arg: ?*anyopaque, renderer_render_arg: ?*anyopaque) void;
 pub extern fn igDestroyPlatformWindows() void;
-pub extern fn igFindViewportByID(id: ImGuiID) [*c]ImGuiViewport;
-pub extern fn igFindViewportByPlatformHandle(platform_handle: ?*anyopaque) [*c]ImGuiViewport;
+pub extern fn igFindViewportByID(id: ImGuiID) [*c]Viewport;
+pub extern fn igFindViewportByPlatformHandle(platform_handle: ?*anyopaque) [*c]Viewport;
 pub extern fn ImGuiTableSortSpecs_ImGuiTableSortSpecs() [*c]ImGuiTableSortSpecs;
 pub extern fn ImGuiTableSortSpecs_destroy(self: [*c]ImGuiTableSortSpecs) void;
 pub extern fn ImGuiTableColumnSortSpecs_ImGuiTableColumnSortSpecs() [*c]ImGuiTableColumnSortSpecs;
@@ -4835,10 +4838,10 @@ pub extern fn ImFont_AddGlyph(self: [*c]ImFont, src_cfg: [*c]const ImFontConfig,
 pub extern fn ImFont_AddRemapChar(self: [*c]ImFont, dst: ImWchar, src: ImWchar, overwrite_dst: bool) void;
 pub extern fn ImFont_SetGlyphVisible(self: [*c]ImFont, c: ImWchar, visible: bool) void;
 pub extern fn ImFont_IsGlyphRangeUnused(self: [*c]ImFont, c_begin: c_uint, c_last: c_uint) bool;
-pub extern fn ImGuiViewport_ImGuiViewport() [*c]ImGuiViewport;
-pub extern fn ImGuiViewport_destroy(self: [*c]ImGuiViewport) void;
-pub extern fn ImGuiViewport_GetCenter(pOut: [*c]Vec2, self: [*c]ImGuiViewport) void;
-pub extern fn ImGuiViewport_GetWorkCenter(pOut: [*c]Vec2, self: [*c]ImGuiViewport) void;
+pub extern fn ImGuiViewport_ImGuiViewport() [*c]Viewport;
+pub extern fn ImGuiViewport_destroy(self: [*c]Viewport) void;
+pub extern fn ImGuiViewport_GetCenter(pOut: [*c]Vec2, self: [*c]Viewport) void;
+pub extern fn ImGuiViewport_GetWorkCenter(pOut: [*c]Vec2, self: [*c]Viewport) void;
 pub extern fn ImGuiPlatformIO_ImGuiPlatformIO() [*c]ImGuiPlatformIO;
 pub extern fn ImGuiPlatformIO_destroy(self: [*c]ImGuiPlatformIO) void;
 pub extern fn ImGuiPlatformMonitor_ImGuiPlatformMonitor() [*c]ImGuiPlatformMonitor;
@@ -5167,7 +5170,7 @@ pub extern fn igWindowRectRelToAbs(pOut: [*c]ImRect, window: ?*ImGuiWindow, r: I
 pub extern fn igWindowPosAbsToRel(pOut: [*c]Vec2, window: ?*ImGuiWindow, p: Vec2) void;
 pub extern fn igWindowPosRelToAbs(pOut: [*c]Vec2, window: ?*ImGuiWindow, p: Vec2) void;
 pub extern fn igFocusWindow(window: ?*ImGuiWindow, flags: ImGuiFocusRequestFlags) void;
-pub extern fn igFocusTopMostWindowUnderOne(under_this_window: ?*ImGuiWindow, ignore_window: ?*ImGuiWindow, filter_viewport: [*c]ImGuiViewport, flags: ImGuiFocusRequestFlags) void;
+pub extern fn igFocusTopMostWindowUnderOne(under_this_window: ?*ImGuiWindow, ignore_window: ?*ImGuiWindow, filter_viewport: [*c]Viewport, flags: ImGuiFocusRequestFlags) void;
 pub extern fn igBringWindowToFocusFront(window: ?*ImGuiWindow) void;
 pub extern fn igBringWindowToDisplayFront(window: ?*ImGuiWindow) void;
 pub extern fn igBringWindowToDisplayBack(window: ?*ImGuiWindow) void;
@@ -5196,7 +5199,7 @@ pub extern fn igScaleWindowsInViewport(viewport: [*c]ImGuiViewportP, scale: f32)
 pub extern fn igDestroyPlatformWindow(viewport: [*c]ImGuiViewportP) void;
 pub extern fn igSetWindowViewport(window: ?*ImGuiWindow, viewport: [*c]ImGuiViewportP) void;
 pub extern fn igSetCurrentViewport(window: ?*ImGuiWindow, viewport: [*c]ImGuiViewportP) void;
-pub extern fn igGetViewportPlatformMonitor(viewport: [*c]ImGuiViewport) [*c]const ImGuiPlatformMonitor;
+pub extern fn igGetViewportPlatformMonitor(viewport: [*c]Viewport) [*c]const ImGuiPlatformMonitor;
 pub extern fn igFindHoveredViewportFromPlatformWindowStack(mouse_platform_pos: Vec2) [*c]ImGuiViewportP;
 pub extern fn igMarkIniSettingsDirty_Nil() void;
 pub extern fn igMarkIniSettingsDirty_WindowPtr(window: ?*ImGuiWindow) void;
@@ -5265,7 +5268,7 @@ pub extern fn igFindBestWindowPosForPopup(pOut: [*c]Vec2, window: ?*ImGuiWindow)
 pub extern fn igFindBestWindowPosForPopupEx(pOut: [*c]Vec2, ref_pos: Vec2, size: Vec2, last_dir: [*c]ImGuiDir, r_outer: ImRect, r_avoid: ImRect, policy: ImGuiPopupPositionPolicy) void;
 pub extern fn igBeginTooltipEx(tooltip_flags: ImGuiTooltipFlags, extra_window_flags: ImGuiWindowFlags) bool;
 pub extern fn igBeginTooltipHidden() bool;
-pub extern fn igBeginViewportSideBar(name: [*c]const u8, viewport: [*c]ImGuiViewport, dir: ImGuiDir, size: f32, window_flags: ImGuiWindowFlags) bool;
+pub extern fn igBeginViewportSideBar(name: [*c]const u8, viewport: [*c]Viewport, dir: ImGuiDir, size: f32, window_flags: ImGuiWindowFlags) bool;
 pub extern fn igBeginMenuEx(label: [*c]const u8, icon: [*c]const u8, enabled: bool) bool;
 pub extern fn igMenuItemEx(label: [*c]const u8, icon: [*c]const u8, shortcut: [*c]const u8, selected: bool, enabled: bool) bool;
 pub extern fn igBeginComboPopup(popup_id: ImGuiID, bb: ImRect, flags: ImGuiComboFlags) bool;
@@ -5594,5 +5597,5 @@ pub extern fn ImVector_ImWchar_create() [*c]ImVector_ImWchar;
 pub extern fn ImVector_ImWchar_destroy(self: [*c]ImVector_ImWchar) void;
 pub extern fn ImVector_ImWchar_Init(p: [*c]ImVector_ImWchar) void;
 pub extern fn ImVector_ImWchar_UnInit(p: [*c]ImVector_ImWchar) void;
-pub extern fn ImGuiPlatformIO_Set_Platform_GetWindowPos(platform_io: [*c]ImGuiPlatformIO, user_callback: ?*const fn ([*c]ImGuiViewport, [*c]Vec2) callconv(.C) void) void;
-pub extern fn ImGuiPlatformIO_Set_Platform_GetWindowSize(platform_io: [*c]ImGuiPlatformIO, user_callback: ?*const fn ([*c]ImGuiViewport, [*c]Vec2) callconv(.C) void) void;
+pub extern fn ImGuiPlatformIO_Set_Platform_GetWindowPos(platform_io: [*c]ImGuiPlatformIO, user_callback: ?*const fn ([*c]Viewport, [*c]Vec2) callconv(.C) void) void;
+pub extern fn ImGuiPlatformIO_Set_Platform_GetWindowSize(platform_io: [*c]ImGuiPlatformIO, user_callback: ?*const fn ([*c]Viewport, [*c]Vec2) callconv(.C) void) void;

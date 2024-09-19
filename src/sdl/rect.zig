@@ -1,44 +1,44 @@
 //pub const struct_SDL_Point = extern struct {
 pub const Point = extern struct {
 //    x: c_int = @import("std").mem.zeroes(c_int),
-    x: c_int,
+	x: c_int = @import("std").mem.zeroes(c_int),
 //    y: c_int = @import("std").mem.zeroes(c_int),
-    y: c_int,
+	y: c_int = @import("std").mem.zeroes(c_int),
 //};
 };
 //pub const SDL_Point = struct_SDL_Point;
 //pub const struct_SDL_FPoint = extern struct {
 pub const FPoint = extern struct {
 //    x: f32 = @import("std").mem.zeroes(f32),
-    x: f32,
+	x: f32 = @import("std").mem.zeroes(f32),
 //    y: f32 = @import("std").mem.zeroes(f32),
-    y: f32,
+	y: f32 = @import("std").mem.zeroes(f32),
 //};
 };
 //pub const SDL_FPoint = struct_SDL_FPoint;
 //pub const struct_SDL_Rect = extern struct {
 pub const Rect = extern struct {
 //    x: c_int = @import("std").mem.zeroes(c_int),
-    x: c_int,
+	x: c_int = @import("std").mem.zeroes(c_int),
 //    y: c_int = @import("std").mem.zeroes(c_int),
-    y: c_int,
+	y: c_int = @import("std").mem.zeroes(c_int),
 //    w: c_int = @import("std").mem.zeroes(c_int),
-    w: c_int,
+	w: c_int = @import("std").mem.zeroes(c_int),
 //    h: c_int = @import("std").mem.zeroes(c_int),
-    h: c_int,
+	h: c_int = @import("std").mem.zeroes(c_int),
 //};
 };
 //pub const SDL_Rect = struct_SDL_Rect;
 //pub const struct_SDL_FRect = extern struct {
 pub const FRect = extern struct {
 //    x: f32 = @import("std").mem.zeroes(f32),
-    x: f32,
+	x: f32 = @import("std").mem.zeroes(f32),
 //    y: f32 = @import("std").mem.zeroes(f32),
-    y: f32,
+	y: f32 = @import("std").mem.zeroes(f32),
 //    w: f32 = @import("std").mem.zeroes(f32),
-    w: f32,
+	w: f32 = @import("std").mem.zeroes(f32),
 //    h: f32 = @import("std").mem.zeroes(f32),
-    h: f32,
+	h: f32 = @import("std").mem.zeroes(f32),
 //};
 };
 //pub const SDL_FRect = struct_SDL_FRect;
@@ -72,20 +72,20 @@ pub const FRect = extern struct {
 //    return (if ((((((a != null) and (b != null)) and (a.*.x == b.*.x)) and (a.*.y == b.*.y)) and (a.*.w == b.*.w)) and (a.*.h == b.*.h)) @as(c_int, 1) else @as(c_int, 0)) != 0;
 //}
 //pub extern fn SDL_HasRectIntersection(A: [*c]const SDL_Rect, B: [*c]const SDL_Rect) SDL_bool;
-pub extern fn HasRectIntersection(A: [*c]const Rect, B: [*c]const Rect) bool;
-pub const hasRectIntersection = HasRectIntersection;
+pub extern fn SDL_HasRectIntersection(A: [*c]const Rect, B: [*c]const Rect) bool;
+pub const hasRectIntersection = SDL_HasRectIntersection;
 //pub extern fn SDL_GetRectIntersection(A: [*c]const SDL_Rect, B: [*c]const SDL_Rect, result: [*c]SDL_Rect) SDL_bool;
-pub extern fn GetRectIntersection(A: [*c]const Rect, B: [*c]const Rect, result: [*c]Rect) bool;
-pub const getRectIntersection = GetRectIntersection;
+pub extern fn SDL_GetRectIntersection(A: [*c]const Rect, B: [*c]const Rect, result: [*c]Rect) bool;
+pub const getRectIntersection = SDL_GetRectIntersection;
 //pub extern fn SDL_GetRectUnion(A: [*c]const SDL_Rect, B: [*c]const SDL_Rect, result: [*c]SDL_Rect) SDL_bool;
-pub extern fn GetRectUnion(A: [*c]const Rect, B: [*c]const Rect, result: [*c]Rect) bool;
-pub const getRectUnion = GetRectUnion;
+pub extern fn SDL_GetRectUnion(A: [*c]const Rect, B: [*c]const Rect, result: [*c]Rect) bool;
+pub const getRectUnion = SDL_GetRectUnion;
 //pub extern fn SDL_GetRectEnclosingPoints(points: [*c]const SDL_Point, count: c_int, clip: [*c]const SDL_Rect, result: [*c]SDL_Rect) SDL_bool;
-pub extern fn GetRectEnclosingPoints(points: [*c]const Point, count: c_int, clip: [*c]const Rect, result: [*c]Rect) bool;
-pub const getRectEnclosingPoints = GetRectEnclosingPoints;
+pub extern fn SDL_GetRectEnclosingPoints(points: [*c]const Point, count: c_int, clip: [*c]const Rect, result: [*c]Rect) bool;
+pub const getRectEnclosingPoints = SDL_GetRectEnclosingPoints;
 //pub extern fn SDL_GetRectAndLineIntersection(rect: [*c]const SDL_Rect, X1: [*c]c_int, Y1: [*c]c_int, X2: [*c]c_int, Y2: [*c]c_int) SDL_bool;
-pub extern fn GetRectAndLineIntersection(rect: [*c]const Rect, X1: [*c]c_int, Y1: [*c]c_int, X2: [*c]c_int, Y2: [*c]c_int) bool;
-pub const getRectAndLineIntersection = GetRectAndLineIntersection;
+pub extern fn SDL_GetRectAndLineIntersection(rect: [*c]const Rect, X1: [*c]c_int, Y1: [*c]c_int, X2: [*c]c_int, Y2: [*c]c_int) bool;
+pub const getRectAndLineIntersection = SDL_GetRectAndLineIntersection;
 //pub inline fn SDL_PointInRectFloat(arg_p: [*c]const SDL_FPoint, arg_r: [*c]const SDL_FRect) SDL_bool {
 //    var p = arg_p;
 //    _ = &p;
@@ -114,20 +114,20 @@ pub const getRectAndLineIntersection = GetRectAndLineIntersection;
 //    return SDL_RectsEqualEpsilon(a, b, 0.00000011920928955078125);
 //}
 //pub extern fn SDL_HasRectIntersectionFloat(A: [*c]const SDL_FRect, B: [*c]const SDL_FRect) SDL_bool;
-pub extern fn HasRectIntersectionFloat(A: [*c]const FRect, B: [*c]const FRect) bool;
-pub const hasRectIntersectionFloat = HasRectIntersectionFloat;
+pub extern fn SDL_HasRectIntersectionFloat(A: [*c]const FRect, B: [*c]const FRect) bool;
+pub const hasRectIntersectionFloat = SDL_HasRectIntersectionFloat;
 //pub extern fn SDL_GetRectIntersectionFloat(A: [*c]const SDL_FRect, B: [*c]const SDL_FRect, result: [*c]SDL_FRect) SDL_bool;
-pub extern fn GetRectIntersectionFloat(A: [*c]const FRect, B: [*c]const FRect, result: [*c]FRect) bool;
-pub const getRectIntersectionFloat = GetRectIntersectionFloat;
+pub extern fn SDL_GetRectIntersectionFloat(A: [*c]const FRect, B: [*c]const FRect, result: [*c]FRect) bool;
+pub const getRectIntersectionFloat = SDL_GetRectIntersectionFloat;
 //pub extern fn SDL_GetRectUnionFloat(A: [*c]const SDL_FRect, B: [*c]const SDL_FRect, result: [*c]SDL_FRect) SDL_bool;
-pub extern fn GetRectUnionFloat(A: [*c]const FRect, B: [*c]const FRect, result: [*c]FRect) bool;
-pub const getRectUnionFloat = GetRectUnionFloat;
+pub extern fn SDL_GetRectUnionFloat(A: [*c]const FRect, B: [*c]const FRect, result: [*c]FRect) bool;
+pub const getRectUnionFloat = SDL_GetRectUnionFloat;
 //pub extern fn SDL_GetRectEnclosingPointsFloat(points: [*c]const SDL_FPoint, count: c_int, clip: [*c]const SDL_FRect, result: [*c]SDL_FRect) SDL_bool;
-pub extern fn GetRectEnclosingPointsFloat(points: [*c]const FPoint, count: c_int, clip: [*c]const FRect, result: [*c]FRect) bool;
-pub const getRectEnclosingPointsFloat = GetRectEnclosingPointsFloat;
+pub extern fn SDL_GetRectEnclosingPointsFloat(points: [*c]const FPoint, count: c_int, clip: [*c]const FRect, result: [*c]FRect) bool;
+pub const getRectEnclosingPointsFloat = SDL_GetRectEnclosingPointsFloat;
 //pub extern fn SDL_GetRectAndLineIntersectionFloat(rect: [*c]const SDL_FRect, X1: [*c]f32, Y1: [*c]f32, X2: [*c]f32, Y2: [*c]f32) SDL_bool;
-pub extern fn GetRectAndLineIntersectionFloat(rect: [*c]const FRect, X1: [*c]f32, Y1: [*c]f32, X2: [*c]f32, Y2: [*c]f32) bool;
-pub const getRectAndLineIntersectionFloat = GetRectAndLineIntersectionFloat;
+pub extern fn SDL_GetRectAndLineIntersectionFloat(rect: [*c]const FRect, X1: [*c]f32, Y1: [*c]f32, X2: [*c]f32, Y2: [*c]f32) bool;
+pub const getRectAndLineIntersectionFloat = SDL_GetRectAndLineIntersectionFloat;
 //pub const __llvm__ = @as(c_int, 1);
 //pub const __clang__ = @as(c_int, 1);
 //pub const __clang_major__ = @as(c_int, 18);

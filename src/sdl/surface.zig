@@ -7,12 +7,12 @@ const IOStream = @import("iostream.zig").IOStream;
 const BlendMode = @import("blendmode.zig").BlendModeFlags;
 
 //pub const SDL_SurfaceFlags = Uint32;
-pub const SurfaceFlags = u32;
-pub const SurfaceNames = packed struct (c_int) {
-	pub const preallocated = @as(c_uint, 0x00000001);
-	pub const lock_needed = @as(c_uint, 0x00000002);
-	pub const locked = @as(c_uint, 0x00000004);
-	pub const simd_aligned = @as(c_uint, 0x00000008);
+pub const SurfaceFlags = packed struct (c_int) {
+	preallocated: bool = false,
+	lock_needed: bool = false,
+	locked: bool = false,
+	simd_aligned: bool = false,
+	_padding: u28 = 0,
 };
 
 //pub const SDL_SCALEMODE_NEAREST: c_int = 0;
@@ -42,195 +42,195 @@ pub const SurfaceData = opaque {};
 //pub const struct_SDL_Surface = extern struct {
 pub const Surface = extern struct {
 //    flags: SDL_SurfaceFlags = @import("std").mem.zeroes(SDL_SurfaceFlags),
-    flags: SurfaceFlags,
+	flags: SurfaceFlags = @import("std").mem.zeroes(SurfaceFlags),
 //    format: SDL_PixelFormat = @import("std").mem.zeroes(SDL_PixelFormat),
-    format: PixelFormat,
+	format: PixelFormat = @import("std").mem.zeroes(PixelFormat),
 //    w: c_int = @import("std").mem.zeroes(c_int),
-    w: c_int,
+	w: c_int = @import("std").mem.zeroes(c_int),
 //    h: c_int = @import("std").mem.zeroes(c_int),
-    h: c_int,
+	h: c_int = @import("std").mem.zeroes(c_int),
 //    pitch: c_int = @import("std").mem.zeroes(c_int),
-    pitch: c_int,
+	pitch: c_int = @import("std").mem.zeroes(c_int),
 //    pixels: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
-    pixels: ?*anyopaque,
+	pixels: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
 //    refcount: c_int = @import("std").mem.zeroes(c_int),
-    refcount: c_int,
+	refcount: c_int = @import("std").mem.zeroes(c_int),
 //    internal: ?*SDL_SurfaceData = @import("std").mem.zeroes(?*SDL_SurfaceData),
-    internal: ?*SurfaceData,
+	internal: ?*SurfaceData = @import("std").mem.zeroes(?*SurfaceData),
 //};
 };
 //pub const SDL_Surface = struct_SDL_Surface;
 //pub extern fn SDL_CreateSurface(width: c_int, height: c_int, format: SDL_PixelFormat) [*c]SDL_Surface;
-pub extern fn CreateSurface(width: c_int, height: c_int, format: PixelFormat) [*c]Surface;
-pub const createSurface = CreateSurface;
+pub extern fn SDL_CreateSurface(width: c_int, height: c_int, format: PixelFormat) [*c]Surface;
+pub const createSurface = SDL_CreateSurface;
 //pub extern fn SDL_CreateSurfaceFrom(width: c_int, height: c_int, format: SDL_PixelFormat, pixels: ?*anyopaque, pitch: c_int) [*c]SDL_Surface;
-pub extern fn CreateSurfaceFrom(width: c_int, height: c_int, format: PixelFormat, pixels: ?*anyopaque, pitch: c_int) [*c]Surface;
-pub const createSurfaceFrom = CreateSurfaceFrom;
+pub extern fn SDL_CreateSurfaceFrom(width: c_int, height: c_int, format: PixelFormat, pixels: ?*anyopaque, pitch: c_int) [*c]Surface;
+pub const createSurfaceFrom = SDL_CreateSurfaceFrom;
 //pub extern fn SDL_DestroySurface(surface: [*c]SDL_Surface) void;
-pub extern fn DestroySurface(surface: [*c]Surface) void;
-pub const destroySurface = DestroySurface;
+pub extern fn SDL_DestroySurface(surface: [*c]Surface) void;
+pub const destroySurface = SDL_DestroySurface;
 //pub extern fn SDL_GetSurfaceProperties(surface: [*c]SDL_Surface) SDL_PropertiesID;
-pub extern fn GetSurfaceProperties(surface: [*c]Surface) PropertiesID;
-pub const getSurfaceProperties = GetSurfaceProperties;
+pub extern fn SDL_GetSurfaceProperties(surface: [*c]Surface) PropertiesID;
+pub const getSurfaceProperties = SDL_GetSurfaceProperties;
 //pub extern fn SDL_SetSurfaceColorspace(surface: [*c]SDL_Surface, colorspace: SDL_Colorspace) SDL_bool;
-pub extern fn SetSurfaceColorspace(surface: [*c]Surface, colorspace: Colorspace) bool;
-pub const setSurfaceColorspace = SetSurfaceColorspace;
+pub extern fn SDL_SetSurfaceColorspace(surface: [*c]Surface, colorspace: Colorspace) bool;
+pub const setSurfaceColorspace = SDL_SetSurfaceColorspace;
 //pub extern fn SDL_GetSurfaceColorspace(surface: [*c]SDL_Surface) SDL_Colorspace;
-pub extern fn GetSurfaceColorspace(surface: [*c]Surface) Colorspace;
-pub const getSurfaceColorspace = GetSurfaceColorspace;
+pub extern fn SDL_GetSurfaceColorspace(surface: [*c]Surface) Colorspace;
+pub const getSurfaceColorspace = SDL_GetSurfaceColorspace;
 //pub extern fn SDL_CreateSurfacePalette(surface: [*c]SDL_Surface) [*c]SDL_Palette;
-pub extern fn CreateSurfacePalette(surface: [*c]Surface) [*c]Palette;
-pub const createSurfacePalette = CreateSurfacePalette;
+pub extern fn SDL_CreateSurfacePalette(surface: [*c]Surface) [*c]Palette;
+pub const createSurfacePalette = SDL_CreateSurfacePalette;
 //pub extern fn SDL_SetSurfacePalette(surface: [*c]SDL_Surface, palette: [*c]SDL_Palette) SDL_bool;
-pub extern fn SetSurfacePalette(surface: [*c]Surface, palette: [*c]Palette) bool;
-pub const setSurfacePalette = SetSurfacePalette;
+pub extern fn SDL_SetSurfacePalette(surface: [*c]Surface, palette: [*c]Palette) bool;
+pub const setSurfacePalette = SDL_SetSurfacePalette;
 //pub extern fn SDL_GetSurfacePalette(surface: [*c]SDL_Surface) [*c]SDL_Palette;
-pub extern fn GetSurfacePalette(surface: [*c]Surface) [*c]Palette;
-pub const getSurfacePalette = GetSurfacePalette;
+pub extern fn SDL_GetSurfacePalette(surface: [*c]Surface) [*c]Palette;
+pub const getSurfacePalette = SDL_GetSurfacePalette;
 //pub extern fn SDL_AddSurfaceAlternateImage(surface: [*c]SDL_Surface, image: [*c]SDL_Surface) SDL_bool;
-pub extern fn AddSurfaceAlternateImage(surface: [*c]Surface, image: [*c]Surface) bool;
-pub const addSurfaceAlternateImage = AddSurfaceAlternateImage;
+pub extern fn SDL_AddSurfaceAlternateImage(surface: [*c]Surface, image: [*c]Surface) bool;
+pub const addSurfaceAlternateImage = SDL_AddSurfaceAlternateImage;
 //pub extern fn SDL_SurfaceHasAlternateImages(surface: [*c]SDL_Surface) SDL_bool;
-pub extern fn SurfaceHasAlternateImages(surface: [*c]Surface) bool;
-pub const surfaceHasAlternateImages = SurfaceHasAlternateImages;
+pub extern fn SDL_SurfaceHasAlternateImages(surface: [*c]Surface) bool;
+pub const surfaceHasAlternateImages = SDL_SurfaceHasAlternateImages;
 //pub extern fn SDL_GetSurfaceImages(surface: [*c]SDL_Surface, count: [*c]c_int) [*c][*c]SDL_Surface;
-pub extern fn GetSurfaceImages(surface: [*c]Surface, count: [*c]c_int) [*c][*c]Surface;
-pub const getSurfaceImages = GetSurfaceImages;
+pub extern fn SDL_GetSurfaceImages(surface: [*c]Surface, count: [*c]c_int) [*c][*c]Surface;
+pub const getSurfaceImages = SDL_GetSurfaceImages;
 //pub extern fn SDL_RemoveSurfaceAlternateImages(surface: [*c]SDL_Surface) void;
-pub extern fn RemoveSurfaceAlternateImages(surface: [*c]Surface) void;
-pub const removeSurfaceAlternateImages = RemoveSurfaceAlternateImages;
+pub extern fn SDL_RemoveSurfaceAlternateImages(surface: [*c]Surface) void;
+pub const removeSurfaceAlternateImages = SDL_RemoveSurfaceAlternateImages;
 //pub extern fn SDL_LockSurface(surface: [*c]SDL_Surface) SDL_bool;
-pub extern fn LockSurface(surface: [*c]Surface) bool;
-pub const lockSurface = LockSurface;
+pub extern fn SDL_LockSurface(surface: [*c]Surface) bool;
+pub const lockSurface = SDL_LockSurface;
 //pub extern fn SDL_UnlockSurface(surface: [*c]SDL_Surface) void;
-pub extern fn UnlockSurface(surface: [*c]Surface) void;
-pub const unlockSurface = UnlockSurface;
+pub extern fn SDL_UnlockSurface(surface: [*c]Surface) void;
+pub const unlockSurface = SDL_UnlockSurface;
 //pub extern fn SDL_LoadBMP_IO(src: ?*SDL_IOStream, closeio: SDL_bool) [*c]SDL_Surface;
-pub extern fn LoadBMP_IO(src: ?*IOStream, closeio: bool) [*c]Surface;
-pub const loadBMP_IO = LoadBMP_IO;
+pub extern fn SDL_LoadBMP_IO(src: ?*IOStream, closeio: bool) [*c]Surface;
+pub const loadBMP_IO = SDL_LoadBMP_IO;
 //pub extern fn SDL_LoadBMP(file: [*c]const u8) [*c]SDL_Surface;
-pub extern fn LoadBMP(file: [*c]const u8) [*c]Surface;
-pub const loadBMP = LoadBMP;
+pub extern fn SDL_LoadBMP(file: [*c]const u8) [*c]Surface;
+pub const loadBMP = SDL_LoadBMP;
 //pub extern fn SDL_SaveBMP_IO(surface: [*c]SDL_Surface, dst: ?*SDL_IOStream, closeio: SDL_bool) SDL_bool;
-pub extern fn SaveBMP_IO(surface: [*c]Surface, dst: ?*IOStream, closeio: bool) bool;
-pub const saveBMP_IO = SaveBMP_IO;
+pub extern fn SDL_SaveBMP_IO(surface: [*c]Surface, dst: ?*IOStream, closeio: bool) bool;
+pub const saveBMP_IO = SDL_SaveBMP_IO;
 //pub extern fn SDL_SaveBMP(surface: [*c]SDL_Surface, file: [*c]const u8) SDL_bool;
-pub extern fn SaveBMP(surface: [*c]Surface, file: [*c]const u8) bool;
-pub const saveBMP = SaveBMP;
+pub extern fn SDL_SaveBMP(surface: [*c]Surface, file: [*c]const u8) bool;
+pub const saveBMP = SDL_SaveBMP;
 //pub extern fn SDL_SetSurfaceRLE(surface: [*c]SDL_Surface, enabled: SDL_bool) SDL_bool;
-pub extern fn SetSurfaceRLE(surface: [*c]Surface, enabled: bool) bool;
-pub const setSurfaceRLE = SetSurfaceRLE;
+pub extern fn SDL_SetSurfaceRLE(surface: [*c]Surface, enabled: bool) bool;
+pub const setSurfaceRLE = SDL_SetSurfaceRLE;
 //pub extern fn SDL_SurfaceHasRLE(surface: [*c]SDL_Surface) SDL_bool;
-pub extern fn SurfaceHasRLE(surface: [*c]Surface) bool;
-pub const surfaceHasRLE = SurfaceHasRLE;
+pub extern fn SDL_SurfaceHasRLE(surface: [*c]Surface) bool;
+pub const surfaceHasRLE = SDL_SurfaceHasRLE;
 //pub extern fn SDL_SetSurfaceColorKey(surface: [*c]SDL_Surface, enabled: SDL_bool, key: Uint32) SDL_bool;
-pub extern fn SetSurfaceColorKey(surface: [*c]Surface, enabled: bool, key: u32) bool;
-pub const setSurfaceColorKey = SetSurfaceColorKey;
+pub extern fn SDL_SetSurfaceColorKey(surface: [*c]Surface, enabled: bool, key: u32) bool;
+pub const setSurfaceColorKey = SDL_SetSurfaceColorKey;
 //pub extern fn SDL_SurfaceHasColorKey(surface: [*c]SDL_Surface) SDL_bool;
-pub extern fn SurfaceHasColorKey(surface: [*c]Surface) bool;
-pub const surfaceHasColorKey = SurfaceHasColorKey;
+pub extern fn SDL_SurfaceHasColorKey(surface: [*c]Surface) bool;
+pub const surfaceHasColorKey = SDL_SurfaceHasColorKey;
 //pub extern fn SDL_GetSurfaceColorKey(surface: [*c]SDL_Surface, key: [*c]Uint32) SDL_bool;
-pub extern fn GetSurfaceColorKey(surface: [*c]Surface, key: [*c]u32) bool;
-pub const getSurfaceColorKey = GetSurfaceColorKey;
+pub extern fn SDL_GetSurfaceColorKey(surface: [*c]Surface, key: [*c]u32) bool;
+pub const getSurfaceColorKey = SDL_GetSurfaceColorKey;
 //pub extern fn SDL_SetSurfaceColorMod(surface: [*c]SDL_Surface, r: Uint8, g: Uint8, b: Uint8) SDL_bool;
-pub extern fn SetSurfaceColorMod(surface: [*c]Surface, r: u8, g: u8, b: u8) bool;
-pub const setSurfaceColorMod = SetSurfaceColorMod;
+pub extern fn SDL_SetSurfaceColorMod(surface: [*c]Surface, r: u8, g: u8, b: u8) bool;
+pub const setSurfaceColorMod = SDL_SetSurfaceColorMod;
 //pub extern fn SDL_GetSurfaceColorMod(surface: [*c]SDL_Surface, r: [*c]Uint8, g: [*c]Uint8, b: [*c]Uint8) SDL_bool;
-pub extern fn GetSurfaceColorMod(surface: [*c]Surface, r: [*c]u8, g: [*c]u8, b: [*c]u8) bool;
-pub const getSurfaceColorMod = GetSurfaceColorMod;
+pub extern fn SDL_GetSurfaceColorMod(surface: [*c]Surface, r: [*c]u8, g: [*c]u8, b: [*c]u8) bool;
+pub const getSurfaceColorMod = SDL_GetSurfaceColorMod;
 //pub extern fn SDL_SetSurfaceAlphaMod(surface: [*c]SDL_Surface, alpha: Uint8) SDL_bool;
-pub extern fn SetSurfaceAlphaMod(surface: [*c]Surface, alpha: u8) bool;
-pub const setSurfaceAlphaMod = SetSurfaceAlphaMod;
+pub extern fn SDL_SetSurfaceAlphaMod(surface: [*c]Surface, alpha: u8) bool;
+pub const setSurfaceAlphaMod = SDL_SetSurfaceAlphaMod;
 //pub extern fn SDL_GetSurfaceAlphaMod(surface: [*c]SDL_Surface, alpha: [*c]Uint8) SDL_bool;
-pub extern fn GetSurfaceAlphaMod(surface: [*c]Surface, alpha: [*c]u8) bool;
-pub const getSurfaceAlphaMod = GetSurfaceAlphaMod;
+pub extern fn SDL_GetSurfaceAlphaMod(surface: [*c]Surface, alpha: [*c]u8) bool;
+pub const getSurfaceAlphaMod = SDL_GetSurfaceAlphaMod;
 //pub extern fn SDL_SetSurfaceBlendMode(surface: [*c]SDL_Surface, blendMode: SDL_BlendMode) SDL_bool;
-pub extern fn SetSurfaceBlendMode(surface: [*c]Surface, blendMode: BlendMode) bool;
-pub const setSurfaceBlendMode = SetSurfaceBlendMode;
+pub extern fn SDL_SetSurfaceBlendMode(surface: [*c]Surface, blendMode: BlendMode) bool;
+pub const setSurfaceBlendMode = SDL_SetSurfaceBlendMode;
 //pub extern fn SDL_GetSurfaceBlendMode(surface: [*c]SDL_Surface, blendMode: [*c]SDL_BlendMode) SDL_bool;
-pub extern fn GetSurfaceBlendMode(surface: [*c]Surface, blendMode: [*c]BlendMode) bool;
-pub const getSurfaceBlendMode = GetSurfaceBlendMode;
+pub extern fn SDL_GetSurfaceBlendMode(surface: [*c]Surface, blendMode: [*c]BlendMode) bool;
+pub const getSurfaceBlendMode = SDL_GetSurfaceBlendMode;
 //pub extern fn SDL_SetSurfaceClipRect(surface: [*c]SDL_Surface, rect: [*c]const SDL_Rect) SDL_bool;
-pub extern fn SetSurfaceClipRect(surface: [*c]Surface, rect: [*c]const Rect) bool;
-pub const setSurfaceClipRect = SetSurfaceClipRect;
+pub extern fn SDL_SetSurfaceClipRect(surface: [*c]Surface, rect: [*c]const Rect) bool;
+pub const setSurfaceClipRect = SDL_SetSurfaceClipRect;
 //pub extern fn SDL_GetSurfaceClipRect(surface: [*c]SDL_Surface, rect: [*c]SDL_Rect) SDL_bool;
-pub extern fn GetSurfaceClipRect(surface: [*c]Surface, rect: [*c]Rect) bool;
-pub const getSurfaceClipRect = GetSurfaceClipRect;
+pub extern fn SDL_GetSurfaceClipRect(surface: [*c]Surface, rect: [*c]Rect) bool;
+pub const getSurfaceClipRect = SDL_GetSurfaceClipRect;
 //pub extern fn SDL_FlipSurface(surface: [*c]SDL_Surface, flip: SDL_FlipMode) SDL_bool;
-pub extern fn FlipSurface(surface: [*c]Surface, flip: FlipMode) bool;
-pub const flipSurface = FlipSurface;
+pub extern fn SDL_FlipSurface(surface: [*c]Surface, flip: FlipMode) bool;
+pub const flipSurface = SDL_FlipSurface;
 //pub extern fn SDL_DuplicateSurface(surface: [*c]SDL_Surface) [*c]SDL_Surface;
-pub extern fn DuplicateSurface(surface: [*c]Surface) [*c]Surface;
-pub const duplicateSurface = DuplicateSurface;
+pub extern fn SDL_DuplicateSurface(surface: [*c]Surface) [*c]Surface;
+pub const duplicateSurface = SDL_DuplicateSurface;
 //pub extern fn SDL_ScaleSurface(surface: [*c]SDL_Surface, width: c_int, height: c_int, scaleMode: SDL_ScaleMode) [*c]SDL_Surface;
-pub extern fn ScaleSurface(surface: [*c]Surface, width: c_int, height: c_int, scaleMode: ScaleMode) [*c]Surface;
-pub const scaleSurface = ScaleSurface;
+pub extern fn SDL_ScaleSurface(surface: [*c]Surface, width: c_int, height: c_int, scaleMode: ScaleMode) [*c]Surface;
+pub const scaleSurface = SDL_ScaleSurface;
 //pub extern fn SDL_ConvertSurface(surface: [*c]SDL_Surface, format: SDL_PixelFormat) [*c]SDL_Surface;
-pub extern fn ConvertSurface(surface: [*c]Surface, format: PixelFormat) [*c]Surface;
-pub const convertSurface = ConvertSurface;
+pub extern fn SDL_ConvertSurface(surface: [*c]Surface, format: PixelFormat) [*c]Surface;
+pub const convertSurface = SDL_ConvertSurface;
 //pub extern fn SDL_ConvertSurfaceAndColorspace(surface: [*c]SDL_Surface, format: SDL_PixelFormat, palette: [*c]SDL_Palette, colorspace: SDL_Colorspace, props: SDL_PropertiesID) [*c]SDL_Surface;
-pub extern fn ConvertSurfaceAndColorspace(surface: [*c]Surface, format: PixelFormat, palette: [*c]Palette, colorspace: Colorspace, props: PropertiesID) [*c]Surface;
-pub const convertSurfaceAndColorspace = ConvertSurfaceAndColorspace;
+pub extern fn SDL_ConvertSurfaceAndColorspace(surface: [*c]Surface, format: PixelFormat, palette: [*c]Palette, colorspace: Colorspace, props: PropertiesID) [*c]Surface;
+pub const convertSurfaceAndColorspace = SDL_ConvertSurfaceAndColorspace;
 //pub extern fn SDL_ConvertPixels(width: c_int, height: c_int, src_format: SDL_PixelFormat, src: ?*const anyopaque, src_pitch: c_int, dst_format: SDL_PixelFormat, dst: ?*anyopaque, dst_pitch: c_int) SDL_bool;
-pub extern fn ConvertPixels(width: c_int, height: c_int, src_format: PixelFormat, src: ?*const anyopaque, src_pitch: c_int, dst_format: PixelFormat, dst: ?*anyopaque, dst_pitch: c_int) bool;
-pub const convertPixels = ConvertPixels;
+pub extern fn SDL_ConvertPixels(width: c_int, height: c_int, src_format: PixelFormat, src: ?*const anyopaque, src_pitch: c_int, dst_format: PixelFormat, dst: ?*anyopaque, dst_pitch: c_int) bool;
+pub const convertPixels = SDL_ConvertPixels;
 //pub extern fn SDL_ConvertPixelsAndColorspace(width: c_int, height: c_int, src_format: SDL_PixelFormat, src_colorspace: SDL_Colorspace, src_properties: SDL_PropertiesID, src: ?*const anyopaque, src_pitch: c_int, dst_format: SDL_PixelFormat, dst_colorspace: SDL_Colorspace, dst_properties: SDL_PropertiesID, dst: ?*anyopaque, dst_pitch: c_int) SDL_bool;
-pub extern fn ConvertPixelsAndColorspace(width: c_int, height: c_int, src_format: PixelFormat, src_colorspace: Colorspace, src_properties: PropertiesID, src: ?*const anyopaque, src_pitch: c_int, dst_format: PixelFormat, dst_colorspace: Colorspace, dst_properties: PropertiesID, dst: ?*anyopaque, dst_pitch: c_int) bool;
-pub const convertPixelsAndColorspace = ConvertPixelsAndColorspace;
+pub extern fn SDL_ConvertPixelsAndColorspace(width: c_int, height: c_int, src_format: PixelFormat, src_colorspace: Colorspace, src_properties: PropertiesID, src: ?*const anyopaque, src_pitch: c_int, dst_format: PixelFormat, dst_colorspace: Colorspace, dst_properties: PropertiesID, dst: ?*anyopaque, dst_pitch: c_int) bool;
+pub const convertPixelsAndColorspace = SDL_ConvertPixelsAndColorspace;
 //pub extern fn SDL_PremultiplyAlpha(width: c_int, height: c_int, src_format: SDL_PixelFormat, src: ?*const anyopaque, src_pitch: c_int, dst_format: SDL_PixelFormat, dst: ?*anyopaque, dst_pitch: c_int, linear: SDL_bool) SDL_bool;
-pub extern fn PremultiplyAlpha(width: c_int, height: c_int, src_format: PixelFormat, src: ?*const anyopaque, src_pitch: c_int, dst_format: PixelFormat, dst: ?*anyopaque, dst_pitch: c_int, linear: bool) bool;
-pub const premultiplyAlpha = PremultiplyAlpha;
+pub extern fn SDL_PremultiplyAlpha(width: c_int, height: c_int, src_format: PixelFormat, src: ?*const anyopaque, src_pitch: c_int, dst_format: PixelFormat, dst: ?*anyopaque, dst_pitch: c_int, linear: bool) bool;
+pub const premultiplyAlpha = SDL_PremultiplyAlpha;
 //pub extern fn SDL_PremultiplySurfaceAlpha(surface: [*c]SDL_Surface, linear: SDL_bool) SDL_bool;
-pub extern fn PremultiplySurfaceAlpha(surface: [*c]Surface, linear: bool) bool;
-pub const premultiplySurfaceAlpha = PremultiplySurfaceAlpha;
+pub extern fn SDL_PremultiplySurfaceAlpha(surface: [*c]Surface, linear: bool) bool;
+pub const premultiplySurfaceAlpha = SDL_PremultiplySurfaceAlpha;
 //pub extern fn SDL_ClearSurface(surface: [*c]SDL_Surface, r: f32, g: f32, b: f32, a: f32) SDL_bool;
-pub extern fn ClearSurface(surface: [*c]Surface, r: f32, g: f32, b: f32, a: f32) bool;
-pub const clearSurface = ClearSurface;
+pub extern fn SDL_ClearSurface(surface: [*c]Surface, r: f32, g: f32, b: f32, a: f32) bool;
+pub const clearSurface = SDL_ClearSurface;
 //pub extern fn SDL_FillSurfaceRect(dst: [*c]SDL_Surface, rect: [*c]const SDL_Rect, color: Uint32) SDL_bool;
-pub extern fn FillSurfaceRect(dst: [*c]Surface, rect: [*c]const Rect, color: u32) bool;
-pub const fillSurfaceRect = FillSurfaceRect;
+pub extern fn SDL_FillSurfaceRect(dst: [*c]Surface, rect: [*c]const Rect, color: u32) bool;
+pub const fillSurfaceRect = SDL_FillSurfaceRect;
 //pub extern fn SDL_FillSurfaceRects(dst: [*c]SDL_Surface, rects: [*c]const SDL_Rect, count: c_int, color: Uint32) SDL_bool;
-pub extern fn FillSurfaceRects(dst: [*c]Surface, rects: [*c]const Rect, count: c_int, color: u32) bool;
-pub const fillSurfaceRects = FillSurfaceRects;
+pub extern fn SDL_FillSurfaceRects(dst: [*c]Surface, rects: [*c]const Rect, count: c_int, color: u32) bool;
+pub const fillSurfaceRects = SDL_FillSurfaceRects;
 //pub extern fn SDL_BlitSurface(src: [*c]SDL_Surface, srcrect: [*c]const SDL_Rect, dst: [*c]SDL_Surface, dstrect: [*c]const SDL_Rect) SDL_bool;
-pub extern fn BlitSurface(src: [*c]Surface, srcrect: [*c]const Rect, dst: [*c]Surface, dstrect: [*c]const Rect) bool;
-pub const blitSurface = BlitSurface;
+pub extern fn SDL_BlitSurface(src: [*c]Surface, srcrect: [*c]const Rect, dst: [*c]Surface, dstrect: [*c]const Rect) bool;
+pub const blitSurface = SDL_BlitSurface;
 //pub extern fn SDL_BlitSurfaceUnchecked(src: [*c]SDL_Surface, srcrect: [*c]const SDL_Rect, dst: [*c]SDL_Surface, dstrect: [*c]const SDL_Rect) SDL_bool;
-pub extern fn BlitSurfaceUnchecked(src: [*c]Surface, srcrect: [*c]const Rect, dst: [*c]Surface, dstrect: [*c]const Rect) bool;
-pub const blitSurfaceUnchecked = BlitSurfaceUnchecked;
+pub extern fn SDL_BlitSurfaceUnchecked(src: [*c]Surface, srcrect: [*c]const Rect, dst: [*c]Surface, dstrect: [*c]const Rect) bool;
+pub const blitSurfaceUnchecked = SDL_BlitSurfaceUnchecked;
 //pub extern fn SDL_BlitSurfaceScaled(src: [*c]SDL_Surface, srcrect: [*c]const SDL_Rect, dst: [*c]SDL_Surface, dstrect: [*c]const SDL_Rect, scaleMode: SDL_ScaleMode) SDL_bool;
-pub extern fn BlitSurfaceScaled(src: [*c]Surface, srcrect: [*c]const Rect, dst: [*c]Surface, dstrect: [*c]const Rect, scaleMode: ScaleMode) bool;
-pub const blitSurfaceScaled = BlitSurfaceScaled;
+pub extern fn SDL_BlitSurfaceScaled(src: [*c]Surface, srcrect: [*c]const Rect, dst: [*c]Surface, dstrect: [*c]const Rect, scaleMode: ScaleMode) bool;
+pub const blitSurfaceScaled = SDL_BlitSurfaceScaled;
 //pub extern fn SDL_BlitSurfaceUncheckedScaled(src: [*c]SDL_Surface, srcrect: [*c]const SDL_Rect, dst: [*c]SDL_Surface, dstrect: [*c]const SDL_Rect, scaleMode: SDL_ScaleMode) SDL_bool;
-pub extern fn BlitSurfaceUncheckedScaled(src: [*c]Surface, srcrect: [*c]const Rect, dst: [*c]Surface, dstrect: [*c]const Rect, scaleMode: ScaleMode) bool;
-pub const blitSurfaceUncheckedScaled = BlitSurfaceUncheckedScaled;
+pub extern fn SDL_BlitSurfaceUncheckedScaled(src: [*c]Surface, srcrect: [*c]const Rect, dst: [*c]Surface, dstrect: [*c]const Rect, scaleMode: ScaleMode) bool;
+pub const blitSurfaceUncheckedScaled = SDL_BlitSurfaceUncheckedScaled;
 //pub extern fn SDL_BlitSurfaceTiled(src: [*c]SDL_Surface, srcrect: [*c]const SDL_Rect, dst: [*c]SDL_Surface, dstrect: [*c]const SDL_Rect) SDL_bool;
-pub extern fn BlitSurfaceTiled(src: [*c]Surface, srcrect: [*c]const Rect, dst: [*c]Surface, dstrect: [*c]const Rect) bool;
-pub const blitSurfaceTiled = BlitSurfaceTiled;
+pub extern fn SDL_BlitSurfaceTiled(src: [*c]Surface, srcrect: [*c]const Rect, dst: [*c]Surface, dstrect: [*c]const Rect) bool;
+pub const blitSurfaceTiled = SDL_BlitSurfaceTiled;
 //pub extern fn SDL_BlitSurfaceTiledWithScale(src: [*c]SDL_Surface, srcrect: [*c]const SDL_Rect, scale: f32, scaleMode: SDL_ScaleMode, dst: [*c]SDL_Surface, dstrect: [*c]const SDL_Rect) SDL_bool;
-pub extern fn BlitSurfaceTiledWithScale(src: [*c]Surface, srcrect: [*c]const Rect, scale: f32, scaleMode: ScaleMode, dst: [*c]Surface, dstrect: [*c]const Rect) bool;
-pub const blitSurfaceTiledWithScale = BlitSurfaceTiledWithScale;
+pub extern fn SDL_BlitSurfaceTiledWithScale(src: [*c]Surface, srcrect: [*c]const Rect, scale: f32, scaleMode: ScaleMode, dst: [*c]Surface, dstrect: [*c]const Rect) bool;
+pub const blitSurfaceTiledWithScale = SDL_BlitSurfaceTiledWithScale;
 //pub extern fn SDL_BlitSurface9Grid(src: [*c]SDL_Surface, srcrect: [*c]const SDL_Rect, left_width: c_int, right_width: c_int, top_height: c_int, bottom_height: c_int, scale: f32, scaleMode: SDL_ScaleMode, dst: [*c]SDL_Surface, dstrect: [*c]const SDL_Rect) SDL_bool;
-pub extern fn BlitSurface9Grid(src: [*c]Surface, srcrect: [*c]const Rect, left_width: c_int, right_width: c_int, top_height: c_int, bottom_height: c_int, scale: f32, scaleMode: ScaleMode, dst: [*c]Surface, dstrect: [*c]const Rect) bool;
-pub const blitSurface9Grid = BlitSurface9Grid;
+pub extern fn SDL_BlitSurface9Grid(src: [*c]Surface, srcrect: [*c]const Rect, left_width: c_int, right_width: c_int, top_height: c_int, bottom_height: c_int, scale: f32, scaleMode: ScaleMode, dst: [*c]Surface, dstrect: [*c]const Rect) bool;
+pub const blitSurface9Grid = SDL_BlitSurface9Grid;
 //pub extern fn SDL_MapSurfaceRGB(surface: [*c]SDL_Surface, r: Uint8, g: Uint8, b: Uint8) Uint32;
-pub extern fn MapSurfaceRGB(surface: [*c]Surface, r: u8, g: u8, b: u8) u32;
-pub const mapSurfaceRGB = MapSurfaceRGB;
+pub extern fn SDL_MapSurfaceRGB(surface: [*c]Surface, r: u8, g: u8, b: u8) u32;
+pub const mapSurfaceRGB = SDL_MapSurfaceRGB;
 //pub extern fn SDL_MapSurfaceRGBA(surface: [*c]SDL_Surface, r: Uint8, g: Uint8, b: Uint8, a: Uint8) Uint32;
-pub extern fn MapSurfaceRGBA(surface: [*c]Surface, r: u8, g: u8, b: u8, a: u8) u32;
-pub const mapSurfaceRGBA = MapSurfaceRGBA;
+pub extern fn SDL_MapSurfaceRGBA(surface: [*c]Surface, r: u8, g: u8, b: u8, a: u8) u32;
+pub const mapSurfaceRGBA = SDL_MapSurfaceRGBA;
 //pub extern fn SDL_ReadSurfacePixel(surface: [*c]SDL_Surface, x: c_int, y: c_int, r: [*c]Uint8, g: [*c]Uint8, b: [*c]Uint8, a: [*c]Uint8) SDL_bool;
-pub extern fn ReadSurfacePixel(surface: [*c]Surface, x: c_int, y: c_int, r: [*c]u8, g: [*c]u8, b: [*c]u8, a: [*c]u8) bool;
-pub const readSurfacePixel = ReadSurfacePixel;
+pub extern fn SDL_ReadSurfacePixel(surface: [*c]Surface, x: c_int, y: c_int, r: [*c]u8, g: [*c]u8, b: [*c]u8, a: [*c]u8) bool;
+pub const readSurfacePixel = SDL_ReadSurfacePixel;
 //pub extern fn SDL_ReadSurfacePixelFloat(surface: [*c]SDL_Surface, x: c_int, y: c_int, r: [*c]f32, g: [*c]f32, b: [*c]f32, a: [*c]f32) SDL_bool;
-pub extern fn ReadSurfacePixelFloat(surface: [*c]Surface, x: c_int, y: c_int, r: [*c]f32, g: [*c]f32, b: [*c]f32, a: [*c]f32) bool;
-pub const readSurfacePixelFloat = ReadSurfacePixelFloat;
+pub extern fn SDL_ReadSurfacePixelFloat(surface: [*c]Surface, x: c_int, y: c_int, r: [*c]f32, g: [*c]f32, b: [*c]f32, a: [*c]f32) bool;
+pub const readSurfacePixelFloat = SDL_ReadSurfacePixelFloat;
 //pub extern fn SDL_WriteSurfacePixel(surface: [*c]SDL_Surface, x: c_int, y: c_int, r: Uint8, g: Uint8, b: Uint8, a: Uint8) SDL_bool;
-pub extern fn WriteSurfacePixel(surface: [*c]Surface, x: c_int, y: c_int, r: u8, g: u8, b: u8, a: u8) bool;
-pub const writeSurfacePixel = WriteSurfacePixel;
+pub extern fn SDL_WriteSurfacePixel(surface: [*c]Surface, x: c_int, y: c_int, r: u8, g: u8, b: u8, a: u8) bool;
+pub const writeSurfacePixel = SDL_WriteSurfacePixel;
 //pub extern fn SDL_WriteSurfacePixelFloat(surface: [*c]SDL_Surface, x: c_int, y: c_int, r: f32, g: f32, b: f32, a: f32) SDL_bool;
-pub extern fn WriteSurfacePixelFloat(surface: [*c]Surface, x: c_int, y: c_int, r: f32, g: f32, b: f32, a: f32) bool;
-pub const writeSurfacePixelFloat = WriteSurfacePixelFloat;
+pub extern fn SDL_WriteSurfacePixelFloat(surface: [*c]Surface, x: c_int, y: c_int, r: f32, g: f32, b: f32, a: f32) bool;
+pub const writeSurfacePixelFloat = SDL_WriteSurfacePixelFloat;
 //pub const __llvm__ = @as(c_int, 1);
 //pub const __clang__ = @as(c_int, 1);
 //pub const __clang_major__ = @as(c_int, 18);
