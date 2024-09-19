@@ -221,14 +221,14 @@ pub const TextureFormat = enum (c_uint) {
 
 //pub const SDL_GPUTextureFormat = enum_SDL_GPUTextureFormat;
 //pub const SDL_GPUTextureUsageFlags = Uint32;
-pub const TextureUsageFlags = u32;
-pub const TextureUsageNames = packed struct (c_int) {
-	pub const sampler = @as(c_uint, 1) << @as(c_int, 0);
-	pub const color_target = @as(c_uint, 1) << @as(c_int, 1);
-	pub const depth_stencil_target = @as(c_uint, 1) << @as(c_int, 2);
-	pub const graphics_storage_read = @as(c_uint, 1) << @as(c_int, 3);
-	pub const compute_storage_read = @as(c_uint, 1) << @as(c_int, 4);
-	pub const compute_storage_write = @as(c_uint, 1) << @as(c_int, 5);
+pub const TextureUsageFlags = packed struct (c_int) {
+	sampler: bool = false,
+	color_target: bool = false,
+	depth_stencil_target: bool = false,
+	graphics_storage_read: bool = false,
+	compute_storage_read: bool = false,
+	compute_storage_write: bool = false,
+	_padding: u26 = 0,
 };
 
 //pub const SDL_GPU_TEXTURETYPE_2D: c_int = 0;
@@ -277,14 +277,14 @@ pub const CubeMapFace = enum (c_uint) {
 
 //pub const SDL_GPUCubeMapFace = enum_SDL_GPUCubeMapFace;
 //pub const SDL_GPUBufferUsageFlags = Uint32;
-pub const BufferUsageFlags = u32;
-pub const BufferUsageNames = packed struct (c_int) {
-	pub const vertex = @as(c_uint, 1) << @as(c_int, 0);
-	pub const index = @as(c_uint, 1) << @as(c_int, 1);
-	pub const indirect = @as(c_uint, 1) << @as(c_int, 2);
-	pub const graphics_storage_read = @as(c_uint, 1) << @as(c_int, 3);
-	pub const compute_storage_read = @as(c_uint, 1) << @as(c_int, 4);
-	pub const compute_storage_write = @as(c_uint, 1) << @as(c_int, 5);
+pub const BufferUsageFlags = packed struct (c_int) {
+	vertex: bool = false,
+	index: bool = false,
+	indirect: bool = false,
+	graphics_storage_read: bool = false,
+	compute_storage_read: bool = false,
+	compute_storage_write: bool = false,
+	_padding: u26 = 0,
 };
 
 //pub const SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD: c_int = 0;
@@ -306,14 +306,14 @@ pub const ShaderStage = enum (c_uint) {
 
 //pub const SDL_GPUShaderStage = enum_SDL_GPUShaderStage;
 //pub const SDL_GPUShaderFormat = Uint32;
-pub const ShaderFormat = u32;
-pub const ShaderFormatNames = packed struct (c_int) {
-	pub const private = @as(c_uint, 1) << @as(c_int, 0);
-	pub const spirv = @as(c_uint, 1) << @as(c_int, 1);
-	pub const dxbc = @as(c_uint, 1) << @as(c_int, 2);
-	pub const dxil = @as(c_uint, 1) << @as(c_int, 3);
-	pub const msl = @as(c_uint, 1) << @as(c_int, 4);
-	pub const metallib = @as(c_uint, 1) << @as(c_int, 5);
+pub const ShaderFormat = packed struct (c_int) {
+	private: bool = false,
+	spirv: bool = false,
+	dxbc: bool = false,
+	dxil: bool = false,
+	msl: bool = false,
+	metallib: bool = false,
+	_padding: u26 = 0,
 };
 
 //pub const SDL_GPU_VERTEXELEMENTFORMAT_INVALID: c_int = 0;
@@ -518,12 +518,12 @@ pub const BlendFactor = enum (c_uint) {
 
 //pub const SDL_GPUBlendFactor = enum_SDL_GPUBlendFactor;
 //pub const SDL_GPUColorComponentFlags = Uint8;
-pub const ColorComponentFlags = u8;
-pub const ColorComponentNames = packed struct (c_int) {
-	pub const r = @as(c_uint, 1) << @as(c_int, 0);
-	pub const g = @as(c_uint, 1) << @as(c_int, 1);
-	pub const b = @as(c_uint, 1) << @as(c_int, 2);
-	pub const a = @as(c_uint, 1) << @as(c_int, 3);
+pub const ColorComponentFlags = packed struct (c_int) {
+	r: bool = false,
+	g: bool = false,
+	b: bool = false,
+	a: bool = false,
+	_padding: u28 = 0,
 };
 
 //pub const SDL_GPU_FILTER_NEAREST: c_int = 0;
@@ -582,400 +582,624 @@ pub const SwapchainComposition = enum (c_uint) {
 //pub const struct_SDL_GPUViewport = extern struct {
 pub const Viewport = extern struct {
 //    x: f32 = @import("std").mem.zeroes(f32),
-	x: f32 = @import("std").mem.zeroes(f32),//    y: f32 = @import("std").mem.zeroes(f32),
-	y: f32 = @import("std").mem.zeroes(f32),//    w: f32 = @import("std").mem.zeroes(f32),
-	w: f32 = @import("std").mem.zeroes(f32),//    h: f32 = @import("std").mem.zeroes(f32),
-	h: f32 = @import("std").mem.zeroes(f32),//    min_depth: f32 = @import("std").mem.zeroes(f32),
-	min_depth: f32 = @import("std").mem.zeroes(f32),//    max_depth: f32 = @import("std").mem.zeroes(f32),
-	max_depth: f32 = @import("std").mem.zeroes(f32),//};
+	x: f32 = @import("std").mem.zeroes(f32),
+//    y: f32 = @import("std").mem.zeroes(f32),
+	y: f32 = @import("std").mem.zeroes(f32),
+//    w: f32 = @import("std").mem.zeroes(f32),
+	w: f32 = @import("std").mem.zeroes(f32),
+//    h: f32 = @import("std").mem.zeroes(f32),
+	h: f32 = @import("std").mem.zeroes(f32),
+//    min_depth: f32 = @import("std").mem.zeroes(f32),
+	min_depth: f32 = @import("std").mem.zeroes(f32),
+//    max_depth: f32 = @import("std").mem.zeroes(f32),
+	max_depth: f32 = @import("std").mem.zeroes(f32),
+//};
 };
 //pub const SDL_GPUViewport = struct_SDL_GPUViewport;
 //pub const struct_SDL_GPUTextureTransferInfo = extern struct {
 pub const TextureTransferInfo = extern struct {
 //    transfer_buffer: ?*SDL_GPUTransferBuffer = @import("std").mem.zeroes(?*SDL_GPUTransferBuffer),
-	transfer_buffer: ?*TransferBuffer = @import("std").mem.zeroes(?*TransferBuffer),//    offset: Uint32 = @import("std").mem.zeroes(Uint32),
-	offset: u32 = @import("std").mem.zeroes(u32),//    pixels_per_row: Uint32 = @import("std").mem.zeroes(Uint32),
-	pixels_per_row: u32 = @import("std").mem.zeroes(u32),//    rows_per_layer: Uint32 = @import("std").mem.zeroes(Uint32),
-	rows_per_layer: u32 = @import("std").mem.zeroes(u32),//};
+	transfer_buffer: ?*TransferBuffer = @import("std").mem.zeroes(?*TransferBuffer),
+//    offset: Uint32 = @import("std").mem.zeroes(Uint32),
+	offset: u32 = @import("std").mem.zeroes(u32),
+//    pixels_per_row: Uint32 = @import("std").mem.zeroes(Uint32),
+	pixels_per_row: u32 = @import("std").mem.zeroes(u32),
+//    rows_per_layer: Uint32 = @import("std").mem.zeroes(Uint32),
+	rows_per_layer: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUTextureTransferInfo = struct_SDL_GPUTextureTransferInfo;
 //pub const struct_SDL_GPUTransferBufferLocation = extern struct {
 pub const TransferBufferLocation = extern struct {
 //    transfer_buffer: ?*SDL_GPUTransferBuffer = @import("std").mem.zeroes(?*SDL_GPUTransferBuffer),
-	transfer_buffer: ?*TransferBuffer = @import("std").mem.zeroes(?*TransferBuffer),//    offset: Uint32 = @import("std").mem.zeroes(Uint32),
-	offset: u32 = @import("std").mem.zeroes(u32),//};
+	transfer_buffer: ?*TransferBuffer = @import("std").mem.zeroes(?*TransferBuffer),
+//    offset: Uint32 = @import("std").mem.zeroes(Uint32),
+	offset: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUTransferBufferLocation = struct_SDL_GPUTransferBufferLocation;
 //pub const struct_SDL_GPUTextureLocation = extern struct {
 pub const TextureLocation = extern struct {
 //    texture: ?*SDL_GPUTexture = @import("std").mem.zeroes(?*SDL_GPUTexture),
-	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),//    mip_level: Uint32 = @import("std").mem.zeroes(Uint32),
-	mip_level: u32 = @import("std").mem.zeroes(u32),//    layer: Uint32 = @import("std").mem.zeroes(Uint32),
-	layer: u32 = @import("std").mem.zeroes(u32),//    x: Uint32 = @import("std").mem.zeroes(Uint32),
-	x: u32 = @import("std").mem.zeroes(u32),//    y: Uint32 = @import("std").mem.zeroes(Uint32),
-	y: u32 = @import("std").mem.zeroes(u32),//    z: Uint32 = @import("std").mem.zeroes(Uint32),
-	z: u32 = @import("std").mem.zeroes(u32),//};
+	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),
+//    mip_level: Uint32 = @import("std").mem.zeroes(Uint32),
+	mip_level: u32 = @import("std").mem.zeroes(u32),
+//    layer: Uint32 = @import("std").mem.zeroes(Uint32),
+	layer: u32 = @import("std").mem.zeroes(u32),
+//    x: Uint32 = @import("std").mem.zeroes(Uint32),
+	x: u32 = @import("std").mem.zeroes(u32),
+//    y: Uint32 = @import("std").mem.zeroes(Uint32),
+	y: u32 = @import("std").mem.zeroes(u32),
+//    z: Uint32 = @import("std").mem.zeroes(Uint32),
+	z: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUTextureLocation = struct_SDL_GPUTextureLocation;
 //pub const struct_SDL_GPUTextureRegion = extern struct {
 pub const TextureRegion = extern struct {
 //    texture: ?*SDL_GPUTexture = @import("std").mem.zeroes(?*SDL_GPUTexture),
-	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),//    mip_level: Uint32 = @import("std").mem.zeroes(Uint32),
-	mip_level: u32 = @import("std").mem.zeroes(u32),//    layer: Uint32 = @import("std").mem.zeroes(Uint32),
-	layer: u32 = @import("std").mem.zeroes(u32),//    x: Uint32 = @import("std").mem.zeroes(Uint32),
-	x: u32 = @import("std").mem.zeroes(u32),//    y: Uint32 = @import("std").mem.zeroes(Uint32),
-	y: u32 = @import("std").mem.zeroes(u32),//    z: Uint32 = @import("std").mem.zeroes(Uint32),
-	z: u32 = @import("std").mem.zeroes(u32),//    w: Uint32 = @import("std").mem.zeroes(Uint32),
-	w: u32 = @import("std").mem.zeroes(u32),//    h: Uint32 = @import("std").mem.zeroes(Uint32),
-	h: u32 = @import("std").mem.zeroes(u32),//    d: Uint32 = @import("std").mem.zeroes(Uint32),
-	d: u32 = @import("std").mem.zeroes(u32),//};
+	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),
+//    mip_level: Uint32 = @import("std").mem.zeroes(Uint32),
+	mip_level: u32 = @import("std").mem.zeroes(u32),
+//    layer: Uint32 = @import("std").mem.zeroes(Uint32),
+	layer: u32 = @import("std").mem.zeroes(u32),
+//    x: Uint32 = @import("std").mem.zeroes(Uint32),
+	x: u32 = @import("std").mem.zeroes(u32),
+//    y: Uint32 = @import("std").mem.zeroes(Uint32),
+	y: u32 = @import("std").mem.zeroes(u32),
+//    z: Uint32 = @import("std").mem.zeroes(Uint32),
+	z: u32 = @import("std").mem.zeroes(u32),
+//    w: Uint32 = @import("std").mem.zeroes(Uint32),
+	w: u32 = @import("std").mem.zeroes(u32),
+//    h: Uint32 = @import("std").mem.zeroes(Uint32),
+	h: u32 = @import("std").mem.zeroes(u32),
+//    d: Uint32 = @import("std").mem.zeroes(Uint32),
+	d: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUTextureRegion = struct_SDL_GPUTextureRegion;
 //pub const struct_SDL_GPUBlitRegion = extern struct {
 pub const BlitRegion = extern struct {
 //    texture: ?*SDL_GPUTexture = @import("std").mem.zeroes(?*SDL_GPUTexture),
-	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),//    mip_level: Uint32 = @import("std").mem.zeroes(Uint32),
-	mip_level: u32 = @import("std").mem.zeroes(u32),//    layer_or_depth_plane: Uint32 = @import("std").mem.zeroes(Uint32),
-	layer_or_depth_plane: u32 = @import("std").mem.zeroes(u32),//    x: Uint32 = @import("std").mem.zeroes(Uint32),
-	x: u32 = @import("std").mem.zeroes(u32),//    y: Uint32 = @import("std").mem.zeroes(Uint32),
-	y: u32 = @import("std").mem.zeroes(u32),//    w: Uint32 = @import("std").mem.zeroes(Uint32),
-	w: u32 = @import("std").mem.zeroes(u32),//    h: Uint32 = @import("std").mem.zeroes(Uint32),
-	h: u32 = @import("std").mem.zeroes(u32),//};
+	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),
+//    mip_level: Uint32 = @import("std").mem.zeroes(Uint32),
+	mip_level: u32 = @import("std").mem.zeroes(u32),
+//    layer_or_depth_plane: Uint32 = @import("std").mem.zeroes(Uint32),
+	layer_or_depth_plane: u32 = @import("std").mem.zeroes(u32),
+//    x: Uint32 = @import("std").mem.zeroes(Uint32),
+	x: u32 = @import("std").mem.zeroes(u32),
+//    y: Uint32 = @import("std").mem.zeroes(Uint32),
+	y: u32 = @import("std").mem.zeroes(u32),
+//    w: Uint32 = @import("std").mem.zeroes(Uint32),
+	w: u32 = @import("std").mem.zeroes(u32),
+//    h: Uint32 = @import("std").mem.zeroes(Uint32),
+	h: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUBlitRegion = struct_SDL_GPUBlitRegion;
 //pub const struct_SDL_GPUBufferLocation = extern struct {
 pub const BufferLocation = extern struct {
 //    buffer: ?*SDL_GPUBuffer = @import("std").mem.zeroes(?*SDL_GPUBuffer),
-	buffer: ?*Buffer = @import("std").mem.zeroes(?*Buffer),//    offset: Uint32 = @import("std").mem.zeroes(Uint32),
-	offset: u32 = @import("std").mem.zeroes(u32),//};
+	buffer: ?*Buffer = @import("std").mem.zeroes(?*Buffer),
+//    offset: Uint32 = @import("std").mem.zeroes(Uint32),
+	offset: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUBufferLocation = struct_SDL_GPUBufferLocation;
 //pub const struct_SDL_GPUBufferRegion = extern struct {
 pub const BufferRegion = extern struct {
 //    buffer: ?*SDL_GPUBuffer = @import("std").mem.zeroes(?*SDL_GPUBuffer),
-	buffer: ?*Buffer = @import("std").mem.zeroes(?*Buffer),//    offset: Uint32 = @import("std").mem.zeroes(Uint32),
-	offset: u32 = @import("std").mem.zeroes(u32),//    size: Uint32 = @import("std").mem.zeroes(Uint32),
-	size: u32 = @import("std").mem.zeroes(u32),//};
+	buffer: ?*Buffer = @import("std").mem.zeroes(?*Buffer),
+//    offset: Uint32 = @import("std").mem.zeroes(Uint32),
+	offset: u32 = @import("std").mem.zeroes(u32),
+//    size: Uint32 = @import("std").mem.zeroes(Uint32),
+	size: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUBufferRegion = struct_SDL_GPUBufferRegion;
 //pub const struct_SDL_GPUIndirectDrawCommand = extern struct {
 pub const IndirectDrawCommand = extern struct {
 //    num_vertices: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_vertices: u32 = @import("std").mem.zeroes(u32),//    num_instances: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_instances: u32 = @import("std").mem.zeroes(u32),//    first_vertex: Uint32 = @import("std").mem.zeroes(Uint32),
-	first_vertex: u32 = @import("std").mem.zeroes(u32),//    first_instance: Uint32 = @import("std").mem.zeroes(Uint32),
-	first_instance: u32 = @import("std").mem.zeroes(u32),//};
+	num_vertices: u32 = @import("std").mem.zeroes(u32),
+//    num_instances: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_instances: u32 = @import("std").mem.zeroes(u32),
+//    first_vertex: Uint32 = @import("std").mem.zeroes(Uint32),
+	first_vertex: u32 = @import("std").mem.zeroes(u32),
+//    first_instance: Uint32 = @import("std").mem.zeroes(Uint32),
+	first_instance: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUIndirectDrawCommand = struct_SDL_GPUIndirectDrawCommand;
 //pub const struct_SDL_GPUIndexedIndirectDrawCommand = extern struct {
 pub const IndexedIndirectDrawCommand = extern struct {
 //    num_indices: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_indices: u32 = @import("std").mem.zeroes(u32),//    num_instances: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_instances: u32 = @import("std").mem.zeroes(u32),//    first_index: Uint32 = @import("std").mem.zeroes(Uint32),
-	first_index: u32 = @import("std").mem.zeroes(u32),//    vertex_offset: Sint32 = @import("std").mem.zeroes(Sint32),
-	vertex_offset: i32 = @import("std").mem.zeroes(i32),//    first_instance: Uint32 = @import("std").mem.zeroes(Uint32),
-	first_instance: u32 = @import("std").mem.zeroes(u32),//};
+	num_indices: u32 = @import("std").mem.zeroes(u32),
+//    num_instances: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_instances: u32 = @import("std").mem.zeroes(u32),
+//    first_index: Uint32 = @import("std").mem.zeroes(Uint32),
+	first_index: u32 = @import("std").mem.zeroes(u32),
+//    vertex_offset: Sint32 = @import("std").mem.zeroes(Sint32),
+	vertex_offset: i32 = @import("std").mem.zeroes(i32),
+//    first_instance: Uint32 = @import("std").mem.zeroes(Uint32),
+	first_instance: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUIndexedIndirectDrawCommand = struct_SDL_GPUIndexedIndirectDrawCommand;
 //pub const struct_SDL_GPUIndirectDispatchCommand = extern struct {
 pub const IndirectDispatchCommand = extern struct {
 //    groupcount_x: Uint32 = @import("std").mem.zeroes(Uint32),
-	groupcount_x: u32 = @import("std").mem.zeroes(u32),//    groupcount_y: Uint32 = @import("std").mem.zeroes(Uint32),
-	groupcount_y: u32 = @import("std").mem.zeroes(u32),//    groupcount_z: Uint32 = @import("std").mem.zeroes(Uint32),
-	groupcount_z: u32 = @import("std").mem.zeroes(u32),//};
+	groupcount_x: u32 = @import("std").mem.zeroes(u32),
+//    groupcount_y: Uint32 = @import("std").mem.zeroes(Uint32),
+	groupcount_y: u32 = @import("std").mem.zeroes(u32),
+//    groupcount_z: Uint32 = @import("std").mem.zeroes(Uint32),
+	groupcount_z: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUIndirectDispatchCommand = struct_SDL_GPUIndirectDispatchCommand;
 //pub const struct_SDL_GPUSamplerCreateInfo = extern struct {
 pub const SamplerCreateInfo = extern struct {
 //    min_filter: SDL_GPUFilter = @import("std").mem.zeroes(SDL_GPUFilter),
-	min_filter: Filter = @import("std").mem.zeroes(Filter),//    mag_filter: SDL_GPUFilter = @import("std").mem.zeroes(SDL_GPUFilter),
-	mag_filter: Filter = @import("std").mem.zeroes(Filter),//    mipmap_mode: SDL_GPUSamplerMipmapMode = @import("std").mem.zeroes(SDL_GPUSamplerMipmapMode),
-	mipmap_mode: SamplerMipmapMode = @import("std").mem.zeroes(SamplerMipmapMode),//    address_mode_u: SDL_GPUSamplerAddressMode = @import("std").mem.zeroes(SDL_GPUSamplerAddressMode),
-	address_mode_u: SamplerAddressMode = @import("std").mem.zeroes(SamplerAddressMode),//    address_mode_v: SDL_GPUSamplerAddressMode = @import("std").mem.zeroes(SDL_GPUSamplerAddressMode),
-	address_mode_v: SamplerAddressMode = @import("std").mem.zeroes(SamplerAddressMode),//    address_mode_w: SDL_GPUSamplerAddressMode = @import("std").mem.zeroes(SDL_GPUSamplerAddressMode),
-	address_mode_w: SamplerAddressMode = @import("std").mem.zeroes(SamplerAddressMode),//    mip_lod_bias: f32 = @import("std").mem.zeroes(f32),
-	mip_lod_bias: f32 = @import("std").mem.zeroes(f32),//    max_anisotropy: f32 = @import("std").mem.zeroes(f32),
-	max_anisotropy: f32 = @import("std").mem.zeroes(f32),//    compare_op: SDL_GPUCompareOp = @import("std").mem.zeroes(SDL_GPUCompareOp),
-	compare_op: CompareOp = @import("std").mem.zeroes(CompareOp),//    min_lod: f32 = @import("std").mem.zeroes(f32),
-	min_lod: f32 = @import("std").mem.zeroes(f32),//    max_lod: f32 = @import("std").mem.zeroes(f32),
-	max_lod: f32 = @import("std").mem.zeroes(f32),//    enable_anisotropy: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	enable_anisotropy: bool = @import("std").mem.zeroes(bool),//    enable_compare: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	enable_compare: bool = @import("std").mem.zeroes(bool),//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding1: u8 = @import("std").mem.zeroes(u8),//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding2: u8 = @import("std").mem.zeroes(u8),//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
-	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),//};
+	min_filter: Filter = @import("std").mem.zeroes(Filter),
+//    mag_filter: SDL_GPUFilter = @import("std").mem.zeroes(SDL_GPUFilter),
+	mag_filter: Filter = @import("std").mem.zeroes(Filter),
+//    mipmap_mode: SDL_GPUSamplerMipmapMode = @import("std").mem.zeroes(SDL_GPUSamplerMipmapMode),
+	mipmap_mode: SamplerMipmapMode = @import("std").mem.zeroes(SamplerMipmapMode),
+//    address_mode_u: SDL_GPUSamplerAddressMode = @import("std").mem.zeroes(SDL_GPUSamplerAddressMode),
+	address_mode_u: SamplerAddressMode = @import("std").mem.zeroes(SamplerAddressMode),
+//    address_mode_v: SDL_GPUSamplerAddressMode = @import("std").mem.zeroes(SDL_GPUSamplerAddressMode),
+	address_mode_v: SamplerAddressMode = @import("std").mem.zeroes(SamplerAddressMode),
+//    address_mode_w: SDL_GPUSamplerAddressMode = @import("std").mem.zeroes(SDL_GPUSamplerAddressMode),
+	address_mode_w: SamplerAddressMode = @import("std").mem.zeroes(SamplerAddressMode),
+//    mip_lod_bias: f32 = @import("std").mem.zeroes(f32),
+	mip_lod_bias: f32 = @import("std").mem.zeroes(f32),
+//    max_anisotropy: f32 = @import("std").mem.zeroes(f32),
+	max_anisotropy: f32 = @import("std").mem.zeroes(f32),
+//    compare_op: SDL_GPUCompareOp = @import("std").mem.zeroes(SDL_GPUCompareOp),
+	compare_op: CompareOp = @import("std").mem.zeroes(CompareOp),
+//    min_lod: f32 = @import("std").mem.zeroes(f32),
+	min_lod: f32 = @import("std").mem.zeroes(f32),
+//    max_lod: f32 = @import("std").mem.zeroes(f32),
+	max_lod: f32 = @import("std").mem.zeroes(f32),
+//    enable_anisotropy: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	enable_anisotropy: bool = @import("std").mem.zeroes(bool),
+//    enable_compare: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	enable_compare: bool = @import("std").mem.zeroes(bool),
+//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding1: u8 = @import("std").mem.zeroes(u8),
+//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding2: u8 = @import("std").mem.zeroes(u8),
+//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
+	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),
+//};
 };
 //pub const SDL_GPUSamplerCreateInfo = struct_SDL_GPUSamplerCreateInfo;
 //pub const struct_SDL_GPUVertexBufferDescription = extern struct {
 pub const VertexBufferDescription = extern struct {
 //    slot: Uint32 = @import("std").mem.zeroes(Uint32),
-	slot: u32 = @import("std").mem.zeroes(u32),//    pitch: Uint32 = @import("std").mem.zeroes(Uint32),
-	pitch: u32 = @import("std").mem.zeroes(u32),//    input_rate: SDL_GPUVertexInputRate = @import("std").mem.zeroes(SDL_GPUVertexInputRate),
-	input_rate: VertexInputRate = @import("std").mem.zeroes(VertexInputRate),//    instance_step_rate: Uint32 = @import("std").mem.zeroes(Uint32),
-	instance_step_rate: u32 = @import("std").mem.zeroes(u32),//};
+	slot: u32 = @import("std").mem.zeroes(u32),
+//    pitch: Uint32 = @import("std").mem.zeroes(Uint32),
+	pitch: u32 = @import("std").mem.zeroes(u32),
+//    input_rate: SDL_GPUVertexInputRate = @import("std").mem.zeroes(SDL_GPUVertexInputRate),
+	input_rate: VertexInputRate = @import("std").mem.zeroes(VertexInputRate),
+//    instance_step_rate: Uint32 = @import("std").mem.zeroes(Uint32),
+	instance_step_rate: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUVertexBufferDescription = struct_SDL_GPUVertexBufferDescription;
 //pub const struct_SDL_GPUVertexAttribute = extern struct {
 pub const VertexAttribute = extern struct {
 //    location: Uint32 = @import("std").mem.zeroes(Uint32),
-	location: u32 = @import("std").mem.zeroes(u32),//    buffer_slot: Uint32 = @import("std").mem.zeroes(Uint32),
-	buffer_slot: u32 = @import("std").mem.zeroes(u32),//    format: SDL_GPUVertexElementFormat = @import("std").mem.zeroes(SDL_GPUVertexElementFormat),
-	format: VertexElementFormat = @import("std").mem.zeroes(VertexElementFormat),//    offset: Uint32 = @import("std").mem.zeroes(Uint32),
-	offset: u32 = @import("std").mem.zeroes(u32),//};
+	location: u32 = @import("std").mem.zeroes(u32),
+//    buffer_slot: Uint32 = @import("std").mem.zeroes(Uint32),
+	buffer_slot: u32 = @import("std").mem.zeroes(u32),
+//    format: SDL_GPUVertexElementFormat = @import("std").mem.zeroes(SDL_GPUVertexElementFormat),
+	format: VertexElementFormat = @import("std").mem.zeroes(VertexElementFormat),
+//    offset: Uint32 = @import("std").mem.zeroes(Uint32),
+	offset: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUVertexAttribute = struct_SDL_GPUVertexAttribute;
 //pub const struct_SDL_GPUVertexInputState = extern struct {
 pub const VertexInputState = extern struct {
 //    vertex_buffer_descriptions: [*c]const SDL_GPUVertexBufferDescription = @import("std").mem.zeroes([*c]const SDL_GPUVertexBufferDescription),
-	vertex_buffer_descriptions: [*c]const VertexBufferDescription = @import("std").mem.zeroes([*c]const VertexBufferDescription),//    num_vertex_buffers: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_vertex_buffers: u32 = @import("std").mem.zeroes(u32),//    vertex_attributes: [*c]const SDL_GPUVertexAttribute = @import("std").mem.zeroes([*c]const SDL_GPUVertexAttribute),
-	vertex_attributes: [*c]const VertexAttribute = @import("std").mem.zeroes([*c]const VertexAttribute),//    num_vertex_attributes: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_vertex_attributes: u32 = @import("std").mem.zeroes(u32),//};
+	vertex_buffer_descriptions: [*c]const VertexBufferDescription = @import("std").mem.zeroes([*c]const VertexBufferDescription),
+//    num_vertex_buffers: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_vertex_buffers: u32 = @import("std").mem.zeroes(u32),
+//    vertex_attributes: [*c]const SDL_GPUVertexAttribute = @import("std").mem.zeroes([*c]const SDL_GPUVertexAttribute),
+	vertex_attributes: [*c]const VertexAttribute = @import("std").mem.zeroes([*c]const VertexAttribute),
+//    num_vertex_attributes: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_vertex_attributes: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUVertexInputState = struct_SDL_GPUVertexInputState;
 //pub const struct_SDL_GPUStencilOpState = extern struct {
 pub const StencilOpState = extern struct {
 //    fail_op: SDL_GPUStencilOp = @import("std").mem.zeroes(SDL_GPUStencilOp),
-	fail_op: StencilOp = @import("std").mem.zeroes(StencilOp),//    pass_op: SDL_GPUStencilOp = @import("std").mem.zeroes(SDL_GPUStencilOp),
-	pass_op: StencilOp = @import("std").mem.zeroes(StencilOp),//    depth_fail_op: SDL_GPUStencilOp = @import("std").mem.zeroes(SDL_GPUStencilOp),
-	depth_fail_op: StencilOp = @import("std").mem.zeroes(StencilOp),//    compare_op: SDL_GPUCompareOp = @import("std").mem.zeroes(SDL_GPUCompareOp),
-	compare_op: CompareOp = @import("std").mem.zeroes(CompareOp),//};
+	fail_op: StencilOp = @import("std").mem.zeroes(StencilOp),
+//    pass_op: SDL_GPUStencilOp = @import("std").mem.zeroes(SDL_GPUStencilOp),
+	pass_op: StencilOp = @import("std").mem.zeroes(StencilOp),
+//    depth_fail_op: SDL_GPUStencilOp = @import("std").mem.zeroes(SDL_GPUStencilOp),
+	depth_fail_op: StencilOp = @import("std").mem.zeroes(StencilOp),
+//    compare_op: SDL_GPUCompareOp = @import("std").mem.zeroes(SDL_GPUCompareOp),
+	compare_op: CompareOp = @import("std").mem.zeroes(CompareOp),
+//};
 };
 //pub const SDL_GPUStencilOpState = struct_SDL_GPUStencilOpState;
 //pub const struct_SDL_GPUColorTargetBlendState = extern struct {
 pub const ColorTargetBlendState = extern struct {
 //    src_color_blendfactor: SDL_GPUBlendFactor = @import("std").mem.zeroes(SDL_GPUBlendFactor),
-	src_color_blendfactor: BlendFactor = @import("std").mem.zeroes(BlendFactor),//    dst_color_blendfactor: SDL_GPUBlendFactor = @import("std").mem.zeroes(SDL_GPUBlendFactor),
-	dst_color_blendfactor: BlendFactor = @import("std").mem.zeroes(BlendFactor),//    color_blend_op: SDL_GPUBlendOp = @import("std").mem.zeroes(SDL_GPUBlendOp),
-	color_blend_op: BlendOp = @import("std").mem.zeroes(BlendOp),//    src_alpha_blendfactor: SDL_GPUBlendFactor = @import("std").mem.zeroes(SDL_GPUBlendFactor),
-	src_alpha_blendfactor: BlendFactor = @import("std").mem.zeroes(BlendFactor),//    dst_alpha_blendfactor: SDL_GPUBlendFactor = @import("std").mem.zeroes(SDL_GPUBlendFactor),
-	dst_alpha_blendfactor: BlendFactor = @import("std").mem.zeroes(BlendFactor),//    alpha_blend_op: SDL_GPUBlendOp = @import("std").mem.zeroes(SDL_GPUBlendOp),
-	alpha_blend_op: BlendOp = @import("std").mem.zeroes(BlendOp),//    color_write_mask: SDL_GPUColorComponentFlags = @import("std").mem.zeroes(SDL_GPUColorComponentFlags),
-	color_write_mask: ColorComponentFlags = @import("std").mem.zeroes(ColorComponentFlags),//    enable_blend: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	enable_blend: bool = @import("std").mem.zeroes(bool),//    enable_color_write_mask: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	enable_color_write_mask: bool = @import("std").mem.zeroes(bool),//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding2: u8 = @import("std").mem.zeroes(u8),//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding3: u8 = @import("std").mem.zeroes(u8),//};
+	src_color_blendfactor: BlendFactor = @import("std").mem.zeroes(BlendFactor),
+//    dst_color_blendfactor: SDL_GPUBlendFactor = @import("std").mem.zeroes(SDL_GPUBlendFactor),
+	dst_color_blendfactor: BlendFactor = @import("std").mem.zeroes(BlendFactor),
+//    color_blend_op: SDL_GPUBlendOp = @import("std").mem.zeroes(SDL_GPUBlendOp),
+	color_blend_op: BlendOp = @import("std").mem.zeroes(BlendOp),
+//    src_alpha_blendfactor: SDL_GPUBlendFactor = @import("std").mem.zeroes(SDL_GPUBlendFactor),
+	src_alpha_blendfactor: BlendFactor = @import("std").mem.zeroes(BlendFactor),
+//    dst_alpha_blendfactor: SDL_GPUBlendFactor = @import("std").mem.zeroes(SDL_GPUBlendFactor),
+	dst_alpha_blendfactor: BlendFactor = @import("std").mem.zeroes(BlendFactor),
+//    alpha_blend_op: SDL_GPUBlendOp = @import("std").mem.zeroes(SDL_GPUBlendOp),
+	alpha_blend_op: BlendOp = @import("std").mem.zeroes(BlendOp),
+//    color_write_mask: SDL_GPUColorComponentFlags = @import("std").mem.zeroes(SDL_GPUColorComponentFlags),
+	color_write_mask: ColorComponentFlags = @import("std").mem.zeroes(ColorComponentFlags),
+//    enable_blend: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	enable_blend: bool = @import("std").mem.zeroes(bool),
+//    enable_color_write_mask: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	enable_color_write_mask: bool = @import("std").mem.zeroes(bool),
+//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding2: u8 = @import("std").mem.zeroes(u8),
+//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding3: u8 = @import("std").mem.zeroes(u8),
+//};
 };
 //pub const SDL_GPUColorTargetBlendState = struct_SDL_GPUColorTargetBlendState;
 //pub const struct_SDL_GPUShaderCreateInfo = extern struct {
 pub const ShaderCreateInfo = extern struct {
 //    code_size: usize = @import("std").mem.zeroes(usize),
-	code_size: usize = @import("std").mem.zeroes(usize),//    code: [*c]const Uint8 = @import("std").mem.zeroes([*c]const Uint8),
-	code: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),//    entrypoint: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
-	entrypoint: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),//    format: SDL_GPUShaderFormat = @import("std").mem.zeroes(SDL_GPUShaderFormat),
-	format: ShaderFormat = @import("std").mem.zeroes(ShaderFormat),//    stage: SDL_GPUShaderStage = @import("std").mem.zeroes(SDL_GPUShaderStage),
-	stage: ShaderStage = @import("std").mem.zeroes(ShaderStage),//    num_samplers: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_samplers: u32 = @import("std").mem.zeroes(u32),//    num_storage_textures: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_storage_textures: u32 = @import("std").mem.zeroes(u32),//    num_storage_buffers: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_storage_buffers: u32 = @import("std").mem.zeroes(u32),//    num_uniform_buffers: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_uniform_buffers: u32 = @import("std").mem.zeroes(u32),//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
-	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),//};
+	code_size: usize = @import("std").mem.zeroes(usize),
+//    code: [*c]const Uint8 = @import("std").mem.zeroes([*c]const Uint8),
+	code: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
+//    entrypoint: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
+	entrypoint: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
+//    format: SDL_GPUShaderFormat = @import("std").mem.zeroes(SDL_GPUShaderFormat),
+	format: ShaderFormat = @import("std").mem.zeroes(ShaderFormat),
+//    stage: SDL_GPUShaderStage = @import("std").mem.zeroes(SDL_GPUShaderStage),
+	stage: ShaderStage = @import("std").mem.zeroes(ShaderStage),
+//    num_samplers: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_samplers: u32 = @import("std").mem.zeroes(u32),
+//    num_storage_textures: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_storage_textures: u32 = @import("std").mem.zeroes(u32),
+//    num_storage_buffers: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_storage_buffers: u32 = @import("std").mem.zeroes(u32),
+//    num_uniform_buffers: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_uniform_buffers: u32 = @import("std").mem.zeroes(u32),
+//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
+	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),
+//};
 };
 //pub const SDL_GPUShaderCreateInfo = struct_SDL_GPUShaderCreateInfo;
 //pub const struct_SDL_GPUTextureCreateInfo = extern struct {
 pub const TextureCreateInfo = extern struct {
 //    type: SDL_GPUTextureType = @import("std").mem.zeroes(SDL_GPUTextureType),
-	type: TextureType = @import("std").mem.zeroes(TextureType),//    format: SDL_GPUTextureFormat = @import("std").mem.zeroes(SDL_GPUTextureFormat),
-	format: TextureFormat = @import("std").mem.zeroes(TextureFormat),//    usage: SDL_GPUTextureUsageFlags = @import("std").mem.zeroes(SDL_GPUTextureUsageFlags),
-	usage: TextureUsageFlags = @import("std").mem.zeroes(TextureUsageFlags),//    width: Uint32 = @import("std").mem.zeroes(Uint32),
-	width: u32 = @import("std").mem.zeroes(u32),//    height: Uint32 = @import("std").mem.zeroes(Uint32),
-	height: u32 = @import("std").mem.zeroes(u32),//    layer_count_or_depth: Uint32 = @import("std").mem.zeroes(Uint32),
-	layer_count_or_depth: u32 = @import("std").mem.zeroes(u32),//    num_levels: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_levels: u32 = @import("std").mem.zeroes(u32),//    sample_count: SDL_GPUSampleCount = @import("std").mem.zeroes(SDL_GPUSampleCount),
-	sample_count: SampleCount = @import("std").mem.zeroes(SampleCount),//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
-	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),//};
+	type: TextureType = @import("std").mem.zeroes(TextureType),
+//    format: SDL_GPUTextureFormat = @import("std").mem.zeroes(SDL_GPUTextureFormat),
+	format: TextureFormat = @import("std").mem.zeroes(TextureFormat),
+//    usage: SDL_GPUTextureUsageFlags = @import("std").mem.zeroes(SDL_GPUTextureUsageFlags),
+	usage: TextureUsageFlags = @import("std").mem.zeroes(TextureUsageFlags),
+//    width: Uint32 = @import("std").mem.zeroes(Uint32),
+	width: u32 = @import("std").mem.zeroes(u32),
+//    height: Uint32 = @import("std").mem.zeroes(Uint32),
+	height: u32 = @import("std").mem.zeroes(u32),
+//    layer_count_or_depth: Uint32 = @import("std").mem.zeroes(Uint32),
+	layer_count_or_depth: u32 = @import("std").mem.zeroes(u32),
+//    num_levels: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_levels: u32 = @import("std").mem.zeroes(u32),
+//    sample_count: SDL_GPUSampleCount = @import("std").mem.zeroes(SDL_GPUSampleCount),
+	sample_count: SampleCount = @import("std").mem.zeroes(SampleCount),
+//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
+	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),
+//};
 };
 //pub const SDL_GPUTextureCreateInfo = struct_SDL_GPUTextureCreateInfo;
 //pub const struct_SDL_GPUBufferCreateInfo = extern struct {
 pub const BufferCreateInfo = extern struct {
 //    usage: SDL_GPUBufferUsageFlags = @import("std").mem.zeroes(SDL_GPUBufferUsageFlags),
-	usage: BufferUsageFlags = @import("std").mem.zeroes(BufferUsageFlags),//    size: Uint32 = @import("std").mem.zeroes(Uint32),
-	size: u32 = @import("std").mem.zeroes(u32),//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
-	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),//};
+	usage: BufferUsageFlags = @import("std").mem.zeroes(BufferUsageFlags),
+//    size: Uint32 = @import("std").mem.zeroes(Uint32),
+	size: u32 = @import("std").mem.zeroes(u32),
+//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
+	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),
+//};
 };
 //pub const SDL_GPUBufferCreateInfo = struct_SDL_GPUBufferCreateInfo;
 //pub const struct_SDL_GPUTransferBufferCreateInfo = extern struct {
 pub const TransferBufferCreateInfo = extern struct {
 //    usage: SDL_GPUTransferBufferUsage = @import("std").mem.zeroes(SDL_GPUTransferBufferUsage),
-	usage: TransferBufferUsage = @import("std").mem.zeroes(TransferBufferUsage),//    size: Uint32 = @import("std").mem.zeroes(Uint32),
-	size: u32 = @import("std").mem.zeroes(u32),//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
-	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),//};
+	usage: TransferBufferUsage = @import("std").mem.zeroes(TransferBufferUsage),
+//    size: Uint32 = @import("std").mem.zeroes(Uint32),
+	size: u32 = @import("std").mem.zeroes(u32),
+//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
+	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),
+//};
 };
 //pub const SDL_GPUTransferBufferCreateInfo = struct_SDL_GPUTransferBufferCreateInfo;
 //pub const struct_SDL_GPURasterizerState = extern struct {
 pub const RasterizerState = extern struct {
 //    fill_mode: SDL_GPUFillMode = @import("std").mem.zeroes(SDL_GPUFillMode),
-	fill_mode: FillMode = @import("std").mem.zeroes(FillMode),//    cull_mode: SDL_GPUCullMode = @import("std").mem.zeroes(SDL_GPUCullMode),
-	cull_mode: CullMode = @import("std").mem.zeroes(CullMode),//    front_face: SDL_GPUFrontFace = @import("std").mem.zeroes(SDL_GPUFrontFace),
-	front_face: FrontFace = @import("std").mem.zeroes(FrontFace),//    depth_bias_constant_factor: f32 = @import("std").mem.zeroes(f32),
-	depth_bias_constant_factor: f32 = @import("std").mem.zeroes(f32),//    depth_bias_clamp: f32 = @import("std").mem.zeroes(f32),
-	depth_bias_clamp: f32 = @import("std").mem.zeroes(f32),//    depth_bias_slope_factor: f32 = @import("std").mem.zeroes(f32),
-	depth_bias_slope_factor: f32 = @import("std").mem.zeroes(f32),//    enable_depth_bias: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	enable_depth_bias: bool = @import("std").mem.zeroes(bool),//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding1: u8 = @import("std").mem.zeroes(u8),//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding2: u8 = @import("std").mem.zeroes(u8),//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding3: u8 = @import("std").mem.zeroes(u8),//};
+	fill_mode: FillMode = @import("std").mem.zeroes(FillMode),
+//    cull_mode: SDL_GPUCullMode = @import("std").mem.zeroes(SDL_GPUCullMode),
+	cull_mode: CullMode = @import("std").mem.zeroes(CullMode),
+//    front_face: SDL_GPUFrontFace = @import("std").mem.zeroes(SDL_GPUFrontFace),
+	front_face: FrontFace = @import("std").mem.zeroes(FrontFace),
+//    depth_bias_constant_factor: f32 = @import("std").mem.zeroes(f32),
+	depth_bias_constant_factor: f32 = @import("std").mem.zeroes(f32),
+//    depth_bias_clamp: f32 = @import("std").mem.zeroes(f32),
+	depth_bias_clamp: f32 = @import("std").mem.zeroes(f32),
+//    depth_bias_slope_factor: f32 = @import("std").mem.zeroes(f32),
+	depth_bias_slope_factor: f32 = @import("std").mem.zeroes(f32),
+//    enable_depth_bias: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	enable_depth_bias: bool = @import("std").mem.zeroes(bool),
+//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding1: u8 = @import("std").mem.zeroes(u8),
+//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding2: u8 = @import("std").mem.zeroes(u8),
+//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding3: u8 = @import("std").mem.zeroes(u8),
+//};
 };
 //pub const SDL_GPURasterizerState = struct_SDL_GPURasterizerState;
 //pub const struct_SDL_GPUMultisampleState = extern struct {
 pub const MultisampleState = extern struct {
 //    sample_count: SDL_GPUSampleCount = @import("std").mem.zeroes(SDL_GPUSampleCount),
-	sample_count: SampleCount = @import("std").mem.zeroes(SampleCount),//    sample_mask: Uint32 = @import("std").mem.zeroes(Uint32),
-	sample_mask: u32 = @import("std").mem.zeroes(u32),//    enable_mask: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	enable_mask: bool = @import("std").mem.zeroes(bool),//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding1: u8 = @import("std").mem.zeroes(u8),//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding2: u8 = @import("std").mem.zeroes(u8),//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding3: u8 = @import("std").mem.zeroes(u8),//};
+	sample_count: SampleCount = @import("std").mem.zeroes(SampleCount),
+//    sample_mask: Uint32 = @import("std").mem.zeroes(Uint32),
+	sample_mask: u32 = @import("std").mem.zeroes(u32),
+//    enable_mask: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	enable_mask: bool = @import("std").mem.zeroes(bool),
+//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding1: u8 = @import("std").mem.zeroes(u8),
+//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding2: u8 = @import("std").mem.zeroes(u8),
+//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding3: u8 = @import("std").mem.zeroes(u8),
+//};
 };
 //pub const SDL_GPUMultisampleState = struct_SDL_GPUMultisampleState;
 //pub const struct_SDL_GPUDepthStencilState = extern struct {
 pub const DepthStencilState = extern struct {
 //    compare_op: SDL_GPUCompareOp = @import("std").mem.zeroes(SDL_GPUCompareOp),
-	compare_op: CompareOp = @import("std").mem.zeroes(CompareOp),//    back_stencil_state: SDL_GPUStencilOpState = @import("std").mem.zeroes(SDL_GPUStencilOpState),
-	back_stencil_state: StencilOpState = @import("std").mem.zeroes(StencilOpState),//    front_stencil_state: SDL_GPUStencilOpState = @import("std").mem.zeroes(SDL_GPUStencilOpState),
-	front_stencil_state: StencilOpState = @import("std").mem.zeroes(StencilOpState),//    compare_mask: Uint8 = @import("std").mem.zeroes(Uint8),
-	compare_mask: u8 = @import("std").mem.zeroes(u8),//    write_mask: Uint8 = @import("std").mem.zeroes(Uint8),
-	write_mask: u8 = @import("std").mem.zeroes(u8),//    enable_depth_test: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	enable_depth_test: bool = @import("std").mem.zeroes(bool),//    enable_depth_write: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	enable_depth_write: bool = @import("std").mem.zeroes(bool),//    enable_stencil_test: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	enable_stencil_test: bool = @import("std").mem.zeroes(bool),//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding1: u8 = @import("std").mem.zeroes(u8),//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding2: u8 = @import("std").mem.zeroes(u8),//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding3: u8 = @import("std").mem.zeroes(u8),//};
+	compare_op: CompareOp = @import("std").mem.zeroes(CompareOp),
+//    back_stencil_state: SDL_GPUStencilOpState = @import("std").mem.zeroes(SDL_GPUStencilOpState),
+	back_stencil_state: StencilOpState = @import("std").mem.zeroes(StencilOpState),
+//    front_stencil_state: SDL_GPUStencilOpState = @import("std").mem.zeroes(SDL_GPUStencilOpState),
+	front_stencil_state: StencilOpState = @import("std").mem.zeroes(StencilOpState),
+//    compare_mask: Uint8 = @import("std").mem.zeroes(Uint8),
+	compare_mask: u8 = @import("std").mem.zeroes(u8),
+//    write_mask: Uint8 = @import("std").mem.zeroes(Uint8),
+	write_mask: u8 = @import("std").mem.zeroes(u8),
+//    enable_depth_test: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	enable_depth_test: bool = @import("std").mem.zeroes(bool),
+//    enable_depth_write: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	enable_depth_write: bool = @import("std").mem.zeroes(bool),
+//    enable_stencil_test: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	enable_stencil_test: bool = @import("std").mem.zeroes(bool),
+//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding1: u8 = @import("std").mem.zeroes(u8),
+//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding2: u8 = @import("std").mem.zeroes(u8),
+//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding3: u8 = @import("std").mem.zeroes(u8),
+//};
 };
 //pub const SDL_GPUDepthStencilState = struct_SDL_GPUDepthStencilState;
 //pub const struct_SDL_GPUColorTargetDescription = extern struct {
 pub const ColorTargetDescription = extern struct {
 //    format: SDL_GPUTextureFormat = @import("std").mem.zeroes(SDL_GPUTextureFormat),
-	format: TextureFormat = @import("std").mem.zeroes(TextureFormat),//    blend_state: SDL_GPUColorTargetBlendState = @import("std").mem.zeroes(SDL_GPUColorTargetBlendState),
-	blend_state: ColorTargetBlendState = @import("std").mem.zeroes(ColorTargetBlendState),//};
+	format: TextureFormat = @import("std").mem.zeroes(TextureFormat),
+//    blend_state: SDL_GPUColorTargetBlendState = @import("std").mem.zeroes(SDL_GPUColorTargetBlendState),
+	blend_state: ColorTargetBlendState = @import("std").mem.zeroes(ColorTargetBlendState),
+//};
 };
 //pub const SDL_GPUColorTargetDescription = struct_SDL_GPUColorTargetDescription;
 //pub const struct_SDL_GpuGraphicsPipelineTargetInfo = extern struct {
-pub const GpuGraphicsPipelineTargetInfo = extern struct {
+pub const GraphicsPipelineTargetInfo = extern struct {
 //    color_target_descriptions: [*c]const SDL_GPUColorTargetDescription = @import("std").mem.zeroes([*c]const SDL_GPUColorTargetDescription),
-	color_target_descriptions: [*c]const ColorTargetDescription = @import("std").mem.zeroes([*c]const ColorTargetDescription),//    num_color_targets: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_color_targets: u32 = @import("std").mem.zeroes(u32),//    depth_stencil_format: SDL_GPUTextureFormat = @import("std").mem.zeroes(SDL_GPUTextureFormat),
-	depth_stencil_format: TextureFormat = @import("std").mem.zeroes(TextureFormat),//    has_depth_stencil_target: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	has_depth_stencil_target: bool = @import("std").mem.zeroes(bool),//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding1: u8 = @import("std").mem.zeroes(u8),//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding2: u8 = @import("std").mem.zeroes(u8),//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding3: u8 = @import("std").mem.zeroes(u8),//};
+	color_target_descriptions: [*c]const ColorTargetDescription = @import("std").mem.zeroes([*c]const ColorTargetDescription),
+//    num_color_targets: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_color_targets: u32 = @import("std").mem.zeroes(u32),
+//    depth_stencil_format: SDL_GPUTextureFormat = @import("std").mem.zeroes(SDL_GPUTextureFormat),
+	depth_stencil_format: TextureFormat = @import("std").mem.zeroes(TextureFormat),
+//    has_depth_stencil_target: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	has_depth_stencil_target: bool = @import("std").mem.zeroes(bool),
+//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding1: u8 = @import("std").mem.zeroes(u8),
+//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding2: u8 = @import("std").mem.zeroes(u8),
+//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding3: u8 = @import("std").mem.zeroes(u8),
+//};
 };
 //pub const SDL_GpuGraphicsPipelineTargetInfo = struct_SDL_GpuGraphicsPipelineTargetInfo;
 //pub const struct_SDL_GPUGraphicsPipelineCreateInfo = extern struct {
 pub const GraphicsPipelineCreateInfo = extern struct {
 //    vertex_shader: ?*SDL_GPUShader = @import("std").mem.zeroes(?*SDL_GPUShader),
-	vertex_shader: ?*Shader = @import("std").mem.zeroes(?*Shader),//    fragment_shader: ?*SDL_GPUShader = @import("std").mem.zeroes(?*SDL_GPUShader),
-	fragment_shader: ?*Shader = @import("std").mem.zeroes(?*Shader),//    vertex_input_state: SDL_GPUVertexInputState = @import("std").mem.zeroes(SDL_GPUVertexInputState),
-	vertex_input_state: VertexInputState = @import("std").mem.zeroes(VertexInputState),//    primitive_type: SDL_GPUPrimitiveType = @import("std").mem.zeroes(SDL_GPUPrimitiveType),
-	primitive_type: PrimitiveType = @import("std").mem.zeroes(PrimitiveType),//    rasterizer_state: SDL_GPURasterizerState = @import("std").mem.zeroes(SDL_GPURasterizerState),
-	rasterizer_state: RasterizerState = @import("std").mem.zeroes(RasterizerState),//    multisample_state: SDL_GPUMultisampleState = @import("std").mem.zeroes(SDL_GPUMultisampleState),
-	multisample_state: MultisampleState = @import("std").mem.zeroes(MultisampleState),//    depth_stencil_state: SDL_GPUDepthStencilState = @import("std").mem.zeroes(SDL_GPUDepthStencilState),
-	depth_stencil_state: DepthStencilState = @import("std").mem.zeroes(DepthStencilState),//    target_info: SDL_GpuGraphicsPipelineTargetInfo = @import("std").mem.zeroes(SDL_GpuGraphicsPipelineTargetInfo),
-	target_info: GpuGraphicsPipelineTargetInfo = @import("std").mem.zeroes(GpuGraphicsPipelineTargetInfo),//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
-	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),//};
+	vertex_shader: ?*Shader = @import("std").mem.zeroes(?*Shader),
+//    fragment_shader: ?*SDL_GPUShader = @import("std").mem.zeroes(?*SDL_GPUShader),
+	fragment_shader: ?*Shader = @import("std").mem.zeroes(?*Shader),
+//    vertex_input_state: SDL_GPUVertexInputState = @import("std").mem.zeroes(SDL_GPUVertexInputState),
+	vertex_input_state: VertexInputState = @import("std").mem.zeroes(VertexInputState),
+//    primitive_type: SDL_GPUPrimitiveType = @import("std").mem.zeroes(SDL_GPUPrimitiveType),
+	primitive_type: PrimitiveType = @import("std").mem.zeroes(PrimitiveType),
+//    rasterizer_state: SDL_GPURasterizerState = @import("std").mem.zeroes(SDL_GPURasterizerState),
+	rasterizer_state: RasterizerState = @import("std").mem.zeroes(RasterizerState),
+//    multisample_state: SDL_GPUMultisampleState = @import("std").mem.zeroes(SDL_GPUMultisampleState),
+	multisample_state: MultisampleState = @import("std").mem.zeroes(MultisampleState),
+//    depth_stencil_state: SDL_GPUDepthStencilState = @import("std").mem.zeroes(SDL_GPUDepthStencilState),
+	depth_stencil_state: DepthStencilState = @import("std").mem.zeroes(DepthStencilState),
+//    target_info: SDL_GpuGraphicsPipelineTargetInfo = @import("std").mem.zeroes(SDL_GpuGraphicsPipelineTargetInfo),
+	target_info: GraphicsPipelineTargetInfo = @import("std").mem.zeroes(GraphicsPipelineTargetInfo),
+//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
+	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),
+//};
 };
 //pub const SDL_GPUGraphicsPipelineCreateInfo = struct_SDL_GPUGraphicsPipelineCreateInfo;
 //pub const struct_SDL_GPUComputePipelineCreateInfo = extern struct {
 pub const ComputePipelineCreateInfo = extern struct {
 //    code_size: usize = @import("std").mem.zeroes(usize),
-	code_size: usize = @import("std").mem.zeroes(usize),//    code: [*c]const Uint8 = @import("std").mem.zeroes([*c]const Uint8),
-	code: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),//    entrypoint: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
-	entrypoint: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),//    format: SDL_GPUShaderFormat = @import("std").mem.zeroes(SDL_GPUShaderFormat),
-	format: ShaderFormat = @import("std").mem.zeroes(ShaderFormat),//    num_samplers: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_samplers: u32 = @import("std").mem.zeroes(u32),//    num_readonly_storage_textures: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_readonly_storage_textures: u32 = @import("std").mem.zeroes(u32),//    num_readonly_storage_buffers: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_readonly_storage_buffers: u32 = @import("std").mem.zeroes(u32),//    num_writeonly_storage_textures: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_writeonly_storage_textures: u32 = @import("std").mem.zeroes(u32),//    num_writeonly_storage_buffers: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_writeonly_storage_buffers: u32 = @import("std").mem.zeroes(u32),//    num_uniform_buffers: Uint32 = @import("std").mem.zeroes(Uint32),
-	num_uniform_buffers: u32 = @import("std").mem.zeroes(u32),//    threadcount_x: Uint32 = @import("std").mem.zeroes(Uint32),
-	threadcount_x: u32 = @import("std").mem.zeroes(u32),//    threadcount_y: Uint32 = @import("std").mem.zeroes(Uint32),
-	threadcount_y: u32 = @import("std").mem.zeroes(u32),//    threadcount_z: Uint32 = @import("std").mem.zeroes(Uint32),
-	threadcount_z: u32 = @import("std").mem.zeroes(u32),//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
-	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),//};
+	code_size: usize = @import("std").mem.zeroes(usize),
+//    code: [*c]const Uint8 = @import("std").mem.zeroes([*c]const Uint8),
+	code: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
+//    entrypoint: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
+	entrypoint: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
+//    format: SDL_GPUShaderFormat = @import("std").mem.zeroes(SDL_GPUShaderFormat),
+	format: ShaderFormat = @import("std").mem.zeroes(ShaderFormat),
+//    num_samplers: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_samplers: u32 = @import("std").mem.zeroes(u32),
+//    num_readonly_storage_textures: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_readonly_storage_textures: u32 = @import("std").mem.zeroes(u32),
+//    num_readonly_storage_buffers: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_readonly_storage_buffers: u32 = @import("std").mem.zeroes(u32),
+//    num_writeonly_storage_textures: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_writeonly_storage_textures: u32 = @import("std").mem.zeroes(u32),
+//    num_writeonly_storage_buffers: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_writeonly_storage_buffers: u32 = @import("std").mem.zeroes(u32),
+//    num_uniform_buffers: Uint32 = @import("std").mem.zeroes(Uint32),
+	num_uniform_buffers: u32 = @import("std").mem.zeroes(u32),
+//    threadcount_x: Uint32 = @import("std").mem.zeroes(Uint32),
+	threadcount_x: u32 = @import("std").mem.zeroes(u32),
+//    threadcount_y: Uint32 = @import("std").mem.zeroes(Uint32),
+	threadcount_y: u32 = @import("std").mem.zeroes(u32),
+//    threadcount_z: Uint32 = @import("std").mem.zeroes(Uint32),
+	threadcount_z: u32 = @import("std").mem.zeroes(u32),
+//    props: SDL_PropertiesID = @import("std").mem.zeroes(SDL_PropertiesID),
+	props: PropertiesID = @import("std").mem.zeroes(PropertiesID),
+//};
 };
 //pub const SDL_GPUComputePipelineCreateInfo = struct_SDL_GPUComputePipelineCreateInfo;
 //pub const struct_SDL_GPUColorTargetInfo = extern struct {
 pub const ColorTargetInfo = extern struct {
 //    texture: ?*SDL_GPUTexture = @import("std").mem.zeroes(?*SDL_GPUTexture),
-	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),//    mip_level: Uint32 = @import("std").mem.zeroes(Uint32),
-	mip_level: u32 = @import("std").mem.zeroes(u32),//    layer_or_depth_plane: Uint32 = @import("std").mem.zeroes(Uint32),
-	layer_or_depth_plane: u32 = @import("std").mem.zeroes(u32),//    clear_color: SDL_FColor = @import("std").mem.zeroes(SDL_FColor),
-	clear_color: FColor = @import("std").mem.zeroes(FColor),//    load_op: SDL_GPULoadOp = @import("std").mem.zeroes(SDL_GPULoadOp),
-	load_op: LoadOp = @import("std").mem.zeroes(LoadOp),//    store_op: SDL_GPUStoreOp = @import("std").mem.zeroes(SDL_GPUStoreOp),
-	store_op: StoreOp = @import("std").mem.zeroes(StoreOp),//    cycle: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	cycle: bool = @import("std").mem.zeroes(bool),//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding1: u8 = @import("std").mem.zeroes(u8),//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding2: u8 = @import("std").mem.zeroes(u8),//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding3: u8 = @import("std").mem.zeroes(u8),//};
+	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),
+//    mip_level: Uint32 = @import("std").mem.zeroes(Uint32),
+	mip_level: u32 = @import("std").mem.zeroes(u32),
+//    layer_or_depth_plane: Uint32 = @import("std").mem.zeroes(Uint32),
+	layer_or_depth_plane: u32 = @import("std").mem.zeroes(u32),
+//    clear_color: SDL_FColor = @import("std").mem.zeroes(SDL_FColor),
+	clear_color: FColor = @import("std").mem.zeroes(FColor),
+//    load_op: SDL_GPULoadOp = @import("std").mem.zeroes(SDL_GPULoadOp),
+	load_op: LoadOp = @import("std").mem.zeroes(LoadOp),
+//    store_op: SDL_GPUStoreOp = @import("std").mem.zeroes(SDL_GPUStoreOp),
+	store_op: StoreOp = @import("std").mem.zeroes(StoreOp),
+//    cycle: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	cycle: bool = @import("std").mem.zeroes(bool),
+//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding1: u8 = @import("std").mem.zeroes(u8),
+//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding2: u8 = @import("std").mem.zeroes(u8),
+//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding3: u8 = @import("std").mem.zeroes(u8),
+//};
 };
 //pub const SDL_GPUColorTargetInfo = struct_SDL_GPUColorTargetInfo;
 //pub const struct_SDL_GPUDepthStencilTargetInfo = extern struct {
 pub const DepthStencilTargetInfo = extern struct {
 //    texture: ?*SDL_GPUTexture = @import("std").mem.zeroes(?*SDL_GPUTexture),
-	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),//    clear_depth: f32 = @import("std").mem.zeroes(f32),
-	clear_depth: f32 = @import("std").mem.zeroes(f32),//    load_op: SDL_GPULoadOp = @import("std").mem.zeroes(SDL_GPULoadOp),
-	load_op: LoadOp = @import("std").mem.zeroes(LoadOp),//    store_op: SDL_GPUStoreOp = @import("std").mem.zeroes(SDL_GPUStoreOp),
-	store_op: StoreOp = @import("std").mem.zeroes(StoreOp),//    stencil_load_op: SDL_GPULoadOp = @import("std").mem.zeroes(SDL_GPULoadOp),
-	stencil_load_op: LoadOp = @import("std").mem.zeroes(LoadOp),//    stencil_store_op: SDL_GPUStoreOp = @import("std").mem.zeroes(SDL_GPUStoreOp),
-	stencil_store_op: StoreOp = @import("std").mem.zeroes(StoreOp),//    cycle: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	cycle: bool = @import("std").mem.zeroes(bool),//    clear_stencil: Uint8 = @import("std").mem.zeroes(Uint8),
-	clear_stencil: u8 = @import("std").mem.zeroes(u8),//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding1: u8 = @import("std").mem.zeroes(u8),//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding2: u8 = @import("std").mem.zeroes(u8),//};
+	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),
+//    clear_depth: f32 = @import("std").mem.zeroes(f32),
+	clear_depth: f32 = @import("std").mem.zeroes(f32),
+//    load_op: SDL_GPULoadOp = @import("std").mem.zeroes(SDL_GPULoadOp),
+	load_op: LoadOp = @import("std").mem.zeroes(LoadOp),
+//    store_op: SDL_GPUStoreOp = @import("std").mem.zeroes(SDL_GPUStoreOp),
+	store_op: StoreOp = @import("std").mem.zeroes(StoreOp),
+//    stencil_load_op: SDL_GPULoadOp = @import("std").mem.zeroes(SDL_GPULoadOp),
+	stencil_load_op: LoadOp = @import("std").mem.zeroes(LoadOp),
+//    stencil_store_op: SDL_GPUStoreOp = @import("std").mem.zeroes(SDL_GPUStoreOp),
+	stencil_store_op: StoreOp = @import("std").mem.zeroes(StoreOp),
+//    cycle: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	cycle: bool = @import("std").mem.zeroes(bool),
+//    clear_stencil: Uint8 = @import("std").mem.zeroes(Uint8),
+	clear_stencil: u8 = @import("std").mem.zeroes(u8),
+//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding1: u8 = @import("std").mem.zeroes(u8),
+//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding2: u8 = @import("std").mem.zeroes(u8),
+//};
 };
 //pub const SDL_GPUDepthStencilTargetInfo = struct_SDL_GPUDepthStencilTargetInfo;
 //pub const struct_SDL_GPUBlitInfo = extern struct {
 pub const BlitInfo = extern struct {
 //    source: SDL_GPUBlitRegion = @import("std").mem.zeroes(SDL_GPUBlitRegion),
-	source: BlitRegion = @import("std").mem.zeroes(BlitRegion),//    destination: SDL_GPUBlitRegion = @import("std").mem.zeroes(SDL_GPUBlitRegion),
-	destination: BlitRegion = @import("std").mem.zeroes(BlitRegion),//    load_op: SDL_GPULoadOp = @import("std").mem.zeroes(SDL_GPULoadOp),
-	load_op: LoadOp = @import("std").mem.zeroes(LoadOp),//    clear_color: SDL_FColor = @import("std").mem.zeroes(SDL_FColor),
-	clear_color: FColor = @import("std").mem.zeroes(FColor),//    flip_mode: SDL_FlipMode = @import("std").mem.zeroes(SDL_FlipMode),
-	flip_mode: FlipMode = @import("std").mem.zeroes(FlipMode),//    filter: SDL_GPUFilter = @import("std").mem.zeroes(SDL_GPUFilter),
-	filter: Filter = @import("std").mem.zeroes(Filter),//    cycle: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	cycle: bool = @import("std").mem.zeroes(bool),//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding1: u8 = @import("std").mem.zeroes(u8),//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding2: u8 = @import("std").mem.zeroes(u8),//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding3: u8 = @import("std").mem.zeroes(u8),//};
+	source: BlitRegion = @import("std").mem.zeroes(BlitRegion),
+//    destination: SDL_GPUBlitRegion = @import("std").mem.zeroes(SDL_GPUBlitRegion),
+	destination: BlitRegion = @import("std").mem.zeroes(BlitRegion),
+//    load_op: SDL_GPULoadOp = @import("std").mem.zeroes(SDL_GPULoadOp),
+	load_op: LoadOp = @import("std").mem.zeroes(LoadOp),
+//    clear_color: SDL_FColor = @import("std").mem.zeroes(SDL_FColor),
+	clear_color: FColor = @import("std").mem.zeroes(FColor),
+//    flip_mode: SDL_FlipMode = @import("std").mem.zeroes(SDL_FlipMode),
+	flip_mode: FlipMode = @import("std").mem.zeroes(FlipMode),
+//    filter: SDL_GPUFilter = @import("std").mem.zeroes(SDL_GPUFilter),
+	filter: Filter = @import("std").mem.zeroes(Filter),
+//    cycle: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	cycle: bool = @import("std").mem.zeroes(bool),
+//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding1: u8 = @import("std").mem.zeroes(u8),
+//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding2: u8 = @import("std").mem.zeroes(u8),
+//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding3: u8 = @import("std").mem.zeroes(u8),
+//};
 };
 //pub const SDL_GPUBlitInfo = struct_SDL_GPUBlitInfo;
 //pub const struct_SDL_GPUBufferBinding = extern struct {
 pub const BufferBinding = extern struct {
 //    buffer: ?*SDL_GPUBuffer = @import("std").mem.zeroes(?*SDL_GPUBuffer),
-	buffer: ?*Buffer = @import("std").mem.zeroes(?*Buffer),//    offset: Uint32 = @import("std").mem.zeroes(Uint32),
-	offset: u32 = @import("std").mem.zeroes(u32),//};
+	buffer: ?*Buffer = @import("std").mem.zeroes(?*Buffer),
+//    offset: Uint32 = @import("std").mem.zeroes(Uint32),
+	offset: u32 = @import("std").mem.zeroes(u32),
+//};
 };
 //pub const SDL_GPUBufferBinding = struct_SDL_GPUBufferBinding;
 //pub const struct_SDL_GPUTextureSamplerBinding = extern struct {
 pub const TextureSamplerBinding = extern struct {
 //    texture: ?*SDL_GPUTexture = @import("std").mem.zeroes(?*SDL_GPUTexture),
-	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),//    sampler: ?*SDL_GPUSampler = @import("std").mem.zeroes(?*SDL_GPUSampler),
-	sampler: ?*Sampler = @import("std").mem.zeroes(?*Sampler),//};
+	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),
+//    sampler: ?*SDL_GPUSampler = @import("std").mem.zeroes(?*SDL_GPUSampler),
+	sampler: ?*Sampler = @import("std").mem.zeroes(?*Sampler),
+//};
 };
 //pub const SDL_GPUTextureSamplerBinding = struct_SDL_GPUTextureSamplerBinding;
 //pub const struct_SDL_GPUStorageBufferWriteOnlyBinding = extern struct {
 pub const StorageBufferWriteOnlyBinding = extern struct {
 //    buffer: ?*SDL_GPUBuffer = @import("std").mem.zeroes(?*SDL_GPUBuffer),
-	buffer: ?*Buffer = @import("std").mem.zeroes(?*Buffer),//    cycle: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	cycle: bool = @import("std").mem.zeroes(bool),//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding1: u8 = @import("std").mem.zeroes(u8),//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding2: u8 = @import("std").mem.zeroes(u8),//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding3: u8 = @import("std").mem.zeroes(u8),//};
+	buffer: ?*Buffer = @import("std").mem.zeroes(?*Buffer),
+//    cycle: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	cycle: bool = @import("std").mem.zeroes(bool),
+//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding1: u8 = @import("std").mem.zeroes(u8),
+//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding2: u8 = @import("std").mem.zeroes(u8),
+//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding3: u8 = @import("std").mem.zeroes(u8),
+//};
 };
 //pub const SDL_GPUStorageBufferWriteOnlyBinding = struct_SDL_GPUStorageBufferWriteOnlyBinding;
 //pub const struct_SDL_GPUStorageTextureWriteOnlyBinding = extern struct {
 pub const StorageTextureWriteOnlyBinding = extern struct {
 //    texture: ?*SDL_GPUTexture = @import("std").mem.zeroes(?*SDL_GPUTexture),
-	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),//    mip_level: Uint32 = @import("std").mem.zeroes(Uint32),
-	mip_level: u32 = @import("std").mem.zeroes(u32),//    layer: Uint32 = @import("std").mem.zeroes(Uint32),
-	layer: u32 = @import("std").mem.zeroes(u32),//    cycle: SDL_bool = @import("std").mem.zeroes(SDL_bool),
-	cycle: bool = @import("std").mem.zeroes(bool),//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding1: u8 = @import("std").mem.zeroes(u8),//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding2: u8 = @import("std").mem.zeroes(u8),//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
-	padding3: u8 = @import("std").mem.zeroes(u8),//};
+	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),
+//    mip_level: Uint32 = @import("std").mem.zeroes(Uint32),
+	mip_level: u32 = @import("std").mem.zeroes(u32),
+//    layer: Uint32 = @import("std").mem.zeroes(Uint32),
+	layer: u32 = @import("std").mem.zeroes(u32),
+//    cycle: SDL_bool = @import("std").mem.zeroes(SDL_bool),
+	cycle: bool = @import("std").mem.zeroes(bool),
+//    padding1: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding1: u8 = @import("std").mem.zeroes(u8),
+//    padding2: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding2: u8 = @import("std").mem.zeroes(u8),
+//    padding3: Uint8 = @import("std").mem.zeroes(Uint8),
+	padding3: u8 = @import("std").mem.zeroes(u8),
+//};
 };
 //pub const SDL_GPUStorageTextureWriteOnlyBinding = struct_SDL_GPUStorageTextureWriteOnlyBinding;
 //pub extern fn SDL_GPUSupportsShaderFormats(format_flags: SDL_GPUShaderFormat, name: [*c]const u8) SDL_bool;
