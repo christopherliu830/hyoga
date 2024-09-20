@@ -7,7 +7,8 @@ const math = @import("math.zig");
 const sdl = @import("sdl/sdl.zig");
 const gpu = @import("gpu.zig");
 const vec3 = @import("hym/vec3.zig");
-// const imgui = @import("imgui.zig");
+const imgui = @import("imgui/imgui.zig");
+const imgui_sdl = @import("imgui/sdl_backend.zig");
 
 
 // void main() {
@@ -20,10 +21,13 @@ pub fn main() !void {
 
     try gpu.init(window.instance);
 
-    // const ctx = imgui.igCreateContext(null).?;
-    // defer imgui.igDestroyContext(ctx);
+    const ctx = imgui.igCreateContext(null).?;
+    defer imgui.igDestroyContext(ctx);
+
+    try imgui_sdl.init(window.instance, allocator);
 
     input.init(allocator);
+
     try input.bind(sdl.keycode.up, .{ .name = "mixup", .handler =  mixUp });
     try input.bind(sdl.keycode.down, .{ .name = "mixdown", .handler = mixDown });
     try input.bind(sdl.keycode.left, .{ .name = "mixleft", .handler = mixLeft });
@@ -32,7 +36,7 @@ pub fn main() !void {
     var quit = false;
     while (!quit) {
         var event: sdl.events.Event = undefined;
-        while (sdl.events.poll(&event)) {
+        while (sdl.events.pollEvent(&event)) {
             input.update(event);
             switch (event.type) {
                 sdl.events.quit => quit = true,
@@ -52,7 +56,14 @@ pub fn main() !void {
             }
         }
 
+        imgui_sdl.newFrame();
+        imgui.newFrame();
+        imgui.showDemoWindow();
+
         try gpu.render();
+
+        imgui.render();
+        imgui_sdl.
     }
 }
 

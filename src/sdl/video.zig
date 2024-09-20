@@ -325,7 +325,7 @@ pub const createPopupWindow = SDL_CreatePopupWindow;
 pub extern fn SDL_CreateWindowWithProperties(props: PropertiesID) ?*Window;
 pub const createWindowWithProperties = SDL_CreateWindowWithProperties;
 //pub extern fn SDL_GetWindowID(window: ?*SDL_Window) SDL_WindowID;
-pub extern fn SDL_GetWindowID(window: ?*Window) WindowID;
+pub extern fn SDL_GetWindowID(window: *Window) WindowID;
 pub const getWindowID = SDL_GetWindowID;
 //pub extern fn SDL_GetWindowFromID(id: SDL_WindowID) ?*SDL_Window;
 pub extern fn SDL_GetWindowFromID(id: WindowID) ?*Window;

@@ -78,8 +78,15 @@ pub const MouseWheelDirection = enum(c_uint) {
     mousewheel_flipped,
 };
 
+
 //pub const SDL_MouseWheelDirection = enum_SDL_MouseWheelDirection;
 //pub const SDL_MouseButtonFlags = Uint32;
+pub const button_left = 1;
+pub const button_middle = 2;
+pub const button_right = 3;
+pub const button_x1 = 4;
+pub const button_x2 = 5;
+
 pub const MouseButtonFlags = packed struct(c_uint) {
     left: bool = false,
     middle: bool = false,
