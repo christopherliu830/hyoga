@@ -11,6 +11,7 @@ const dxil = @import("cube_dxil.zig");
 const dxbc = @import("cube_dxbc.zig");
 
 const sdl = @import("sdl/sdl.zig");
+const imgui_sdl = @import("imgui/sdl_backend.zig");
 
 const ShaderType = enum { vertex, fragment };
 
@@ -34,71 +35,70 @@ const WindowState = struct {
 const vertex_data = [_][6]f32{
     // Front face. */
     // Bottom left */
-    .{ -0.5,  0.5, -0.5, 1.0, 0.0, 0.0 }, // red //
-    .{  0.5, -0.5, -0.5, 0.0, 0.0, 1.0 }, // blue //
+    .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0 }, // red //
+    .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0 }, // blue //
     .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0 }, // green //
 
     // Top right //
     .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0 }, // red //
-    .{ 0.5,  0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
+    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
     .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0 }, // blue //
 
     // Left face //
     // Bottom left //
-    .{ -0.5,  0.5,  0.5, 1.0, 1.0, 1.0 }, // white //
+    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0 }, // white //
     .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0 }, // green //
-    .{ -0.5, -0.5,  0.5, 0.0, 1.0, 1.0 }, // cyan //
+    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0 }, // cyan //
 
     // Top right //
-    .{ -0.5,  0.5,  0.5, 1.0, 1.0, 1.0 }, // white //
-    .{ -0.5,  0.5, -0.5, 1.0, 0.0, 0.0 }, // red //
+    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0 }, // white //
+    .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0 }, // red //
     .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0 }, // green //
 
     // Top face //
     // Bottom left //
-    .{ -0.5, 0.5,  0.5, 1.0, 1.0, 1.0 }, // white //
-    .{  0.5, 0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
+    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0 }, // white //
+    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
     .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0 }, // red //
 
     // Top right //
-    .{ -0.5, 0.5,  0.5, 1.0, 1.0, 1.0 }, // white //
-    .{  0.5, 0.5,  0.5, 0.0, 0.0, 0.0 }, // black //
-    .{  0.5, 0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
+    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0 }, // white //
+    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0 }, // black //
+    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
 
     // Right face //
     // Bottom left //
-    .{ 0.5,  0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
-    .{ 0.5, -0.5,  0.5, 1.0, 0.0, 1.0 }, // magenta //
+    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
+    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0 }, // magenta //
     .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0 }, // blue //
 
     // Top right //
-    .{ 0.5,  0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
-    .{ 0.5,  0.5,  0.5, 0.0, 0.0, 0.0 }, // black //
-    .{ 0.5, -0.5,  0.5, 1.0, 0.0, 1.0 }, // magenta //
+    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
+    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0 }, // black //
+    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0 }, // magenta //
 
     // Back face //
     // Bottom left //
-    .{  0.5,  0.5, 0.5, 0.0, 0.0, 0.0 }, // black //
+    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0 }, // black //
     .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0 }, // cyan //
-    .{  0.5, -0.5, 0.5, 1.0, 0.0, 1.0 }, // magenta //
+    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0 }, // magenta //
 
     // Top right //
-    .{  0.5,  0.5,  0.5, 0.0, 0.0, 0.0 }, // black //
-    .{ -0.5,  0.5,  0.5, 1.0, 1.0, 1.0 }, // white //
-    .{ -0.5, -0.5,  0.5, 0.0, 1.0, 1.0 }, // cyan //
+    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0 }, // black //
+    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0 }, // white //
+    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0 }, // cyan //
 
     // Bottom face //
     // Bottom left //
     .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0 }, // green //
-    .{  0.5, -0.5,  0.5, 1.0, 0.0, 1.0 }, // magenta //
-    .{ -0.5, -0.5,  0.5, 0.0, 1.0, 1.0 }, // cyan //
+    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0 }, // magenta //
+    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0 }, // cyan //
 
     // Top right //
     .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0 }, // green //
-    .{  0.5, -0.5, -0.5, 0.0, 0.0, 1.0 }, // blue //
-    .{  0.5, -0.5,  0.5, 1.0, 0.0, 1.0 } // magenta //
+    .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0 }, // blue //
+    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0 }, // magenta //
 };
-
 
 var gpu_device: *sdl.gpu.Device = undefined;
 pub var render_state: RenderState = .{};
@@ -109,19 +109,19 @@ pub var speed: f32 = 1;
 pub fn init(hdl_window: *sdl.Window) !void {
     window_state.hdl_window = hdl_window;
 
-    const formats = sdl.gpu.ShaderFormat {
+    const formats = sdl.gpu.ShaderFormat{
         .dxbc = true,
         .dxil = true,
         .spirv = true,
     };
 
     gpu_device = sdl.gpu.createDevice(formats, true, null) orelse {
-        std.log.debug("Could not create GPU device: {s}", .{ sdl.c.SDL_GetError() });
+        std.log.debug("Could not create GPU device: {s}", .{sdl.c.SDL_GetError()});
         unreachable;
     };
 
     if (!sdl.gpu.claimWindowForDevice(gpu_device, hdl_window)) {
-        std.log.debug("Could not claim window for GPU device: {s}", .{ sdl.c.SDL_GetError() });
+        std.log.debug("Could not claim window for GPU device: {s}", .{sdl.c.SDL_GetError()});
     }
 
     const vertex_shader = try loadShader(.vertex);
@@ -129,27 +129,27 @@ pub fn init(hdl_window: *sdl.Window) !void {
     const fragment_shader = try loadShader(.fragment);
     defer sdl.gpu.releaseShader(gpu_device, fragment_shader);
 
-    var buffer_desc = sdl.gpu.BufferCreateInfo {
+    var buffer_desc = sdl.gpu.BufferCreateInfo{
         .usage = .{ .vertex = true },
         .size = @sizeOf(@TypeOf(vertex_data)),
         .props = 0,
     };
 
     render_state.buf_vertex = sdl.gpu.createBuffer(gpu_device, &buffer_desc) orelse {
-        std.log.err("failed to create buffer: {s}", .{ sdl.getError() });
+        std.log.err("failed to create buffer: {s}", .{sdl.getError()});
         return error.BufferCreateFailed;
     };
 
     sdl.gpu.setBufferName(gpu_device, render_state.buf_vertex, "mybuffer");
 
-    const transfer_buffer_desc = sdl.gpu.TransferBufferCreateInfo {
+    const transfer_buffer_desc = sdl.gpu.TransferBufferCreateInfo{
         .usage = .upload,
         .size = @sizeOf(@TypeOf(vertex_data)),
         .props = 0,
     };
 
     const buf_transfer = sdl.gpu.createTransferBuffer(gpu_device, &transfer_buffer_desc) orelse {
-        std.log.err("failed to create transfer buffer: {s}", .{ sdl.getError() });
+        std.log.err("failed to create transfer buffer: {s}", .{sdl.getError()});
         return error.BufferCreateFailed;
     };
     defer sdl.gpu.releaseTransferBuffer(gpu_device, buf_transfer);
@@ -159,27 +159,26 @@ pub fn init(hdl_window: *sdl.Window) !void {
     sdl.gpu.unmapTransferBuffer(gpu_device, buf_transfer);
 
     const cmd = sdl.gpu.acquireCommandBuffer(gpu_device) orelse {
-        std.log.err("failed to acquire command buffer: {s}", .{ sdl.getError() });
+        std.log.err("failed to acquire command buffer: {s}", .{sdl.getError()});
         return error.BeginCopyPassFailed;
     };
 
     const copy_pass = sdl.gpu.beginCopyPass(cmd) orelse {
-        std.log.err("failed to begin copy pass: {s}", .{ sdl.getError() });
+        std.log.err("failed to begin copy pass: {s}", .{sdl.getError()});
         return error.BeginCopyPassFailed;
     };
 
-    var buf_location = sdl.gpu.TransferBufferLocation {
+    var buf_location = sdl.gpu.TransferBufferLocation{
         .transfer_buffer = buf_transfer,
         .offset = 0,
     };
 
-    var dst_region = sdl.gpu.BufferRegion {
+    var dst_region = sdl.gpu.BufferRegion{
         .buffer = render_state.buf_vertex,
         .offset = 0,
         .size = @sizeOf(@TypeOf(vertex_data)),
     };
 
-    
     sdl.gpu.uploadToBuffer(copy_pass, &buf_location, &dst_region, false);
     sdl.gpu.endCopyPass(copy_pass);
     sdl.gpu.submitCommandBuffer(cmd);
@@ -210,7 +209,7 @@ pub fn init(hdl_window: *sdl.Window) !void {
         },
     };
 
-    var pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
+    var pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo{
         .target_info = .{
             .num_color_targets = @intCast(color_target_desc.len),
             .color_target_descriptions = color_target_desc.ptr,
@@ -226,7 +225,7 @@ pub fn init(hdl_window: *sdl.Window) !void {
         .primitive_type = .trianglelist,
         .vertex_shader = vertex_shader,
         .fragment_shader = fragment_shader,
-        .vertex_input_state = .{ 
+        .vertex_input_state = .{
             .num_vertex_buffers = @intCast(vertex_buffer_desc.len),
             .vertex_buffer_descriptions = vertex_buffer_desc.ptr,
             .num_vertex_attributes = @intCast(vertex_attributes.len),
@@ -236,7 +235,7 @@ pub fn init(hdl_window: *sdl.Window) !void {
     };
 
     render_state.pipeline = sdl.gpu.createGraphicsPipeline(gpu_device, &pipeline_desc) orelse {
-        std.log.err("Could not create pipeline: {s}", .{ sdl.getError() });
+        std.log.err("Could not create pipeline: {s}", .{sdl.getError()});
         unreachable;
     };
 
@@ -244,7 +243,6 @@ pub fn init(hdl_window: *sdl.Window) !void {
     var h: c_int = 0;
     _ = sdl.video.getWindowSizeInPixels(hdl_window, &w, &h);
     window_state.tex_depth = try createDepthTexture(@intCast(w), @intCast(h));
-
 }
 
 pub fn render() !void {
@@ -268,26 +266,29 @@ pub fn render() !void {
         sdl.gpu.releaseTexture(gpu_device, window_state.tex_depth);
         window_state.tex_depth = try createDepthTexture(drawable_w, drawable_h);
     }
+
     window_state.prev_drawable_w = drawable_w;
     window_state.prev_drawable_h = drawable_h;
 
-    var color_target = [1]sdl.gpu.ColorTargetInfo {.{
+    var color_target = [1]sdl.gpu.ColorTargetInfo{.{
         .clear_color = .{ .r = 0, .g = 0.2, .b = 0.4, .a = 1 },
         .load_op = .clear,
-        .store_op = .dont_care,
+        .store_op = .store,
         .texture = swapchain,
         .cycle = false,
     }};
 
-    var depth_target = sdl.gpu.DepthStencilTargetInfo {
+    var depth_target = sdl.gpu.DepthStencilTargetInfo{
         .clear_depth = 1,
         .load_op = .clear,
-        .store_op = .dont_care,
+        .store_op = .store,
+        .stencil_load_op = .dont_care,
+        .stencil_store_op = .dont_care,
         .texture = window_state.tex_depth,
         .cycle = true,
     };
 
-    const vertex_binding = [1]sdl.gpu.BufferBinding {.{
+    const vertex_binding = [1]sdl.gpu.BufferBinding{.{
         .buffer = render_state.buf_vertex,
         .offset = 0,
     }};
@@ -307,7 +308,7 @@ pub fn render() !void {
     sdl.gpu.pushVertexUniformData(cmd, 0, std.mem.asBytes(&matrix_final), @sizeOf(@TypeOf(matrix_final)));
 
     const pass = sdl.gpu.beginRenderPass(cmd, &color_target, 1, &depth_target) orelse {
-        std.log.err("could not begin render pass: {s}", .{ sdl.getError() });
+        std.log.err("could not begin render pass: {s}", .{sdl.getError()});
         return error.SDLError;
     };
     defer sdl.gpu.endRenderPass(pass);
@@ -320,7 +321,7 @@ pub fn render() !void {
 }
 
 pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
-    var depthtex_createinfo = sdl.gpu.TextureCreateInfo {
+    var depthtex_createinfo = sdl.gpu.TextureCreateInfo{
         .type = .@"2d",
         .format = .d16_unorm,
         .width = @intCast(w),
@@ -333,14 +334,14 @@ pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
     };
 
     return sdl.gpu.createTexture(gpu_device, &depthtex_createinfo) orelse {
-        std.log.err("could not create depth texture: {s}", .{ sdl.getError() });
+        std.log.err("could not create depth texture: {s}", .{sdl.getError()});
         return error.SDLError;
     };
 }
 
 fn loadShader(shader_type: ShaderType) !*sdl.gpu.Shader {
     const format: sdl.gpu.ShaderFormat = sdl.gpu.getShaderFormats(gpu_device);
-    std.log.debug("selected format: {}", .{ format });
+    std.log.debug("selected format: {}", .{format});
 
     var create_info: sdl.gpu.ShaderCreateInfo = undefined;
     if (format.dxbc) {
@@ -400,7 +401,7 @@ fn loadShader(shader_type: ShaderType) !*sdl.gpu.Shader {
     }
 
     return sdl.gpu.createShader(gpu_device, &create_info) orelse {
-        std.log.debug("Failed to load shader: {s}", .{ sdl.getError() });
+        std.log.debug("Failed to load shader: {s}", .{sdl.getError()});
         return error.LoadShaderFailed;
     };
 }

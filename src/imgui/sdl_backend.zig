@@ -3,11 +3,7 @@ const builtin = @import("builtin");
 const imgui = @import("imgui.zig");
 const sdl = @import("../sdl/sdl.zig");
 
-pub const GamepadMode = enum (c_int) {
-    auto_first,
-    auto_all,
-    manual
-};
+pub const GamepadMode = enum(c_int) { auto_first, auto_all, manual };
 
 pub const ImplData = struct {
     window: ?*sdl.Window = null,
@@ -19,7 +15,9 @@ pub const ImplData = struct {
     want_update_monitors: bool = false,
     mouse_window_id: u32,
     mouse_buttons_down: i32,
-    mouse_cursors: [imgui.ImGuiMouseCursor_COUNT]?*sdl.c.SDL_Cursor = .{},
+    mouse_cursors: [imgui.ImGuiMouseCursor_COUNT]?*sdl.mouse.Cursor = .{},
+    mouse_last_cursor: ?*sdl.mouse.Cursor = null,
+    mouse_pending_leave_frame: i32 = 0,
     mouse_can_use_global_state: bool = false,
     mouse_can_report_hovered_viewport: bool = false,
 
@@ -31,32 +29,32 @@ pub const ImplData = struct {
     // bool                    WantUpdateGamepadsList;
 };
 
-    // SDL_Window*             Window;
-    // SDL_WindowID            WindowID;
-    // SDL_Renderer*           Renderer;
-    // Uint64                  Time;
-    // char*                   ClipboardTextData;
-    // bool                    UseVulkan;
-    // bool                    WantUpdateMonitors;
+// SDL_Window*             Window;
+// SDL_WindowID            WindowID;
+// SDL_Renderer*           Renderer;
+// Uint64                  Time;
+// char*                   ClipboardTextData;
+// bool                    UseVulkan;
+// bool                    WantUpdateMonitors;
 
-    // // IME handling
-    // SDL_Window*             ImeWindow;
+// // IME handling
+// SDL_Window*             ImeWindow;
 
-    // // Mouse handling
-    // Uint32                  MouseWindowID;
-    // int                     MouseButtonsDown;
-    // SDL_Cursor*             MouseCursors[ImGuiMouseCursor_COUNT];
-    // SDL_Cursor*             MouseLastCursor;
-    // int                     MousePendingLeaveFrame;
-    // bool                    MouseCanUseGlobalState;
-    // bool                    MouseCanReportHoveredViewport;  // This is hard to use/unreliable on SDL so we'll set ImGuiBackendFlags_HasMouseHoveredViewport dynamically based on state.
+// // Mouse handling
+// Uint32                  MouseWindowID;
+// int                     MouseButtonsDown;
+// SDL_Cursor*             MouseCursors[ImGuiMouseCursor_COUNT];
+// SDL_Cursor*             MouseLastCursor;
+// int                     MousePendingLeaveFrame;
+// bool                    MouseCanUseGlobalState;
+// bool                    MouseCanReportHoveredViewport;  // This is hard to use/unreliable on SDL so we'll set ImGuiBackendFlags_HasMouseHoveredViewport dynamically based on state.
 
-    // // Gamepad handling
-    // ImVector<SDL_Gamepad*>  Gamepads;
-    // ImGui_ImplSDL3_GamepadMode  GamepadMode;
-    // bool                    WantUpdateGamepadsList;
+// // Gamepad handling
+// ImVector<SDL_Gamepad*>  Gamepads;
+// ImGui_ImplSDL3_GamepadMode  GamepadMode;
+// bool                    WantUpdateGamepadsList;
 
-    // ImGui_ImplSDL3_Data()   { memset((void*)this, 0, sizeof(*this)); }
+// ImGui_ImplSDL3_Data()   { memset((void*)this, 0, sizeof(*this)); }
 
 pub fn initForD3d(window: *sdl.Window) void {
     init(window);
@@ -67,14 +65,8 @@ pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) void {
     _ = io;
     var mouse_can_use_global_state = false;
     const sdl_backend = sdl.video.getCurrentVideoDriver();
-    const global_mouse_whitelist = .{
-        "windows",
-        "cocoa",
-        "x11",
-        "DIVE",
-        "VMAN"
-    };
-    for(global_mouse_whitelist) |item| {
+    const global_mouse_whitelist = .{ "windows", "cocoa", "x11", "DIVE", "VMAN" };
+    for (global_mouse_whitelist) |item| {
         if (item == sdl_backend) {
             mouse_can_use_global_state = true;
         }
@@ -120,34 +112,154 @@ pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) void {
 
     // SDL 3.x : see https://github.com/libsdl-org/SDL/issues/6659
     sdl.hints.setHint("SDL_BORDERLESS_WINDOW_STYLE", "0");
-
-    if (io.ConfigFlags & imgui.ImGuiConfigFlags_ViewportsEnable != 0 and io.BackendFlags & imgui.BackendFlagsNames.platform_has_viewports != 0) {
-
-    }
-
 }
 
 pub fn getBackendData() ?*ImplData {
     return if (imgui.igGetCurrentContext()) imgui.getIO().*.BackendPlatformUserData else null;
 }
 
-pub fn setupPlatformHandles(viewport: *imgui.Viewport, window: sdl.Window) void {
-    viewport.*.PlatformHandle = sdl.video.getWindowID(window);
-    viewport.*.PlatformHandleRaw = null;
-    if (std.builtin.os.tag == .windows and !std.builtin.os.windows.is_winrt) {
-        viewport.*.PlatformHandleRaw = sdl.c.SDL_GetPointerProperty(sdl.video.getWindowProperties(window), sdl.c.SDL_PROP_WINDOW_CREATE_WIN32_HWND_POINTER, null);
-    } else if (std.builtin.os.tag == .macos) {
-        unreachable;
+pub fn processEvent(event: *const sdl.events.Event) void {
+    const bd = getBackendData() orelse return error.NotInitialized;
+    const io = imgui.igGetIO();
+
+    switch (event.*.type) {
+        sdl.events.mouse_motion => {
+            if (getViewportForWindowID(event.*.motion.window_id) == null) {
+                return false;
+            }
+
+            var mouse_pos = imgui.ImVec2{ .x = @floatFromInt(event.*.motion.x), .y = @floatFromInt(event.*.motion.y) };
+            if (io.*.ConfigFlags & imgui.ImGuiConfigFlags_ViewportsEnable) {
+                const window_x: i32 = undefined;
+                const window_y: i32 = undefined;
+                sdl.video.getWindowPosition(sdl.video.getWindowFromID(event.*.motion.window_id), &window_x, &window_y);
+                mouse_pos.x += window_x;
+                mouse_pos.y += window_y;
+            }
+            const source = if (event.*.motion.which == sdl.c.SDL_TOUCH_MOUSEID) imgui.ImGuiMouseSource_TouchScreen else imgui.ImGuiMouseSource_Mouse;
+            imgui.ImGuiIO_AddMouseSourceEvent(io, source);
+            imgui.ImGuiIO_AddMousePosEvent(io, mouse_pos.x, mouse_pos.y);
+            return true;
+        },
+        sdl.events.mouse_wheel => {
+            if (getViewportForWindowID(event.*.motion.window_id) == null) {
+                return false;
+            }
+
+            const wheel_x = event.*.wheel.x;
+            const wheel_y = event.*.wheel.y;
+            const source = if (event.*.motion.which == sdl.c.SDL_TOUCH_MOUSEID) imgui.ImGuiMouseSource_TouchScreen else imgui.ImGuiMouseSource_Mouse;
+            imgui.ImGuiIO_AddMouseSourceEvent(io, source);
+            imgui.ImGuiIO_AddMouseWheelEvent(io, wheel_x, wheel_y);
+            return true;
+        },
+        sdl.events.mouse_button_down, sdl.events.mouse_button_up => {
+            if (getViewportForWindowID(event.*.motion.window_id) == null) {
+                return false;
+            }
+
+            const mouse_button: i32 = -1;
+            if (event.*.button.left) {}
+        },
     }
 }
 
-pub fn initPlatformInterface(window: sdl.Window, sdl_gl_context: ?*anyopaque) void {
-    var pio = imgui.igGetPlatformIO();
-    pio.*.Platform_CreateWindow =; //
-    var bd = getBackendData();
-    if (!bd) return error.NotInitialized;
+pub fn newFrame() void {
+    var bd = getBackendData() orelse return error.NotInitialized;
+    const io = imgui.getIO();
+
+    var w: i32 = undefined;
+    var h: i32 = undefined;
+    var display_w: i32 = undefined;
+    var display_h: i32 = undefined;
+    sdl.video.getWindowSize(bd.*.window, &w, &h);
+    if (sdl.video.getWindowFlags(bd.*.window).minimized) {
+        w = 0;
+        h = 0;
+    }
+    sdl.video.getWindowSizeInPixels(bd.*.window, &display_w, &display_h);
+    io.DisplaySize = imgui.Vec2{ .x = w, .y = h };
+    if (w > 0 and h > 0) {
+        const scale_x: f32 = @floatFromInt(display_w) / @floatFromInt(w);
+        const scale_y: f32 = @floatFromInt(display_h) / @floatFromInt(h);
+        io.DisplayFramebufferScale = .{ .x = scale_x, .y = scale_y };
+    }
+
+    if (bd.*.want_update_monitors) {
+        updateMonitors();
+    }
+
+    const frequency: u64 = sdl.c.SDL_GetPerformanceFrequency();
+    var current_time: u64 = sdl.c.SDL_GetPerformanceCounter();
+
+    if (current_time <= bd.*.time) {
+        current_time = bd.*.time + 1;
+    }
+
+    if (bd.*.mouse_pending_leave_frame and bd.*.mouse_pending_leave_frame > imgui.igGetFrameCount() and bd.*.mouse_buttons_down == 0) {
+        bd.*.mouse_window_id = 0;
+        bd.*.mouse_pending_leave_frame = 0;
+        imgui.ImGuiIO_AddMousePosEvent(io, -std.math.floatMax(f32), -std.math.floatMax(f32));
+    }
+
+    if (bd.*.mouse_can_report_hovered_viewport and imgui.igGetDragDropPayload() == null) {
+        io.BackendFlags |= imgui.BackendFlagsNames.has_mouse_hovered_viewport;
+    } else {
+        io.BackendFlags &= ~imgui.BackendFlagsNames.has_mouse_hovered_viewport;
+    }
+
+    updateMouseData();
+    updateMouseCursor();
+
+    // updateGamepads();
 }
 
-pub fn newFrame() void {
+pub fn updateMonitors() void {
+    unreachable;
+}
 
+pub fn updateMouseData() void {
+    const bd = getBackendData() orelse return error.NotInitialized;
+    const io = imgui.igGetIO();
+
+    sdl.mouse.captureMouse(if (bd.*.mouse_buttons_down != 0) true else false);
+    const window = sdl.c.SDL_GetKeyboardFocus();
+    const is_app_focused = window != null and (window == bd.*.window or getViewportForWindowID(sdl.video.getWindowID(window)) != null);
+    if (is_app_focused) {
+        if (io.WantSetMousePos) {
+            if (io.ConfigFlags & imgui.ImGuiConfigFlags_ViewportsEnable) {
+                sdl.mouse.warpMouseGlobal(io.MousePos.x, io.MousePos.y);
+            } else {
+                sdl.mouse.warpMouseInWindow(bd.*.window, io.MousePos.x, io.MousePos.y);
+            }
+        }
+    }
+}
+
+pub fn updateMouseCursor() void {
+    const io = imgui.getIO();
+    if (io.ConfigFlags & imgui.ImGuiConfigFlags_NoMouseCursorChange != 0) {
+        return;
+    }
+
+    const bd = getBackendData() orelse return error.NotInitialized;
+    const imgui_cursor = imgui.igGetMouseCursor();
+    if (io.MouseDrawCursor or imgui_cursor == imgui.MouseCursorNames.none) {
+        sdl.mouse.hideCursor();
+    } else {
+        const expected_cursor = bd.*.mouse_cursors[imgui_cursor];
+        if (bd.*.mouse_last_cursor != expected_cursor) {
+            sdl.mouse.setCursor(expected_cursor);
+            bd.*.mouse_last_cursor = expected_cursor;
+        }
+        sdl.mouse.showCursor();
+    }
+}
+
+pub fn updateGamepads() void {
+    unreachable;
+}
+
+pub fn getViewportForWindowID(window_id: sdl.video.WindowID) *imgui.Viewport {
+    return imgui.igFindViewportByPlatformHandle(window_id);
 }

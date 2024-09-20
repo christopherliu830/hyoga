@@ -3,7 +3,6 @@ pub const struct__iobuf = extern struct {
 };
 pub const FILE = struct__iobuf;
 
-
 pub const struct_ImVec4 = extern struct {
     x: f32 = @import("std").mem.zeroes(f32),
     y: f32 = @import("std").mem.zeroes(f32),
@@ -11,7 +10,6 @@ pub const struct_ImVec4 = extern struct {
     w: f32 = @import("std").mem.zeroes(f32),
 };
 pub const Vec4 = struct_ImVec4;
-
 
 pub const TextureId = ?*anyopaque;
 
@@ -23,7 +21,6 @@ pub const struct_ImVector_ImDrawIdx = extern struct {
     Data: [*c]ImDrawIdx = @import("std").mem.zeroes([*c]ImDrawIdx),
 };
 pub const ImVector_ImDrawIdx = struct_ImVector_ImDrawIdx;
-
 
 pub const struct_ImVec2 = extern struct {
     x: f32 = @import("std").mem.zeroes(f32),
@@ -379,7 +376,7 @@ pub const ImS8 = i8;
 pub const struct_ImGuiIO = extern struct {
     ConfigFlags: ImGuiConfigFlags = @import("std").mem.zeroes(ImGuiConfigFlags),
     BackendFlags: ImGuiBackendFlags = @import("std").mem.zeroes(ImGuiBackendFlags),
-    DisplaySize: Vec2 = @import("std").mem.zeroes(Vec2),
+    display_size: Vec2 = @import("std").mem.zeroes(Vec2),
     DeltaTime: f32 = @import("std").mem.zeroes(f32),
     IniSavingRate: f32 = @import("std").mem.zeroes(f32),
     IniFilename: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
@@ -475,7 +472,6 @@ pub const struct_ImGuiIO = extern struct {
     InputQueueCharacters: ImVector_ImWchar = @import("std").mem.zeroes(ImVector_ImWchar),
 };
 pub const Io = struct_ImGuiIO;
-
 
 pub const struct_ImGuiPlatformImeData = extern struct {
     WantVisible: bool = @import("std").mem.zeroes(bool),
@@ -4156,17 +4152,14 @@ pub extern fn ImVec4_ImVec4_Float(_x: f32, _y: f32, _z: f32, _w: f32) [*c]Vec4;
 pub extern fn igCreateContext(shared_font_atlas: ?*FontAtlas) ?*Context;
 pub const createContext = igCreateContext;
 
-
 pub extern fn igDestroyContext(ctx: ?*Context) void;
 pub const destroyContext = igDestroyContext;
-
 
 pub extern fn igGetCurrentContext() ?*Context;
 pub extern fn igSetCurrentContext(ctx: ?*Context) void;
 
 extern fn igGetIO() *Io;
 pub const getIO = igGetIO;
-
 
 pub extern fn igGetPlatformIO() [*c]ImGuiPlatformIO;
 pub extern fn igGetStyle() [*c]ImGuiStyle;
@@ -4177,7 +4170,6 @@ pub extern fn igGetDrawData() [*c]ImDrawData;
 
 pub extern fn igShowDemoWindow(p_open: *bool) void;
 pub const showDemoWindow = igShowDemoWindow();
-
 
 pub extern fn igShowMetricsWindow(p_open: [*c]bool) void;
 pub extern fn igShowDebugLogWindow(p_open: [*c]bool) void;
