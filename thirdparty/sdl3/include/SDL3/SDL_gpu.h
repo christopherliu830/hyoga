@@ -282,8 +282,10 @@ typedef enum SDL_GPULoadOp
  */
 typedef enum SDL_GPUStoreOp
 {
-    SDL_GPU_STOREOP_STORE,     /**< The contents generated during the render pass will be written to memory. */
-    SDL_GPU_STOREOP_DONT_CARE  /**< The contents generated during the render pass are not needed and may be discarded. The contents will be undefined. */
+    SDL_GPU_STOREOP_STORE,             /**< The contents generated during the render pass will be written to memory. */
+    SDL_GPU_STOREOP_DONT_CARE,         /**< The contents generated during the render pass are not needed and may be discarded. The contents will be undefined. */
+    SDL_GPU_STOREOP_RESOLVE,           /**< The multisample contents generated during the render pass will be resolved to a non-multisample texture. The contents in the multisample texture may then be discarded and will be undefined. */
+    SDL_GPU_STOREOP_RESOLVE_AND_STORE  /**< The multisample contents generated during the render pass will be resolved to a non-multisample texture. The contents in the multisample texture will be written to memory. */
 } SDL_GPUStoreOp;
 
 /**
@@ -488,7 +490,7 @@ typedef enum SDL_GPUTextureType
     SDL_GPU_TEXTURETYPE_2D_ARRAY,   /**< The texture is a 2-dimensional array image. */
     SDL_GPU_TEXTURETYPE_3D,         /**< The texture is a 3-dimensional image. */
     SDL_GPU_TEXTURETYPE_CUBE,       /**< The texture is a cube image. */
-	SDL_GPU_TEXTURETYPE_CUBE_ARRAY  /**< The texture is a cube array image. */
+    SDL_GPU_TEXTURETYPE_CUBE_ARRAY  /**< The texture is a cube array image. */
 } SDL_GPUTextureType;
 
 /**
@@ -1149,12 +1151,12 @@ typedef struct SDL_GPUSamplerCreateInfo
     SDL_GPUSamplerAddressMode address_mode_v;  /**< The addressing mode for V coordinates outside [0, 1). */
     SDL_GPUSamplerAddressMode address_mode_w;  /**< The addressing mode for W coordinates outside [0, 1). */
     float mip_lod_bias;                        /**< The bias to be added to mipmap LOD calculation. */
-    float max_anisotropy;                      /**< The anisotropy value clamp used by the sampler. If enable_anisotropy is SDL_FALSE, this is ignored. */
+    float max_anisotropy;                      /**< The anisotropy value clamp used by the sampler. If enable_anisotropy is false, this is ignored. */
     SDL_GPUCompareOp compare_op;               /**< The comparison operator to apply to fetched data before filtering. */
     float min_lod;                             /**< Clamps the minimum of the computed LOD value. */
     float max_lod;                             /**< Clamps the maximum of the computed LOD value. */
-    SDL_bool enable_anisotropy;                /**< SDL_TRUE to enable anisotropic filtering. */
-    SDL_bool enable_compare;                   /**< SDL_TRUE to enable comparison against a reference value during lookups. */
+    bool enable_anisotropy;                /**< true to enable anisotropic filtering. */
+    bool enable_compare;                   /**< true to enable comparison against a reference value during lookups. */
     Uint8 padding1;
     Uint8 padding2;
 
@@ -1252,9 +1254,9 @@ typedef struct SDL_GPUColorTargetBlendState
     SDL_GPUBlendFactor src_alpha_blendfactor;     /**< The value to be multiplied by the source alpha. */
     SDL_GPUBlendFactor dst_alpha_blendfactor;     /**< The value to be multiplied by the destination alpha. */
     SDL_GPUBlendOp alpha_blend_op;                /**< The blend operation for the alpha component. */
-    SDL_GPUColorComponentFlags color_write_mask;  /**< A bitmask specifying which of the RGBA components are enabled for writing. Writes to all channels if enable_color_write_mask is SDL_FALSE. */
-    SDL_bool enable_blend;                        /**< Whether blending is enabled for the color target. */
-    SDL_bool enable_color_write_mask;             /**< Whether the color write mask is enabled. */
+    SDL_GPUColorComponentFlags color_write_mask;  /**< A bitmask specifying which of the RGBA components are enabled for writing. Writes to all channels if enable_color_write_mask is false. */
+    bool enable_blend;                        /**< Whether blending is enabled for the color target. */
+    bool enable_color_write_mask;             /**< Whether the color write mask is enabled. */
     Uint8 padding2;
     Uint8 padding3;
 } SDL_GPUColorTargetBlendState;
@@ -1365,7 +1367,7 @@ typedef struct SDL_GPURasterizerState
     float depth_bias_constant_factor;  /**< A scalar factor controlling the depth value added to each fragment. */
     float depth_bias_clamp;            /**< The maximum depth bias of a fragment. */
     float depth_bias_slope_factor;     /**< A scalar factor applied to a fragment's slope in depth calculations. */
-    SDL_bool enable_depth_bias;        /**< SDL_TRUE to bias fragment depth values. */
+    bool enable_depth_bias;        /**< true to bias fragment depth values. */
     Uint8 padding1;
     Uint8 padding2;
     Uint8 padding3;
@@ -1382,8 +1384,8 @@ typedef struct SDL_GPURasterizerState
 typedef struct SDL_GPUMultisampleState
 {
     SDL_GPUSampleCount sample_count;  /**< The number of samples to be used in rasterization. */
-    Uint32 sample_mask;               /**< Determines which samples get updated in the render targets. Treated as 0xFFFFFFFF if enable_mask is SDL_FALSE. */
-    SDL_bool enable_mask;             /**< Enables sample masking. */
+    Uint32 sample_mask;               /**< Determines which samples get updated in the render targets. Treated as 0xFFFFFFFF if enable_mask is false. */
+    bool enable_mask;             /**< Enables sample masking. */
     Uint8 padding1;
     Uint8 padding2;
     Uint8 padding3;
@@ -1404,9 +1406,9 @@ typedef struct SDL_GPUDepthStencilState
     SDL_GPUStencilOpState front_stencil_state;  /**< The stencil op state for front-facing triangles. */
     Uint8 compare_mask;                         /**< Selects the bits of the stencil values participating in the stencil test. */
     Uint8 write_mask;                           /**< Selects the bits of the stencil values updated by the stencil test. */
-    SDL_bool enable_depth_test;                 /**< SDL_TRUE enables the depth test. */
-    SDL_bool enable_depth_write;                /**< SDL_TRUE enables depth writes. Depth writes are always disabled when enable_depth_test is SDL_FALSE. */
-    SDL_bool enable_stencil_test;               /**< SDL_TRUE enables the stencil test. */
+    bool enable_depth_test;                 /**< true enables the depth test. */
+    bool enable_depth_write;                /**< true enables depth writes. Depth writes are always disabled when enable_depth_test is false. */
+    bool enable_stencil_test;               /**< true enables the stencil test. */
     Uint8 padding1;
     Uint8 padding2;
     Uint8 padding3;
@@ -1434,16 +1436,16 @@ typedef struct SDL_GPUColorTargetDescription
  *
  * \sa SDL_GPUGraphicsPipelineCreateInfo
  */
-typedef struct SDL_GpuGraphicsPipelineTargetInfo
+typedef struct SDL_GPUGraphicsPipelineTargetInfo
 {
     const SDL_GPUColorTargetDescription *color_target_descriptions;  /**< A pointer to an array of color target descriptions. */
     Uint32 num_color_targets;                                        /**< The number of color target descriptions in the above array. */
-    SDL_GPUTextureFormat depth_stencil_format;                       /**< The pixel format of the depth-stencil target. Ignored if has_depth_stencil_target is SDL_FALSE. */
-    SDL_bool has_depth_stencil_target;                               /**< SDL_TRUE specifies that the pipeline uses a depth-stencil target. */
+    SDL_GPUTextureFormat depth_stencil_format;                       /**< The pixel format of the depth-stencil target. Ignored if has_depth_stencil_target is false. */
+    bool has_depth_stencil_target;                               /**< true specifies that the pipeline uses a depth-stencil target. */
     Uint8 padding1;
     Uint8 padding2;
     Uint8 padding3;
-} SDL_GpuGraphicsPipelineTargetInfo;
+} SDL_GPUGraphicsPipelineTargetInfo;
 
 /**
  * A structure specifying the parameters of a graphics pipeline state.
@@ -1461,7 +1463,7 @@ typedef struct SDL_GPUGraphicsPipelineCreateInfo
     SDL_GPURasterizerState rasterizer_state;        /**< The rasterizer state of the graphics pipeline. */
     SDL_GPUMultisampleState multisample_state;      /**< The multisample state of the graphics pipeline. */
     SDL_GPUDepthStencilState depth_stencil_state;   /**< The depth-stencil state of the graphics pipeline. */
-    SDL_GpuGraphicsPipelineTargetInfo target_info;  /**< Formats and blend modes for the render targets of the graphics pipeline. */
+    SDL_GPUGraphicsPipelineTargetInfo target_info;  /**< Formats and blend modes for the render targets of the graphics pipeline. */
 
     SDL_PropertiesID props;                         /**< A properties ID for extensions. Should be 0 if no extensions are needed. */
 } SDL_GPUGraphicsPipelineCreateInfo;
@@ -1499,7 +1501,8 @@ typedef struct SDL_GPUComputePipelineCreateInfo
  * The load_op field determines what is done with the texture at the beginning
  * of the render pass.
  *
- * - LOAD: Loads the data currently in the texture.
+ * - LOAD: Loads the data currently in the texture. Not recommended for
+ *   multisample textures as it requires significant memory bandwidth.
  * - CLEAR: Clears the texture to a single color.
  * - DONT_CARE: The driver will do whatever it wants with the texture memory.
  *   This is a good option if you know that every single pixel will be touched
@@ -1508,9 +1511,19 @@ typedef struct SDL_GPUComputePipelineCreateInfo
  * The store_op field determines what is done with the color results of the
  * render pass.
  *
- * - STORE: Stores the results of the render pass in the texture.
+ * - STORE: Stores the results of the render pass in the texture. Not
+ *   recommended for multisample textures as it requires significant memory
+ *   bandwidth.
  * - DONT_CARE: The driver will do whatever it wants with the texture memory.
  *   This is often a good option for depth/stencil textures.
+ * - RESOLVE: Resolves a multisample texture into resolve_texture, which must
+ *   have a sample count of 1. Then the driver may discard the multisample
+ *   texture memory. This is the most performant method of resolving a
+ *   multisample target.
+ * - RESOLVE_AND_STORE: Resolves a multisample texture into the
+ *   resolve_texture, which must have a sample count of 1. Then the driver
+ *   stores the multisample texture's contents. Not recommended as it requires
+ *   significant memory bandwidth.
  *
  * \since This struct is available since SDL 3.0.0
  *
@@ -1518,16 +1531,19 @@ typedef struct SDL_GPUComputePipelineCreateInfo
  */
 typedef struct SDL_GPUColorTargetInfo
 {
-    SDL_GPUTexture *texture;      /**< The texture that will be used as a color target by a render pass. */
-    Uint32 mip_level;             /**< The mip level to use as a color target. */
-    Uint32 layer_or_depth_plane;  /**< The layer index or depth plane to use as a color target. This value is treated as a layer index on 2D array and cube textures, and as a depth plane on 3D textures. */
-    SDL_FColor clear_color;       /**< The color to clear the color target to at the start of the render pass. Ignored if SDL_GPU_LOADOP_CLEAR is not used. */
-    SDL_GPULoadOp load_op;        /**< What is done with the contents of the color target at the beginning of the render pass. */
-    SDL_GPUStoreOp store_op;      /**< What is done with the results of the render pass. */
-    SDL_bool cycle;               /**< SDL_TRUE cycles the texture if the texture is bound and load_op is not LOAD */
+    SDL_GPUTexture *texture;         /**< The texture that will be used as a color target by a render pass. */
+    Uint32 mip_level;                /**< The mip level to use as a color target. */
+    Uint32 layer_or_depth_plane;     /**< The layer index or depth plane to use as a color target. This value is treated as a layer index on 2D array and cube textures, and as a depth plane on 3D textures. */
+    SDL_FColor clear_color;          /**< The color to clear the color target to at the start of the render pass. Ignored if SDL_GPU_LOADOP_CLEAR is not used. */
+    SDL_GPULoadOp load_op;           /**< What is done with the contents of the color target at the beginning of the render pass. */
+    SDL_GPUStoreOp store_op;         /**< What is done with the results of the render pass. */
+    SDL_GPUTexture *resolve_texture; /**< The texture that will receive the results of a multisample resolve operation. Ignored if a RESOLVE* store_op is not used. */
+    Uint32 resolve_mip_level;        /**< The mip level of the resolve texture to use for the resolve operation. Ignored if a RESOLVE* store_op is not used. */
+    Uint32 resolve_layer;            /**< The layer index of the resolve texture to use for the resolve operation. Ignored if a RESOLVE* store_op is not used. */
+    bool cycle;                  /**< true cycles the texture if the texture is bound and load_op is not LOAD */
+    bool cycle_resolve_texture;  /**< true cycles the resolve texture if the resolve texture is bound. Ignored if a RESOLVE* store_op is not used. */
     Uint8 padding1;
     Uint8 padding2;
-    Uint8 padding3;
 } SDL_GPUColorTargetInfo;
 
 /**
@@ -1568,6 +1584,8 @@ typedef struct SDL_GPUColorTargetInfo
  *   This is often a good option for depth/stencil textures that don't need to
  *   be reused again.
  *
+ * Note that depth/stencil targets do not support multisample resolves.
+ *
  * \since This struct is available since SDL 3.0.0
  *
  * \sa SDL_BeginGPURenderPass
@@ -1580,7 +1598,7 @@ typedef struct SDL_GPUDepthStencilTargetInfo
     SDL_GPUStoreOp store_op;               /**< What is done with the depth results of the render pass. */
     SDL_GPULoadOp stencil_load_op;         /**< What is done with the stencil contents at the beginning of the render pass. */
     SDL_GPUStoreOp stencil_store_op;       /**< What is done with the stencil results of the render pass. */
-    SDL_bool cycle;                        /**< SDL_TRUE cycles the texture if the texture is bound and any load ops are not LOAD */
+    bool cycle;                        /**< true cycles the texture if the texture is bound and any load ops are not LOAD */
     Uint8 clear_stencil;                   /**< The value to clear the stencil component to at the beginning of the render pass. Ignored if SDL_GPU_LOADOP_CLEAR is not used. */
     Uint8 padding1;
     Uint8 padding2;
@@ -1600,7 +1618,7 @@ typedef struct SDL_GPUBlitInfo {
     SDL_FColor clear_color;         /**< The color to clear the destination region to before the blit. Ignored if load_op is not SDL_GPU_LOADOP_CLEAR. */
     SDL_FlipMode flip_mode;         /**< The flip mode for the source region. */
     SDL_GPUFilter filter;           /**< The filter mode used when blitting. */
-    SDL_bool cycle;                 /**< SDL_TRUE cycles the destination texture if it is already bound. */
+    bool cycle;                 /**< true cycles the destination texture if it is already bound. */
     Uint8 padding1;
     Uint8 padding2;
     Uint8 padding3;
@@ -1646,7 +1664,7 @@ typedef struct SDL_GPUTextureSamplerBinding
 typedef struct SDL_GPUStorageBufferWriteOnlyBinding
 {
     SDL_GPUBuffer *buffer;  /**< The buffer to bind. Must have been created with SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE. */
-    SDL_bool cycle;         /**< SDL_TRUE cycles the buffer if it is already bound. */
+    bool cycle;         /**< true cycles the buffer if it is already bound. */
     Uint8 padding1;
     Uint8 padding2;
     Uint8 padding3;
@@ -1665,7 +1683,7 @@ typedef struct SDL_GPUStorageTextureWriteOnlyBinding
     SDL_GPUTexture *texture;  /**< The texture to bind. Must have been created with SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE. */
     Uint32 mip_level;         /**< The mip level index to bind. */
     Uint32 layer;             /**< The layer index to bind. */
-    SDL_bool cycle;           /**< SDL_TRUE cycles the texture if it is already bound. */
+    bool cycle;           /**< true cycles the texture if it is already bound. */
     Uint8 padding1;
     Uint8 padding2;
     Uint8 padding3;
@@ -1682,13 +1700,13 @@ typedef struct SDL_GPUStorageTextureWriteOnlyBinding
  *                     able to provide.
  * \param name the preferred GPU driver, or NULL to let SDL pick the optimal
  *             driver.
- * \returns SDL_TRUE if supported, SDL_FALSE otherwise.
+ * \returns true if supported, false otherwise.
  *
  * \since This function is available since SDL 3.0.0.
  *
  * \sa SDL_CreateGPUDevice
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_GPUSupportsShaderFormats(
+extern SDL_DECLSPEC bool SDLCALL SDL_GPUSupportsShaderFormats(
     SDL_GPUShaderFormat format_flags,
     const char *name);
 
@@ -1696,13 +1714,13 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_GPUSupportsShaderFormats(
  * Checks for GPU runtime support.
  *
  * \param props the properties to use.
- * \returns SDL_TRUE if supported, SDL_FALSE otherwise.
+ * \returns true if supported, false otherwise.
  *
  * \since This function is available since SDL 3.0.0.
  *
  * \sa SDL_CreateGPUDeviceWithProperties
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_GPUSupportsProperties(
+extern SDL_DECLSPEC bool SDLCALL SDL_GPUSupportsProperties(
     SDL_PropertiesID props);
 
 /**
@@ -1724,7 +1742,7 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_GPUSupportsProperties(
  */
 extern SDL_DECLSPEC SDL_GPUDevice *SDLCALL SDL_CreateGPUDevice(
     SDL_GPUShaderFormat format_flags,
-    SDL_bool debug_mode,
+    bool debug_mode,
     const char *name);
 
 /**
@@ -1733,9 +1751,9 @@ extern SDL_DECLSPEC SDL_GPUDevice *SDLCALL SDL_CreateGPUDevice(
  * These are the supported properties:
  *
  * - `SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOL`: enable debug mode properties
- *   and validations, defaults to SDL_TRUE.
+ *   and validations, defaults to true.
  * - `SDL_PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOL`: enable to prefer energy
- *   efficiency over maximum GPU performance, defaults to SDL_FALSE.
+ *   efficiency over maximum GPU performance, defaults to false.
  * - `SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING`: the name of the GPU driver to
  *   use, if a specific one is desired.
  *
@@ -1983,7 +2001,7 @@ extern SDL_DECLSPEC SDL_GPUSampler *SDLCALL SDL_CreateGPUSampler(
  * - [[texture]]: Sampled textures, followed by storage textures
  * - [[sampler]]: Samplers with indices corresponding to the sampled textures
  * - [[buffer]]: Uniform buffers, followed by storage buffers. Vertex buffer 0
- *   is bound at [[buffer(30)]], vertex buffer 1 at [[buffer(29)]], and so on.
+ *   is bound at [[buffer(14)]], vertex buffer 1 at [[buffer(15)]], and so on.
  *   Rather than manually authoring vertex buffer indices, use the
  *   [[stage_in]] attribute which will automatically use the vertex input
  *   information from the SDL_GPUPipeline.
@@ -2382,16 +2400,16 @@ extern SDL_DECLSPEC void SDLCALL SDL_PushGPUComputeUniformData(
  *
  * All of the functions and structs that involve writing to a resource have a "cycle" bool.
  * GPUTransferBuffer, GPUBuffer, and GPUTexture all effectively function as ring buffers on internal resources.
- * When cycle is SDL_TRUE, if the resource is bound, the cycle rotates to the next unbound internal resource,
+ * When cycle is true, if the resource is bound, the cycle rotates to the next unbound internal resource,
  * or if none are available, a new one is created.
  * This means you don't have to worry about complex state tracking and synchronization as long as cycling is correctly employed.
  *
  * For example: you can call MapTransferBuffer, write texture data, UnmapTransferBuffer, and then UploadToTexture.
- * The next time you write texture data to the transfer buffer, if you set the cycle param to SDL_TRUE, you don't have
+ * The next time you write texture data to the transfer buffer, if you set the cycle param to true, you don't have
  * to worry about overwriting any data that is not yet uploaded.
  *
  * Another example: If you are using a texture in a render pass every frame, this can cause a data dependency between frames.
- * If you set cycle to SDL_TRUE in the SDL_GPUColorTargetInfo struct, you can prevent this data dependency.
+ * If you set cycle to true in the SDL_GPUColorTargetInfo struct, you can prevent this data dependency.
  *
  * Cycling will never undefine already bound data.
  * When cycling, all data in the resource is considered to be undefined for subsequent commands until that data is written again.
@@ -2948,8 +2966,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_EndGPUComputePass(
  *
  * \param device a GPU context.
  * \param transfer_buffer a transfer buffer.
- * \param cycle if SDL_TRUE, cycles the transfer buffer if it is already
- *              bound.
+ * \param cycle if true, cycles the transfer buffer if it is already bound.
  * \returns the address of the mapped transfer buffer memory.
  *
  * \since This function is available since SDL 3.0.0.
@@ -2957,7 +2974,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_EndGPUComputePass(
 extern SDL_DECLSPEC void *SDLCALL SDL_MapGPUTransferBuffer(
     SDL_GPUDevice *device,
     SDL_GPUTransferBuffer *transfer_buffer,
-    SDL_bool cycle);
+    bool cycle);
 
 /**
  * Unmaps a previously mapped transfer buffer.
@@ -3000,8 +3017,8 @@ extern SDL_DECLSPEC SDL_GPUCopyPass *SDLCALL SDL_BeginGPUCopyPass(
  * \param copy_pass a copy pass handle.
  * \param source the source transfer buffer with image layout information.
  * \param destination the destination texture region.
- * \param cycle if SDL_TRUE, cycles the texture if the texture is bound,
- *              otherwise overwrites the data.
+ * \param cycle if true, cycles the texture if the texture is bound, otherwise
+ *              overwrites the data.
  *
  * \since This function is available since SDL 3.0.0.
  */
@@ -3009,7 +3026,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_UploadToGPUTexture(
     SDL_GPUCopyPass *copy_pass,
     const SDL_GPUTextureTransferInfo *source,
     const SDL_GPUTextureRegion *destination,
-    SDL_bool cycle);
+    bool cycle);
 
 /* Uploads data from a TransferBuffer to a Buffer. */
 
@@ -3022,8 +3039,8 @@ extern SDL_DECLSPEC void SDLCALL SDL_UploadToGPUTexture(
  * \param copy_pass a copy pass handle.
  * \param source the source transfer buffer with offset.
  * \param destination the destination buffer with offset and size.
- * \param cycle if SDL_TRUE, cycles the buffer if it is already bound,
- *              otherwise overwrites the data.
+ * \param cycle if true, cycles the buffer if it is already bound, otherwise
+ *              overwrites the data.
  *
  * \since This function is available since SDL 3.0.0.
  */
@@ -3031,7 +3048,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_UploadToGPUBuffer(
     SDL_GPUCopyPass *copy_pass,
     const SDL_GPUTransferBufferLocation *source,
     const SDL_GPUBufferRegion *destination,
-    SDL_bool cycle);
+    bool cycle);
 
 /**
  * Performs a texture-to-texture copy.
@@ -3045,7 +3062,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_UploadToGPUBuffer(
  * \param w the width of the region to copy.
  * \param h the height of the region to copy.
  * \param d the depth of the region to copy.
- * \param cycle if SDL_TRUE, cycles the destination texture if the destination
+ * \param cycle if true, cycles the destination texture if the destination
  *              texture is bound, otherwise overwrites the data.
  *
  * \since This function is available since SDL 3.0.0.
@@ -3057,7 +3074,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_CopyGPUTextureToTexture(
     Uint32 w,
     Uint32 h,
     Uint32 d,
-    SDL_bool cycle);
+    bool cycle);
 
 /* Copies data from a buffer to a buffer. */
 
@@ -3071,8 +3088,8 @@ extern SDL_DECLSPEC void SDLCALL SDL_CopyGPUTextureToTexture(
  * \param source the buffer and offset to copy from.
  * \param destination the buffer and offset to copy to.
  * \param size the length of the buffer to copy.
- * \param cycle if SDL_TRUE, cycles the destination buffer if it is already
- *              bound, otherwise overwrites the data.
+ * \param cycle if true, cycles the destination buffer if it is already bound,
+ *              otherwise overwrites the data.
  *
  * \since This function is available since SDL 3.0.0.
  */
@@ -3081,7 +3098,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_CopyGPUBufferToBuffer(
     const SDL_GPUBufferLocation *source,
     const SDL_GPUBufferLocation *destination,
     Uint32 size,
-    SDL_bool cycle);
+    bool cycle);
 
 /**
  * Copies data from a texture to a transfer buffer on the GPU timeline.
@@ -3166,13 +3183,13 @@ extern SDL_DECLSPEC void SDLCALL SDL_BlitGPUTexture(
  * \param device a GPU context.
  * \param window an SDL_Window.
  * \param swapchain_composition the swapchain composition to check.
- * \returns SDL_TRUE if supported, SDL_FALSE if unsupported (or on error).
+ * \returns true if supported, false if unsupported (or on error).
  *
  * \since This function is available since SDL 3.0.0.
  *
  * \sa SDL_ClaimWindowForGPUDevice
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_WindowSupportsGPUSwapchainComposition(
+extern SDL_DECLSPEC bool SDLCALL SDL_WindowSupportsGPUSwapchainComposition(
     SDL_GPUDevice *device,
     SDL_Window *window,
     SDL_GPUSwapchainComposition swapchain_composition);
@@ -3185,13 +3202,13 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_WindowSupportsGPUSwapchainComposition(
  * \param device a GPU context.
  * \param window an SDL_Window.
  * \param present_mode the presentation mode to check.
- * \returns SDL_TRUE if supported, SDL_FALSE if unsupported (or on error).
+ * \returns true if supported, false if unsupported (or on error).
  *
  * \since This function is available since SDL 3.0.0.
  *
  * \sa SDL_ClaimWindowForGPUDevice
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_WindowSupportsGPUPresentMode(
+extern SDL_DECLSPEC bool SDLCALL SDL_WindowSupportsGPUPresentMode(
     SDL_GPUDevice *device,
     SDL_Window *window,
     SDL_GPUPresentMode present_mode);
@@ -3209,7 +3226,7 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_WindowSupportsGPUPresentMode(
  *
  * \param device a GPU context.
  * \param window an SDL_Window.
- * \returns SDL_TRUE on success, otherwise SDL_FALSE.
+ * \returns true on success, otherwise false.
  *
  * \since This function is available since SDL 3.0.0.
  *
@@ -3218,7 +3235,7 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_WindowSupportsGPUPresentMode(
  * \sa SDL_WindowSupportsGPUPresentMode
  * \sa SDL_WindowSupportsGPUSwapchainComposition
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_ClaimWindowForGPUDevice(
+extern SDL_DECLSPEC bool SDLCALL SDL_ClaimWindowForGPUDevice(
     SDL_GPUDevice *device,
     SDL_Window *window);
 
@@ -3251,14 +3268,14 @@ extern SDL_DECLSPEC void SDLCALL SDL_ReleaseWindowFromGPUDevice(
  * \param window an SDL_Window that has been claimed.
  * \param swapchain_composition the desired composition of the swapchain.
  * \param present_mode the desired present mode for the swapchain.
- * \returns SDL_TRUE if successful, SDL_FALSE on error.
+ * \returns true if successful, false on error.
  *
  * \since This function is available since SDL 3.0.0.
  *
  * \sa SDL_WindowSupportsGPUPresentMode
  * \sa SDL_WindowSupportsGPUSwapchainComposition
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_SetGPUSwapchainParameters(
+extern SDL_DECLSPEC bool SDLCALL SDL_SetGPUSwapchainParameters(
     SDL_GPUDevice *device,
     SDL_Window *window,
     SDL_GPUSwapchainComposition swapchain_composition,
@@ -3380,7 +3397,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_WaitForGPUIdle(
  */
 extern SDL_DECLSPEC void SDLCALL SDL_WaitForGPUFences(
     SDL_GPUDevice *device,
-    SDL_bool wait_all,
+    bool wait_all,
     SDL_GPUFence *const *fences,
     Uint32 num_fences);
 
@@ -3389,13 +3406,13 @@ extern SDL_DECLSPEC void SDLCALL SDL_WaitForGPUFences(
  *
  * \param device a GPU context.
  * \param fence a fence.
- * \returns SDL_TRUE if the fence is signaled, SDL_FALSE if it is not.
+ * \returns true if the fence is signaled, false if it is not.
  *
  * \since This function is available since SDL 3.0.0.
  *
  * \sa SDL_SubmitGPUCommandBufferAndAcquireFence
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_QueryGPUFence(
+extern SDL_DECLSPEC bool SDLCALL SDL_QueryGPUFence(
     SDL_GPUDevice *device,
     SDL_GPUFence *fence);
 
@@ -3440,7 +3457,7 @@ extern SDL_DECLSPEC Uint32 SDLCALL SDL_GPUTextureFormatTexelBlockSize(
  *
  * \since This function is available since SDL 3.0.0.
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_GPUTextureSupportsFormat(
+extern SDL_DECLSPEC bool SDLCALL SDL_GPUTextureSupportsFormat(
     SDL_GPUDevice *device,
     SDL_GPUTextureFormat format,
     SDL_GPUTextureType type,
@@ -3456,7 +3473,7 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_GPUTextureSupportsFormat(
  *
  * \since This function is available since SDL 3.0.0.
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_GPUTextureSupportsSampleCount(
+extern SDL_DECLSPEC bool SDLCALL SDL_GPUTextureSupportsSampleCount(
     SDL_GPUDevice *device,
     SDL_GPUTextureFormat format,
     SDL_GPUSampleCount sample_count);

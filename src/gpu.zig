@@ -32,6 +32,11 @@ const WindowState = struct {
     prev_drawable_h: u32 = 0,
 };
 
+const RenderCommand = struct {
+    cmd: *sdl.gpu.CommandBuffer,
+    pass: *sdl.gpu.RenderPass,
+};
+
 const vertex_data = [_][6]f32{
     // Front face. */
     // Bottom left */
@@ -100,7 +105,7 @@ const vertex_data = [_][6]f32{
     .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0 }, // magenta //
 };
 
-var gpu_device: *sdl.gpu.Device = undefined;
+pub var device: *sdl.gpu.Device = undefined;
 pub var render_state: RenderState = .{};
 pub var window_state: WindowState = .{};
 
@@ -109,38 +114,38 @@ pub var speed: f32 = 1;
 pub fn init(hdl_window: *sdl.Window) !void {
     window_state.hdl_window = hdl_window;
 
-    const formats = sdl.gpu.ShaderFormat{
-        .dxbc = true,
-        .dxil = true,
+    const formats = sdl.gpu.ShaderFormat {
+        // .dxbc = true,
+        // .dxil = true,
         .spirv = true,
     };
 
-    gpu_device = sdl.gpu.createDevice(formats, true, null) orelse {
+    device = sdl.gpu.createDevice(formats, true, null) orelse {
         std.log.debug("Could not create GPU device: {s}", .{sdl.c.SDL_GetError()});
         unreachable;
     };
 
-    if (!sdl.gpu.claimWindowForDevice(gpu_device, hdl_window)) {
+    if (!sdl.gpu.claimWindowForDevice(device, hdl_window)) {
         std.log.debug("Could not claim window for GPU device: {s}", .{sdl.c.SDL_GetError()});
     }
 
     const vertex_shader = try loadShader(.vertex);
-    defer sdl.gpu.releaseShader(gpu_device, vertex_shader);
+    defer sdl.gpu.releaseShader(device, vertex_shader);
     const fragment_shader = try loadShader(.fragment);
-    defer sdl.gpu.releaseShader(gpu_device, fragment_shader);
+    defer sdl.gpu.releaseShader(device, fragment_shader);
 
-    var buffer_desc = sdl.gpu.BufferCreateInfo{
+    var buffer_desc = sdl.gpu.BufferCreateInfo {
         .usage = .{ .vertex = true },
         .size = @sizeOf(@TypeOf(vertex_data)),
         .props = 0,
     };
 
-    render_state.buf_vertex = sdl.gpu.createBuffer(gpu_device, &buffer_desc) orelse {
+    render_state.buf_vertex = sdl.gpu.createBuffer(device, &buffer_desc) orelse {
         std.log.err("failed to create buffer: {s}", .{sdl.getError()});
         return error.BufferCreateFailed;
     };
 
-    sdl.gpu.setBufferName(gpu_device, render_state.buf_vertex, "mybuffer");
+    sdl.gpu.setBufferName(device, render_state.buf_vertex, "mybuffer");
 
     const transfer_buffer_desc = sdl.gpu.TransferBufferCreateInfo{
         .usage = .upload,
@@ -148,17 +153,17 @@ pub fn init(hdl_window: *sdl.Window) !void {
         .props = 0,
     };
 
-    const buf_transfer = sdl.gpu.createTransferBuffer(gpu_device, &transfer_buffer_desc) orelse {
+    const buf_transfer = sdl.gpu.createTransferBuffer(device, &transfer_buffer_desc) orelse {
         std.log.err("failed to create transfer buffer: {s}", .{sdl.getError()});
         return error.BufferCreateFailed;
     };
-    defer sdl.gpu.releaseTransferBuffer(gpu_device, buf_transfer);
+    defer sdl.gpu.releaseTransferBuffer(device, buf_transfer);
 
-    const map: [*]u8 = @ptrCast(sdl.gpu.mapTransferBuffer(gpu_device, buf_transfer, false).?);
+    const map: [*]u8 = @ptrCast(sdl.gpu.mapTransferBuffer(device, buf_transfer, false).?);
     @memcpy(map, std.mem.asBytes(&vertex_data));
-    sdl.gpu.unmapTransferBuffer(gpu_device, buf_transfer);
+    sdl.gpu.unmapTransferBuffer(device, buf_transfer);
 
-    const cmd = sdl.gpu.acquireCommandBuffer(gpu_device) orelse {
+    const cmd = sdl.gpu.acquireCommandBuffer(device) orelse {
         std.log.err("failed to acquire command buffer: {s}", .{sdl.getError()});
         return error.BeginCopyPassFailed;
     };
@@ -185,7 +190,9 @@ pub fn init(hdl_window: *sdl.Window) !void {
 
     render_state.sample_count = .@"1";
 
-    const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{.{ .format = sdl.gpu.getSwapchainTextureFormat(gpu_device, hdl_window) }};
+    const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{.{ 
+        .format = sdl.gpu.getSwapchainTextureFormat(device, hdl_window),
+    }};
 
     const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
         .slot = 0,
@@ -209,9 +216,9 @@ pub fn init(hdl_window: *sdl.Window) !void {
         },
     };
 
-    var pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo{
+    var pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
         .target_info = .{
-            .num_color_targets = @intCast(color_target_desc.len),
+            .num_color_targets = 1,
             .color_target_descriptions = color_target_desc.ptr,
             .depth_stencil_format = .d16_unorm,
             .has_depth_stencil_target = true,
@@ -234,7 +241,7 @@ pub fn init(hdl_window: *sdl.Window) !void {
         .props = 0,
     };
 
-    render_state.pipeline = sdl.gpu.createGraphicsPipeline(gpu_device, &pipeline_desc) orelse {
+    render_state.pipeline = sdl.gpu.createGraphicsPipeline(device, &pipeline_desc) orelse {
         std.log.err("Could not create pipeline: {s}", .{sdl.getError()});
         unreachable;
     };
@@ -245,25 +252,24 @@ pub fn init(hdl_window: *sdl.Window) !void {
     window_state.tex_depth = try createDepthTexture(@intCast(w), @intCast(h));
 }
 
-pub fn render() !void {
-    const cmd = sdl.gpu.acquireCommandBuffer(gpu_device) orelse {
+pub fn begin() !RenderCommand {
+    const cmd = sdl.gpu.acquireCommandBuffer(device) orelse {
         std.log.err("could not acquire command buffer", .{});
         return error.SDLError;
     };
-    defer sdl.gpu.submitCommandBuffer(cmd);
 
     var drawable_w: u32 = undefined;
     var drawable_h: u32 = undefined;
 
     const swapchain = sdl.gpu.acquireSwapchainTexture(cmd, window_state.hdl_window, &drawable_w, &drawable_h) orelse {
         // No swapchain was acquired, probably too many frames in flight.
-        return;
+        return error.NoSwapchain;
     };
 
     // Resize the depth buffer if the window size changed
 
     if (window_state.prev_drawable_w != drawable_w or window_state.prev_drawable_h != drawable_h) {
-        sdl.gpu.releaseTexture(gpu_device, window_state.tex_depth);
+        sdl.gpu.releaseTexture(device, window_state.tex_depth);
         window_state.tex_depth = try createDepthTexture(drawable_w, drawable_h);
     }
 
@@ -299,25 +305,33 @@ pub fn render() !void {
     var cam_pos = vec3.mul(vec3.x, window_state.distance);
     cam_pos.rotate(vec3.y, -window_state.angle.y());
     cam_pos.rotate(vec3.x, window_state.angle.x());
-    // cam_pos.rotate(vec3.z, window_state.angle.z());
 
     const view = cam.lookAt(cam_pos, vec3.zero, vec3.y);
     const persp = cam.perspectiveMatrix(45, w / h, 0.01, 100);
     const matrix_final = mat4.mul(view, persp);
 
-    sdl.gpu.pushVertexUniformData(cmd, 0, std.mem.asBytes(&matrix_final), @sizeOf(@TypeOf(matrix_final)));
+    sdl.gpu.pushVertexUniformData(cmd, 0, &matrix_final, @sizeOf(@TypeOf(matrix_final)));
 
     const pass = sdl.gpu.beginRenderPass(cmd, &color_target, 1, &depth_target) orelse {
         std.log.err("could not begin render pass: {s}", .{sdl.getError()});
         return error.SDLError;
     };
-    defer sdl.gpu.endRenderPass(pass);
 
     sdl.gpu.bindGraphicsPipeline(pass, render_state.pipeline);
     sdl.gpu.bindVertexBuffers(pass, 0, &vertex_binding, 1);
     sdl.gpu.drawPrimitives(pass, 36, 1, 0, 0);
 
     render_state.frames += 1;
+    return .{ 
+        .cmd = cmd,
+        .pass = pass
+    };
+}
+
+pub fn submit(render: RenderCommand) void {
+    sdl.gpu.endRenderPass(render.pass);
+    sdl.gpu.submitCommandBuffer(render.cmd);
+
 }
 
 pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
@@ -333,14 +347,14 @@ pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
         .props = 0,
     };
 
-    return sdl.gpu.createTexture(gpu_device, &depthtex_createinfo) orelse {
+    return sdl.gpu.createTexture(device, &depthtex_createinfo) orelse {
         std.log.err("could not create depth texture: {s}", .{sdl.getError()});
         return error.SDLError;
     };
 }
 
 fn loadShader(shader_type: ShaderType) !*sdl.gpu.Shader {
-    const format: sdl.gpu.ShaderFormat = sdl.gpu.getShaderFormats(gpu_device);
+    const format: sdl.gpu.ShaderFormat = sdl.gpu.getShaderFormats(device);
     std.log.debug("selected format: {}", .{format});
 
     var create_info: sdl.gpu.ShaderCreateInfo = undefined;
@@ -400,7 +414,7 @@ fn loadShader(shader_type: ShaderType) !*sdl.gpu.Shader {
         };
     }
 
-    return sdl.gpu.createShader(gpu_device, &create_info) orelse {
+    return sdl.gpu.createShader(device, &create_info) orelse {
         std.log.debug("Failed to load shader: {s}", .{sdl.getError()});
         return error.LoadShaderFailed;
     };

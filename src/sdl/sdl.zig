@@ -4,6 +4,8 @@ pub const gpu = @import("gpu.zig");
 pub const hints = @import("hints.zig");
 pub const keycode = @import("keycode.zig");
 pub const mouse = @import("mouse.zig");
+pub const rect = @import("rect.zig");
+pub const scancode = @import("scancode.zig");
 pub const video = @import("video.zig");
 
 pub const Window = video.Window;

@@ -91,7 +91,6 @@ pub fn update(event: sdl.events.Event) void {
                 3 => mouse.button_3 = true,
                 else => {},
             }
-            std.log.debug("{}", .{ mouse });
         },
         sdl.events.mouse_button_up => {
             switch(event.button.button) {

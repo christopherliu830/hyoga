@@ -9,6 +9,7 @@ const gpu = @import("gpu.zig");
 const vec3 = @import("hym/vec3.zig");
 const imgui = @import("imgui/imgui.zig");
 const imgui_sdl = @import("imgui/sdl_backend.zig");
+const imgui_impl_sdlgpu = @import("imgui/sdl_backend_renderer.zig");
 
 
 // void main() {
@@ -21,10 +22,13 @@ pub fn main() !void {
 
     try gpu.init(window.instance);
 
+    // imgui
     const ctx = imgui.igCreateContext(null).?;
     defer imgui.igDestroyContext(ctx);
-
     try imgui_sdl.init(window.instance, allocator);
+    const init_info = imgui_impl_sdlgpu.InitInfo { .device = gpu.device, .window = gpu.window_state.hdl_window };
+    try imgui_impl_sdlgpu.init(&init_info, allocator);
+    imgui_impl_sdlgpu.createFontsTexture();
 
     input.init(allocator);
 
@@ -34,10 +38,13 @@ pub fn main() !void {
     try input.bind(sdl.keycode.right, .{ .name = "mixright", .handler = mixRight });
 
     var quit = false;
+    var open: bool = false;
     while (!quit) {
         var event: sdl.events.Event = undefined;
         while (sdl.events.pollEvent(&event)) {
             input.update(event);
+            _ = try imgui_sdl.processEvent(&event);
+
             switch (event.type) {
                 sdl.events.quit => quit = true,
 
@@ -56,14 +63,15 @@ pub fn main() !void {
             }
         }
 
-        imgui_sdl.newFrame();
+        try imgui_impl_sdlgpu.newFrame();
+        try imgui_sdl.newFrame();
         imgui.newFrame();
-        imgui.showDemoWindow();
+        imgui.showDemoWindow(&open);
 
-        try gpu.render();
-
+        const render = try gpu.begin();
         imgui.render();
-        imgui_sdl.
+        imgui_impl_sdlgpu.renderDrawData(imgui.getDrawData(), render.cmd, render.pass);
+        gpu.submit(render);
     }
 }
 
