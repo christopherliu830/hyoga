@@ -8,8 +8,8 @@ const sdl = @import("sdl/sdl.zig");
 const gpu = @import("gpu.zig");
 const vec3 = @import("hym/vec3.zig");
 const imgui = @import("imgui/imgui.zig");
-const imgui_sdl = @import("imgui/sdl_backend.zig");
-const imgui_impl_sdlgpu = @import("imgui/sdl_backend_renderer.zig");
+const imgui_sdl = @import("imgui/impl_sdl.zig");
+const imgui_impl_sdlgpu = @import("imgui/impl_sdlgpu.zig");
 
 
 // void main() {
