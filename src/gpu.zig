@@ -11,7 +11,6 @@ const dxil = @import("cube_dxil.zig");
 const dxbc = @import("cube_dxbc.zig");
 
 const sdl = @import("sdl/sdl.zig");
-const imgui_sdl = @import("imgui/sdl_backend.zig");
 
 const ShaderType = enum { vertex, fragment };
 
@@ -26,6 +25,7 @@ const WindowState = struct {
     hdl_window: *sdl.Window = undefined,
     angle: vec3.Vec3 = vec3.x,
     distance: f32 = 2.5,
+    cam_position: vec3.Vec3 = vec3.create(0, 0, 2.5),
     tex_depth: *sdl.gpu.Texture = undefined,
     msaa_tex: *sdl.gpu.Texture = undefined,
     prev_drawable_w: u32 = 0,
@@ -302,7 +302,8 @@ pub fn begin() !RenderCommand {
     const w: f32 = @floatFromInt(drawable_w);
     const h: f32 = @floatFromInt(drawable_h);
 
-    var cam_pos = vec3.mul(vec3.x, window_state.distance);
+//    var cam_pos = vec3.mul(vec3.x, window_state.distance);
+    var cam_pos = window_state.cam_position;
     cam_pos.rotate(vec3.y, -window_state.angle.y());
     cam_pos.rotate(vec3.x, window_state.angle.x());
 

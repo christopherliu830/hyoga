@@ -1,8 +1,9 @@
 const std = @import("std");
 const genarray = @import("genarray.zig");
 const window = @import("window.zig");
-const keycode = @import("sdl/keycode.zig");
 const sdl = @import("sdl/sdl.zig");
+
+pub const keycode = @import("sdl/keycode.zig");
 
 const Handler = fn (ctx: ?*anyopaque) void;
 

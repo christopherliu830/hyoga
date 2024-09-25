@@ -7,6 +7,7 @@ const spirv = @import("spirv.zig");
 const ShaderType = enum { vertex, fragment };
 
 const ImplData = struct {
+    allocator: std.mem.Allocator,
     device: *gpu.Device,
     window: *sdl.Window,
     pipeline: ?*gpu.GraphicsPipeline = null,
@@ -33,13 +34,31 @@ pub fn init(info: *const InitInfo, allocator: std.mem.Allocator) !void {
 
     const bd = try allocator.create(ImplData);
     bd.* = .{
-        .device = info.*.device,
+        .allocator = allocator,
+        .device = info.device,
         .window = info.window,
     };
 
     io.BackendRendererUserData = @ptrCast(bd);
     io.BackendRendererName = "imgui_impl_sdlgpu";
     io.BackendFlags |= imgui.backend_flags_renderer_has_vtx_offset;
+}
+
+pub fn shutdown() void {
+    const bd = getBackendData().?;
+    const io = imgui.getIO();
+
+    io.BackendRendererUserData = null;
+    io.BackendRendererName = null;
+    io.BackendFlags &= ~(imgui.backend_flags_renderer_has_vtx_offset);
+
+    gpu.releaseTexture(bd.device, bd.font_texture);
+    gpu.releaseGraphicsPipeline(bd.device, bd.pipeline);
+    gpu.releaseBuffer(bd.device, bd.buf_vertex);
+    gpu.releaseBuffer(bd.device, bd.buf_index);
+    gpu.releaseSampler(bd.device, bd.sampler);
+
+    bd.allocator.destroy(bd);
 }
 
 pub fn newFrame() !void {
@@ -100,8 +119,6 @@ pub fn createDeviceObjects() !void {
             .alpha_blend_op = .add,
         },
     }};
-
-    std.log.debug("{any}", .{color_target_desc});
 
     const pipeline = gpu.GraphicsPipelineCreateInfo {
         .target_info = .{

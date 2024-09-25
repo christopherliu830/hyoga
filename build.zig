@@ -24,16 +24,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    // Add OpenGl bindings
-    const gl_bindings = @import("zigglgen").generateBindingsModule(b, .{
-        .api = .gl,
-        .version = .@"4.1",
-        .profile = .core,
-        .extensions = &.{ .ARB_clip_control, .NV_scissor_exclusive },
-    });
-
-    exe.root_module.addImport("gl", gl_bindings);
-
     if (os == .windows) {
         exe.addIncludePath(b.path("thirdparty/sdl3/include/"));
         exe.addLibraryPath(b.path("thirdparty/sdl3/"));

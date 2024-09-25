@@ -6,23 +6,24 @@ const sdl = @import("../sdl/sdl.zig");
 pub const GamepadMode = enum(c_int) { auto_first, auto_all, manual };
 
 pub const ImplData = struct {
+    allocator: std.mem.Allocator,
     window: ?*sdl.Window = null,
     window_id: sdl.video.WindowID = 0,
     renderer: ?*sdl.c.SDL_Renderer = null,
     time: u64 = 0,
-    clipboard_text_data: []const u8,
+    clipboard_text_data: []const u8 = undefined,
     use_vulkan: bool = false,
     want_update_monitors: bool = false,
-    mouse_window_id: u32,
-    mouse_buttons_down: i32,
-    mouse_cursors: [imgui.mouse_cursor_count]?*sdl.mouse.Cursor = .{},
+    mouse_window_id: u32 = 0,
+    mouse_buttons_down: i32 = 0,
+    mouse_cursors: [imgui.mouse_cursor_count]?*sdl.mouse.Cursor = undefined,
     mouse_last_cursor: ?*sdl.mouse.Cursor = null,
     mouse_pending_leave_frame: i32 = 0,
     mouse_can_use_global_state: bool = false,
     mouse_can_report_hovered_viewport: bool = false,
 
-    gamepads: std.ArrayList(sdl.c.SDL_Gamepad),
-    gamepad_mode: GamepadMode,
+    gamepads: std.ArrayList(sdl.c.SDL_Gamepad) = undefined,
+    gamepad_mode: GamepadMode = undefined,
     want_update_gamepads_list: bool = false,
     // ImVector<SDL_Gamepad*>  Gamepads;
     // ImGui_ImplSDL3_GamepadMode  GamepadMode;
@@ -45,6 +46,9 @@ pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) !void {
         }
     }
     const bd = try allocator.create(ImplData);
+    bd.* = .{
+        .allocator = allocator,
+    };
 
     io.BackendPlatformUserData = bd;
     io.BackendPlatformName = "imgui_impl_sdl3";
@@ -88,6 +92,25 @@ pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) !void {
     _ = sdl.hints.setHint("SDL_BORDERLESS_WINDOW_STYLE", "0");
 }
 
+pub fn shutdown() void {
+    const bd = getBackendData().?;
+    const io = imgui.getIO();
+
+    //TODO: free clipboard
+
+    imgui.destroyPlatformWindows();
+    for(bd.mouse_cursors) |cursor| {
+        sdl.mouse.destroyCursor(cursor);
+    }
+    //TODO: reset gamepad
+
+    io.BackendPlatformName = null;
+    io.BackendPlatformUserData = null;
+    io.BackendFlags &= ~(imgui.backend_flags_has_mouse_cursors | imgui.backend_flags_has_set_mouse_pos | imgui.backend_flags_platform_has_viewports);
+
+    bd.allocator.destroy(bd);
+}
+
 pub fn getBackendData() ?*ImplData {
     if (imgui.igGetCurrentContext() != null) {
         return @ptrCast(@alignCast(imgui.getIO().BackendPlatformUserData));
@@ -101,8 +124,7 @@ pub fn setupPlatformHandles(viewport: *imgui.Viewport, window: *sdl.video.Window
     } if (builtin.os.tag == .macos) {
         viewport.PlatformHandleRaw = sdl.c.SDL_GetPointerProperty(sdl.video.getWindowProperties(window), sdl.c.SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, null);
     }
-}
-    
+}    
 
 pub fn processEvent(event: *const sdl.events.Event) !bool {
     const bd = getBackendData() orelse return error.NotInitialized;
@@ -272,7 +294,7 @@ pub fn newFrame() !void {
         const d_frequency: f64 = @floatFromInt(frequency);
         io.DeltaTime = @floatCast(d_current_time / d_frequency);
     } else {
-        io.DeltaTime = 1 / 60;
+        io.DeltaTime = @as(f32, 1) / 60;
     }
 
     if (bd.mouse_pending_leave_frame != 0 and bd.mouse_pending_leave_frame > imgui.igGetFrameCount() and bd.mouse_buttons_down == 0) {

@@ -8,11 +8,10 @@ const sdl = @import("sdl/sdl.zig");
 const gpu = @import("gpu.zig");
 const vec3 = @import("hym/vec3.zig");
 const imgui = @import("imgui/imgui.zig");
-const imgui_sdl = @import("imgui/impl_sdl.zig");
-const imgui_impl_sdlgpu = @import("imgui/impl_sdlgpu.zig");
+const imgui_sdl = @import("imgui/imgui_impl_sdl.zig");
+const imgui_impl_sdlgpu = @import("imgui/imgui_impl_sdlgpu.zig");
+const camera = @import("camera.zig");
 
-
-// void main() {
 pub fn main() !void {
     var general_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = general_allocator.allocator();
@@ -26,8 +25,10 @@ pub fn main() !void {
     const ctx = imgui.igCreateContext(null).?;
     defer imgui.igDestroyContext(ctx);
     try imgui_sdl.init(window.instance, allocator);
+    defer imgui_sdl.shutdown();
     const init_info = imgui_impl_sdlgpu.InitInfo { .device = gpu.device, .window = gpu.window_state.hdl_window };
     try imgui_impl_sdlgpu.init(&init_info, allocator);
+    defer imgui_impl_sdlgpu.shutdown();
     imgui_impl_sdlgpu.createFontsTexture();
 
     input.init(allocator);
@@ -36,6 +37,9 @@ pub fn main() !void {
     try input.bind(sdl.keycode.down, .{ .name = "mixdown", .handler = mixDown });
     try input.bind(sdl.keycode.left, .{ .name = "mixleft", .handler = mixLeft });
     try input.bind(sdl.keycode.right, .{ .name = "mixright", .handler = mixRight });
+
+    var cam = camera.Camera {};
+    try cam.registerInputs();
 
     var quit = false;
     var open: bool = false;
@@ -62,6 +66,7 @@ pub fn main() !void {
                 else => {},
             }
         }
+        gpu.window_state.cam_position = cam.position;
 
         try imgui_impl_sdlgpu.newFrame();
         try imgui_sdl.newFrame();
@@ -94,3 +99,4 @@ pub fn mixLeft(_: ?*anyopaque) void {
     gpu.window_state.angle.sub(vec3.create(0, 0.1, 0));
     std.log.debug("{}", .{gpu.window_state.angle});
 }
+
