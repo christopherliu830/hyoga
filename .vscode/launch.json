@@ -17,11 +17,10 @@
         },
         {
             "name": "Debug",
-            "type": "lldb-mi",
+            "type": "lldb",
             "request": "launch",
-            "target": "${workspaceFolder}/zig-out/bin/hyoga-zig.exe",
+            "program": "${workspaceFolder}/zig-out/bin/hyoga-zig.exe",
             "cwd": "${workspaceRoot}",
-            "valuesFormatting": "parseText"
         }
     ]
 }

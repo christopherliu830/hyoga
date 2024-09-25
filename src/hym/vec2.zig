@@ -68,7 +68,7 @@ pub const y: Vec2 = .{ .v = .{ 0, 1 } };
 pub const z: Vec2 = .{ .v = .{ 0, 0 } };
 
 pub inline fn create(i: f32, j: f32) Vec2 {
-    return .{ .{ i, j } };
+    return .{ .v = .{ i, j } };
 }
 
 pub inline fn dot(a: Vec2, b: Vec2) f32 {

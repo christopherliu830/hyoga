@@ -64,15 +64,19 @@ pub const Vec3 = struct {
 
 };
 
-pub const zero: Vec3 = .{ .v = .{ 0, 0, 0 } };
+pub const zero = Vec3 { .v = .{ 0, 0, 0 } };
 
-pub const one: Vec3 = .{ .v = .{ 1, 1, 1 } };
+pub const one = Vec3 { .v = .{ 1, 1, 1 } };
 
-pub const x: Vec3 = .{ .v = .{ 1, 0, 0 } };
+pub const x = Vec3 { .v = .{ 1, 0, 0 } };
 
-pub const y: Vec3 = .{ .v = .{ 0, 1, 0 } };
+pub const y = Vec3 { .v = .{ 0, 1, 0 } };
 
-pub const z: Vec3 = .{ .v = .{ 0, 0, 1 } };
+pub const z = Vec3 { .v = .{ 0, 0, 1 } };
+
+pub const nx = Vec3 { .v = .{ 0, 0, -1 }};
+pub const ny = Vec3 { .v = .{ 0, 0, -1 }};
+pub const nz = Vec3 { .v = .{ 0, 0, -1 }};
 
 pub inline fn create(i: f32, j: f32, k: f32) Vec3 {
     return .{ .v = .{ i, j, k }, };

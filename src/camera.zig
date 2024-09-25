@@ -1,63 +1,55 @@
 const std = @import("std");
 const input = @import("input.zig");
 const vec3 = @import("hym/vec3.zig");
+const vec2 = @import("hym/vec2.zig");
+const window = @import("window.zig");
 
 pub const Camera = struct {
-    position: vec3.Vec3 = vec3.zero,
+    position: vec3.Vec3,
+    look_direction: vec3.Vec3,
+
+    mouse_lock_position: vec2.Vec2 = vec2.create(-1, -1),
 
     pub fn registerInputs(self: *Camera) !void {
-        try input.bind(input.keycode.d, .{ .name = "translateUp", .ctx = self, .handler = translateUp });
-        try input.bind(input.keycode.f, .{ .name = "translateDown", .ctx = self, .handler = translateDown });
-        try input.bind(input.keycode.s, .{ .name = "translateLeft", .ctx = self, .handler = translateLeft });
-        try input.bind(input.keycode.g, .{ .name = "translateRight", .ctx = self, .handler = translateRight });
-        try input.bind(input.keycode.t, .{ .name = "translateForward", .ctx = self, .handler = translateForward });
-        try input.bind(input.keycode.b, .{ .name = "translateBack", .ctx = self, .handler = translateBack });        
+        _ = try input.bindMouse(.motion, .{ .handler = translate, .ctx = self });
+        _ = try input.bindMouse(.left , .{ .handler = lockMouse, .ctx = self });
+        _ = try input.bindMouse(.left , .{ .handler = unlockMouse, .ctx = self, .fire_on = .{ .up = true } });
+        _ = try input.bindMouse(.middle, .{ .handler = lockMouse, .ctx = self });
+        _ = try input.bindMouse(.middle, .{ .handler = unlockMouse, .ctx = self, .fire_on = .{ .up = true } });
+        _ = try input.bindMouse(.wheel, .{ .handler = zoom, .ctx = self });
     }
+
 };
 
-fn translateLeft(ctx: ?*anyopaque) void {
-    const cam: *Camera = @ptrCast(@alignCast(ctx.?));
-    cam.position.add(vec3.create(-1, 0, 0));
-    std.log.debug("{}", .{cam.position.v});
+fn lockMouse(_: ?*anyopaque, _: input.MouseEvent) void {
+    window.setRelativeMouseMode(true);
 
 }
 
-fn translateUp(ctx: ?*anyopaque) void {
-    const cam: *Camera = @ptrCast(@alignCast(ctx.?));
-    std.log.debug("up", .{});
-    cam.position.add(vec3.create(0, 1, 0));
-    std.log.debug("{}", .{cam.position.v});
-
+fn unlockMouse(_: ?*anyopaque, _: input.MouseEvent) void {
+    window.setRelativeMouseMode(false);
 }
 
-fn translateDown(ctx: ?*anyopaque) void {
-    const cam: *Camera = @ptrCast(@alignCast(ctx.?));
-    std.log.debug("down", .{});
-    cam.position.add(vec3.create(0, -1, 0));
-    std.log.debug("{}", .{cam.position.v});
 
+fn translate(ctx: ?*anyopaque, event: input.MouseEvent) void {
+    const cam: *Camera = @ptrCast(@alignCast(ctx.?));
+
+    if (input.queryMouse(.middle)) {
+        const right = vec3.cross(cam.look_direction, vec3.y);
+        const up = vec3.y;
+        cam.position.add(vec3.mul(right, -event.motion.xrel / 100));
+        cam.position.add(vec3.mul(up, event.motion.yrel / 100));
+    }
+
+    if (input.queryMouse(.left)) {
+        var direction = cam.look_direction;
+        direction.rotate(vec3.y, event.motion.xrel / 500); 
+        direction.rotate(vec3.cross(direction, vec3.y), event.motion.yrel / 500);
+        cam.look_direction = direction;
+    }
 }
 
-fn translateRight(ctx: ?*anyopaque) void {
+fn zoom(ctx: ?*anyopaque, event: input.MouseEvent) void {
     const cam: *Camera = @ptrCast(@alignCast(ctx.?));
-    std.log.debug("right", .{});
-    cam.position.add(vec3.create(1, 0, 0));
-    std.log.debug("{}", .{cam.position.v});
-
-}
-
-fn translateForward(ctx: ?*anyopaque) void {
-    const cam: *Camera = @ptrCast(@alignCast(ctx.?));
-    std.log.debug("fwd", .{});
-    cam.position.add(vec3.create(0, 0, -1));
-    std.log.debug("{}", .{cam.position.v});
-
-}
-
-fn translateBack(ctx: ?*anyopaque) void {
-    const cam: *Camera = @ptrCast(@alignCast(ctx.?));
-    std.log.debug("back", .{});
-    cam.position.add(vec3.create(0, 0, 1));
-    std.log.debug("{}", .{cam.position.v});
-
+    cam.position.add(vec3.mul(cam.look_direction, event.wheel.y));
 }

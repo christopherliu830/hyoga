@@ -4197,7 +4197,7 @@ pub extern fn igStyleColorsLight(dst: [*c]ImGuiStyle) void;
 pub const styleColorsLight = igStyleColorsLight;
 pub extern fn igStyleColorsClassic(dst: [*c]ImGuiStyle) void;
 pub const styleColorsClassic = igStyleColorsClassic;
-pub extern fn igBegin(name: [*c]const u8, p_open: [*c]bool, flags: ImGuiWindowFlags) bool;
+pub extern fn igBegin(name: ?[*:0]const u8, p_open: [*c]bool, flags: ImGuiWindowFlags) bool;
 pub const begin = igBegin;
 pub extern fn igEnd() void;
 pub const end = igEnd;
@@ -4531,7 +4531,7 @@ pub extern fn igInputFloat(label: [*c]const u8, v: [*c]f32, step: f32, step_fast
 pub const inputFloat = igInputFloat;
 pub extern fn igInputFloat2(label: [*c]const u8, v: [*c]f32, format: [*c]const u8, flags: ImGuiInputTextFlags) bool;
 pub const inputFloat2 = igInputFloat2;
-pub extern fn igInputFloat3(label: [*c]const u8, v: [*c]f32, format: [*c]const u8, flags: ImGuiInputTextFlags) bool;
+pub extern fn igInputFloat3(label: [*:0]const u8, v: *const [3]f32, format: [*c]const u8, flags: ImGuiInputTextFlags) bool;
 pub const inputFloat3 = igInputFloat3;
 pub extern fn igInputFloat4(label: [*c]const u8, v: [*c]f32, format: [*c]const u8, flags: ImGuiInputTextFlags) bool;
 pub const inputFloat4 = igInputFloat4;

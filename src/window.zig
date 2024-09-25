@@ -36,5 +36,8 @@ pub fn swapBuffers() void {
     if (!sdl.c.SDL_GL_SwapWindow(instance)) {
         sdl.c.SDL_Log("Unable to swap buffers: %s", c.SDL_GetError());
     }
+}
 
+pub fn setRelativeMouseMode(mode: bool) void {
+    _ = sdl.mouse.setWindowRelativeMouseMode(instance, mode);
 }

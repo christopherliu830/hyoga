@@ -4,7 +4,7 @@ const window = @import("window.zig");
 
 const vec3 = @import("hym/vec3.zig");
 const mat4 = @import("hym/mat4.zig");
-const cam = @import("hym/cam.zig");
+const hym_cam = @import("hym/cam.zig");
 
 const spirv = @import("cube_spirv.zig");
 const dxil = @import("cube_dxil.zig");
@@ -12,19 +12,23 @@ const dxbc = @import("cube_dxbc.zig");
 
 const sdl = @import("sdl/sdl.zig");
 
-const ShaderType = enum { vertex, fragment };
+const camera = @import("camera.zig");
+
+pub const Scene = struct {
+    camera: camera.Camera,
+};
 
 const RenderState = struct {
     buf_vertex: *sdl.gpu.Buffer = undefined,
     pipeline: *sdl.gpu.GraphicsPipeline = undefined,
+    scene: *Scene = undefined,
     sample_count: sdl.gpu.SampleCount = .@"1",
     frames: u32 = 0,
 };
 
 const WindowState = struct {
     hdl_window: *sdl.Window = undefined,
-    angle: vec3.Vec3 = vec3.x,
-    distance: f32 = 2.5,
+    angle: vec3.Vec3 = vec3.zero,
     cam_position: vec3.Vec3 = vec3.create(0, 0, 2.5),
     tex_depth: *sdl.gpu.Texture = undefined,
     msaa_tex: *sdl.gpu.Texture = undefined,
@@ -36,6 +40,8 @@ const RenderCommand = struct {
     cmd: *sdl.gpu.CommandBuffer,
     pass: *sdl.gpu.RenderPass,
 };
+
+const ShaderType = enum { vertex, fragment };
 
 const vertex_data = [_][6]f32{
     // Front face. */
@@ -106,17 +112,15 @@ const vertex_data = [_][6]f32{
 };
 
 pub var device: *sdl.gpu.Device = undefined;
-pub var render_state: RenderState = .{};
+pub var render_state: RenderState = undefined;
 pub var window_state: WindowState = .{};
 
 pub var speed: f32 = 1;
 
-pub fn init(hdl_window: *sdl.Window) !void {
+pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
     window_state.hdl_window = hdl_window;
 
     const formats = sdl.gpu.ShaderFormat {
-        // .dxbc = true,
-        // .dxil = true,
         .spirv = true,
     };
 
@@ -140,12 +144,12 @@ pub fn init(hdl_window: *sdl.Window) !void {
         .props = 0,
     };
 
-    render_state.buf_vertex = sdl.gpu.createBuffer(device, &buffer_desc) orelse {
+    const buf_vertex = sdl.gpu.createBuffer(device, &buffer_desc) orelse {
         std.log.err("failed to create buffer: {s}", .{sdl.getError()});
         return error.BufferCreateFailed;
     };
 
-    sdl.gpu.setBufferName(device, render_state.buf_vertex, "mybuffer");
+    sdl.gpu.setBufferName(device, buf_vertex, "mybuffer");
 
     const transfer_buffer_desc = sdl.gpu.TransferBufferCreateInfo{
         .usage = .upload,
@@ -179,7 +183,7 @@ pub fn init(hdl_window: *sdl.Window) !void {
     };
 
     var dst_region = sdl.gpu.BufferRegion{
-        .buffer = render_state.buf_vertex,
+        .buffer = buf_vertex,
         .offset = 0,
         .size = @sizeOf(@TypeOf(vertex_data)),
     };
@@ -188,7 +192,7 @@ pub fn init(hdl_window: *sdl.Window) !void {
     sdl.gpu.endCopyPass(copy_pass);
     sdl.gpu.submitCommandBuffer(cmd);
 
-    render_state.sample_count = .@"1";
+    const sample_count = .@"1";
 
     const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{.{ 
         .format = sdl.gpu.getSwapchainTextureFormat(device, hdl_window),
@@ -216,7 +220,7 @@ pub fn init(hdl_window: *sdl.Window) !void {
         },
     };
 
-    var pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
+    const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
         .target_info = .{
             .num_color_targets = 1,
             .color_target_descriptions = color_target_desc.ptr,
@@ -228,7 +232,7 @@ pub fn init(hdl_window: *sdl.Window) !void {
             .enable_depth_write = true,
             .compare_op = .less_or_equal,
         },
-        .multisample_state = .{ .sample_count = render_state.sample_count },
+        .multisample_state = .{ .sample_count = sample_count },
         .primitive_type = .trianglelist,
         .vertex_shader = vertex_shader,
         .fragment_shader = fragment_shader,
@@ -241,7 +245,7 @@ pub fn init(hdl_window: *sdl.Window) !void {
         .props = 0,
     };
 
-    render_state.pipeline = sdl.gpu.createGraphicsPipeline(device, &pipeline_desc) orelse {
+    const pipeline = sdl.gpu.createGraphicsPipeline(device, &pipeline_desc) orelse {
         std.log.err("Could not create pipeline: {s}", .{sdl.getError()});
         unreachable;
     };
@@ -250,6 +254,14 @@ pub fn init(hdl_window: *sdl.Window) !void {
     var h: c_int = 0;
     _ = sdl.video.getWindowSizeInPixels(hdl_window, &w, &h);
     window_state.tex_depth = try createDepthTexture(@intCast(w), @intCast(h));
+
+    render_state = .{
+        .buf_vertex = buf_vertex,
+        .frames = 0,
+        .pipeline = pipeline,
+        .sample_count = sample_count,
+        .scene = in_scene,
+    };
 }
 
 pub fn begin() !RenderCommand {
@@ -303,15 +315,19 @@ pub fn begin() !RenderCommand {
     const h: f32 = @floatFromInt(drawable_h);
 
 //    var cam_pos = vec3.mul(vec3.x, window_state.distance);
-    var cam_pos = window_state.cam_position;
-    cam_pos.rotate(vec3.y, -window_state.angle.y());
-    cam_pos.rotate(vec3.x, window_state.angle.x());
+    const cam_pos = render_state.scene.camera.position;
+    const cam = &render_state.scene.camera;
+    // var cam_pos = window_state.cam_position;
+    // cam_pos.rotate(vec3.y, -window_state.angle.y());
+    // cam_pos.rotate(vec3.x, window_state.angle.x());
 
-    const view = cam.lookAt(cam_pos, vec3.zero, vec3.y);
-    const persp = cam.perspectiveMatrix(45, w / h, 0.01, 100);
+
+    const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
+
+    const persp = hym_cam.perspectiveMatrix(45, w / h, 0.01, 100);
     const matrix_final = mat4.mul(view, persp);
 
-    sdl.gpu.pushVertexUniformData(cmd, 0, &matrix_final, @sizeOf(@TypeOf(matrix_final)));
+    sdl.gpu.pushVertexUniformData(cmd, 0, &matrix_final, @sizeOf(@TypeOf(persp)));
 
     const pass = sdl.gpu.beginRenderPass(cmd, &color_target, 1, &depth_target) orelse {
         std.log.err("could not begin render pass: {s}", .{sdl.getError()});
