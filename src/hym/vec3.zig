@@ -74,8 +74,8 @@ pub const y = Vec3 { .v = .{ 0, 1, 0 } };
 
 pub const z = Vec3 { .v = .{ 0, 0, 1 } };
 
-pub const nx = Vec3 { .v = .{ 0, 0, -1 }};
-pub const ny = Vec3 { .v = .{ 0, 0, -1 }};
+pub const nx = Vec3 { .v = .{ -1, 0, 0 }};
+pub const ny = Vec3 { .v = .{ 0, -1, 0 }};
 pub const nz = Vec3 { .v = .{ 0, 0, -1 }};
 
 pub inline fn create(i: f32, j: f32, k: f32) Vec3 {
