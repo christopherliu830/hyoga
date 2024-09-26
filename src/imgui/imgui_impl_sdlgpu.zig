@@ -191,6 +191,7 @@ pub fn createFontsTexture() void {
         .usage = .upload,
     };
     const buf_transfer = gpu.createTransferBuffer(bd.device, &buf_transfer_desc);
+    defer gpu.releaseTransferBuffer(bd.device, buf_transfer);
     const ptr_transfer:[*]u8 = @ptrCast(gpu.mapTransferBuffer(bd.device, buf_transfer, false));
     @memcpy(ptr_transfer, pixels[0..@intCast(out_width * out_height * 4)]);
     gpu.unmapTransferBuffer(bd.device, buf_transfer);
@@ -237,7 +238,6 @@ pub fn createFontsTexture() void {
 
     gpu.endCopyPass(copy_pass);
     gpu.submitCommandBuffer(cmd);
-    gpu.releaseTransferBuffer(bd.device, buf_transfer);
 }
 
 pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *gpu.CommandBuffer, render_pass: *gpu.RenderPass) void {

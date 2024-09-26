@@ -6,7 +6,7 @@ const vec3 = @import("hym/vec3.zig");
 const mat4 = @import("hym/mat4.zig");
 const hym_cam = @import("hym/cam.zig");
 
-const spirv = @import("cube_spirv.zig");
+const spirv = @import("shaders/cube_shader_spirv.zig");
 const dxil = @import("cube_dxil.zig");
 const dxbc = @import("cube_dxbc.zig");
 
@@ -19,8 +19,10 @@ pub const Scene = struct {
 };
 
 const RenderState = struct {
-    buf_vertex: *sdl.gpu.Buffer = undefined,
-    pipeline: *sdl.gpu.GraphicsPipeline = undefined,
+    buf_vertex: *sdl.gpu.Buffer,
+    pipeline: *sdl.gpu.GraphicsPipeline,
+    sampler: *sdl.gpu.Sampler = undefined,
+    texture: *sdl.gpu.Texture = undefined,
     scene: *Scene = undefined,
     sample_count: sdl.gpu.SampleCount = .@"1",
     frames: u32 = 0,
@@ -43,72 +45,72 @@ const RenderCommand = struct {
 
 const ShaderType = enum { vertex, fragment };
 
-const vertex_data = [_][6]f32{
+const vertex_data = [_][8]f32{
     // Front face. */
     // Bottom left */
-    .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0 }, // red //
-    .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0 }, // blue //
-    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0 }, // green //
+    .{ -0.5,  0.5, -0.5, 1.0, 0.0, 0.0, 1, 1 }, // red //
+    .{  0.5, -0.5, -0.5, 0.0, 0.0, 1.0, 1, 0 }, // blue //
+    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0, 0, 1}, // green //
 
     // Top right //
-    .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0 }, // red //
-    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
-    .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0 }, // blue //
+    .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0, 1, 1}, // red //
+    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0, 0, 0 }, // yellow //
+    .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0, 1, 0 }, // blue //
 
     // Left face //
     // Bottom left //
-    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0 }, // white //
-    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0 }, // green //
-    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0 }, // cyan //
+    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1, 0}, // white //
+    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0, 0, 1 }, // green //
+    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0, 1, 1  }, // cyan //
 
     // Top right //
-    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0 }, // white //
-    .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0 }, // red //
-    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0 }, // green //
+    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1, 0}, // white //
+    .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0, 0, 0 }, // red //
+    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0, 0, 1 }, // green //
 
     // Top face //
     // Bottom left //
-    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0 }, // white //
-    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
-    .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0 }, // red //
+    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1, 1 }, // white //
+    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0, 0, 0 }, // yellow //
+    .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0, 0, 1 }, // red //
 
     // Top right //
-    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0 }, // white //
-    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0 }, // black //
-    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
+    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1, 1 }, // white //
+    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 1, 0 }, // black //
+    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0, 0, 0 }, // yellow //
 
     // Right face //
     // Bottom left //
-    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
-    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0 }, // magenta //
-    .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0 }, // blue //
+    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0, 1, 1 }, // yellow //
+    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0, 0, 0 }, // magenta //
+    .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0, 0, 1 }, // blue //
 
     // Top right //
-    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0 }, // yellow //
-    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0 }, // black //
-    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0 }, // magenta //
+    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0, 1, 1, }, // yellow //
+    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 1, 0,  }, // black //
+    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0, 0, 0,  }, // magenta //
 
     // Back face //
     // Bottom left //
-    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0 }, // black //
-    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0 }, // cyan //
-    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0 }, // magenta //
+    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 1, 0 }, // black //
+    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0, 0, 1 }, // cyan //
+    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0, 1, 1 }, // magenta //
 
     // Top right //
-    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0 }, // black //
-    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0 }, // white //
-    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0 }, // cyan //
+    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 1, 0 }, // black //
+    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 0, 0 }, // white //
+    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0, 0, 1 }, // cyan //
 
     // Bottom face //
     // Bottom left //
-    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0 }, // green //
-    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0 }, // magenta //
-    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0 }, // cyan //
+    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0, 1, 1 }, // green //
+    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0, 0, 0 }, // magenta //
+    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0, 0, 1 }, // cyan //
 
     // Top right //
-    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0 }, // green //
-    .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0 }, // blue //
-    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0 }, // magenta //
+    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0, 1, 1 }, // green //
+    .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0, 1, 0 }, // blue //
+    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0, 0, 0 }, // magenta //
 };
 
 pub var device: *sdl.gpu.Device = undefined;
@@ -218,6 +220,12 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
             .location = 1,
             .offset = @sizeOf(f32) * 3,
         },
+        .{
+            .buffer_slot = 0,
+            .format = .float2,
+            .location = 2,
+            .offset = @sizeOf(f32) * 6,
+        }
     };
 
     const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
@@ -255,12 +263,23 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
     _ = sdl.video.getWindowSizeInPixels(hdl_window, &w, &h);
     window_state.tex_depth = try createDepthTexture(@intCast(w), @intCast(h));
 
+    const texture = loadTexture("textures/plywood_diff_1k.jpg");
+    const sampler_info = sdl.gpu.SamplerCreateInfo {
+        .address_mode_u = .clamp_to_edge,
+        .address_mode_v = .clamp_to_edge,
+        .address_mode_w = .clamp_to_edge,
+    };
+
+    const sampler = sdl.gpu.createSampler(device, &sampler_info).?;
+
     render_state = .{
         .buf_vertex = buf_vertex,
         .frames = 0,
         .pipeline = pipeline,
+        .sampler = sampler,
         .sample_count = sample_count,
         .scene = in_scene,
+        .texture = texture,
     };
 }
 
@@ -314,13 +333,8 @@ pub fn begin() !RenderCommand {
     const w: f32 = @floatFromInt(drawable_w);
     const h: f32 = @floatFromInt(drawable_h);
 
-//    var cam_pos = vec3.mul(vec3.x, window_state.distance);
-    const cam_pos = render_state.scene.camera.position;
     const cam = &render_state.scene.camera;
-    // var cam_pos = window_state.cam_position;
-    // cam_pos.rotate(vec3.y, -window_state.angle.y());
-    // cam_pos.rotate(vec3.x, window_state.angle.x());
-
+    const cam_pos = cam.position;
 
     const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
 
@@ -336,6 +350,7 @@ pub fn begin() !RenderCommand {
 
     sdl.gpu.bindGraphicsPipeline(pass, render_state.pipeline);
     sdl.gpu.bindVertexBuffers(pass, 0, &vertex_binding, 1);
+    sdl.gpu.bindFragmentSamplers(pass, 0, &.{ .sampler = render_state.sampler, .texture =  render_state.texture }, 1);
     sdl.gpu.drawPrimitives(pass, 36, 1, 0, 0);
 
     render_state.frames += 1;
@@ -418,14 +433,14 @@ fn loadShader(shader_type: ShaderType) !*sdl.gpu.Shader {
         unreachable; //TODO: - add metal support
     } else {
         create_info = .{
-            .num_samplers = 0,
+            .num_samplers = if (shader_type == .vertex) 0 else 1,
             .num_storage_buffers = 0,
             .num_storage_textures = 0,
             .num_uniform_buffers = if (shader_type == .vertex) 1 else 0,
             .props = 0,
             .format = .{ .spirv = true },
-            .code = if (shader_type == .vertex) spirv.cube_vert_spv else spirv.cube_frag_spv,
-            .code_size = if (shader_type == .vertex) spirv.cube_vert_spv.len else spirv.cube_frag_spv.len,
+            .code = if (shader_type == .vertex) &spirv.cube_shader_vert_spv else &spirv.cube_shader_frag_spv,
+            .code_size = if (shader_type == .vertex) spirv.cube_shader_vert_spv.len else spirv.cube_shader_frag_spv.len,
             .entrypoint = "main",
             .stage = if (shader_type == .vertex) .vertex else .fragment,
         };
@@ -435,4 +450,59 @@ fn loadShader(shader_type: ShaderType) !*sdl.gpu.Shader {
         std.log.debug("Failed to load shader: {s}", .{sdl.getError()});
         return error.LoadShaderFailed;
     };
+}
+
+fn loadTexture(path: [:0]const u8) *sdl.gpu.Texture {
+    var c_w: c_int = 0;
+    var c_h: c_int = 0;
+    var c_d: c_int = 0;
+    const tex_pixels = c.stbi_load(path.ptr, &c_w, &c_h, &c_d, 4);
+    const w: u32 = @intCast(c_w);
+    const h: u32 = @intCast(c_h);
+    const d: u32 = 4;
+    defer c.stbi_image_free(tex_pixels);
+    const texture_info = sdl.gpu.TextureCreateInfo {
+        .type = .@"2d",
+        .format = .r8g8b8a8_unorm,
+        .usage = .{ .sampler = true },
+        .height = h,
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
+        .width = w,
+        .sample_count = .@"1",
+    };
+    const texture = sdl.gpu.createTexture(device, &texture_info).?;
+
+    const buf_trans_desc = sdl.gpu.TransferBufferCreateInfo {
+        .size = w * h * d,
+        .usage = .upload
+    };
+
+    const buf_transfer = sdl.gpu.createTransferBuffer(device, &buf_trans_desc);
+    defer sdl.gpu.releaseTransferBuffer(device, buf_transfer);
+
+    const ptr: [*]u8 = @ptrCast(@alignCast(sdl.gpu.mapTransferBuffer(device, buf_transfer, false)));
+    @memcpy(ptr, tex_pixels[0..w * h * d]);
+
+    const cmd = sdl.gpu.acquireCommandBuffer(device).?;
+    const pass = sdl.gpu.beginCopyPass(cmd).?;
+
+    sdl.gpu.uploadToTexture(pass, 
+        &.{
+            .offset = 0,
+            .pixels_per_row = w,
+            .rows_per_layer = h,
+            .transfer_buffer = buf_transfer
+        },
+        &.{ 
+            .texture = texture,
+            .w = w,
+            .h = h,
+            .d = 1,
+        }, 
+        false
+    );
+    sdl.gpu.endCopyPass(pass);
+    sdl.gpu.submitCommandBuffer(cmd);
+    return texture;
 }

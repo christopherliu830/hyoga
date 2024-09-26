@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/zig-out/bin/hyoga-zig.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${fileDirname}",
+            "cwd": "${workspaceRoot}",
             "environment": [],
             "console": "externalTerminal"
         },

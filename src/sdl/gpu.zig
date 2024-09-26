@@ -685,7 +685,7 @@ pub const createComputePipeline = SDL_CreateGPUComputePipeline;
 pub extern fn SDL_CreateGPUGraphicsPipeline(device: ?*Device, createinfo: *const GraphicsPipelineCreateInfo) ?*GraphicsPipeline;
 pub const createGraphicsPipeline = SDL_CreateGPUGraphicsPipeline;
 
-pub extern fn SDL_CreateGPUSampler(device: ?*Device, createinfo: [*c]const SamplerCreateInfo) ?*Sampler;
+pub extern fn SDL_CreateGPUSampler(device: ?*Device, createinfo: *const SamplerCreateInfo) ?*Sampler;
 pub const createSampler = SDL_CreateGPUSampler;
 
 pub extern fn SDL_CreateGPUShader(device: ?*Device, createinfo: [*c]const ShaderCreateInfo) ?*Shader;
