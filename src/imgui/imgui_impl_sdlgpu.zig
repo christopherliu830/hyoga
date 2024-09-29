@@ -3,6 +3,7 @@ const sdl = @import("../sdl/sdl.zig");
 const gpu = @import("../sdl/gpu.zig");
 const imgui = @import("imgui.zig");
 const spirv = @import("spirv.zig");
+const shader_code = @import("../shaders/imgui_shader_spirv.zig");
 
 const ShaderType = enum { vertex, fragment };
 
@@ -52,11 +53,11 @@ pub fn shutdown() void {
     io.BackendRendererName = null;
     io.BackendFlags &= ~(imgui.backend_flags_renderer_has_vtx_offset);
 
-    gpu.releaseTexture(bd.device, bd.font_texture);
-    gpu.releaseGraphicsPipeline(bd.device, bd.pipeline);
-    gpu.releaseBuffer(bd.device, bd.buf_vertex);
-    gpu.releaseBuffer(bd.device, bd.buf_index);
-    gpu.releaseSampler(bd.device, bd.sampler);
+    bd.device.releaseSampler(bd.sampler.?);
+    bd.device.releaseTexture(bd.font_texture.?);
+    bd.device.releaseGraphicsPipeline(bd.pipeline.?);
+    // bd.device.releaseBuffer(bd.buf_vertex.?);
+    // bd.device.releaseBuffer(bd.buf_index.?);
 
     bd.allocator.destroy(bd);
 }
@@ -233,6 +234,7 @@ pub fn createFontsTexture() void {
         .enable_compare = false,
         .compare_op = .never,
     };
+
     const sampler = gpu.createSampler(bd.device, &sampler_info).?;
     bd.sampler = sampler;
 
@@ -253,7 +255,7 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *gpu.CommandBuffer, ren
         if (bd.buf_vertex == null or bd.size_buf_vertex < draw_data.TotalVtxCount * @sizeOf(imgui.ImDrawVert)) {
 
             // create vertex buffer
-            gpu.releaseBuffer(bd.device, bd.buf_vertex);
+            if (bd.buf_vertex != null) bd.device.releaseBuffer(bd.buf_vertex.?);
             const new_vtx_size: u32 = @intCast((draw_data.TotalVtxCount + 5000) * @sizeOf(imgui.ImDrawVert));
 
             const vtx_buf_info = gpu.BufferCreateInfo {
@@ -265,9 +267,10 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *gpu.CommandBuffer, ren
             bd.buf_vertex = buf_vertex;
             bd.size_buf_vertex = new_vtx_size;
         }
+
         if (bd.buf_index == null or bd.size_buf_index < draw_data.TotalIdxCount * @sizeOf(imgui.ImDrawIdx)) {
             // create index buffer
-            gpu.releaseBuffer(bd.device, bd.buf_index);
+            if (bd.buf_index != null) bd.device.releaseBuffer(bd.buf_index.?);
             const new_idx_size: u32 = @intCast((draw_data.TotalIdxCount + 10000) * @sizeOf(imgui.ImDrawIdx));
             const idx_buf_info = gpu.BufferCreateInfo {
                 .usage = .{ .index = true },
@@ -283,7 +286,8 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *gpu.CommandBuffer, ren
             .size = bd.size_buf_vertex + bd.size_buf_index,
             .usage = .upload
         };
-        const buf_transfer = gpu.createTransferBuffer(bd.device, &buf_transfer_desc);
+        const buf_transfer = bd.device.createTransferBuffer(buf_transfer_desc) catch unreachable;
+        defer bd.device.releaseTransferBuffer(buf_transfer);
 
         var vtx_mapped_ptr : [*]imgui.ImDrawVert = @alignCast(@ptrCast(gpu.mapTransferBuffer(bd.device, buf_transfer, false)));
         defer gpu.unmapTransferBuffer(bd.device, buf_transfer);
@@ -436,15 +440,6 @@ pub fn setupRenderState(cmd: *gpu.CommandBuffer, render_pass: *gpu.RenderPass, d
         };
         gpu.setViewport(render_pass, &viewport);
 
-        // Setup scale and translation
-        // const scale = [2]f32 {
-        //     2 / draw_data.DisplaySize.x,
-        //     2 / draw_data.DisplaySize.y,
-        // };
-        // const translate = [2]f32 {
-        //     -1 - draw_data.DisplayPos.x * scale[0],
-        //     -1 - draw_data.DisplayPos.y * scale[1],
-        // };
         gpu.pushVertexUniformData(cmd, 0, &proj, @sizeOf(f32) * 16);
     }
 }
@@ -454,61 +449,18 @@ fn loadShader(device: *gpu.Device, shader_type: ShaderType) !*sdl.gpu.Shader {
 
     var create_info: sdl.gpu.ShaderCreateInfo = undefined;
     if (format.dxbc) {
-        create_info = .{
-            .num_samplers = 0,
-            .num_storage_buffers = 0,
-            .num_storage_textures = 1,
-            .num_uniform_buffers = if (shader_type == .vertex) 1 else 0,
-            .props = 0,
-            .format = .{ .dxbc = true },
-            .code = unreachable,
-            .code_size = unreachable,
-            .entrypoint = if (shader_type == .vertex) "VSMain" else "PSMain",
-            .stage = if (shader_type == .vertex) .vertex else .fragment,
-        };
         unreachable;
     } else if (format.dxil) {
-        create_info = .{
-            .num_samplers = 0,
-            .num_storage_buffers = 0,
-            .num_storage_textures = 1,
-            .num_uniform_buffers = if (shader_type == .vertex) 1 else 0,
-            .props = 0,
-            .format = .{ .dxil = true },
-            .code = unreachable,
-            .code_size = unreachable,
-            .entrypoint = if (shader_type == .vertex) "VSMain" else "PSMain",
-            .stage = if (shader_type == .vertex) .vertex else .fragment,
-        };
         unreachable;
     } else if (format.metallib) {
-        create_info = .{
-            .num_samplers = if (shader_type == .fragment) 1 else 0,
-            .num_storage_buffers = 0,
-            .num_storage_textures = 1,
-            .num_uniform_buffers = if (shader_type == .vertex) 1 else 0,
-            .props = 0,
-            .format = .{ .metallib = true },
-            .code = unreachable,
-            .code_size = unreachable,
-            .entrypoint = "",
-            .stage = if (shader_type == .vertex) .vertex else .fragment,
-        };
         unreachable; //TODO: - add metal support
     } else {
-        create_info = .{
-            .num_samplers = if (shader_type == .fragment) 1 else 0,
-            .num_storage_buffers = 0,
-            .num_storage_textures = 0,
-            // .num_uniform_buffers = if (shader_type == .vertex) 1 else 0,
-            .num_uniform_buffers = 1,
-            .props = 0,
-            .format = .{ .spirv = true },
-            .code = if (shader_type == .vertex) spirv.vert.ptr else spirv.frag.ptr,
-            .code_size = if (shader_type == .vertex) spirv.vert.len else spirv.frag.len,
-            .entrypoint = "main",
-            .stage = if (shader_type == .vertex) .vertex else .fragment,
-        };
+        if (shader_type == .fragment) {
+            create_info = shader_code.getFragmentCreateInfo();
+        }
+        else {
+            create_info = shader_code.getVertexCreateInfo();
+        }
     }
 
     return sdl.gpu.createShader(device, &create_info) orelse {

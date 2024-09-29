@@ -1,3 +1,33 @@
+const sdl = @import("../sdl/sdl.zig");
+
+pub fn getVertexCreateInfo() sdl.gpu.ShaderCreateInfo {
+  return sdl.gpu.ShaderCreateInfo { 
+    .code = &cube_shader_vert_spv,
+    .code_size = cube_shader_vert_spv.len,
+    .stage = .vertex,
+    .entrypoint = "main",
+    .format = .{ .spirv = true },
+    .num_samplers = 0,
+    .num_storage_buffers = 0,
+    .num_storage_textures = 0,
+    .num_uniform_buffers = 1,
+  };
+}
+
+pub fn getFragmentCreateInfo() sdl.gpu.ShaderCreateInfo {
+  return sdl.gpu.ShaderCreateInfo {
+    .code = &cube_shader_frag_spv,
+    .code_size = cube_shader_frag_spv.len,
+    .stage = .fragment,
+    .entrypoint = "main",
+    .format = .{ .spirv = true },
+    .num_samplers = 1,
+    .num_storage_buffers = 0,
+    .num_storage_textures = 0,
+    .num_uniform_buffers = 0,
+  };
+}
+
 pub const cube_shader_vert_spv = [_]u8 {
   0x03, 0x02, 0x23, 0x07, 0x00, 0x00, 0x01, 0x00, 0x0a, 0x00, 0x08, 0x00,
   0x2d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00, 0x02, 0x00,

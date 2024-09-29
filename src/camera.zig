@@ -34,6 +34,7 @@ fn unlockMouse(_: ?*anyopaque, _: input.MouseEvent) void {
 fn translate(ctx: ?*anyopaque, event: input.MouseEvent) void {
     const cam: *Camera = @ptrCast(@alignCast(ctx.?));
 
+    // sliding
     if (input.queryMouse(.middle)) {
         const right = vec3.cross(cam.look_direction, vec3.y);
         const up = vec3.y;
@@ -41,10 +42,11 @@ fn translate(ctx: ?*anyopaque, event: input.MouseEvent) void {
         cam.position.add(vec3.mul(up, event.motion.yrel / 100));
     }
 
+    // moving
     if (input.queryMouse(.left)) {
         var direction = cam.look_direction;
-        direction.rotate(vec3.y, event.motion.xrel / 500); 
-        direction.rotate(vec3.cross(direction, vec3.y), event.motion.yrel / 500);
+        direction.rotate(vec3.y, -event.motion.xrel / 500); 
+        direction.rotate(vec3.cross(direction, vec3.y), -event.motion.yrel / 500);
         cam.look_direction = direction;
     }
 }

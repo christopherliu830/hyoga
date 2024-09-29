@@ -26,6 +26,7 @@ pub fn main() !void {
     };
 
     try gpu.init(window.instance, &scene);
+    defer gpu.shutdown();
 
     // imgui
     const ctx = imgui.igCreateContext(null).?;
@@ -35,7 +36,6 @@ pub fn main() !void {
     const init_info = imgui_impl_sdlgpu.InitInfo { .device = gpu.device, .window = gpu.window_state.hdl_window };
     try imgui_impl_sdlgpu.init(&init_info, allocator);
     defer imgui_impl_sdlgpu.shutdown();
-    imgui_impl_sdlgpu.createFontsTexture();
 
     input.init(allocator);
 

@@ -1,3 +1,4 @@
+const std = @import("std");
 const PixelFormat = @import("pixels.zig").PixelFormat;
 const FColor = @import("pixels.zig").FColor;
 pub const Rect = @import("rect.zig").Rect;
@@ -5,11 +6,106 @@ const PropertiesID = @import("properties.zig").PropertiesID;
 const FlipMode = @import("surface.zig").FlipMode;
 const Window = @import("video.zig").Window;
 
-pub const Device = opaque {};
+const getError = @import("c.zig").SDL_GetError;
+const root = @This();
 
-pub const Buffer = opaque {};
+pub const Device = opaque {
+	pub fn acquireCommandBuffer(self: *Device) !*CommandBuffer {
+		return root.acquireCommandBuffer(self) orelse {
+			return error.AcquireCommandBufferError;
+		};
+	}
 
-pub const TransferBuffer = opaque {};
+	pub fn claimWindow(self: *Device, window: *Window) !void {
+		if (!root.claimWindowForDevice(self, window)) {
+			std.log.debug("Could not claim window for GPU device: {s}", .{getError()});
+			return error.ClaimWindowError;
+		}
+	}
+
+    pub fn create(name: ?[:0]const u8, flags: ShaderFormat) !*Device {
+		return createDevice(flags, true, if (name) |n| n.ptr else null) orelse {
+			std.log.err("Could not create device: {s}", .{getError()});
+			return error.DeviceCreateError;
+		};
+    }
+
+    pub fn createBuffer(self: *Device, info: BufferCreateInfo) !*Buffer {
+        return root.createBuffer(self, &info) orelse {
+            std.log.err("Failed to create buffer: {s}", .{getError()});
+            return error.CreateBufferError;
+        };
+    }
+
+	pub fn createTransferBuffer(self: *Device, info: TransferBufferCreateInfo) !*TransferBuffer {
+		return root.createTransferBuffer(self, &info) orelse {
+			std.log.err("failed to create transfer buffer: {s}", .{getError()});
+            return error.CreateBufferError;
+		};
+	}
+
+    pub fn createShader(self: *Device, params: ShaderCreateInfo) !*Shader {
+        return root.createShader(self, &params) orelse {
+            std.log.err("Failed to load shader: {s}", .{getError()});
+            return error.LoadShaderFailed;
+        };
+    }
+
+    pub fn destroy(self: *Device) void {
+        root.destroyDevice(self);
+    }
+
+	pub fn destroyTransferBuffer(self: *Device, buffer: *TransferBuffer) void {
+		root.releaseTransferBuffer(self, buffer);
+	}
+
+    pub fn releaseBuffer(self: *Device, buffer: *Buffer) void {
+        root.releaseBuffer(self, buffer);
+    }
+
+	pub fn releaseComputePipeline(self: *Device, pipeline: *GraphicsPipeline) void {
+		root.releaseComputePipeline(self, pipeline);
+	}
+
+	pub fn releaseGraphicsPipeline(self: *Device, pipeline: *GraphicsPipeline) void {
+		root.releaseGraphicsPipeline(self, pipeline);
+	}
+
+	pub fn releaseSampler(self: *Device, sampler: *Sampler) void {
+		root.releaseSampler(self, sampler);
+	}
+
+    pub fn releaseShader(self: *Device, shader: *Shader) void {
+        root.releaseShader(self, shader);
+    } 
+
+	pub fn releaseTexture(self: *Device, texture: *Texture) void {
+		root.releaseTexture(self, texture);
+	}
+
+	pub fn releaseTransferBuffer(self: *Device, buffer: *TransferBuffer) void {
+		root.releaseTransferBuffer(self, buffer);
+	}
+
+	pub fn mapTransferBuffer(self: *Device, transfer_buffer: *TransferBuffer, cycle: bool) ![*]u8 {
+		return @ptrCast(root.mapTransferBuffer(self, transfer_buffer, cycle) orelse {
+			std.log.err("Failed to map transfer buffer: {s}", .{getError()});
+			return error.MapTransferBufferError;
+		});
+	}
+
+	pub fn unmapTransferBuffer(self: *Device, transfer_buffer: *TransferBuffer) void {
+		root.unmapTransferBuffer(self, transfer_buffer);
+	}
+
+};
+
+pub const Buffer = opaque {
+
+};
+
+pub const TransferBuffer = opaque {
+};
 
 pub const Texture = opaque {};
 
@@ -21,13 +117,33 @@ pub const ComputePipeline = opaque {};
 
 pub const GraphicsPipeline = opaque {};
 
-pub const CommandBuffer = opaque {};
+pub const CommandBuffer = opaque {
+
+	pub fn beginCopyPass(self: *CommandBuffer) !*CopyPass {
+		return root.beginCopyPass(self) orelse {
+			return error.BeginCopyPassError;
+		};
+	}
+
+	pub fn submit(self: *CommandBuffer) void {
+		return root.submitCommandBuffer(self);
+	}
+
+};
 
 pub const RenderPass = opaque {};
 
 pub const ComputePass = opaque {};
 
-pub const CopyPass = opaque {};
+pub const CopyPass = opaque {
+	pub fn uploadToBuffer(self: *CopyPass, source: TransferBufferLocation, dest: BufferRegion, cycle: bool) void {
+		root.uploadToBuffer(self, &source, &dest, cycle);
+	}
+
+	pub fn end(self: *CopyPass) void {
+		root.endCopyPass(self);
+	}
+};
 
 pub const Fence = opaque {};
 

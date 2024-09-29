@@ -122,77 +122,21 @@ pub var speed: f32 = 1;
 pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
     window_state.hdl_window = hdl_window;
 
-    const formats = sdl.gpu.ShaderFormat {
-        .spirv = true,
-    };
+    device = try sdl.gpu.Device.create(null, .{ .spirv = true });
+    try device.claimWindow(hdl_window);
 
-    device = sdl.gpu.createDevice(formats, true, null) orelse {
-        std.log.debug("Could not create GPU device: {s}", .{sdl.c.SDL_GetError()});
-        unreachable;
-    };
 
-    if (!sdl.gpu.claimWindowForDevice(device, hdl_window)) {
-        std.log.debug("Could not claim window for GPU device: {s}", .{sdl.c.SDL_GetError()});
-    }
+    const vertex_shader = try device.createShader(spirv.getVertexCreateInfo());
+    defer device.releaseShader(vertex_shader);
+    const fragment_shader = try device.createShader(spirv.getFragmentCreateInfo());
+    defer device.releaseShader(fragment_shader);
 
-    const vertex_shader = try loadShader(.vertex);
-    defer sdl.gpu.releaseShader(device, vertex_shader);
-    const fragment_shader = try loadShader(.fragment);
-    defer sdl.gpu.releaseShader(device, fragment_shader);
-
-    var buffer_desc = sdl.gpu.BufferCreateInfo {
+    const buf_vertex = try device.createBuffer(.{
         .usage = .{ .vertex = true },
         .size = @sizeOf(@TypeOf(vertex_data)),
-        .props = 0,
-    };
+    });
 
-    const buf_vertex = sdl.gpu.createBuffer(device, &buffer_desc) orelse {
-        std.log.err("failed to create buffer: {s}", .{sdl.getError()});
-        return error.BufferCreateFailed;
-    };
-
-    sdl.gpu.setBufferName(device, buf_vertex, "mybuffer");
-
-    const transfer_buffer_desc = sdl.gpu.TransferBufferCreateInfo{
-        .usage = .upload,
-        .size = @sizeOf(@TypeOf(vertex_data)),
-        .props = 0,
-    };
-
-    const buf_transfer = sdl.gpu.createTransferBuffer(device, &transfer_buffer_desc) orelse {
-        std.log.err("failed to create transfer buffer: {s}", .{sdl.getError()});
-        return error.BufferCreateFailed;
-    };
-    defer sdl.gpu.releaseTransferBuffer(device, buf_transfer);
-
-    const map: [*]u8 = @ptrCast(sdl.gpu.mapTransferBuffer(device, buf_transfer, false).?);
-    @memcpy(map, std.mem.asBytes(&vertex_data));
-    sdl.gpu.unmapTransferBuffer(device, buf_transfer);
-
-    const cmd = sdl.gpu.acquireCommandBuffer(device) orelse {
-        std.log.err("failed to acquire command buffer: {s}", .{sdl.getError()});
-        return error.BeginCopyPassFailed;
-    };
-
-    const copy_pass = sdl.gpu.beginCopyPass(cmd) orelse {
-        std.log.err("failed to begin copy pass: {s}", .{sdl.getError()});
-        return error.BeginCopyPassFailed;
-    };
-
-    var buf_location = sdl.gpu.TransferBufferLocation{
-        .transfer_buffer = buf_transfer,
-        .offset = 0,
-    };
-
-    var dst_region = sdl.gpu.BufferRegion{
-        .buffer = buf_vertex,
-        .offset = 0,
-        .size = @sizeOf(@TypeOf(vertex_data)),
-    };
-
-    sdl.gpu.uploadToBuffer(copy_pass, &buf_location, &dst_region, false);
-    sdl.gpu.endCopyPass(copy_pass);
-    sdl.gpu.submitCommandBuffer(cmd);
+    try upload(buf_vertex, &std.mem.toBytes(vertex_data));
 
     const sample_count = .@"1";
 
@@ -283,6 +227,47 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
     };
 }
 
+pub fn shutdown() void {
+    device.releaseTexture(window_state.tex_depth);
+
+    device.releaseTexture(render_state.texture);
+    device.releaseBuffer(render_state.buf_vertex);
+    device.releaseSampler(render_state.sampler);
+    device.releaseGraphicsPipeline(render_state.pipeline);
+    device.destroy();
+}
+
+pub fn upload(buffer: *sdl.gpu.Buffer, data: []const u8) !void {
+    const buf_transfer = try device.createTransferBuffer(.{
+        .usage = .upload,
+        .size = @intCast(data.len),
+    });
+    defer device.destroyTransferBuffer(buf_transfer);
+
+    const map = try device.mapTransferBuffer(buf_transfer, false);
+    @memcpy(map, data);
+    device.unmapTransferBuffer(buf_transfer);
+
+    const cmd = try device.acquireCommandBuffer();
+
+    const copy_pass = try cmd.beginCopyPass();
+
+    const buf_location = sdl.gpu.TransferBufferLocation {
+        .transfer_buffer = buf_transfer,
+        .offset = 0,
+    };
+
+    const dst_region = sdl.gpu.BufferRegion {
+        .buffer = buffer,
+        .offset = 0,
+        .size = @intCast(data.len),
+    };
+
+    copy_pass.uploadToBuffer(buf_location, dst_region, false);
+    copy_pass.end();
+    cmd.submit();
+}
+
 pub fn begin() !RenderCommand {
     const cmd = sdl.gpu.acquireCommandBuffer(device) orelse {
         std.log.err("could not acquire command buffer", .{});
@@ -300,8 +285,8 @@ pub fn begin() !RenderCommand {
     // Resize the depth buffer if the window size changed
 
     if (window_state.prev_drawable_w != drawable_w or window_state.prev_drawable_h != drawable_h) {
-        sdl.gpu.releaseTexture(device, window_state.tex_depth);
-        window_state.tex_depth = try createDepthTexture(drawable_w, drawable_h);
+        // device.releaseTexture(window_state.tex_depth);
+        // window_state.tex_depth = try createDepthTexture(drawable_w, drawable_h);
     }
 
     window_state.prev_drawable_w = drawable_w;
@@ -446,10 +431,6 @@ fn loadShader(shader_type: ShaderType) !*sdl.gpu.Shader {
         };
     }
 
-    return sdl.gpu.createShader(device, &create_info) orelse {
-        std.log.debug("Failed to load shader: {s}", .{sdl.getError()});
-        return error.LoadShaderFailed;
-    };
 }
 
 fn loadTexture(path: [:0]const u8) *sdl.gpu.Texture {
