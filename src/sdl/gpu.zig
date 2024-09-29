@@ -37,6 +37,13 @@ pub const Device = opaque {
         };
     }
 
+	pub fn createGraphicsPipeline(self: *Device, info: GraphicsPipelineCreateInfo) !*GraphicsPipeline {
+		return root.createGraphicsPipeline(self, &info) orelse {
+			std.log.err("Failed to create pipeline: {s}", .{getError()});
+			return error.CreateGraphicsPipelineError;
+		};
+	}
+
 	pub fn createTransferBuffer(self: *Device, info: TransferBufferCreateInfo) !*TransferBuffer {
 		return root.createTransferBuffer(self, &info) orelse {
 			std.log.err("failed to create transfer buffer: {s}", .{getError()});
@@ -44,10 +51,24 @@ pub const Device = opaque {
 		};
 	}
 
+	pub fn createSampler(self: *Device, info: SamplerCreateInfo) !*Sampler {
+		return root.createSampler(self, &info) orelse {
+			std.log.err("Failed to create sampler: {s}", .{getError()});
+			return error.CreateSamplerError;
+		};
+	}
+
     pub fn createShader(self: *Device, params: ShaderCreateInfo) !*Shader {
         return root.createShader(self, &params) orelse {
             std.log.err("Failed to load shader: {s}", .{getError()});
-            return error.LoadShaderFailed;
+            return error.CreateShaderError;
+        };
+    }
+
+    pub fn createTexture(self: *Device, params: TextureCreateInfo) !*Texture {
+        return root.createTexture(self, &params) orelse {
+            std.log.err("Failed to load texture: {s}", .{getError()});
+            return error.LoadTextureFailed;
         };
     }
 
@@ -136,8 +157,13 @@ pub const RenderPass = opaque {};
 pub const ComputePass = opaque {};
 
 pub const CopyPass = opaque {
+
 	pub fn uploadToBuffer(self: *CopyPass, source: TransferBufferLocation, dest: BufferRegion, cycle: bool) void {
 		root.uploadToBuffer(self, &source, &dest, cycle);
+	}
+
+	pub fn uploadToTexture(self: *CopyPass, source: TextureTransferInfo, dest: TextureRegion, cycle: bool) void {
+		root.uploadToTexture(self, &source, &dest, cycle);
 	}
 
 	pub fn end(self: *CopyPass) void {

@@ -1,18 +1,18 @@
 const std = @import("std");
-const c = @import("c.zig");
-const window = @import("window.zig");
+const c = @import("../c.zig");
+const window = @import("../window.zig");
 
-const vec3 = @import("hym/vec3.zig");
-const mat4 = @import("hym/mat4.zig");
-const hym_cam = @import("hym/cam.zig");
+const vec3 = @import("../hym/vec3.zig");
+const mat4 = @import("../hym/mat4.zig");
+const hym_cam = @import("../hym/cam.zig");
 
 const spirv = @import("shaders/cube_shader_spirv.zig");
 const dxil = @import("cube_dxil.zig");
 const dxbc = @import("cube_dxbc.zig");
 
-const sdl = @import("sdl/sdl.zig");
+const sdl = @import("sdl");
 
-const camera = @import("camera.zig");
+const camera = @import("../camera.zig");
 
 pub const Scene = struct {
     camera: camera.Camera,
@@ -264,6 +264,39 @@ pub fn upload(buffer: *sdl.gpu.Buffer, data: []const u8) !void {
     };
 
     copy_pass.uploadToBuffer(buf_location, dst_region, false);
+    copy_pass.end();
+    cmd.submit();
+}
+
+pub fn uploadToTexture(texture: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) !void {
+    const buf_transfer = try device.createTransferBuffer(.{
+        .size = @intCast(data.len),
+        .usage = .upload
+    });
+    defer device.releaseTransferBuffer(buf_transfer);
+    const ptr_transfer = try device.mapTransferBuffer(buf_transfer, false);
+    @memcpy(ptr_transfer, data);
+    device.unmapTransferBuffer(buf_transfer);
+
+    // copy to transfer buffer
+    const cmd = try device.acquireCommandBuffer();
+    const copy_pass = try cmd.beginCopyPass();
+
+    const buf_src = sdl.gpu.TextureTransferInfo {
+        .transfer_buffer = buf_transfer,
+        .offset = 0,
+        .pixels_per_row = w,
+        .rows_per_layer = h,
+    };
+
+    const buf_dst = sdl.gpu.TextureRegion {
+        .texture = texture,
+        .w = w,
+        .h = h,
+        .d = 1,
+    };
+
+    copy_pass.uploadToTexture(buf_src, buf_dst, false);
     copy_pass.end();
     cmd.submit();
 }

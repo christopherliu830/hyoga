@@ -1,4 +1,4 @@
-const sdl = @import("../sdl/sdl.zig");
+const sdl = @import("sdl");
 
 pub fn getVertexCreateInfo() sdl.gpu.ShaderCreateInfo {
   return sdl.gpu.ShaderCreateInfo { 

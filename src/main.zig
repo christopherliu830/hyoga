@@ -4,12 +4,12 @@ const window = @import("window.zig");
 const input = @import("input.zig");
 const zlm = @import ("zlm/zlm.zig");
 const math = @import("math.zig");
-const sdl = @import("sdl/sdl.zig");
-const gpu = @import("gpu.zig");
+const sdl = @import("sdl");
+const gpu = @import("graphics/gpu.zig");
 const vec3 = @import("hym/vec3.zig");
-const imgui = @import("imgui/imgui.zig");
-const imgui_sdl = @import("imgui/imgui_impl_sdl.zig");
-const imgui_impl_sdlgpu = @import("imgui/imgui_impl_sdlgpu.zig");
+const imgui = @import("graphics/imgui/imgui.zig");
+const imgui_sdl = @import("graphics/imgui/imgui_impl_sdl.zig");
+const imgui_impl_sdlgpu = @import("graphics/imgui/imgui_impl_sdlgpu.zig");
 
 pub fn main() !void {
     var general_allocator = std.heap.GeneralPurposeAllocator(.{}){};
@@ -73,7 +73,7 @@ pub fn main() !void {
 
         const render = try gpu.begin();
         imgui.render();
-        imgui_impl_sdlgpu.renderDrawData(imgui.getDrawData(), render.cmd, render.pass);
+        try imgui_impl_sdlgpu.renderDrawData(imgui.getDrawData(), render.cmd, render.pass);
         gpu.submit(render);
     }
 }

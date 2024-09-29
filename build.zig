@@ -24,15 +24,21 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const sdl = b.addModule("sdl", .{
+        .root_source_file = b.path("src/sdl/sdl.zig"),
+        .target = target,
+    });
+
     if (os == .windows) {
-        exe.addIncludePath(b.path("thirdparty/sdl3/include/"));
-        exe.addLibraryPath(b.path("thirdparty/sdl3/"));
+        sdl.addIncludePath(b.path("thirdparty/sdl3/include/"));
+        sdl.addLibraryPath(b.path("thirdparty/sdl3/"));
         b.installBinFile("thirdparty/sdl3/SDL3.dll", "SDL3.dll");
-    } else {
-        exe.linkSystemLibrary("SDL3");
-    }
+    } 
+    sdl.linkSystemLibrary("SDL3", .{});
     exe.linkLibC();
-    exe.linkSystemLibrary("SDL3");
+    // exe.linkSystemLibrary("SDL3");
+
+    exe.root_module.addImport("sdl", sdl);
 
     // stb_image
     exe.addCSourceFile(.{

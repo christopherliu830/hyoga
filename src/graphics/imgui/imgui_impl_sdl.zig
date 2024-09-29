@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const imgui = @import("imgui.zig");
-const sdl = @import("../sdl/sdl.zig");
+const sdl = @import("sdl");
 
 pub const GamepadMode = enum(c_int) { auto_first, auto_all, manual };
 
