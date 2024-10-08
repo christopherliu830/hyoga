@@ -1,5 +1,5 @@
-pub const Keycode = c_uint;
-pub const Keymod = c_uint;
+pub const Keycode = u32;
+pub const Keymod = u16;
 
 pub const unknown = @as(c_uint, 0x00000000);
 pub const @"return" = @as(c_uint, 0x0000000d);

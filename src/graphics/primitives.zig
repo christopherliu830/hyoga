@@ -17,9 +17,9 @@ pub fn createCube() Cube {
         .{ 0.5,  0.5,  0.5},
     };
 
-    const cube = Cube {
-        .vertices = .{ .{0, 0, 0} ** 24 },
-        .indices = 0 ** 36,
+    var cube = Cube {
+        .vertices = [_]Vertex {.{ .pos = .{0, 0, 0}, .normal = .{0, 0, 0}, .uv = .{0, 0}}} ** 24,
+        .indices = [_]u16 { 0 } ** 36,
     };
 
     inline for (0..8) |i| {
@@ -35,6 +35,19 @@ pub fn createCube() Cube {
         cube.vertices[index + 2].pos = vertices[i];
         cube.vertices[index + 2].normal = .{ 0, 0, vertices[i][2] };
         cube.vertices[index + 2].uv = .{ 0, 1 };
+    }
+
+    var uv_mode: u32 = 0;
+    inline for (0..8) |i| {
+        inline for (0..3) |j| {
+            switch(uv_mode) {
+                0 => cube.vertices[i * 3 + j].uv = .{ 0, 0 },
+                1 => cube.vertices[i * 3 + j].uv = .{ 1, 0 },
+                2 => cube.vertices[i * 3 + j].uv = .{ 0, 1 },
+                else => unreachable,
+            }
+        }
+        uv_mode = (uv_mode + 1) % 3;
     }
 
     cube.indices = .{
@@ -62,4 +75,6 @@ pub fn createCube() Cube {
         17, 5, 23,
         23, 5, 11,
     };
+
+    return cube;
 }

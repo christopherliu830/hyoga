@@ -2,6 +2,7 @@
 const std = @import("std");
 const math = std.math;
 const vec3 = @import("vec3.zig");
+const vec4 = @import("vec4.zig");
 
 const root = @This();
 
@@ -9,11 +10,15 @@ pub const Mat4 = struct {
     m: [4]@Vector(4, f32),
 
     pub inline fn mul(self: *Mat4, b: Mat4) void {
-        self.m = root.mul(b, self.*).m;
+        self.m = root.mul(self.*, b).m;
     }
 
     pub inline fn translate(self: *Mat4, v: vec3.Vec3) void {
         self.m[3] += .{ v.v[0], v.v[1], v.v[2], 0 }; 
+    }
+
+    pub inline fn scale(self: *Mat4, b: f32) void {
+        self.* = root.scale(self.*, b);
     }
 
     /// Spin around matrix's center point, i.e. a translation-independent 
@@ -77,6 +82,60 @@ test "hym.mat4.transpose()" {
     try expectVecApproxEqAbs(.{ 1, 5, 9, 13}, mt.m[0], 0.01);
     try expectVecApproxEqAbs(.{ 2, 6, 10, 14}, mt.m[0], 0.01);
     try expectVecApproxEqAbs(.{ 3, 7, 11, 15}, mt.m[0], 0.01);
+}
+
+pub inline fn inverse(mat: Mat4) Mat4 {
+    var dest: Mat4 = identity;
+    var det: f32 = 0;
+    var t: [6]f32 = [_]f32 {0} ** 6;
+    const a = mat.m[0][0]; const b = mat.m[0][1]; const c = mat.m[0][2]; const d = mat.m[0][3];
+    const e = mat.m[0][0]; const f = mat.m[0][1]; const g = mat.m[0][2]; const h = mat.m[0][3];
+    const i = mat.m[0][0]; const j = mat.m[0][1]; const k = mat.m[0][2]; const l = mat.m[0][3];
+    const m = mat.m[0][0]; const n = mat.m[0][1]; const o = mat.m[0][2]; const p = mat.m[0][3];
+
+    t[0] = k * p - o * l; t[1] = j * p - n * l; t[2] = j * o - n * k;
+    t[3] = i * p - m * l; t[4] = i * o - m * k; t[5] = i * n - m * j;
+
+    dest.m[0][0] =  f * t[0] - g * t[1] + h * t[2];
+    dest.m[1][0] =-(e * t[0] - g * t[3] + h * t[4]);
+    dest.m[2][0] =  e * t[1] - f * t[3] + h * t[5];
+    dest.m[3][0] =-(e * t[2] - f * t[4] + g * t[5]);
+
+    dest.m[0][1] =-(b * t[0] - c * t[1] + d * t[2]);
+    dest.m[1][1] =  a * t[0] - c * t[3] + d * t[4];
+    dest.m[2][1] =-(a * t[1] - b * t[3] + d * t[5]);
+    dest.m[3][1] =  a * t[2] - b * t[4] + c * t[5];
+
+    t[0] = g * p - o * h; t[1] = f * p - n * h; t[2] = f * o - n * g;
+    t[3] = e * p - m * h; t[4] = e * o - m * g; t[5] = e * n - m * f;
+
+    dest.m[0][2] =  b * t[0] - c * t[1] + d * t[2];
+    dest.m[1][2] =-(a * t[0] - c * t[3] + d * t[4]);
+    dest.m[2][2] =  a * t[1] - b * t[3] + d * t[5];
+    dest.m[3][2] =-(a * t[2] - b * t[4] + c * t[5]);
+
+    t[0] = g * l - k * h; t[1] = f * l - j * h; t[2] = f * k - j * g;
+    t[3] = e * l - i * h; t[4] = e * k - i * g; t[5] = e * j - i * f;
+
+    dest.m[0][3] =-(b * t[0] - c * t[1] + d * t[2]);
+    dest.m[1][3] =  a * t[0] - c * t[3] + d * t[4];
+    dest.m[2][3] =-(a * t[1] - b * t[3] + d * t[5]);
+    dest.m[3][3] =  a * t[2] - b * t[4] + c * t[5];
+
+    det = 1.0 / (a * dest.m[0][0] + b * dest.m[1][0]
+                + c * dest.m[2][0] + d * dest.m[3][0]);
+
+    dest.scale(det);
+    return dest;
+}
+
+pub inline fn scale(a: Mat4, b: f32) Mat4 {
+    return Mat4 { .m = .{
+        vec4.mul(.{ .v = a.m[0] }, b).v,
+        vec4.mul(.{ .v = a.m[1] }, b).v,
+        vec4.mul(.{ .v = a.m[2] }, b).v,
+        vec4.mul(.{ .v = a.m[3] }, b).v,
+    }};
 }
 
 /// zig-gamedev/zmath

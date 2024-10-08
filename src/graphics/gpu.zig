@@ -6,13 +6,14 @@ const vec3 = @import("../hym/vec3.zig");
 const mat4 = @import("../hym/mat4.zig");
 const hym_cam = @import("../hym/cam.zig");
 
-const spirv = @import("shaders/cube_shader_spirv.zig");
+const spirv = @import("shaders/cube_shader.zig");
 const dxil = @import("cube_dxil.zig");
 const dxbc = @import("cube_dxbc.zig");
 
 const sdl = @import("sdl");
 
 const camera = @import("../camera.zig");
+const cube = @import("primitives.zig").createCube();
 
 pub const Scene = struct {
     camera: camera.Camera,
@@ -27,6 +28,12 @@ const RenderState = struct {
     sample_count: sdl.gpu.SampleCount = .@"1",
     frames: u32 = 0,
 };
+
+const RenderObject = struct {
+    model: mat4.Mat4,
+};
+
+var models = [_]RenderObject{.{ .model = mat4.identity }} ** 4;
 
 const WindowState = struct {
     hdl_window: *sdl.Window = undefined,
@@ -45,74 +52,6 @@ const RenderCommand = struct {
 
 const ShaderType = enum { vertex, fragment };
 
-const vertex_data = [_][8]f32{
-    // Front face. */
-    // Bottom left */
-    .{ -0.5,  0.5, -0.5, 1.0, 0.0, 0.0, 1, 1 }, // red //
-    .{  0.5, -0.5, -0.5, 0.0, 0.0, 1.0, 1, 0 }, // blue //
-    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0, 0, 1}, // green //
-
-    // Top right //
-    .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0, 1, 1}, // red //
-    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0, 0, 0 }, // yellow //
-    .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0, 1, 0 }, // blue //
-
-    // Left face //
-    // Bottom left //
-    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1, 0}, // white //
-    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0, 0, 1 }, // green //
-    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0, 1, 1  }, // cyan //
-
-    // Top right //
-    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1, 0}, // white //
-    .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0, 0, 0 }, // red //
-    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0, 0, 1 }, // green //
-
-    // Top face //
-    // Bottom left //
-    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1, 1 }, // white //
-    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0, 0, 0 }, // yellow //
-    .{ -0.5, 0.5, -0.5, 1.0, 0.0, 0.0, 0, 1 }, // red //
-
-    // Top right //
-    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1, 1 }, // white //
-    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 1, 0 }, // black //
-    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0, 0, 0 }, // yellow //
-
-    // Right face //
-    // Bottom left //
-    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0, 1, 1 }, // yellow //
-    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0, 0, 0 }, // magenta //
-    .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0, 0, 1 }, // blue //
-
-    // Top right //
-    .{ 0.5, 0.5, -0.5, 1.0, 1.0, 0.0, 1, 1, }, // yellow //
-    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 1, 0,  }, // black //
-    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0, 0, 0,  }, // magenta //
-
-    // Back face //
-    // Bottom left //
-    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 1, 0 }, // black //
-    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0, 0, 1 }, // cyan //
-    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0, 1, 1 }, // magenta //
-
-    // Top right //
-    .{ 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 1, 0 }, // black //
-    .{ -0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 0, 0 }, // white //
-    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0, 0, 1 }, // cyan //
-
-    // Bottom face //
-    // Bottom left //
-    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0, 1, 1 }, // green //
-    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0, 0, 0 }, // magenta //
-    .{ -0.5, -0.5, 0.5, 0.0, 1.0, 1.0, 0, 1 }, // cyan //
-
-    // Top right //
-    .{ -0.5, -0.5, -0.5, 0.0, 1.0, 0.0, 1, 1 }, // green //
-    .{ 0.5, -0.5, -0.5, 0.0, 0.0, 1.0, 1, 0 }, // blue //
-    .{ 0.5, -0.5, 0.5, 1.0, 0.0, 1.0, 0, 0 }, // magenta //
-};
-
 pub var device: *sdl.gpu.Device = undefined;
 pub var render_state: RenderState = undefined;
 pub var window_state: WindowState = .{};
@@ -125,18 +64,17 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
     device = try sdl.gpu.Device.create(null, .{ .spirv = true });
     try device.claimWindow(hdl_window);
 
-
     const vertex_shader = try device.createShader(spirv.getVertexCreateInfo());
     defer device.releaseShader(vertex_shader);
     const fragment_shader = try device.createShader(spirv.getFragmentCreateInfo());
     defer device.releaseShader(fragment_shader);
 
     const buf_vertex = try device.createBuffer(.{
-        .usage = .{ .vertex = true },
-        .size = @sizeOf(@TypeOf(vertex_data)),
+        .usage = .{ .vertex = true, .index = true },
+        .size = @sizeOf(@TypeOf(cube)),
     });
 
-    try upload(buf_vertex, &std.mem.toBytes(vertex_data));
+    try upload(buf_vertex, &std.mem.toBytes(cube));
 
     const sample_count = .@"1";
 
@@ -148,7 +86,7 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
         .slot = 0,
         .input_rate = .vertex,
         .instance_step_rate = 0,
-        .pitch = @sizeOf(@TypeOf(vertex_data[0])),
+        .pitch = @sizeOf(@TypeOf(cube.vertices[0])),
     }};
 
     const vertex_attributes: []const sdl.gpu.VertexAttribute = &.{
@@ -208,10 +146,13 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
     window_state.tex_depth = try createDepthTexture(@intCast(w), @intCast(h));
 
     const texture = loadTexture("textures/plywood_diff_1k.jpg");
+
     const sampler_info = sdl.gpu.SamplerCreateInfo {
         .address_mode_u = .clamp_to_edge,
         .address_mode_v = .clamp_to_edge,
         .address_mode_w = .clamp_to_edge,
+        .min_filter = .linear,
+        .mag_filter = .linear,
     };
 
     const sampler = sdl.gpu.createSampler(device, &sampler_info).?;
@@ -225,6 +166,9 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
         .scene = in_scene,
         .texture = texture,
     };
+
+    models[1].model.translate(vec3.create(0, 1, -4));
+    models[2].model.translate(vec3.create(3, 2, -2));
 }
 
 pub fn shutdown() void {
@@ -301,6 +245,7 @@ pub fn uploadToTexture(texture: *sdl.gpu.Texture, w: u32, h: u32, data: []const 
     cmd.submit();
 }
 
+
 pub fn begin() !RenderCommand {
     const cmd = sdl.gpu.acquireCommandBuffer(device) orelse {
         std.log.err("could not acquire command buffer", .{});
@@ -343,33 +288,55 @@ pub fn begin() !RenderCommand {
         .cycle = true,
     };
 
-    const vertex_binding = [1]sdl.gpu.BufferBinding{.{
-        .buffer = render_state.buf_vertex,
-        .offset = 0,
-    }};
 
     const w: f32 = @floatFromInt(drawable_w);
     const h: f32 = @floatFromInt(drawable_h);
-
-    const cam = &render_state.scene.camera;
-    const cam_pos = cam.position;
-
-    const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
-
-    const persp = hym_cam.perspectiveMatrix(45, w / h, 0.01, 100);
-    const matrix_final = mat4.mul(view, persp);
-
-    sdl.gpu.pushVertexUniformData(cmd, 0, &matrix_final, @sizeOf(@TypeOf(persp)));
 
     const pass = sdl.gpu.beginRenderPass(cmd, &color_target, 1, &depth_target) orelse {
         std.log.err("could not begin render pass: {s}", .{sdl.getError()});
         return error.SDLError;
     };
 
-    sdl.gpu.bindGraphicsPipeline(pass, render_state.pipeline);
-    sdl.gpu.bindVertexBuffers(pass, 0, &vertex_binding, 1);
-    sdl.gpu.bindFragmentSamplers(pass, 0, &.{ .sampler = render_state.sampler, .texture =  render_state.texture }, 1);
-    sdl.gpu.drawPrimitives(pass, 36, 1, 0, 0);
+    const cam = &render_state.scene.camera;
+    const cam_pos = cam.position;
+    const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
+    const persp = hym_cam.perspectiveMatrix(45, w / h, 0.01, 100);
+
+    for (&models) |*model| {
+        model.model.spin(0.0004, vec3.create(1, 1, 0));
+        model.model.spin(0.0001, vec3.create(0, 0, 1));
+        var matrix_final: mat4.Mat4 = model.model;
+        matrix_final.mul(view);
+        matrix_final.mul(persp);
+        // const mat_normal = mat4.inverse(mat4.transpose(mat4.mul(model.model, view)));
+        // const mat_normal = mat4.transpose(mat4.inverse(model.model));
+        // const mat_normal = mat4.mul(model.model, view);
+        const mat_normal = model.model;
+        const vert_ubo = .{
+            matrix_final,
+            mat_normal
+        };
+
+        sdl.gpu.pushVertexUniformData(cmd, 0, &vert_ubo, @sizeOf(@TypeOf(vert_ubo)));
+        const vertex_binding = [1]sdl.gpu.BufferBinding{.{
+            .buffer = render_state.buf_vertex,
+            .offset = @offsetOf(@TypeOf(cube), "vertices"),
+        }};
+        
+        const index_binding = [1]sdl.gpu.BufferBinding {.{
+            .buffer = render_state.buf_vertex,
+            .offset = @offsetOf(@TypeOf(cube), "indices"),
+        }};
+
+        sdl.gpu.bindGraphicsPipeline(pass, render_state.pipeline);
+        sdl.gpu.bindVertexBuffers(pass, 0, &vertex_binding, 1);
+        sdl.gpu.bindIndexBuffer(pass, &index_binding, .@"16bit");
+        sdl.gpu.bindFragmentSamplers(pass, 0, &.{ .sampler = render_state.sampler, .texture =  render_state.texture }, 1);
+        sdl.gpu.drawPrimitives(pass, 36, 1, 0, 0);
+        sdl.gpu.drawIndexedPrimitives(pass, cube.indices.len, 1, 0, 0, 0);
+
+    }
+
 
     render_state.frames += 1;
     return .{ 

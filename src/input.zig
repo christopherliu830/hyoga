@@ -67,7 +67,7 @@ const KeyState = [8]keycode.Keycode; // 32 keys down at once
 var allocator: std.mem.Allocator = undefined;
 var keybinds: Keybinds = undefined;
 var keys_down: [32]keycode.Keycode = undefined;
-var num_keys_down: u8 = 0;
+pub var num_keys_down: u8 = 0;
 
 var mousebinds: Mousebinds = undefined;
 pub var mouse_state: MouseState = .{};
@@ -87,7 +87,7 @@ pub fn init(allocator_: std.mem.Allocator) void {
 pub fn bind(key: keycode.Keycode, handler: InputHandler) !KeybindList.Handle {
     const entry = try keybinds.getOrPut(key);
     if (!entry.found_existing) {
-        entry.value_ptr.* = KeybindList.create(allocator, 1);
+        entry.value_ptr.* = try KeybindList.create(allocator, 1);
     }
 
     const list = entry.value_ptr;
@@ -154,20 +154,27 @@ pub fn update(event: sdl.events.Event) void {
     if (!imgui.getIO().WantCaptureKeyboard) switch (event.type) {
         sdl.events.key_down => {
             const key = event.key.key;
-            keys_down[num_keys_down] = key;
-            num_keys_down += 1;
-            post(key, undefined, .{ .down = true });
+            if (!event.key.repeat) {
+                keys_down[num_keys_down] = key;
+                num_keys_down += 1;
+                post(key, undefined, .{ .down = true });
+            }
+            else {
+                post(key, undefined, .{ .held = true });
+            }
         },
 
         sdl.events.key_up => {
             const key = event.key.key;
 
-            if (num_keys_down > 1) {
+            if (num_keys_down > 0) {
                 for(0..num_keys_down) |i| {
-                    if (keys_down[i] == key) keys_down[i] = keys_down[num_keys_down - 1];
+                    if (keys_down[i] == key) {
+                        keys_down[i] = keys_down[num_keys_down - 1];
+                        num_keys_down -= 1;
+                    }
                 }
             }
-            num_keys_down -= 1;
 
             post(key, undefined, .{ .up = true });
         },

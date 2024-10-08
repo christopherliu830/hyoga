@@ -64,6 +64,8 @@ pub fn main() !void {
         if (imgui.begin("Debug Window", &open, 0)) {
             const pos = scene.camera.position;
             imgui.text("Camera Position: %f %f %f", pos.x(), pos.y(), pos.z());
+            imgui.text("Num Keys Down: %d", input.num_keys_down);
+            imgui.logBegin(@"type": ImGuiLogType, auto_open_depth: c_int)
 
             if (imgui.button("Quit", .{ .x = 120, .y = 20 })) {
                 quit = true;

@@ -11,13 +11,13 @@
 export MSYS_NO_PATHCONV=1
 
 # SPIR-V
-glslangValidator $1.vert -V -S vert -o $1.vert.spv --quiet
-glslangValidator $1.frag -V -S frag -o $1.frag.spv --quiet
+glslangValidator $1.vert -V -S vert -o $1.vert.spv
+glslangValidator $1.frag -V -S frag -o $1.frag.spv
 xxd -i $1.vert.spv | perl -w -p -e 's/\Aunsigned char (\w+)\[\] = /pub const $1 = \[_\]u8 /;' > $1.vert.zig
 xxd -i $1.frag.spv | perl -w -p -e 's/\Aunsigned char (\w+)\[\] = /pub const $1 = \[_\]u8 /;' > $1.frag.zig
 cat $1.vert.zig $1.frag.zig > $1_spirv.zig
-cat $1_spirv.zig | perl -w -n -e 'print unless /unsigned int/' > $1_spirv.zig
-rm -f $1.vert.zig $1.frag.zig $1.vert.spv $1.frag.spv
+cat $1_spirv.zig | perl -w -n -e 'print unless /unsigned int/' > $1.zig
+rm -f $1.vert.zig $1.frag.zig $1.vert.spv $1.frag.spv $1_spirv.zig
 
 # Platform-specific compilation
 if [[ "$OSTYPE" == "darwin"* ]]; then
