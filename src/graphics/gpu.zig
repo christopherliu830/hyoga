@@ -100,13 +100,13 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
             .buffer_slot = 0,
             .format = .float3,
             .location = 1,
-            .offset = @sizeOf(f32) * 3,
+            .offset = @offsetOf(@TypeOf(cube.vertices[0]), "normal"),
         },
         .{
             .buffer_slot = 0,
             .format = .float2,
             .location = 2,
-            .offset = @sizeOf(f32) * 6,
+            .offset = @offsetOf(@TypeOf(cube.vertices[0]), "uv"),
         }
     };
 
@@ -368,69 +368,6 @@ pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
         std.log.err("could not create depth texture: {s}", .{sdl.getError()});
         return error.SDLError;
     };
-}
-
-fn loadShader(shader_type: ShaderType) !*sdl.gpu.Shader {
-    const format: sdl.gpu.ShaderFormat = sdl.gpu.getShaderFormats(device);
-    std.log.debug("selected format: {}", .{format});
-
-    var create_info: sdl.gpu.ShaderCreateInfo = undefined;
-    if (format.dxbc) {
-        create_info = .{
-            .num_samplers = 0,
-            .num_storage_buffers = 0,
-            .num_storage_textures = 0,
-            .num_uniform_buffers = if (shader_type == .vertex) 1 else 0,
-            .props = 0,
-            .format = .{ .dxbc = true },
-            .code = if (shader_type == .vertex) dxbc.D3D11_CubeVert else dxbc.D3D11_CubeFrag,
-            .code_size = if (shader_type == .vertex) dxbc.D3D11_CubeVert.len else dxbc.D3D11_CubeFrag.len,
-            .entrypoint = if (shader_type == .vertex) "VSMain" else "PSMain",
-            .stage = if (shader_type == .vertex) .vertex else .fragment,
-        };
-    } else if (format.dxil) {
-        create_info = .{
-            .num_samplers = 0,
-            .num_storage_buffers = 0,
-            .num_storage_textures = 0,
-            .num_uniform_buffers = if (shader_type == .vertex) 1 else 0,
-            .props = 0,
-            .format = .{ .dxil = true },
-            .code = if (shader_type == .vertex) dxil.D3D12_CubeVert else dxil.D3D12_CubeFrag,
-            .code_size = if (shader_type == .vertex) dxil.D3D12_CubeVert.len else dxil.D3D12_CubeFrag.len,
-            .entrypoint = if (shader_type == .vertex) "VSMain" else "PSMain",
-            .stage = if (shader_type == .vertex) .vertex else .fragment,
-        };
-    } else if (format.metallib) {
-        std.log.debug("selected format: metallib", .{});
-        create_info = .{
-            .num_samplers = 0,
-            .num_storage_buffers = 0,
-            .num_storage_textures = 0,
-            .num_uniform_buffers = if (shader_type == .vertex) 1 else 0,
-            .props = 0,
-            .format = .{ .metallib = true },
-            .code = undefined,
-            .code_size = 0,
-            .entrypoint = "",
-            .stage = if (shader_type == .vertex) .vertex else .fragment,
-        };
-        unreachable; //TODO: - add metal support
-    } else {
-        create_info = .{
-            .num_samplers = if (shader_type == .vertex) 0 else 1,
-            .num_storage_buffers = 0,
-            .num_storage_textures = 0,
-            .num_uniform_buffers = if (shader_type == .vertex) 1 else 0,
-            .props = 0,
-            .format = .{ .spirv = true },
-            .code = if (shader_type == .vertex) &spirv.cube_shader_vert_spv else &spirv.cube_shader_frag_spv,
-            .code_size = if (shader_type == .vertex) spirv.cube_shader_vert_spv.len else spirv.cube_shader_frag_spv.len,
-            .entrypoint = "main",
-            .stage = if (shader_type == .vertex) .vertex else .fragment,
-        };
-    }
-
 }
 
 fn loadTexture(path: [:0]const u8) *sdl.gpu.Texture {

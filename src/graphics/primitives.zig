@@ -26,15 +26,12 @@ pub fn createCube() Cube {
         const index = i * 3;
         cube.vertices[index].pos = vertices[i];
         cube.vertices[index].normal = .{ vertices[i][0], 0, 0 };
-        cube.vertices[index].uv = .{ 0, 0 };
 
         cube.vertices[index + 1].pos = vertices[i];
         cube.vertices[index + 1].normal = .{ 0, vertices[i][1], 0 };
-        cube.vertices[index + 1].uv = .{ 1, 0 };
 
         cube.vertices[index + 2].pos = vertices[i];
         cube.vertices[index + 2].normal = .{ 0, 0, vertices[i][2] };
-        cube.vertices[index + 2].uv = .{ 0, 1 };
     }
 
     var uv_mode: u32 = 0;
