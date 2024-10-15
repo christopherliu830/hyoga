@@ -64,9 +64,9 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
     device = try sdl.gpu.Device.create(null, .{ .spirv = true });
     try device.claimWindow(hdl_window);
 
-    const vertex_shader = try device.createShader(spirv.getVertexCreateInfo());
+    const vertex_shader = try device.createShader(spirv.vert_info);
     defer device.releaseShader(vertex_shader);
-    const fragment_shader = try device.createShader(spirv.getFragmentCreateInfo());
+    const fragment_shader = try device.createShader(spirv.frag_info);
     defer device.releaseShader(fragment_shader);
 
     const buf_vertex = try device.createBuffer(.{
@@ -263,8 +263,8 @@ pub fn begin() !RenderCommand {
     // Resize the depth buffer if the window size changed
 
     if (window_state.prev_drawable_w != drawable_w or window_state.prev_drawable_h != drawable_h) {
-        // device.releaseTexture(window_state.tex_depth);
-        // window_state.tex_depth = try createDepthTexture(drawable_w, drawable_h);
+        device.releaseTexture(window_state.tex_depth);
+        window_state.tex_depth = try createDepthTexture(drawable_w, drawable_h);
     }
 
     window_state.prev_drawable_w = drawable_w;
@@ -308,10 +308,7 @@ pub fn begin() !RenderCommand {
         var matrix_final: mat4.Mat4 = model.model;
         matrix_final.mul(view);
         matrix_final.mul(persp);
-        // const mat_normal = mat4.inverse(mat4.transpose(mat4.mul(model.model, view)));
-        // const mat_normal = mat4.transpose(mat4.inverse(model.model));
-        // const mat_normal = mat4.mul(model.model, view);
-        const mat_normal = model.model;
+        const mat_normal = mat4.inverse(mat4.transpose(mat4.mul(model.model, view)));
         const vert_ubo = .{
             matrix_final,
             mat_normal
@@ -334,7 +331,6 @@ pub fn begin() !RenderCommand {
         sdl.gpu.bindFragmentSamplers(pass, 0, &.{ .sampler = render_state.sampler, .texture =  render_state.texture }, 1);
         sdl.gpu.drawPrimitives(pass, 36, 1, 0, 0);
         sdl.gpu.drawIndexedPrimitives(pass, cube.indices.len, 1, 0, 0, 0);
-
     }
 
 

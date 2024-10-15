@@ -21,6 +21,10 @@ pub const Mat4 = struct {
         self.* = root.scale(self.*, b);
     }
 
+    pub inline fn inverse(self: *Mat4) void {
+        self.* = root.inverse(self);
+    }
+
     /// Spin around matrix's center point, i.e. a translation-independent 
     /// rotation.
     pub inline fn spin(self: *Mat4, deg: f32, axis: vec3.Vec3) void {
@@ -79,19 +83,20 @@ test "hym.mat4.transpose()" {
     }};
     const mt = transpose(m);
     try expectVecApproxEqAbs(.{ 0, 4, 8, 12}, mt.m[0], 0.01);
-    try expectVecApproxEqAbs(.{ 1, 5, 9, 13}, mt.m[0], 0.01);
-    try expectVecApproxEqAbs(.{ 2, 6, 10, 14}, mt.m[0], 0.01);
-    try expectVecApproxEqAbs(.{ 3, 7, 11, 15}, mt.m[0], 0.01);
+    try expectVecApproxEqAbs(.{ 1, 5, 9, 13}, mt.m[1], 0.01);
+    try expectVecApproxEqAbs(.{ 2, 6, 10, 14}, mt.m[2], 0.01);
+    try expectVecApproxEqAbs(.{ 3, 7, 11, 15}, mt.m[3], 0.01);
 }
 
 pub inline fn inverse(mat: Mat4) Mat4 {
     var dest: Mat4 = identity;
     var det: f32 = 0;
     var t: [6]f32 = [_]f32 {0} ** 6;
+
     const a = mat.m[0][0]; const b = mat.m[0][1]; const c = mat.m[0][2]; const d = mat.m[0][3];
-    const e = mat.m[0][0]; const f = mat.m[0][1]; const g = mat.m[0][2]; const h = mat.m[0][3];
-    const i = mat.m[0][0]; const j = mat.m[0][1]; const k = mat.m[0][2]; const l = mat.m[0][3];
-    const m = mat.m[0][0]; const n = mat.m[0][1]; const o = mat.m[0][2]; const p = mat.m[0][3];
+    const e = mat.m[1][0]; const f = mat.m[1][1]; const g = mat.m[1][2]; const h = mat.m[1][3];
+    const i = mat.m[2][0]; const j = mat.m[2][1]; const k = mat.m[2][2]; const l = mat.m[2][3];
+    const m = mat.m[3][0]; const n = mat.m[3][1]; const o = mat.m[3][2]; const p = mat.m[3][3];
 
     t[0] = k * p - o * l; t[1] = j * p - n * l; t[2] = j * o - n * k;
     t[3] = i * p - m * l; t[4] = i * o - m * k; t[5] = i * n - m * j;
@@ -127,6 +132,22 @@ pub inline fn inverse(mat: Mat4) Mat4 {
 
     dest.scale(det);
     return dest;
+}
+
+test "hym.mat4.inverse()" {
+    const m = Mat4 { .m = .{
+        .{ 1, 4, 2, 3 },
+        .{ 0, 1, 4, 4 },
+        .{ -1, 0, 1, 0 },
+        .{ 2, 0, 4, 1 },
+    }};
+
+    const mt = inverse(m);
+
+    try expectVecApproxEqAbs(.{  1.0/65.0,  -4.0/65.0, -38.0/65.0,  13.0/65.0 }, mt.m[0], 0.01);
+    try expectVecApproxEqAbs(.{ 20.0/65.0, -15.0/65.0,  20.0/65.0,          0 }, mt.m[1], 0.01);
+    try expectVecApproxEqAbs(.{  1.0/65.0,  -4.0/65.0,  27.0/65.0,  13.0/65.0 }, mt.m[2], 0.01);
+    try expectVecApproxEqAbs(.{ -6.0/65.0,  24.0/65.0, -32.0/65.0, -13.0/65.0 }, mt.m[3], 0.01);
 }
 
 pub inline fn scale(a: Mat4, b: f32) Mat4 {
@@ -185,13 +206,8 @@ pub inline fn rotation(deg: f32, axis: vec3.Vec3) Mat4 {
     return m;
 }
 
-pub fn veclen(v: anytype) !u32 {
-    return @typeInfo(@TypeOf(v)).len;
-}
-
-pub fn expectVecApproxEqAbs(expected: anytype, actual: anytype, eps: f32) !void {
-    const T = @TypeOf(expected, actual);
-    inline for (0..veclen(T)) |i| {
+pub fn expectVecApproxEqAbs(comptime expected: anytype, actual: anytype, eps: f32) !void {
+    inline for (0..expected.len) |i| {
         try std.testing.expectApproxEqAbs(expected[i], actual[i], eps);
     }
 }

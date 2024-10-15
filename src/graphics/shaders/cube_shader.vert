@@ -6,7 +6,7 @@ layout (location = 2) in vec2 in_uv;
 
 layout (location = 0) out vec3 out_color;
 layout (location = 1) out vec3 out_normal;
-layout (location = 2) out vec2 uv;
+layout (location = 2) out vec2 out_uv;
 
 layout(set = 1, binding = 0) uniform UBO
 {
@@ -19,5 +19,5 @@ void main() {
     out_color = in_normal;
     out_normal = mat3(transpose(inverse(ubo.normal))) * in_normal;
     // out_normal = mat3(ubo.normal) * in_normal;
-    uv = aTexCoord;
+    out_uv = in_uv;
 }

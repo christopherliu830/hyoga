@@ -3,7 +3,7 @@ const sdl = @import("sdl");
 const gpu = @import("../gpu.zig");
 const imgui = @import("imgui.zig");
 const spirv = @import("spirv.zig");
-const shader_code = @import("../shaders/imgui_shader_spirv.zig");
+const shader_code = @import("../shaders/imgui_shader.zig");
 
 const ShaderType = enum { vertex, fragment };
 
@@ -74,10 +74,10 @@ pub fn newFrame() !void {
 pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
     const bd = getBackendData().?;
 
-    const vert_shader = try bd.device.createShader(shader_code.getVertexCreateInfo());
+    const vert_shader = try bd.device.createShader(shader_code.vert_info);
     defer bd.device.releaseShader(vert_shader);
 
-    const frag_shader = try bd.device.createShader(shader_code.getFragmentCreateInfo());
+    const frag_shader = try bd.device.createShader(shader_code.frag_info);
     defer bd.device.releaseShader(frag_shader);
 
     const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
