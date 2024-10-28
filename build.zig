@@ -24,6 +24,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // ---------- SDL -----------
+
     const sdl = b.addModule("sdl", .{
         .root_source_file = b.path("src/sdl/sdl.zig"),
         .target = target,
@@ -36,16 +38,17 @@ pub fn build(b: *std.Build) void {
     } 
     sdl.linkSystemLibrary("SDL3", .{});
     exe.linkLibC();
-    // exe.linkSystemLibrary("SDL3");
-
     exe.root_module.addImport("sdl", sdl);
 
-    // stb_image
+    // ---------- stb_image -----------
+
     exe.addCSourceFile(.{
         .file = b.path("thirdparty/stb_image.c"),
         .flags = &[_][]const u8{"-std=c99"},
     });
     exe.addIncludePath(b.path("thirdparty"));
+
+    // ---------- imgui -----------
 
     exe.addCSourceFile(.{ .file = b.path("thirdparty/cimgui/cimgui.cpp") });
     exe.addCSourceFiles(.{
@@ -58,6 +61,11 @@ pub fn build(b: *std.Build) void {
             "imgui.cpp",
         },
     });
+
+    // ---------- assimp -----------
+    exe.addLibraryPath(b.path("thirdparty/assimp"));
+    b.installBinFile("thirdparty/assimp/assimp-vc142-mtd.dll", "assimp-vc142-mtd.dll");
+    exe.linkSystemLibrary("assimp-vc142-mtd");
 
     exe.linkLibCpp();
 
