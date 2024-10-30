@@ -15,35 +15,47 @@ const sdl = @import("sdl");
 const camera = @import("../camera.zig");
 const cube = @import("primitives.zig").createCube();
 
-const texture = @import("texture.zig");
-const model = @import("model.zig");
+const tx = @import("texture.zig");
+const mdl = @import("model.zig");
+
+const Vertex = @import("vertex.zig").Vertex;
 
 pub const Scene = struct {
     camera: camera.Camera,
 };
 
+pub const RenderObject = struct {
+    buf: *sdl.gpu.Buffer,
+    tex: tx.Handle,
+    idx_offset: u32,
+    idx_count: u32,
+};
+
+pub const RenderSubmitResult = struct {
+    num_drawn_verts: u32 = 0,
+    num_draw_calls: u32 = 0,
+};
+
 const RenderState = struct {
     allocator: std.mem.Allocator,
-    buf_vertex: *sdl.gpu.Buffer,
+    
     pipeline: *sdl.gpu.GraphicsPipeline,
     sampler: *sdl.gpu.Sampler = undefined,
-    texture: *sdl.gpu.Texture = undefined,
 
-    textures: texture.Arena,
-    texture_cache: texture.Cache,
+    textures: tx.Arena,
+    texture_cache: tx.Cache,
 
-    models: model.Arena,
+    models: mdl.Arena,
+
+    objs: std.ArrayList(RenderObject),
 
     scene: *Scene = undefined,
     sample_count: sdl.gpu.SampleCount = .@"1",
     frames: u32 = 0,
+
+    pending_submit_result: ?RenderSubmitResult = null,
 };
 
-const RenderObject = struct {
-    model: mat4.Mat4,
-};
-
-var models = [_]RenderObject{.{ .model = mat4.identity }} ** 4;
 
 const WindowState = struct {
     hdl_window: *sdl.Window = undefined,
@@ -79,12 +91,6 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Alloca
     const fragment_shader = try device.createShader(spirv.frag_info);
     defer device.releaseShader(fragment_shader);
 
-    const buf_vertex = try device.createBuffer(.{
-        .usage = .{ .vertex = true, .index = true },
-        .size = @sizeOf(@TypeOf(cube)),
-    });
-
-    try upload(buf_vertex, &std.mem.toBytes(cube));
 
     const sample_count = .@"1";
 
@@ -155,9 +161,8 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Alloca
     _ = sdl.video.getWindowSizeInPixels(hdl_window, &w, &h);
     window_state.tex_depth = try createDepthTexture(@intCast(w), @intCast(h));
 
-    const textures = try texture.Arena.create(allocator, 8);
-    const texture_cache = texture.Cache.init(allocator);
-
+    const textures = try tx.Arena.create(allocator, 8);
+    const texture_cache = tx.Cache.init(allocator);
 
     const sampler_info = sdl.gpu.SamplerCreateInfo {
         .address_mode_u = .clamp_to_edge,
@@ -171,7 +176,7 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Alloca
 
     render_state = .{
         .allocator = allocator,
-        .buf_vertex = buf_vertex,
+        .objs = std.ArrayList(RenderObject).init(allocator),
         .frames = 0,
         .pipeline = pipeline,
         .sampler = sampler,
@@ -179,27 +184,47 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Alloca
         .scene = in_scene,
         .textures = textures,
         .texture_cache = texture_cache,
-        .models = try model.Arena.create(allocator, 8),
+        .models = try mdl.Arena.create(allocator, 8),
     };
 
-    const tex = try createTexture("textures/plywood_diff_1k.jpg");
-    render_state.texture = try render_state.textures.get(tex);
+    const hdl_backpack = try importModel("assets/backpack/backpack.obj");
+    const backpack = try render_state.models.get(hdl_backpack);
 
-    models[1].model.translate(vec3.create(0, 1, -4));
-    models[2].model.translate(vec3.create(3, 2, -2));
+    for (backpack.meshes.items) |mesh| {
+        const vertex_buffer_size: u32 = @intCast(mesh.vertices.items.len * @sizeOf(@TypeOf(mesh.vertices.items[0])));
+        const buffer_size: u32 = @intCast(vertex_buffer_size + mesh.indices.items.len * @sizeOf(@TypeOf(mesh.indices.items[0])));
+        const buffer = try device.createBuffer(.{
+            .size = buffer_size,
+            .usage = .{ .index = true, .vertex = true}
+        });
+
+        try uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
+        try uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
+
+        const render_obj = RenderObject {
+            .buf = buffer,
+            .idx_offset = vertex_buffer_size,
+            .idx_count = @intCast(mesh.indices.items.len),
+            .tex = mesh.textures.items[0].hdl,
+        };
+
+        try render_state.objs.append(render_obj);
+    }
 }
 
 pub fn shutdown() void {
+    // var it = render_state.texture_cache.keyIterator();
+    // while (it.next()) |key_str| {
+    //     render_state.allocator.free(key_str);
+    // }
     device.releaseTexture(window_state.tex_depth);
 
-    device.releaseTexture(render_state.texture);
-    device.releaseBuffer(render_state.buf_vertex);
     device.releaseSampler(render_state.sampler);
     device.releaseGraphicsPipeline(render_state.pipeline);
     device.destroy();
 }
 
-pub fn upload(buffer: *sdl.gpu.Buffer, data: []const u8) !void {
+pub fn uploadToBuffer(buffer: *sdl.gpu.Buffer, offset: u32, data: []const u8) !void {
     const buf_transfer = try device.createTransferBuffer(.{
         .usage = .upload,
         .size = @intCast(data.len),
@@ -221,7 +246,7 @@ pub fn upload(buffer: *sdl.gpu.Buffer, data: []const u8) !void {
 
     const dst_region = sdl.gpu.BufferRegion {
         .buffer = buffer,
-        .offset = 0,
+        .offset = offset,
         .size = @intCast(data.len),
     };
 
@@ -264,6 +289,8 @@ pub fn uploadToTexture(tex: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) 
 }
 
 pub fn begin() !RenderCommand {
+    render_state.pending_submit_result = .{};
+
     const cmd = sdl.gpu.acquireCommandBuffer(device) orelse {
         std.log.err("could not acquire command buffer", .{});
         return error.SDLError;
@@ -318,38 +345,53 @@ pub fn begin() !RenderCommand {
     const cam_pos = cam.position;
     const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
     const persp = hym_cam.perspectiveMatrix(45, w / h, 0.01, 100);
+    // var matrix_final: mat4.Mat4 = mat4.rotation(45, vec3.create(1, 1, 0));
+    var matrix_final = mat4.identity;
+    matrix_final.mul(view);
+    matrix_final.mul(persp);
+    const mat_normal = mat4.inverse(mat4.transpose(mat4.mul(mat4.identity, view)));
+    const vert_ubo = .{
+        matrix_final,
+        mat_normal
+    };
 
-    for (&models) |*mod| {
-        mod.model.spin(0.0004, vec3.create(1, 1, 0));
-        mod.model.spin(0.0001, vec3.create(0, 0, 1));
-        var matrix_final: mat4.Mat4 = mod.model;
-        matrix_final.mul(view);
-        matrix_final.mul(persp);
-        const mat_normal = mat4.inverse(mat4.transpose(mat4.mul(mod.model, view)));
-        const vert_ubo = .{
-            matrix_final,
-            mat_normal
-        };
+    sdl.gpu.pushVertexUniformData(cmd, 0, &vert_ubo, @sizeOf(@TypeOf(vert_ubo)));
 
-        sdl.gpu.pushVertexUniformData(cmd, 0, &vert_ubo, @sizeOf(@TypeOf(vert_ubo)));
-        const vertex_binding = [1]sdl.gpu.BufferBinding{.{
-            .buffer = render_state.buf_vertex,
-            .offset = @offsetOf(@TypeOf(cube), "vertices"),
-        }};
+    // for (&models) |*mod| {
+    //     mod.model.spin(0.0004, vec3.create(1, 1, 0));
+    //     mod.model.spin(0.0001, vec3.create(0, 0, 1));
+    //     var matrix_final: mat4.Mat4 = mod.model;
+    //     matrix_final.mul(view);
+    //     matrix_final.mul(persp);
+    //     const mat_normal = mat4.inverse(mat4.transpose(mat4.mul(mod.model, view)));
+    //     const vert_ubo = .{
+    //         matrix_final,
+    //         mat_normal
+    //     };
+
+    //     sdl.gpu.pushVertexUniformData(cmd, 0, &vert_ubo, @sizeOf(@TypeOf(vert_ubo)));
+    //     const vertex_binding = [1]sdl.gpu.BufferBinding{.{
+    //         .buffer = render_state.buf_vertex,
+    //         .offset = @offsetOf(@TypeOf(cube), "vertices"),
+    //     }};
         
-        const index_binding = [1]sdl.gpu.BufferBinding {.{
-            .buffer = render_state.buf_vertex,
-            .offset = @offsetOf(@TypeOf(cube), "indices"),
-        }};
+    //     const index_binding = [1]sdl.gpu.BufferBinding {.{
+    //         .buffer = render_state.buf_vertex,
+    //         .offset = @offsetOf(@TypeOf(cube), "indices"),
+    //     }};
 
-        sdl.gpu.bindGraphicsPipeline(pass, render_state.pipeline);
-        sdl.gpu.bindVertexBuffers(pass, 0, &vertex_binding, 1);
-        sdl.gpu.bindIndexBuffer(pass, &index_binding, .@"16bit");
-        sdl.gpu.bindFragmentSamplers(pass, 0, &.{ .sampler = render_state.sampler, .texture =  render_state.texture }, 1);
-        sdl.gpu.drawPrimitives(pass, 36, 1, 0, 0);
-        sdl.gpu.drawIndexedPrimitives(pass, cube.indices.len, 1, 0, 0, 0);
+    //     sdl.gpu.bindGraphicsPipeline(pass, render_state.pipeline);
+    //     sdl.gpu.bindFragmentSamplers(pass, 0, &.{ .sampler = render_state.sampler, .texture =  render_state.texture }, 1);
+    //     sdl.gpu.bindVertexBuffers(pass, 0, &vertex_binding, 1);
+    //     sdl.gpu.bindIndexBuffer(pass, &index_binding, .@"16bit");
+    //     sdl.gpu.drawPrimitives(pass, 36, 1, 0, 0);
+    //     sdl.gpu.drawIndexedPrimitives(pass, cube.indices.len, 1, 0, 0, 0);
+    // }
+    
+    sdl.gpu.bindGraphicsPipeline(pass, render_state.pipeline);
+    for (render_state.objs.items) |obj| {
+        drawModel(pass, obj) catch continue;
     }
-
 
     render_state.frames += 1;
     return .{ 
@@ -358,10 +400,12 @@ pub fn begin() !RenderCommand {
     };
 }
 
-pub fn submit(render: RenderCommand) void {
+pub fn submit(render: RenderCommand) RenderSubmitResult {
     sdl.gpu.endRenderPass(render.pass);
     sdl.gpu.submitCommandBuffer(render.cmd);
-
+    const result = render_state.pending_submit_result.?;
+    render_state.pending_submit_result = null;
+    return result;
 }
 
 pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
@@ -383,10 +427,11 @@ pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
     };
 }
 
-pub fn createTexture(path: [:0]const u8) !texture.Handle {
+pub fn createTexture(path: [:0]const u8) !tx.Handle {
     if (render_state.texture_cache.contains(path)) {
         return render_state.texture_cache.get(path).?;
     }
+    std.log.info("[GPU]: Loading Texture {s}", .{path});
 
     var c_w: c_int = 0;
     var c_h: c_int = 0;
@@ -410,10 +455,35 @@ pub fn createTexture(path: [:0]const u8) !texture.Handle {
 
     try uploadToTexture(tex, w, h, tex_pixels[0..w * h * d]);
 
+    const path_copy = try render_state.allocator.dupe(u8, path);
     const handle = try render_state.textures.insert(tex);
+    try render_state.texture_cache.put(path_copy, handle);
     return handle;
 }
 
-pub fn importModel(path: [:0]const u8)  !model.Handle {
-    return try render_state.models.insert(try model.Model.load(path, render_state.allocator));
+pub fn importModel(path: [:0]const u8)  !mdl.Handle {
+    const mod = try mdl.load(path, render_state.allocator);
+    return try render_state.models.insert(mod);
+}
+
+pub fn drawModel(pass: *sdl.gpu.RenderPass, obj: RenderObject) !void {
+    const texture = try render_state.textures.get(obj.tex);
+    sdl.gpu.bindFragmentSamplers(pass, 0, &.{ .sampler = render_state.sampler, .texture = texture }, 1);
+
+    const vertex_binding = [1]sdl.gpu.BufferBinding{.{
+        .buffer = obj.buf,
+        .offset = 0,
+    }};
+    
+    const index_binding = [1]sdl.gpu.BufferBinding {.{
+        .buffer = obj.buf,
+        .offset = obj.idx_offset,
+    }};
+
+    sdl.gpu.bindVertexBuffers(pass, 0, &vertex_binding, 1);
+    sdl.gpu.bindIndexBuffer(pass, &index_binding, .@"16bit");
+    sdl.gpu.drawIndexedPrimitives(pass, obj.idx_count, 1, 0, 0, 0);
+
+    render_state.pending_submit_result.?.num_draw_calls += 1;
+    render_state.pending_submit_result.?.num_drawn_verts += obj.idx_offset / @sizeOf(Vertex);
 }

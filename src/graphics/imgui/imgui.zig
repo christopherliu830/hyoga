@@ -12,7 +12,6 @@ pub const struct_ImVec4 = extern struct {
 };
 pub const Vec4 = struct_ImVec4;
 
-
 pub const TextureId = ?*anyopaque;
 
 pub const ImDrawIdx = c_ushort;

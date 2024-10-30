@@ -58,8 +58,8 @@ pub const MouseEvent = union(MouseButton) {
     wheel: sdl.events.MouseWheelEvent,
 };
 
-const KeybindList = genarray.GenArray(InputHandler);
-const MousebindList = genarray.GenArray(MouseInputHandler);
+const KeybindList = genarray.Arena(InputHandler);
+const MousebindList = genarray.Arena(MouseInputHandler);
 const Keybinds = std.AutoHashMap(keycode.Keycode, KeybindList);
 const Mousebinds = std.AutoHashMap(MouseButton, MousebindList);
 const KeyState = [8]keycode.Keycode; // 32 keys down at once

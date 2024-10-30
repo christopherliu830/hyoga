@@ -5,12 +5,13 @@ const hyarena = @import("../genarray.zig");
 const texture = @import("texture.zig");
 const Vertex = @import("vertex.zig").Vertex;
 
-pub const Arena = hyarena.GenArray(Model);
+pub const Arena = hyarena.Arena(Model);
 pub const Handle = Arena.Handle;
 
 pub const Mesh = struct {
     vertices: std.ArrayList(Vertex),
     indices: std.ArrayList(u16),
+
     textures: std.ArrayList(texture.TextureView),
 
     pub fn create(allocator: std.mem.Allocator) Mesh {
@@ -23,24 +24,9 @@ pub const Mesh = struct {
 };
 
 pub const Model = struct {
+    total_vertex_count: u32,
+    total_index_count: u32,
     meshes: std.ArrayList(Mesh),
-
-    pub fn load(path: [:0]const u8, allocator: std.mem.Allocator) !Model {
-        var data = ai.importFile(path.ptr, .{ .triangulate = true, .flip_uvs = true });
-        defer data.release();
-
-        var model = Model {
-            .meshes = std.ArrayList(Mesh).init(allocator),
-        };
-
-        const scene = ai.importFile(path, .{
-            .triangulate = true
-        });
-
-        try model.processNode(scene.root_node, scene, allocator);
-
-        return model;
-    }
 
     pub fn release(self: Model) void {
         self.vertices.deinit();
@@ -48,22 +34,22 @@ pub const Model = struct {
         self.textures.deinit();
     }
 
-    fn processNode(model: *Model, node: *ai.Node, scene: *ai.Scene, allocator: std.mem.Allocator) !void {
+    fn processNode(model: *Model, path: [:0]const u8, node: *ai.Node, scene: *ai.Scene, allocator: std.mem.Allocator) !void {
         try model.meshes.ensureTotalCapacity(node.num_meshes);
         for (node.meshes[0..node.num_meshes]) |idx_mesh| {
             const mesh = scene.meshes[idx_mesh];
-            try model.meshes.append(try processMesh(model, mesh, scene, allocator));
+            try model.meshes.append(try model.processMesh(path, mesh, scene, allocator));
         }
 
         for (node.children[0..node.num_children]) |child| {
-            try model.processNode(child, scene, allocator);
+            try model.processNode(path, child, scene, allocator);
         }
     }
 
-    fn processMesh(model: *Model, mesh: *ai.Mesh, scene: *const ai.Scene, allocator: std.mem.Allocator) !Mesh {
-        _ = model;
+    fn processMesh(model: *Model, path: [:0]const u8, mesh: *ai.Mesh, scene: *const ai.Scene, allocator: std.mem.Allocator) !Mesh {
         var m = Mesh.create(allocator);
         try m.vertices.ensureTotalCapacity(mesh.num_vertices);
+        model.total_vertex_count += mesh.num_vertices;
         for (0..mesh.num_vertices) |i| {
             const x: f32 = @floatCast(mesh.vertices[i].x);
             const y: f32 = @floatCast(mesh.vertices[i].y);
@@ -86,6 +72,7 @@ pub const Model = struct {
         for (mesh.faces[0..mesh.num_faces]) |face| {
             const start = m.indices.items.len;
             try m.indices.ensureTotalCapacity(start + face.num_indices);
+            model.total_index_count += face.num_indices;
             for (face.indices[0..face.num_indices]) |idx| {
                 try m.indices.append(@intCast(idx));
             }
@@ -109,11 +96,13 @@ pub const Model = struct {
                         .path = &str,
                     });
 
-                    const handle = try gpu.createTexture(str.data[0..str.len:0]);
+                    const tex_path: [:0]u8 = try std.fs.path.joinZ(allocator, &[_][]const u8 { std.fs.path.dirname(path).?, str.data[0..str.len]});
+                    defer allocator.free(tex_path);
+                    const handle = try gpu.createTexture(tex_path);
                     try m.textures.append(texture.TextureView {
                         .hdl = handle,
                         .tex_type = x[1],
-                        .path = str.data[0..str.data.len:0],
+                        .path = tex_path,
                     });
                 }
             }
@@ -143,3 +132,21 @@ pub const Model = struct {
     }
 };
 
+pub fn load(path: [:0]const u8, allocator: std.mem.Allocator) !Model {
+    var data = ai.importFile(path.ptr, .{ .triangulate = true, .flip_uvs = true });
+    defer data.release();
+
+    var model = Model {
+        .total_index_count = 0,
+        .total_vertex_count = 0,
+        .meshes = std.ArrayList(Mesh).init(allocator),
+    };
+
+    const scene = ai.importFile(path, .{
+        .triangulate = true
+    });
+
+    try model.processNode(path, scene.root_node, scene, allocator);
+
+    return model;
+}

@@ -29,7 +29,6 @@ pub fn main() !void {
     try gpu.init(window.instance, &scene, allocator);
     defer gpu.shutdown();
 
-    _ = try gpu.importModel("assets/backpack/backpack.obj");
 
     // imgui
     const ctx = imgui.igCreateContext(null).?;
@@ -46,7 +45,7 @@ pub fn main() !void {
 
     var quit = false;
     var open: bool = false;
-    _ = &open;
+    var last_render_result: ?gpu.RenderSubmitResult = null;
     while (!quit) {
         var event: sdl.events.Event = undefined;
         while (sdl.events.pollEvent(&event)) {
@@ -69,7 +68,16 @@ pub fn main() !void {
             imgui.text("Camera Position: %f %f %f", pos.x(), pos.y(), pos.z());
             imgui.text("Num Keys Down: %d", input.num_keys_down);
 
-            if (imgui.button("Quit", .{ .x = 120, .y = 20 })) {
+            if (imgui.collapsingHeader_TreeNodeFlags("Rendering", 0)) {
+                if (last_render_result) |render_result| {
+                    imgui.text("Draw Calls: %d", render_result.num_draw_calls);
+                    imgui.text("Drawn Vert Count: %d", render_result.num_drawn_verts);
+                }
+            }
+
+            var size: imgui.Vec2 = undefined;
+            imgui.getWindowSize(&size);
+            if (imgui.button("Quit", .{ .x = size.x - 40, .y = 20 })) {
                 quit = true;
             }
         }
@@ -78,7 +86,7 @@ pub fn main() !void {
         const render = try gpu.begin();
         imgui.render();
         try imgui_impl_sdlgpu.renderDrawData(imgui.getDrawData(), render.cmd, render.pass);
-        gpu.submit(render);
+        last_render_result = gpu.submit(render);
     }
 }
 
