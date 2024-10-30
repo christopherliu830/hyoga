@@ -61,8 +61,7 @@ pub fn GenArray(comptime T: type) type {
             };
         }
 
-        pub fn at(self: Self, idx: u32) !*T {
-            if (idx >= self.len) return error.OutOfRange;
+        pub fn at(self: Self, idx: u32) *T {
             return switch (self.entries.items[idx]) {
                 .empty => error.Invalidated,
                 .occupied => |val| val.value

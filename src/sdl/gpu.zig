@@ -998,7 +998,7 @@ pub const downloadFromTexture = SDL_DownloadFromGPUTexture;
 pub extern fn SDL_DownloadFromGPUBuffer(copy_pass: ?*CopyPass, source: [*c]const BufferRegion, destination: [*c]const TransferBufferLocation) void;
 pub const downloadFromBuffer = SDL_DownloadFromGPUBuffer;
 
-pub extern fn SDL_EndGPUCopyPass(copy_pass: ?*CopyPass) void;
+pub extern fn SDL_EndGPUCopyPass(copy_pass: *CopyPass) void;
 pub const endCopyPass = SDL_EndGPUCopyPass;
 
 pub extern fn SDL_GenerateMipmapsForGPUTexture(command_buffer: ?*CommandBuffer, texture: ?*Texture) void;

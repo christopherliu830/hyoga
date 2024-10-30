@@ -25,8 +25,11 @@ pub fn main() !void {
         }
     };
 
-    try gpu.init(window.instance, &scene);
+
+    try gpu.init(window.instance, &scene, allocator);
     defer gpu.shutdown();
+
+    _ = try gpu.importModel("assets/backpack/backpack.obj");
 
     // imgui
     const ctx = imgui.igCreateContext(null).?;

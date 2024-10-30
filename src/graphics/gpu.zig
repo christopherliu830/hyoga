@@ -15,15 +15,25 @@ const sdl = @import("sdl");
 const camera = @import("../camera.zig");
 const cube = @import("primitives.zig").createCube();
 
+const texture = @import("texture.zig");
+const model = @import("model.zig");
+
 pub const Scene = struct {
     camera: camera.Camera,
 };
 
 const RenderState = struct {
+    allocator: std.mem.Allocator,
     buf_vertex: *sdl.gpu.Buffer,
     pipeline: *sdl.gpu.GraphicsPipeline,
     sampler: *sdl.gpu.Sampler = undefined,
     texture: *sdl.gpu.Texture = undefined,
+
+    textures: texture.Arena,
+    texture_cache: texture.Cache,
+
+    models: model.Arena,
+
     scene: *Scene = undefined,
     sample_count: sdl.gpu.SampleCount = .@"1",
     frames: u32 = 0,
@@ -58,7 +68,7 @@ pub var window_state: WindowState = .{};
 
 pub var speed: f32 = 1;
 
-pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
+pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Allocator) !void {
     window_state.hdl_window = hdl_window;
 
     device = try sdl.gpu.Device.create(null, .{ .spirv = true });
@@ -145,7 +155,9 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
     _ = sdl.video.getWindowSizeInPixels(hdl_window, &w, &h);
     window_state.tex_depth = try createDepthTexture(@intCast(w), @intCast(h));
 
-    const texture = loadTexture("textures/plywood_diff_1k.jpg");
+    const textures = try texture.Arena.create(allocator, 8);
+    const texture_cache = texture.Cache.init(allocator);
+
 
     const sampler_info = sdl.gpu.SamplerCreateInfo {
         .address_mode_u = .clamp_to_edge,
@@ -158,14 +170,20 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene) !void {
     const sampler = sdl.gpu.createSampler(device, &sampler_info).?;
 
     render_state = .{
+        .allocator = allocator,
         .buf_vertex = buf_vertex,
         .frames = 0,
         .pipeline = pipeline,
         .sampler = sampler,
         .sample_count = sample_count,
         .scene = in_scene,
-        .texture = texture,
+        .textures = textures,
+        .texture_cache = texture_cache,
+        .models = try model.Arena.create(allocator, 8),
     };
+
+    const tex = try createTexture("textures/plywood_diff_1k.jpg");
+    render_state.texture = try render_state.textures.get(tex);
 
     models[1].model.translate(vec3.create(0, 1, -4));
     models[2].model.translate(vec3.create(3, 2, -2));
@@ -212,7 +230,7 @@ pub fn upload(buffer: *sdl.gpu.Buffer, data: []const u8) !void {
     cmd.submit();
 }
 
-pub fn uploadToTexture(texture: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) !void {
+pub fn uploadToTexture(tex: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) !void {
     const buf_transfer = try device.createTransferBuffer(.{
         .size = @intCast(data.len),
         .usage = .upload
@@ -234,7 +252,7 @@ pub fn uploadToTexture(texture: *sdl.gpu.Texture, w: u32, h: u32, data: []const 
     };
 
     const buf_dst = sdl.gpu.TextureRegion {
-        .texture = texture,
+        .texture = tex,
         .w = w,
         .h = h,
         .d = 1,
@@ -244,7 +262,6 @@ pub fn uploadToTexture(texture: *sdl.gpu.Texture, w: u32, h: u32, data: []const 
     copy_pass.end();
     cmd.submit();
 }
-
 
 pub fn begin() !RenderCommand {
     const cmd = sdl.gpu.acquireCommandBuffer(device) orelse {
@@ -302,13 +319,13 @@ pub fn begin() !RenderCommand {
     const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
     const persp = hym_cam.perspectiveMatrix(45, w / h, 0.01, 100);
 
-    for (&models) |*model| {
-        model.model.spin(0.0004, vec3.create(1, 1, 0));
-        model.model.spin(0.0001, vec3.create(0, 0, 1));
-        var matrix_final: mat4.Mat4 = model.model;
+    for (&models) |*mod| {
+        mod.model.spin(0.0004, vec3.create(1, 1, 0));
+        mod.model.spin(0.0001, vec3.create(0, 0, 1));
+        var matrix_final: mat4.Mat4 = mod.model;
         matrix_final.mul(view);
         matrix_final.mul(persp);
-        const mat_normal = mat4.inverse(mat4.transpose(mat4.mul(model.model, view)));
+        const mat_normal = mat4.inverse(mat4.transpose(mat4.mul(mod.model, view)));
         const vert_ubo = .{
             matrix_final,
             mat_normal
@@ -366,7 +383,11 @@ pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
     };
 }
 
-fn loadTexture(path: [:0]const u8) *sdl.gpu.Texture {
+pub fn createTexture(path: [:0]const u8) !texture.Handle {
+    if (render_state.texture_cache.contains(path)) {
+        return render_state.texture_cache.get(path).?;
+    }
+
     var c_w: c_int = 0;
     var c_h: c_int = 0;
     var c_d: c_int = 0;
@@ -385,38 +406,14 @@ fn loadTexture(path: [:0]const u8) *sdl.gpu.Texture {
         .width = w,
         .sample_count = .@"1",
     };
-    const texture = sdl.gpu.createTexture(device, &texture_info).?;
+    const tex = sdl.gpu.createTexture(device, &texture_info).?;
 
-    const buf_trans_desc = sdl.gpu.TransferBufferCreateInfo {
-        .size = w * h * d,
-        .usage = .upload
-    };
+    try uploadToTexture(tex, w, h, tex_pixels[0..w * h * d]);
 
-    const buf_transfer = sdl.gpu.createTransferBuffer(device, &buf_trans_desc);
-    defer sdl.gpu.releaseTransferBuffer(device, buf_transfer);
+    const handle = try render_state.textures.insert(tex);
+    return handle;
+}
 
-    const ptr: [*]u8 = @ptrCast(@alignCast(sdl.gpu.mapTransferBuffer(device, buf_transfer, false)));
-    @memcpy(ptr, tex_pixels[0..w * h * d]);
-
-    const cmd = sdl.gpu.acquireCommandBuffer(device).?;
-    const pass = sdl.gpu.beginCopyPass(cmd).?;
-
-    sdl.gpu.uploadToTexture(pass, 
-        &.{
-            .offset = 0,
-            .pixels_per_row = w,
-            .rows_per_layer = h,
-            .transfer_buffer = buf_transfer
-        },
-        &.{ 
-            .texture = texture,
-            .w = w,
-            .h = h,
-            .d = 1,
-        }, 
-        false
-    );
-    sdl.gpu.endCopyPass(pass);
-    sdl.gpu.submitCommandBuffer(cmd);
-    return texture;
+pub fn importModel(path: [:0]const u8)  !model.Handle {
+    return try render_state.models.insert(try model.Model.load(path, render_state.allocator));
 }
