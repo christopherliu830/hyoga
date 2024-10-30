@@ -10,6 +10,6 @@ layout (location = 2) in vec2 uv;
 layout (location = 3) in vec3 light_dir;
 
 void main() {
-    float light_amt = max(0, dot(normalize(normal), -light_dir));
+    float light_amt = max(0, dot(normalize(normal), -normalize(light_dir)));
     out_color = vec4(1, 1, 1, 1) * texture(tex, uv) * light_amt;
 }

@@ -6,7 +6,7 @@ const vec4 = @import("vec4.zig");
 
 const root = @This();
 
-pub const Mat4 = struct {
+pub const Mat4 = extern struct {
     m: [4]@Vector(4, f32),
 
     pub inline fn mul(self: *Mat4, b: Mat4) void {
@@ -161,27 +161,85 @@ pub inline fn scale(a: Mat4, b: f32) Mat4 {
 
 /// zig-gamedev/zmath
 pub inline fn mul(a: Mat4, b: Mat4) Mat4 {
+
     var result: Mat4 = zero;
-    comptime var row: u32 = 0;
 
-    inline while (row < 4) : (row += 1) {
-        var vx = @shuffle(f32, a.m[row], undefined, [4]i32{ 0, 0, 0, 0 });
-        var vy = @shuffle(f32, a.m[row], undefined, [4]i32{ 1, 1, 1, 1 });
-        var vz = @shuffle(f32, a.m[row], undefined, [4]i32{ 2, 2, 2, 2 });
-        var vw = @shuffle(f32, a.m[row], undefined, [4]i32{ 3, 3, 3, 3 });
+    var l = a.m[0];
+    const r0 = b.m[0];
+    const r1 = b.m[1];
+    const r2 = b.m[2];
+    const r3 = b.m[3];
 
-        vx = vx * b.m[0];
-        vy = vy * b.m[1];
-        vz = vz * b.m[2];
-        vw = vw * b.m[3];
-        vx = vx + vz;
-        vy = vy + vw;
-        vx = vx + vy;
+    var v0 = l * @as(@Vector(4, f32), @splat(r0[0]));
+    var v1 = l * @as(@Vector(4, f32), @splat(r1[0]));
+    var v2 = l * @as(@Vector(4, f32), @splat(r2[0]));
+    var v3 = l * @as(@Vector(4, f32), @splat(r3[0]));
 
-        result.m[row] = vx;
-    }
+    l = a.m[1];
+    v0 += l * @as(@Vector(4, f32), @splat(r0[1]));
+    v1 += l * @as(@Vector(4, f32), @splat(r1[1]));
+    v2 += l * @as(@Vector(4, f32), @splat(r2[1]));
+    v3 += l * @as(@Vector(4, f32), @splat(r3[1]));
+
+    l = a.m[2];
+    v0 += l * @as(@Vector(4, f32), @splat(r0[2]));
+    v1 += l * @as(@Vector(4, f32), @splat(r1[2]));
+    v2 += l * @as(@Vector(4, f32), @splat(r2[2]));
+    v3 += l * @as(@Vector(4, f32), @splat(r3[2]));
+
+    l = a.m[3];
+    v0 += l * @as(@Vector(4, f32), @splat(r0[3]));
+    v1 += l * @as(@Vector(4, f32), @splat(r1[3]));
+    v2 += l * @as(@Vector(4, f32), @splat(r2[3]));
+    v3 += l * @as(@Vector(4, f32), @splat(r3[3]));
+
+    result.m[0] = v0;
+    result.m[1] = v1;
+    result.m[2] = v2;
+    result.m[3] = v3;
 
     return result;
+
+    // comptime var row: u32 = 0;
+
+    // inline while (row < 4) : (row += 1) {
+        // var vx = @shuffle(f32, a.m[row], undefined, [4]i32{ 0, 0, 0, 0 });
+        // var vy = @shuffle(f32, a.m[row], undefined, [4]i32{ 1, 1, 1, 1 });
+        // var vz = @shuffle(f32, a.m[row], undefined, [4]i32{ 2, 2, 2, 2 });
+        // var vw = @shuffle(f32, a.m[row], undefined, [4]i32{ 3, 3, 3, 3 });
+
+        // vx = vx * b.m[0];
+        // vy = vy * b.m[1];
+        // vz = vz * b.m[2];
+        // vw = vw * b.m[3];
+        // vx = vx + vz;
+        // vy = vy + vw;
+        // vx = vx + vy;
+
+        // result.m[row] = vx;
+}
+
+test "hym.mat4.mul()" {
+    const a = Mat4 { .m = .{
+        .{ 1, 4, 2, 3 },
+        .{ 0, 1, 4, 4 },
+        .{ -1, 0, 1, 0 },
+        .{ 2, 0, 4, 1 },
+    }};
+
+    const b = Mat4 { .m = .{
+        .{ 2, 7, 2, 3 },
+        .{ 1, 1, 4, 2 },
+        .{ -1, 8, 1, 1 },
+        .{ 2, 0, 2, 1 },
+    }};
+
+    const c = mul(a, b);
+
+    try expectVecApproxEqAbs(.{  6, 15, 46, 37 }, c.m[0], 0.01);
+    try expectVecApproxEqAbs(.{  1,  5, 18, 9 }, c.m[1], 0.01);
+    try expectVecApproxEqAbs(.{  0,  4, 35, 30 }, c.m[2], 0.01);
+    try expectVecApproxEqAbs(.{  2,  8, 10, 7 }, c.m[3], 0.01);
 }
 
 pub inline fn rotation(deg: f32, axis: vec3.Vec3) Mat4 {

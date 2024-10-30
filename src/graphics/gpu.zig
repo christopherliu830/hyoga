@@ -74,6 +74,13 @@ const RenderCommand = struct {
 
 const ShaderType = enum { vertex, fragment };
 
+const TransformMatrices= extern struct {
+    m: mat4.Mat4,
+    v: mat4.Mat4,
+    p: mat4.Mat4,
+    normal_transform: mat4.Mat4
+};
+
 pub var device: *sdl.gpu.Device = undefined;
 pub var render_state: RenderState = undefined;
 pub var window_state: WindowState = .{};
@@ -343,19 +350,19 @@ pub fn begin() !RenderCommand {
 
     const cam = &render_state.scene.camera;
     const cam_pos = cam.position;
+
+    var model = mat4.rotation(@as(f32, @floatFromInt(0)) / 5000, vec3.create(0, 1, 1));
+    model.mul(mat4.rotation(@as(f32, @floatFromInt(0)) / 5000, vec3.create(1, 1, 0)));
     const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
-    const persp = hym_cam.perspectiveMatrix(45, w / h, 0.01, 100);
-    // var matrix_final: mat4.Mat4 = mat4.rotation(45, vec3.create(1, 1, 0));
-    var matrix_final = mat4.identity;
-    matrix_final.mul(view);
-    matrix_final.mul(persp);
-    const mat_normal = mat4.inverse(mat4.transpose(mat4.mul(mat4.identity, view)));
-    const vert_ubo = .{
-        matrix_final,
-        mat_normal
+    const persp = hym_cam.perspectiveMatrix(45, w / h, 0.5, 100);
+    const ubo = TransformMatrices {
+        .m = model,
+        .v = view,
+        .p = persp,
+        .normal_transform = mat4.transpose(mat4.inverse(model)),
     };
 
-    sdl.gpu.pushVertexUniformData(cmd, 0, &vert_ubo, @sizeOf(@TypeOf(vert_ubo)));
+    sdl.gpu.pushVertexUniformData(cmd, 0, &ubo, @sizeOf(TransformMatrices));
 
     // for (&models) |*mod| {
     //     mod.model.spin(0.0004, vec3.create(1, 1, 0));

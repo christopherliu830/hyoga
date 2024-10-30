@@ -11,14 +11,17 @@ layout (location = 3) out vec3 out_light_dir;
 
 layout(set = 1, binding = 0) uniform UBO
 {
-    mat4x4 mvp;
+    mat4x4 m;
+    mat4x4 v;
+    mat4x4 p;
     mat4x4 normal;
 } ubo;
 
 void main() {
-    gl_Position = ubo.mvp * vec4(in_pos, 1.0);
-    out_color = in_normal;
-    out_normal = mat3(ubo.normal) * in_normal;
-    out_light_dir = mat3(ubo.normal) * vec3(-1, 0, 1);
+    gl_Position = ubo.p * ubo.v * ubo.m * vec4(in_pos, 1);
+    // gl_Position = ubo.mvp * vec4(in_pos, 1);
+    out_color = vec3(1, 1, 1);
+    out_normal = normalize(mat3(ubo.normal) * in_normal);
+    out_light_dir = vec3(-1, -1, -1);
     out_uv = in_uv;
 }
