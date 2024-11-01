@@ -396,10 +396,10 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer,
                 .h = @intFromFloat(clip_max.y - clip_min.y),
             };
             sdl.gpu.setScissor(render_pass, &scissor);
-            const binding = sdl.gpu.TextureSamplerBinding {
+            const binding = [_]sdl.gpu.TextureSamplerBinding {.{
                 .sampler = bd.sampler,
                 .texture = bd.font_texture,
-            };
+            }};
             sdl.gpu.bindFragmentSamplers(render_pass, 0, &binding, 1);
             sdl.gpu.drawIndexedPrimitives(render_pass,
                 pcmd.ElemCount,
@@ -438,7 +438,7 @@ pub fn setupRenderState(cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.Rende
         }};
         sdl.gpu.bindVertexBuffers(render_pass, 0, &vertex_buffers, 1);
         sdl.gpu.bindIndexBuffer(render_pass, &index_buffers, if (@sizeOf(imgui.ImDrawIdx) == 2) .@"16bit" else .@"32bit");
-        sdl.gpu.bindFragmentSamplers(render_pass, 0, &.{ .sampler = bd.sampler, .texture = bd.font_texture }, 1);
+        sdl.gpu.bindFragmentSamplers(render_pass, 0, &.{.{ .sampler = bd.sampler, .texture = bd.font_texture }}, 1);
 
         // Setup viewport
         const l = draw_data.DisplayPos.x;

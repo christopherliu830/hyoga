@@ -84,14 +84,14 @@ pub const Model = struct {
             const specular_count = material.getTextureCount(.specular);
             try m.textures.ensureTotalCapacity(m.textures.items.len + diffuse_count + specular_count);
             inline for (.{
-                .{diffuse_count, "tex_diffuse"}, 
-                .{specular_count, "tex_specular"},
+                .{diffuse_count, texture.TextureType.diffuse, ai.TextureType.diffuse}, 
+                .{specular_count, texture.TextureType.specular, ai.TextureType.specular},
             }) |x| {
                 for (0..x[0]) |i| {
 
                     var str: ai.String = .{};
                     _ = material.getTexture(ai.Material.GetTextureInfo {
-                        .tex_type = .diffuse,
+                        .tex_type = x[2],
                         .index = @intCast(i),
                         .path = &str,
                     });

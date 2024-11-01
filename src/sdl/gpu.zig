@@ -923,7 +923,7 @@ pub const bindVertexStorageTextures = SDL_BindGPUVertexStorageTextures;
 pub extern fn SDL_BindGPUVertexStorageBuffers(render_pass: ?*RenderPass, first_slot: u32, storage_buffers: [*c]const ?*Buffer, num_bindings: u32) void;
 pub const bindVertexStorageBuffers = SDL_BindGPUVertexStorageBuffers;
 
-pub extern fn SDL_BindGPUFragmentSamplers(render_pass: ?*RenderPass, first_slot: u32, texture_sampler_bindings: [*c]const TextureSamplerBinding, num_bindings: u32) void;
+pub extern fn SDL_BindGPUFragmentSamplers(render_pass: ?*RenderPass, first_slot: u32, texture_sampler_bindings: [*]const TextureSamplerBinding, num_bindings: u32) void;
 pub const bindFragmentSamplers = SDL_BindGPUFragmentSamplers;
 
 pub extern fn SDL_BindGPUFragmentStorageTextures(render_pass: ?*RenderPass, first_slot: u32, storage_textures: [*c]const ?*Texture, num_bindings: u32) void;

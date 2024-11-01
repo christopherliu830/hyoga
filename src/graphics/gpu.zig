@@ -27,7 +27,7 @@ pub const Scene = struct {
 
 pub const RenderObject = struct {
     buf: *sdl.gpu.Buffer,
-    tex: tx.Handle,
+    textures: []tx.TextureView,
     idx_offset: u32,
     idx_count: u32,
 };
@@ -41,7 +41,8 @@ const RenderState = struct {
     allocator: std.mem.Allocator,
     
     pipeline: *sdl.gpu.GraphicsPipeline,
-    sampler: *sdl.gpu.Sampler = undefined,
+    diffuse: *sdl.gpu.Sampler = undefined,
+    specular: *sdl.gpu.Sampler = undefined,
 
     textures: tx.Arena,
     texture_cache: tx.Cache,
@@ -184,14 +185,13 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Alloca
         .mag_filter = .linear,
     };
 
-    const sampler = sdl.gpu.createSampler(device, &sampler_info).?;
-
     render_state = .{
         .allocator = allocator,
         .objs = std.ArrayList(RenderObject).init(allocator),
         .frames = 0,
         .pipeline = pipeline,
-        .sampler = sampler,
+        .diffuse = sdl.gpu.createSampler(device, &sampler_info).?,
+        .specular  = sdl.gpu.createSampler(device, &sampler_info).?,
         .sample_count = sample_count,
         .scene = in_scene,
         .textures = textures,
@@ -200,7 +200,7 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Alloca
     };
 
     const hdl_backpack = try importModel("assets/backpack/backpack.obj");
-    const backpack = try render_state.models.get(hdl_backpack);
+    const backpack = try render_state.models.getPtr(hdl_backpack);
 
     for (backpack.meshes.items) |mesh| {
         const vertex_buffer_size: u32 = @intCast(mesh.vertices.items.len * @sizeOf(@TypeOf(mesh.vertices.items[0])));
@@ -217,7 +217,7 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Alloca
             .buf = buffer,
             .idx_offset = vertex_buffer_size,
             .idx_count = @intCast(mesh.indices.items.len),
-            .tex = mesh.textures.items[0].hdl,
+            .textures = mesh.textures.items,
         };
 
         try render_state.objs.append(render_obj);
@@ -231,7 +231,8 @@ pub fn shutdown() void {
     // }
     device.releaseTexture(window_state.tex_depth);
 
-    device.releaseSampler(render_state.sampler);
+    device.releaseSampler(render_state.diffuse);
+    device.releaseSampler(render_state.specular);
     device.releaseGraphicsPipeline(render_state.pipeline);
     device.destroy();
 }
@@ -455,8 +456,18 @@ pub fn importModel(path: [:0]const u8)  !mdl.Handle {
 }
 
 pub fn drawModel(pass: *sdl.gpu.RenderPass, obj: RenderObject) !void {
-    const texture = try render_state.textures.get(obj.tex);
-    sdl.gpu.bindFragmentSamplers(pass, 0, &.{ .sampler = render_state.sampler, .texture = texture }, 1);
+    for (obj.textures) |tex| {
+        switch(tex.tex_type) {
+            .diffuse => {
+                const texture = try render_state.textures.get(tex.hdl);
+                sdl.gpu.bindFragmentSamplers(pass, 0, &.{.{ .sampler = render_state.diffuse, .texture = texture }}, 1);
+            },
+            .specular => {
+                const texture = try render_state.textures.get(tex.hdl);
+                sdl.gpu.bindFragmentSamplers(pass, 1, &.{.{ .sampler = render_state.specular, .texture = texture }}, 1);
+            }
+        }
+    }
 
     const vertex_binding = [1]sdl.gpu.BufferBinding{.{
         .buffer = obj.buf,
