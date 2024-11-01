@@ -481,7 +481,7 @@ pub const struct_ImGuiPlatformImeData = extern struct {
     InputPos: Vec2 = @import("std").mem.zeroes(Vec2),
     InputLineHeight: f32 = @import("std").mem.zeroes(f32),
 };
-pub const ImGuiPlatformImeData = struct_ImGuiPlatformImeData;
+pub const PlatformImeData = struct_ImGuiPlatformImeData;
 
 pub const ImU64 = c_ulonglong;
 
@@ -515,7 +515,7 @@ pub const struct_ImGuiPlatformIO = extern struct {
     Platform_ClipboardUserData: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
     Platform_OpenInShellFn: ?*const fn (?*Context, [*c]const u8) callconv(.C) bool = @import("std").mem.zeroes(?*const fn (?*Context, [*c]const u8) callconv(.C) bool),
     Platform_OpenInShellUserData: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
-    Platform_SetImeDataFn: ?*const fn (?*Context, [*c]Viewport, [*c]ImGuiPlatformImeData) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*Context, [*c]Viewport, [*c]ImGuiPlatformImeData) callconv(.C) void),
+    Platform_SetImeDataFn: ?*const fn (?*Context, *Viewport, *PlatformImeData) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*Context, [*c]Viewport, [*c]PlatformImeData) callconv(.C) void),
     Platform_ImeUserData: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
     Platform_LocaleDecimalPoint: ImWchar = @import("std").mem.zeroes(ImWchar),
     Platform_CreateWindow: ?*const fn ([*c]Viewport) callconv(.C) void = @import("std").mem.zeroes(?*const fn ([*c]Viewport) callconv(.C) void),
@@ -5231,8 +5231,8 @@ pub extern fn ImGuiPlatformIO_ImGuiPlatformIO() [*c]ImGuiPlatformIO;
 pub extern fn ImGuiPlatformIO_destroy(self: [*c]ImGuiPlatformIO) void;
 pub extern fn ImGuiPlatformMonitor_ImGuiPlatformMonitor() [*c]ImGuiPlatformMonitor;
 pub extern fn ImGuiPlatformMonitor_destroy(self: [*c]ImGuiPlatformMonitor) void;
-pub extern fn ImGuiPlatformImeData_ImGuiPlatformImeData() [*c]ImGuiPlatformImeData;
-pub extern fn ImGuiPlatformImeData_destroy(self: [*c]ImGuiPlatformImeData) void;
+pub extern fn ImGuiPlatformImeData_ImGuiPlatformImeData() [*c]PlatformImeData;
+pub extern fn ImGuiPlatformImeData_destroy(self: [*c]PlatformImeData) void;
 pub extern fn igImHashData(data: ?*const anyopaque, data_size: usize, seed: ImGuiID) ImGuiID;
 pub const imHashData = igImHashData;
 pub extern fn igImHashStr(data: [*c]const u8, data_size: usize, seed: ImGuiID) ImGuiID;

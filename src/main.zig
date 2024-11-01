@@ -22,7 +22,8 @@ pub fn main() !void {
         .camera = .{
             .position = vec3.create(0, 0, 2.5),
             .look_direction = vec3.mul(vec3.z, -1),
-        }
+        },
+        .light_dir = vec3.create(0, -2, -1),
     };
 
 
@@ -62,9 +63,13 @@ pub fn main() !void {
         try imgui_sdl.newFrame();
         imgui.newFrame();
 
-        // My windows
         if (imgui.begin("Debug Window", &open, 0)) {
             const pos = scene.camera.position;
+
+            var light_dir: [3]f32 = scene.light_dir.v;
+            _ = imgui.inputFloat3("Light Direction", &light_dir, null, 0);
+            scene.light_dir.v = light_dir;
+
             imgui.text("Camera Position: %f %f %f", pos.x(), pos.y(), pos.z());
             imgui.text("Num Keys Down: %d", input.num_keys_down);
 
@@ -75,9 +80,7 @@ pub fn main() !void {
                 }
             }
 
-            var size: imgui.Vec2 = undefined;
-            imgui.getWindowSize(&size);
-            if (imgui.button("Quit", .{ .x = size.x - 40, .y = 20 })) {
+            if (imgui.button("Quit", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
                 quit = true;
             }
         }

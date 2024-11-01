@@ -5,7 +5,7 @@ const vec4 = @import("vec4.zig");
 
 const root = @This();
 
-pub const Vec3 = struct {
+pub const Vec3 = extern struct {
     v: @Vector(3, f32),
 
     pub inline fn x(self: Vec3) f32 { return self.v[0]; }

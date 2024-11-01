@@ -22,6 +22,7 @@ const Vertex = @import("vertex.zig").Vertex;
 
 pub const Scene = struct {
     camera: camera.Camera,
+    light_dir: vec3.Vec3,
 };
 
 pub const RenderObject = struct {
@@ -74,10 +75,14 @@ const RenderCommand = struct {
 
 const ShaderType = enum { vertex, fragment };
 
+const LightingUBO = extern struct {
+    light_dir: vec3.Vec3,
+    camera_pos: vec3.Vec3
+};
+
 const TransformMatrices= extern struct {
-    m: mat4.Mat4,
-    v: mat4.Mat4,
-    p: mat4.Mat4,
+    model: mat4.Mat4,
+    mvp: mat4.Mat4,
     normal_transform: mat4.Mat4
 };
 
@@ -355,45 +360,21 @@ pub fn begin() !RenderCommand {
     model.mul(mat4.rotation(@as(f32, @floatFromInt(0)) / 5000, vec3.create(1, 1, 0)));
     const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
     const persp = hym_cam.perspectiveMatrix(45, w / h, 0.5, 100);
+
     const ubo = TransformMatrices {
-        .m = model,
-        .v = view,
-        .p = persp,
+        .model = model,
+        .mvp = mat4.mul(mat4.mul(persp, view), model),
         .normal_transform = mat4.transpose(mat4.inverse(model)),
     };
 
+    const lighting_ubo = LightingUBO {
+        .light_dir = render_state.scene.light_dir,
+        .camera_pos = render_state.scene.camera.position
+    };
+
+
     sdl.gpu.pushVertexUniformData(cmd, 0, &ubo, @sizeOf(TransformMatrices));
-
-    // for (&models) |*mod| {
-    //     mod.model.spin(0.0004, vec3.create(1, 1, 0));
-    //     mod.model.spin(0.0001, vec3.create(0, 0, 1));
-    //     var matrix_final: mat4.Mat4 = mod.model;
-    //     matrix_final.mul(view);
-    //     matrix_final.mul(persp);
-    //     const mat_normal = mat4.inverse(mat4.transpose(mat4.mul(mod.model, view)));
-    //     const vert_ubo = .{
-    //         matrix_final,
-    //         mat_normal
-    //     };
-
-    //     sdl.gpu.pushVertexUniformData(cmd, 0, &vert_ubo, @sizeOf(@TypeOf(vert_ubo)));
-    //     const vertex_binding = [1]sdl.gpu.BufferBinding{.{
-    //         .buffer = render_state.buf_vertex,
-    //         .offset = @offsetOf(@TypeOf(cube), "vertices"),
-    //     }};
-        
-    //     const index_binding = [1]sdl.gpu.BufferBinding {.{
-    //         .buffer = render_state.buf_vertex,
-    //         .offset = @offsetOf(@TypeOf(cube), "indices"),
-    //     }};
-
-    //     sdl.gpu.bindGraphicsPipeline(pass, render_state.pipeline);
-    //     sdl.gpu.bindFragmentSamplers(pass, 0, &.{ .sampler = render_state.sampler, .texture =  render_state.texture }, 1);
-    //     sdl.gpu.bindVertexBuffers(pass, 0, &vertex_binding, 1);
-    //     sdl.gpu.bindIndexBuffer(pass, &index_binding, .@"16bit");
-    //     sdl.gpu.drawPrimitives(pass, 36, 1, 0, 0);
-    //     sdl.gpu.drawIndexedPrimitives(pass, cube.indices.len, 1, 0, 0, 0);
-    // }
+    sdl.gpu.pushFragmentUniformData(cmd, 0, &lighting_ubo, @sizeOf(LightingUBO));
     
     sdl.gpu.bindGraphicsPipeline(pass, render_state.pipeline);
     for (render_state.objs.items) |obj| {

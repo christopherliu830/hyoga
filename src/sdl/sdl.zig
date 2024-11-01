@@ -2,6 +2,7 @@ pub const c = @import("c.zig");
 pub const events = @import("events.zig");
 pub const gpu = @import("gpu.zig");
 pub const hints = @import("hints.zig");
+pub const keyboard = @import("keyboard.zig");
 pub const keycode = @import("keycode.zig");
 pub const mouse = @import("mouse.zig");
 pub const rect = @import("rect.zig");

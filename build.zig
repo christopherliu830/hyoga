@@ -64,8 +64,8 @@ pub fn build(b: *std.Build) void {
 
     // ---------- assimp -----------
     exe.addLibraryPath(b.path("thirdparty/assimp"));
-    b.installBinFile("thirdparty/assimp/assimp-vc142-mtd.dll", "assimp-vc142-mtd.dll");
-    exe.linkSystemLibrary("assimp-vc142-mtd");
+    b.installBinFile("thirdparty/assimp/assimp-vc143-mt.dll", "assimp-vc143-mt.dll");
+    exe.linkSystemLibrary("assimp-vc143-mt");
 
     exe.linkLibCpp();
 

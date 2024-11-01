@@ -14,6 +14,7 @@ pub const ImplData = struct {
     clipboard_text_data: []const u8 = undefined,
     use_vulkan: bool = false,
     want_update_monitors: bool = false,
+    ime_window: ?*sdl.video.Window,
     mouse_window_id: u32 = 0,
     mouse_buttons_down: i32 = 0,
     mouse_cursors: [imgui.mouse_cursor_count]?*sdl.mouse.Cursor = undefined,
@@ -48,6 +49,7 @@ pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) !void {
     const bd = try allocator.create(ImplData);
     bd.* = .{
         .allocator = allocator,
+        .ime_window = null,
     };
 
     io.BackendPlatformUserData = bd;
@@ -62,6 +64,11 @@ pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) !void {
     bd.mouse_can_use_global_state = mouse_can_use_global_state;
     bd.mouse_can_report_hovered_viewport = if (builtin.os.tag != .macos) mouse_can_use_global_state else false;
     bd.want_update_monitors = true;
+
+    const platform_io = imgui.getPlatformIO();
+    platform_io.Platform_SetClipboardTextFn = undefined;
+    platform_io.Platform_SetClipboardTextFn = undefined;
+    platform_io.Platform_SetImeDataFn = platformSetImeData;
 
     bd.gamepad_mode = .auto_first;
     bd.want_update_gamepads_list = true;
@@ -111,13 +118,33 @@ pub fn shutdown() void {
     bd.allocator.destroy(bd);
 }
 
-pub fn getBackendData() ?*ImplData {
+fn getBackendData() ?*ImplData {
     if (imgui.igGetCurrentContext() != null) {
         return @ptrCast(@alignCast(imgui.getIO().BackendPlatformUserData));
     } else return null;
 }
 
-pub fn setupPlatformHandles(viewport: *imgui.Viewport, window: *sdl.video.Window) void {
+fn platformSetImeData(_: ?*imgui.Context, viewport: *imgui.Viewport, data: *imgui.PlatformImeData) callconv(.C) void {
+    const bd = getBackendData().?;
+    const window_id = @intFromPtr(viewport.PlatformHandle);
+    const window = sdl.video.getWindowFromID(@intCast(window_id));
+    if ((data.WantVisible == false or bd.ime_window != window) and bd.ime_window != null) {
+        _ = sdl.keyboard.stopTextInput(bd.ime_window);
+    }
+    if (data.WantVisible) {
+        const r = sdl.rect.Rect {
+            .x = @intFromFloat(data.InputPos.x - viewport.Pos.x),
+            .y = @intFromFloat(data.InputPos.y - viewport.Pos.y),
+            .w = 1,
+            .h = @intFromFloat(data.InputLineHeight),
+        };
+        _ = sdl.keyboard.setTextInputArea(window, &r, 0);
+        _ = sdl.keyboard.startTextInput(window);
+        bd.ime_window = window;
+    }
+}
+
+fn setupPlatformHandles(viewport: *imgui.Viewport, window: *sdl.video.Window) void {
     viewport.PlatformHandle = @ptrFromInt(sdl.video.getWindowID(window));
     if (builtin.os.tag == .windows) {
         viewport.PlatformHandleRaw = sdl.c.SDL_GetPointerProperty(sdl.video.getWindowProperties(window), sdl.c.SDL_PROP_WINDOW_WIN32_HWND_POINTER, null);
@@ -315,7 +342,7 @@ pub fn newFrame() !void {
     // updateGamepads();
 }
 
-pub fn updateMonitors() void {
+fn updateMonitors() void {
     const bd = getBackendData().?;
     const io = imgui.getPlatformIO();
     io.Monitors.Size = 0;
@@ -369,7 +396,7 @@ pub fn updateMonitors() void {
     }
 }
 
-pub fn updateMouseData() !void {
+fn updateMouseData() !void {
     const bd = getBackendData() orelse return error.NotInitialized;
     const io = imgui.getIO();
 
@@ -387,7 +414,7 @@ pub fn updateMouseData() !void {
     }
 }
 
-pub fn updateMouseCursor() !void {
+fn updateMouseCursor() !void {
     const io = imgui.getIO();
     if (io.ConfigFlags & imgui.ImGuiConfigFlags_NoMouseCursorChange != 0) {
         return;
@@ -407,11 +434,11 @@ pub fn updateMouseCursor() !void {
     }
 }
 
-pub fn updateGamepads() void {
+fn updateGamepads() void {
     unreachable;
 }
 
-pub fn updateKeyModifiers(sdl_key_mods: sdl.keycode.Keymod) void {
+fn updateKeyModifiers(sdl_key_mods: sdl.keycode.Keymod) void {
     const io = imgui.getIO();
     imgui.ImGuiIO_AddKeyEvent(io, imgui.ImGuiMod_Ctrl, (sdl_key_mods & sdl.keycode.mod_ctrl) != 0);
     imgui.ImGuiIO_AddKeyEvent(io, imgui.ImGuiMod_Shift, (sdl_key_mods & sdl.keycode.mod_shift) != 0);
@@ -419,7 +446,7 @@ pub fn updateKeyModifiers(sdl_key_mods: sdl.keycode.Keymod) void {
     imgui.ImGuiIO_AddKeyEvent(io, imgui.ImGuiMod_Super, (sdl_key_mods & sdl.keycode.mod_gui) != 0);
 }
 
-pub inline fn keyEventToImGuiKey(keycode: sdl.keycode.Keycode, scancode: sdl.scancode.Scancode) imgui.ImGuiKey {
+inline fn keyEventToImGuiKey(keycode: sdl.keycode.Keycode, scancode: sdl.scancode.Scancode) imgui.ImGuiKey {
     const code: ?imgui.ImGuiKey = switch(scancode) {
         sdl.scancode.kp_0 => imgui.ImGuiKey_Keypad0,
         sdl.scancode.kp_1 => imgui.ImGuiKey_Keypad1,
@@ -547,6 +574,6 @@ pub inline fn keyEventToImGuiKey(keycode: sdl.keycode.Keycode, scancode: sdl.sca
     };
 }
 
-pub fn getViewportForWindowID(windowid: sdl.video.WindowID) ?*imgui.Viewport {
+fn getViewportForWindowID(windowid: sdl.video.WindowID) ?*imgui.Viewport {
     return imgui.igFindViewportByPlatformHandle(@ptrFromInt(windowid));
 }
