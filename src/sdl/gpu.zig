@@ -152,7 +152,12 @@ pub const CommandBuffer = opaque {
 
 };
 
-pub const RenderPass = opaque {};
+pub const RenderPass = opaque {
+
+	pub const setStencilReference = SDL_SetGPUStencilReference;
+
+	pub const bindGraphicsPipeline = SDL_BindGPUGraphicsPipeline;
+};
 
 pub const ComputePass = opaque {};
 
@@ -893,109 +898,109 @@ pub const pushComputeUniformData = SDL_PushGPUComputeUniformData;
 pub extern fn SDL_BeginGPURenderPass(command_buffer: ?*CommandBuffer, color_target_infos: [*c]const ColorTargetInfo, num_color_targets: u32, depth_stencil_target_info: [*c]const DepthStencilTargetInfo) ?*RenderPass;
 pub const beginRenderPass = SDL_BeginGPURenderPass;
 
-pub extern fn SDL_BindGPUGraphicsPipeline(render_pass: ?*RenderPass, graphics_pipeline: ?*GraphicsPipeline) void;
+pub extern fn SDL_BindGPUGraphicsPipeline(render_pass: *RenderPass, graphics_pipeline: ?*GraphicsPipeline) void;
 pub const bindGraphicsPipeline = SDL_BindGPUGraphicsPipeline;
 
-pub extern fn SDL_SetGPUViewport(render_pass: ?*RenderPass, viewport: [*c]const Viewport) void;
+pub extern fn SDL_SetGPUViewport(render_pass: *RenderPass, viewport: [*c]const Viewport) void;
 pub const setViewport = SDL_SetGPUViewport;
 
-pub extern fn SDL_SetGPUScissor(render_pass: ?*RenderPass, scissor: [*c]const Rect) void;
+pub extern fn SDL_SetGPUScissor(render_pass: *RenderPass, scissor: [*c]const Rect) void;
 pub const setScissor = SDL_SetGPUScissor;
 
-pub extern fn SDL_SetGPUBlendConstants(render_pass: ?*RenderPass, blend_constants: FColor) void;
+pub extern fn SDL_SetGPUBlendConstants(render_pass: *RenderPass, blend_constants: FColor) void;
 pub const setBlendConstants = SDL_SetGPUBlendConstants;
 
-pub extern fn SDL_SetGPUStencilReference(render_pass: ?*RenderPass, reference: u8) void;
+pub extern fn SDL_SetGPUStencilReference(render_pass: *RenderPass, reference: u8) void;
 pub const setStencilReference = SDL_SetGPUStencilReference;
 
-pub extern fn SDL_BindGPUVertexBuffers(render_pass: ?*RenderPass, first_slot: u32, bindings: [*c]const BufferBinding, num_bindings: u32) void;
+pub extern fn SDL_BindGPUVertexBuffers(render_pass: *RenderPass, first_slot: u32, bindings: [*c]const BufferBinding, num_bindings: u32) void;
 pub const bindVertexBuffers = SDL_BindGPUVertexBuffers;
 
-pub extern fn SDL_BindGPUIndexBuffer(render_pass: ?*RenderPass, binding: [*c]const BufferBinding, index_element_size: IndexElementSize) void;
+pub extern fn SDL_BindGPUIndexBuffer(render_pass: *RenderPass, binding: [*c]const BufferBinding, index_element_size: IndexElementSize) void;
 pub const bindIndexBuffer = SDL_BindGPUIndexBuffer;
 
-pub extern fn SDL_BindGPUVertexSamplers(render_pass: ?*RenderPass, first_slot: u32, texture_sampler_bindings: [*c]const TextureSamplerBinding, num_bindings: u32) void;
+pub extern fn SDL_BindGPUVertexSamplers(render_pass: *RenderPass, first_slot: u32, texture_sampler_bindings: [*c]const TextureSamplerBinding, num_bindings: u32) void;
 pub const bindVertexSamplers = SDL_BindGPUVertexSamplers;
 
-pub extern fn SDL_BindGPUVertexStorageTextures(render_pass: ?*RenderPass, first_slot: u32, storage_textures: [*c]const ?*Texture, num_bindings: u32) void;
+pub extern fn SDL_BindGPUVertexStorageTextures(render_pass: *RenderPass, first_slot: u32, storage_textures: [*c]const ?*Texture, num_bindings: u32) void;
 pub const bindVertexStorageTextures = SDL_BindGPUVertexStorageTextures;
 
-pub extern fn SDL_BindGPUVertexStorageBuffers(render_pass: ?*RenderPass, first_slot: u32, storage_buffers: [*c]const ?*Buffer, num_bindings: u32) void;
+pub extern fn SDL_BindGPUVertexStorageBuffers(render_pass: *RenderPass, first_slot: u32, storage_buffers: [*c]const ?*Buffer, num_bindings: u32) void;
 pub const bindVertexStorageBuffers = SDL_BindGPUVertexStorageBuffers;
 
-pub extern fn SDL_BindGPUFragmentSamplers(render_pass: ?*RenderPass, first_slot: u32, texture_sampler_bindings: [*]const TextureSamplerBinding, num_bindings: u32) void;
+pub extern fn SDL_BindGPUFragmentSamplers(render_pass: *RenderPass, first_slot: u32, texture_sampler_bindings: [*]const TextureSamplerBinding, num_bindings: u32) void;
 pub const bindFragmentSamplers = SDL_BindGPUFragmentSamplers;
 
-pub extern fn SDL_BindGPUFragmentStorageTextures(render_pass: ?*RenderPass, first_slot: u32, storage_textures: [*c]const ?*Texture, num_bindings: u32) void;
+pub extern fn SDL_BindGPUFragmentStorageTextures(render_pass: *RenderPass, first_slot: u32, storage_textures: [*c]const ?*Texture, num_bindings: u32) void;
 pub const bindFragmentStorageTextures = SDL_BindGPUFragmentStorageTextures;
 
-pub extern fn SDL_BindGPUFragmentStorageBuffers(render_pass: ?*RenderPass, first_slot: u32, storage_buffers: [*c]const ?*Buffer, num_bindings: u32) void;
+pub extern fn SDL_BindGPUFragmentStorageBuffers(render_pass: *RenderPass, first_slot: u32, storage_buffers: [*c]const ?*Buffer, num_bindings: u32) void;
 pub const bindFragmentStorageBuffers = SDL_BindGPUFragmentStorageBuffers;
 
-pub extern fn SDL_DrawGPUIndexedPrimitives(render_pass: ?*RenderPass, num_indices: u32, num_instances: u32, first_index: u32, vertex_offset: i32, first_instance: u32) void;
+pub extern fn SDL_DrawGPUIndexedPrimitives(render_pass: *RenderPass, num_indices: u32, num_instances: u32, first_index: u32, vertex_offset: i32, first_instance: u32) void;
 pub const drawIndexedPrimitives = SDL_DrawGPUIndexedPrimitives;
 
-pub extern fn SDL_DrawGPUPrimitives(render_pass: ?*RenderPass, num_vertices: u32, num_instances: u32, first_vertex: u32, first_instance: u32) void;
+pub extern fn SDL_DrawGPUPrimitives(render_pass: *RenderPass, num_vertices: u32, num_instances: u32, first_vertex: u32, first_instance: u32) void;
 pub const drawPrimitives = SDL_DrawGPUPrimitives;
 
-pub extern fn SDL_DrawGPUPrimitivesIndirect(render_pass: ?*RenderPass, buffer: ?*Buffer, offset: u32, draw_count: u32) void;
+pub extern fn SDL_DrawGPUPrimitivesIndirect(render_pass: *RenderPass, buffer: ?*Buffer, offset: u32, draw_count: u32) void;
 pub const drawPrimitivesIndirect = SDL_DrawGPUPrimitivesIndirect;
 
-pub extern fn SDL_DrawGPUIndexedPrimitivesIndirect(render_pass: ?*RenderPass, buffer: ?*Buffer, offset: u32, draw_count: u32) void;
+pub extern fn SDL_DrawGPUIndexedPrimitivesIndirect(render_pass: *RenderPass, buffer: ?*Buffer, offset: u32, draw_count: u32) void;
 pub const drawIndexedPrimitivesIndirect = SDL_DrawGPUIndexedPrimitivesIndirect;
 
-pub extern fn SDL_EndGPURenderPass(render_pass: ?*RenderPass) void;
+pub extern fn SDL_EndGPURenderPass(render_pass: *RenderPass) void;
 pub const endRenderPass = SDL_EndGPURenderPass;
 
-pub extern fn SDL_BeginGPUComputePass(command_buffer: ?*CommandBuffer, storage_texture_bindings: [*c]const StorageTextureWriteOnlyBinding, num_storage_texture_bindings: u32, storage_buffer_bindings: [*c]const StorageBufferWriteOnlyBinding, num_storage_buffer_bindings: u32) ?*ComputePass;
+pub extern fn SDL_BeginGPUComputePass(command_buffer: *CommandBuffer, storage_texture_bindings: [*c]const StorageTextureWriteOnlyBinding, num_storage_texture_bindings: u32, storage_buffer_bindings: [*c]const StorageBufferWriteOnlyBinding, num_storage_buffer_bindings: u32) ?*ComputePass;
 pub const beginComputePass = SDL_BeginGPUComputePass;
 
-pub extern fn SDL_BindGPUComputePipeline(compute_pass: ?*ComputePass, compute_pipeline: ?*ComputePipeline) void;
+pub extern fn SDL_BindGPUComputePipeline(compute_pass: *ComputePass, compute_pipeline: ?*ComputePipeline) void;
 pub const bindComputePipeline = SDL_BindGPUComputePipeline;
 
-pub extern fn SDL_BindGPUComputeSamplers(compute_pass: ?*ComputePass, first_slot: u32, texture_sampler_bindings: [*c]const TextureSamplerBinding, num_bindings: u32) void;
+pub extern fn SDL_BindGPUComputeSamplers(compute_pass: *ComputePass, first_slot: u32, texture_sampler_bindings: [*c]const TextureSamplerBinding, num_bindings: u32) void;
 pub const bindComputeSamplers = SDL_BindGPUComputeSamplers;
 
-pub extern fn SDL_BindGPUComputeStorageTextures(compute_pass: ?*ComputePass, first_slot: u32, storage_textures: [*c]const ?*Texture, num_bindings: u32) void;
+pub extern fn SDL_BindGPUComputeStorageTextures(compute_pass: *ComputePass, first_slot: u32, storage_textures: [*c]const ?*Texture, num_bindings: u32) void;
 pub const bindComputeStorageTextures = SDL_BindGPUComputeStorageTextures;
 
-pub extern fn SDL_BindGPUComputeStorageBuffers(compute_pass: ?*ComputePass, first_slot: u32, storage_buffers: [*c]const ?*Buffer, num_bindings: u32) void;
+pub extern fn SDL_BindGPUComputeStorageBuffers(compute_pass: *ComputePass, first_slot: u32, storage_buffers: [*c]const ?*Buffer, num_bindings: u32) void;
 pub const bindComputeStorageBuffers = SDL_BindGPUComputeStorageBuffers;
 
-pub extern fn SDL_DispatchGPUCompute(compute_pass: ?*ComputePass, groupcount_x: u32, groupcount_y: u32, groupcount_z: u32) void;
+pub extern fn SDL_DispatchGPUCompute(compute_pass: *ComputePass, groupcount_x: u32, groupcount_y: u32, groupcount_z: u32) void;
 pub const dispatchCompute = SDL_DispatchGPUCompute;
 
-pub extern fn SDL_DispatchGPUComputeIndirect(compute_pass: ?*ComputePass, buffer: ?*Buffer, offset: u32) void;
+pub extern fn SDL_DispatchGPUComputeIndirect(compute_pass: *ComputePass, buffer: ?*Buffer, offset: u32) void;
 pub const dispatchComputeIndirect = SDL_DispatchGPUComputeIndirect;
 
-pub extern fn SDL_EndGPUComputePass(compute_pass: ?*ComputePass) void;
+pub extern fn SDL_EndGPUComputePass(compute_pass: *ComputePass) void;
 pub const endComputePass = SDL_EndGPUComputePass;
 
-pub extern fn SDL_MapGPUTransferBuffer(device: ?*Device, transfer_buffer: ?*TransferBuffer, cycle: bool) ?*anyopaque;
+pub extern fn SDL_MapGPUTransferBuffer(device: *Device, transfer_buffer: ?*TransferBuffer, cycle: bool) ?*anyopaque;
 pub const mapTransferBuffer = SDL_MapGPUTransferBuffer;
 
-pub extern fn SDL_UnmapGPUTransferBuffer(device: ?*Device, transfer_buffer: ?*TransferBuffer) void;
+pub extern fn SDL_UnmapGPUTransferBuffer(device: *Device, transfer_buffer: ?*TransferBuffer) void;
 pub const unmapTransferBuffer = SDL_UnmapGPUTransferBuffer;
 
-pub extern fn SDL_BeginGPUCopyPass(command_buffer: ?*CommandBuffer) ?*CopyPass;
+pub extern fn SDL_BeginGPUCopyPass(command_buffer: *CommandBuffer) ?*CopyPass;
 pub const beginCopyPass = SDL_BeginGPUCopyPass;
 
-pub extern fn SDL_UploadToGPUTexture(copy_pass: ?*CopyPass, source: [*c]const TextureTransferInfo, destination: [*c]const TextureRegion, cycle: bool) void;
+pub extern fn SDL_UploadToGPUTexture(copy_pass: *CopyPass, source: [*c]const TextureTransferInfo, destination: [*c]const TextureRegion, cycle: bool) void;
 pub const uploadToTexture = SDL_UploadToGPUTexture;
 
-pub extern fn SDL_UploadToGPUBuffer(copy_pass: ?*CopyPass, source: [*c]const TransferBufferLocation, destination: [*c]const BufferRegion, cycle: bool) void;
+pub extern fn SDL_UploadToGPUBuffer(copy_pass: *CopyPass, source: [*c]const TransferBufferLocation, destination: [*c]const BufferRegion, cycle: bool) void;
 pub const uploadToBuffer = SDL_UploadToGPUBuffer;
 
-pub extern fn SDL_CopyGPUTextureToTexture(copy_pass: ?*CopyPass, source: [*c]const TextureLocation, destination: [*c]const TextureLocation, w: u32, h: u32, d: u32, cycle: bool) void;
+pub extern fn SDL_CopyGPUTextureToTexture(copy_pass: *CopyPass, source: [*c]const TextureLocation, destination: [*c]const TextureLocation, w: u32, h: u32, d: u32, cycle: bool) void;
 pub const copyTextureToTexture = SDL_CopyGPUTextureToTexture;
 
-pub extern fn SDL_CopyGPUBufferToBuffer(copy_pass: ?*CopyPass, source: [*c]const BufferLocation, destination: [*c]const BufferLocation, size: u32, cycle: bool) void;
+pub extern fn SDL_CopyGPUBufferToBuffer(copy_pass: *CopyPass, source: [*c]const BufferLocation, destination: [*c]const BufferLocation, size: u32, cycle: bool) void;
 pub const copyBufferToBuffer = SDL_CopyGPUBufferToBuffer;
 
-pub extern fn SDL_DownloadFromGPUTexture(copy_pass: ?*CopyPass, source: [*c]const TextureRegion, destination: [*c]const TextureTransferInfo) void;
+pub extern fn SDL_DownloadFromGPUTexture(copy_pass: *CopyPass, source: [*c]const TextureRegion, destination: [*c]const TextureTransferInfo) void;
 pub const downloadFromTexture = SDL_DownloadFromGPUTexture;
 
-pub extern fn SDL_DownloadFromGPUBuffer(copy_pass: ?*CopyPass, source: [*c]const BufferRegion, destination: [*c]const TransferBufferLocation) void;
+pub extern fn SDL_DownloadFromGPUBuffer(copy_pass: *CopyPass, source: [*c]const BufferRegion, destination: [*c]const TransferBufferLocation) void;
 pub const downloadFromBuffer = SDL_DownloadFromGPUBuffer;
 
 pub extern fn SDL_EndGPUCopyPass(copy_pass: *CopyPass) void;

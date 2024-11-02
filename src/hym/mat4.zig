@@ -17,8 +17,14 @@ pub const Mat4 = extern struct {
         self.m[3] += .{ v.v[0], v.v[1], v.v[2], 0 }; 
     }
 
-    pub inline fn scale(self: *Mat4, b: f32) void {
-        self.* = root.scale(self.*, b);
+    pub inline fn component_scale(self: *Mat4, b: f32) void {
+        self.* = root.component_scale(self.*, b);
+    }
+
+    pub inline fn vector_scale(self: *Mat4, v: vec3.Vec3) void {
+        self.m[0] = vec4.mul(.{ .v = self.m[0] }, v.v[0]).v;
+        self.m[1] = vec4.mul(.{ .v = self.m[1] }, v.v[1]).v;
+        self.m[2] = vec4.mul(.{ .v = self.m[2] }, v.v[2]).v;
     }
 
     pub inline fn inverse(self: *Mat4) void {
@@ -130,7 +136,7 @@ pub inline fn inverse(mat: Mat4) Mat4 {
     det = 1.0 / (a * dest.m[0][0] + b * dest.m[1][0]
                 + c * dest.m[2][0] + d * dest.m[3][0]);
 
-    dest.scale(det);
+    dest.component_scale(det);
     return dest;
 }
 
@@ -150,12 +156,21 @@ test "hym.mat4.inverse()" {
     try expectVecApproxEqAbs(.{ -6.0/65.0,  24.0/65.0, -32.0/65.0, -13.0/65.0 }, mt.m[3], 0.01);
 }
 
-pub inline fn scale(a: Mat4, b: f32) Mat4 {
+pub inline fn component_scale(a: Mat4, b: f32) Mat4 {
     return Mat4 { .m = .{
         vec4.mul(.{ .v = a.m[0] }, b).v,
         vec4.mul(.{ .v = a.m[1] }, b).v,
         vec4.mul(.{ .v = a.m[2] }, b).v,
         vec4.mul(.{ .v = a.m[3] }, b).v,
+    }};
+}
+
+pub inline fn vector_scale(v: vec3.Vec3) Mat4 {
+    return .{ .m = .{
+        .{ v.v[0], 0, 0, 0 },
+        .{ 0, v.v[1], 0, 0 },
+        .{ 0, 0, v.v[2], 0 },
+        .{ 0, 0, 0,      1 },
     }};
 }
 

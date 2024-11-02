@@ -125,7 +125,7 @@ pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
         .target_info = .{
             .num_color_targets = 1,
             .color_target_descriptions = &color_target_desc,
-            .depth_stencil_format = .d16_unorm,
+            .depth_stencil_format = .d32_float_s8_uint,
             .has_depth_stencil_target = true,
         },
         .rasterizer_state = .{

@@ -41,6 +41,7 @@ const RenderState = struct {
     allocator: std.mem.Allocator,
     
     pipeline: *sdl.gpu.GraphicsPipeline,
+    outline_pipeline: *sdl.gpu.GraphicsPipeline,
     diffuse: *sdl.gpu.Sampler = undefined,
     specular: *sdl.gpu.Sampler = undefined,
 
@@ -139,17 +140,29 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Alloca
         }
     };
 
+    const stencil_state = sdl.gpu.StencilOpState {
+        .compare_op = .always,
+        .depth_fail_op = .replace,
+        .fail_op = .replace,
+        .pass_op = .replace,
+    };
+
     const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
         .target_info = .{
             .num_color_targets = 1,
             .color_target_descriptions = color_target_desc.ptr,
-            .depth_stencil_format = .d16_unorm,
+            .depth_stencil_format = .d32_float_s8_uint,
             .has_depth_stencil_target = true,
         },
         .depth_stencil_state = .{
             .enable_depth_test = true,
             .enable_depth_write = true,
+            .enable_stencil_test = true,
             .compare_op = .less_or_equal,
+            .compare_mask = 0x00,
+            .write_mask = 0xff,
+            .front_stencil_state = stencil_state,
+            .back_stencil_state = stencil_state,
         },
         .multisample_state = .{ .sample_count = sample_count },
         .primitive_type = .trianglelist,
@@ -190,6 +203,7 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Alloca
         .objs = std.ArrayList(RenderObject).init(allocator),
         .frames = 0,
         .pipeline = pipeline,
+        .outline_pipeline = createOutlineShader(color_target_desc),
         .diffuse = sdl.gpu.createSampler(device, &sampler_info).?,
         .specular  = sdl.gpu.createSampler(device, &sampler_info).?,
         .sample_count = sample_count,
@@ -327,7 +341,7 @@ pub fn begin() !RenderCommand {
     window_state.prev_drawable_w = drawable_w;
     window_state.prev_drawable_h = drawable_h;
 
-    var color_target = [1]sdl.gpu.ColorTargetInfo{.{
+    var color_target = [1]sdl.gpu.ColorTargetInfo {.{
         .clear_color = .{ .r = 0, .g = 0.2, .b = 0.4, .a = 1 },
         .load_op = .clear,
         .store_op = .store,
@@ -335,34 +349,34 @@ pub fn begin() !RenderCommand {
         .cycle = false,
     }};
 
-    var depth_target = sdl.gpu.DepthStencilTargetInfo{
+    var depth_target = sdl.gpu.DepthStencilTargetInfo {
         .clear_depth = 1,
+        .clear_stencil = 0,
         .load_op = .clear,
         .store_op = .store,
-        .stencil_load_op = .dont_care,
-        .stencil_store_op = .dont_care,
+        .stencil_load_op = .clear,
+        .stencil_store_op = .store,
         .texture = window_state.tex_depth,
         .cycle = true,
     };
-
 
     const w: f32 = @floatFromInt(drawable_w);
     const h: f32 = @floatFromInt(drawable_h);
 
     const pass = sdl.gpu.beginRenderPass(cmd, &color_target, 1, &depth_target) orelse {
-        std.log.err("could not begin render pass: {s}", .{sdl.getError()});
-        return error.SDLError;
+        std.debug.panic("Could not begin render pass: {s}", .{sdl.getError()});
     };
+
 
     const cam = &render_state.scene.camera;
     const cam_pos = cam.position;
 
-    var model = mat4.rotation(@as(f32, @floatFromInt(0)) / 5000, vec3.create(0, 1, 1));
+    var model = mat4.rotation(@as(f32, @floatFromInt(render_state.frames)) / 5000, vec3.create(0, 1, 1));
     model.mul(mat4.rotation(@as(f32, @floatFromInt(0)) / 5000, vec3.create(1, 1, 0)));
     const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
     const persp = hym_cam.perspectiveMatrix(45, w / h, 0.5, 100);
 
-    const ubo = TransformMatrices {
+    var ubo = TransformMatrices {
         .model = model,
         .mvp = mat4.mul(mat4.mul(persp, view), model),
         .normal_transform = mat4.transpose(mat4.inverse(model)),
@@ -373,11 +387,25 @@ pub fn begin() !RenderCommand {
         .camera_pos = render_state.scene.camera.position
     };
 
-
     sdl.gpu.pushVertexUniformData(cmd, 0, &ubo, @sizeOf(TransformMatrices));
     sdl.gpu.pushFragmentUniformData(cmd, 0, &lighting_ubo, @sizeOf(LightingUBO));
-    
-    sdl.gpu.bindGraphicsPipeline(pass, render_state.pipeline);
+
+    pass.bindGraphicsPipeline(render_state.pipeline);
+    pass.setStencilReference(1);
+    for (render_state.objs.items) |obj| {
+        drawModel(pass, obj) catch continue;
+    }
+
+    // Draw outlines
+    pass.bindGraphicsPipeline(render_state.outline_pipeline);
+    var mvp = mat4.identity;
+    mvp.mul(persp);
+    mvp.mul(view);
+    mvp.mul(model);
+    mvp.mul(mat4.vector_scale(vec3.create(1, 1, 1)));
+    ubo.mvp = mvp;
+    sdl.gpu.pushVertexUniformData(cmd, 0, &ubo, @sizeOf(TransformMatrices));
+
     for (render_state.objs.items) |obj| {
         drawModel(pass, obj) catch continue;
     }
@@ -400,7 +428,7 @@ pub fn submit(render: RenderCommand) RenderSubmitResult {
 pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
     var depthtex_createinfo = sdl.gpu.TextureCreateInfo{
         .type = .@"2d",
-        .format = .d16_unorm,
+        .format = .d32_float_s8_uint,
         .width = @intCast(w),
         .height = @intCast(h),
         .layer_count_or_depth = 1,
@@ -485,4 +513,79 @@ pub fn drawModel(pass: *sdl.gpu.RenderPass, obj: RenderObject) !void {
 
     render_state.pending_submit_result.?.num_draw_calls += 1;
     render_state.pending_submit_result.?.num_drawn_verts += obj.idx_offset / @sizeOf(Vertex);
+}
+
+pub fn createOutlineShader(color_target_desc: []const sdl.gpu.ColorTargetDescription) *sdl.gpu.GraphicsPipeline {
+    const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
+        .slot = 0,
+        .input_rate = .vertex,
+        .instance_step_rate = 0,
+        .pitch = @sizeOf(Vertex),
+    }};
+
+    const vertex_attributes: []const sdl.gpu.VertexAttribute = &.{
+        .{
+            .buffer_slot = 0,
+            .format = .float3,
+            .location = 0,
+            .offset = 0,
+        },
+        .{
+            .buffer_slot = 0,
+            .format = .float3,
+            .location = 1,
+            .offset = @offsetOf(Vertex, "normal"),
+        },
+        .{
+            .buffer_slot = 0,
+            .format = .float2,
+            .location = 2,
+            .offset = @offsetOf(Vertex, "uv"),
+        }
+    };
+
+    const stencil_state = sdl.gpu.StencilOpState {
+        .compare_op = .not_equal,
+        .depth_fail_op = .keep,
+        .fail_op = .keep,
+        .pass_op = .keep,
+    };
+
+    const vert_shader = device.createShader(@import("shaders/single_color.zig").vert_info) catch std.debug.panic("Could not load shader!", .{});
+    defer device.releaseShader(vert_shader);
+    const frag_shader = device.createShader(@import("shaders/single_color.zig").frag_info) catch std.debug.panic("Could not load shader!", .{});
+    defer device.releaseShader(frag_shader);
+
+    const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
+        .target_info = .{
+            .num_color_targets = @intCast(color_target_desc.len),
+            .color_target_descriptions = color_target_desc.ptr,
+            .depth_stencil_format = .d32_float_s8_uint,
+            .has_depth_stencil_target = true,
+        },
+        .depth_stencil_state = .{
+            .enable_depth_test = false,
+            .enable_stencil_test = true,
+            .compare_mask = 0xff,
+            .write_mask = 0,
+            .front_stencil_state = stencil_state,
+            .back_stencil_state = stencil_state,
+        },
+        .multisample_state = .{ .sample_count = .@"1" },
+        .primitive_type = .trianglelist,
+        .vertex_shader = vert_shader,
+        .fragment_shader = frag_shader,
+        .vertex_input_state = .{
+            .num_vertex_buffers = @intCast(vertex_buffer_desc.len),
+            .vertex_buffer_descriptions = vertex_buffer_desc.ptr,
+            .num_vertex_attributes = @intCast(vertex_attributes.len),
+            .vertex_attributes = vertex_attributes.ptr,
+        },
+        .rasterizer_state = .{
+            .cull_mode = .front,
+        },
+        .props = 0,
+    };
+
+    return device.createGraphicsPipeline(pipeline_desc) catch std.debug.panic("Could not create pipeline!", .{});
 }
