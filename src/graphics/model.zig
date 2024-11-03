@@ -2,7 +2,7 @@ const std = @import("std");
 const ai = @import("assimp/assimp.zig");
 const gpu = @import("gpu.zig");
 const hyarena = @import("../genarray.zig");
-const texture = @import("texture.zig");
+const tx = @import("texture.zig");
 const Vertex = @import("vertex.zig").Vertex;
 
 pub const Arena = hyarena.Arena(Model);
@@ -10,15 +10,15 @@ pub const Handle = Arena.Handle;
 
 pub const Mesh = struct {
     vertices: std.ArrayList(Vertex),
-    indices: std.ArrayList(u16),
+    indices: std.ArrayList(u32),
 
-    textures: std.ArrayList(texture.TextureView),
+    textures: std.ArrayList(tx.TextureView),
 
     pub fn create(allocator: std.mem.Allocator) Mesh {
         return .{
             .vertices = std.ArrayList(Vertex).init(allocator),
-            .indices = std.ArrayList(u16).init(allocator),
-            .textures = std.ArrayList(texture.TextureView).init(allocator),
+            .indices = std.ArrayList(u32).init(allocator),
+            .textures = std.ArrayList(tx.TextureView).init(allocator),
         };
     }
 };
@@ -84,8 +84,8 @@ pub const Model = struct {
             const specular_count = material.getTextureCount(.specular);
             try m.textures.ensureTotalCapacity(m.textures.items.len + diffuse_count + specular_count);
             inline for (.{
-                .{diffuse_count, texture.TextureType.diffuse, ai.TextureType.diffuse}, 
-                .{specular_count, texture.TextureType.specular, ai.TextureType.specular},
+                .{diffuse_count, tx.TextureType.diffuse, ai.TextureType.diffuse}, 
+                .{specular_count, tx.TextureType.specular, ai.TextureType.specular},
             }) |x| {
                 for (0..x[0]) |i| {
 
@@ -96,35 +96,37 @@ pub const Model = struct {
                         .path = &str,
                     });
 
-                    const tex_path: [:0]u8 = try std.fs.path.joinZ(allocator, &[_][]const u8 { std.fs.path.dirname(path).?, str.data[0..str.len]});
-                    defer allocator.free(tex_path);
-                    const handle = try gpu.createTexture(tex_path);
-                    try m.textures.append(texture.TextureView {
-                        .hdl = handle,
-                        .tex_type = x[1],
-                        .path = tex_path,
-                    });
+                    const tex_identifier: [:0]u8 = str.data[0..str.len :0];
+                    if (scene.getEmbeddedTexture(tex_identifier.ptr)) |tex| {
+                        var handle: tx.Handle = undefined;
+                        if (tex.height == 0) {
+                            const data = std.mem.sliceAsBytes(tex.pc_data[0..tex.width]);
+                            handle = try gpu.createTextureFromImageMemory(tex_identifier, data); 
+                        }
+                        else {
+                            const data = std.mem.sliceAsBytes(tex.pc_data[0..tex.width * tex.height]);
+                            handle = try gpu.createTextureFromMemory(tex_identifier, .{
+                                .w = tex.width, .h = tex.height, .d = 4,
+                                .data = data,
+                                .format = .b8g8r8a8_unorm
+                            });
+                        }
+                        try m.textures.append(tx.TextureView {
+                            .hdl = handle,
+                            .tex_type = x[1],
+                        });
+                        std.debug.assert(handle.is_valid());
+                    } else { // Texture is a relative path
+                        const tex_path: [:0]u8 = try std.fs.path.joinZ(allocator, &[_][]const u8 { std.fs.path.dirname(path).?, tex_identifier});
+                        defer allocator.free(tex_path);
+                        const handle = try gpu.createTextureFromFile(tex_path);
+                        try m.textures.append(tx.TextureView {
+                            .hdl = handle,
+                            .tex_type = x[1],
+                        });
+                    }
                 }
             }
-
-                // for (0..x[0]) |i| {
-
-                //     var str: ai.String = undefined;
-                //     _ = material.getTexture(ai.Material.GetTextureInfo {
-                //         .tex_type = .specular,
-                //         .index = @intCast(i),
-                //         .path = &str,
-                //     });
-
-                //     const handle = try gpu.createTexture(str.data[0..str.data.len:0]);
-                //     try m.textures.append(texture.TextureView {
-                //         .id = handle,
-                //         .tex_type = "tex_specular",
-                //         .path = str.data[0..str.data.len:0],
-                //     });
-
-                // }
-            // }
 
         }
 
@@ -133,18 +135,19 @@ pub const Model = struct {
 };
 
 pub fn load(path: [:0]const u8, allocator: std.mem.Allocator) !Model {
-    var data = ai.importFile(path.ptr, .{ .triangulate = true, .flip_uvs = true });
-    defer data.release();
+    var scene = ai.importFile(path, .{ 
+        .triangulate = true, 
+        .split_large_meshes = true,
+        .embed_textures = true,
+        .flip_uvs = true,
+    });
+    defer scene.release();
 
     var model = Model {
         .total_index_count = 0,
         .total_vertex_count = 0,
         .meshes = std.ArrayList(Mesh).init(allocator),
     };
-
-    const scene = ai.importFile(path, .{
-        .triangulate = true
-    });
 
     try model.processNode(path, scene.root_node, scene, allocator);
 

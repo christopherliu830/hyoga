@@ -213,7 +213,7 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Alloca
         .models = try mdl.Arena.create(allocator, 8),
     };
 
-    const hdl_backpack = try importModel("assets/backpack/backpack.obj");
+    const hdl_backpack = try importModel("assets/sea-keep-lonely-watcher/source/Stronghold.fbx");
     const backpack = try render_state.models.getPtr(hdl_backpack);
 
     for (backpack.meshes.items) |mesh| {
@@ -371,8 +371,9 @@ pub fn begin() !RenderCommand {
     const cam = &render_state.scene.camera;
     const cam_pos = cam.position;
 
-    var model = mat4.rotation(@as(f32, @floatFromInt(render_state.frames)) / 5000, vec3.create(0, 1, 1));
-    model.mul(mat4.rotation(@as(f32, @floatFromInt(0)) / 5000, vec3.create(1, 1, 0)));
+    var model = mat4.rotation(@as(f32, @floatFromInt(0)) / 5000, vec3.create(0, 1, 1));
+    model.apply(mat4.rotation(@as(f32, @floatFromInt(0)) / 5000, vec3.create(1, 1, 0)));
+    model.apply(mat4.vector_scale(vec3.create(0.1, 0.1, 0.1)));
     const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
     const persp = hym_cam.perspectiveMatrix(45, w / h, 0.5, 100);
 
@@ -444,11 +445,36 @@ pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
     };
 }
 
-pub fn createTexture(path: [:0]const u8) !tx.Handle {
+pub fn createTextureFromMemory(name: [:0] const u8, data: tx.TextureMemory) !tx.Handle {
+    if (render_state.texture_cache.contains(name)) {
+        return render_state.texture_cache.get(name).?;
+    }
+    std.log.info("[GPU]: Loading Texture {s}", .{name});
+    const texture_info = sdl.gpu.TextureCreateInfo {
+        .type = .@"2d",
+        .format = data.format,
+        .usage = .{ .sampler = true },
+        .height = data.h,
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
+        .width = data.w,
+        .sample_count = .@"1",
+    };
+
+    const tex = sdl.gpu.createTexture(device, &texture_info).?;
+    try uploadToTexture(tex, data.w, data.h, data.data);
+
+    const path_copy = try render_state.allocator.dupe(u8, name);
+    const handle = try render_state.textures.insert(tex);
+    try render_state.texture_cache.put(path_copy, handle);
+    return handle;
+
+}
+
+pub fn createTextureFromFile(path: [:0]const u8) !tx.Handle {
     if (render_state.texture_cache.contains(path)) {
         return render_state.texture_cache.get(path).?;
     }
-    std.log.info("[GPU]: Loading Texture {s}", .{path});
 
     var c_w: c_int = 0;
     var c_h: c_int = 0;
@@ -458,24 +484,34 @@ pub fn createTexture(path: [:0]const u8) !tx.Handle {
     const h: u32 = @intCast(c_h);
     const d: u32 = 4;
     defer c.stbi_image_free(tex_pixels);
-    const texture_info = sdl.gpu.TextureCreateInfo {
-        .type = .@"2d",
-        .format = .r8g8b8a8_unorm,
-        .usage = .{ .sampler = true },
-        .height = h,
-        .layer_count_or_depth = 1,
-        .num_levels = 1,
-        .width = w,
-        .sample_count = .@"1",
-    };
-    const tex = sdl.gpu.createTexture(device, &texture_info).?;
 
-    try uploadToTexture(tex, w, h, tex_pixels[0..w * h * d]);
+    return try createTextureFromMemory(path, .{ 
+        .w = w, .h = h, 
+        .data = tex_pixels[0..w * h * d],
+    });
+}
 
-    const path_copy = try render_state.allocator.dupe(u8, path);
-    const handle = try render_state.textures.insert(tex);
-    try render_state.texture_cache.put(path_copy, handle);
-    return handle;
+
+
+pub fn createTextureFromImageMemory(name: [:0] const u8, data: []const u8) !tx.Handle {
+    if (render_state.texture_cache.contains(name)) {
+        return render_state.texture_cache.get(name).?;
+    }
+
+    var c_w: c_int = 0;
+    var c_h: c_int = 0;
+    var c_d: c_int = 0;
+    const tex_pixels = c.stbi_load_from_memory(data.ptr, @intCast(data.len), &c_w, &c_h, &c_d, 4);
+    defer c.stbi_image_free(tex_pixels);
+    const w: u32 = @intCast(c_w);
+    const h: u32 = @intCast(c_h);
+    const d: u32 = 4;
+
+    return try createTextureFromMemory(name, .{ 
+        .w = w, .h = h, .d = d,
+        .data = tex_pixels[0..w * h * d],
+    });
+
 }
 
 pub fn importModel(path: [:0]const u8)  !mdl.Handle {
@@ -484,18 +520,20 @@ pub fn importModel(path: [:0]const u8)  !mdl.Handle {
 }
 
 pub fn drawModel(pass: *sdl.gpu.RenderPass, obj: RenderObject) !void {
+    const default_tex = try render_state.textures.get(obj.textures[0].hdl);
+    var texes = [2]*sdl.gpu.Texture {default_tex, default_tex };
     for (obj.textures) |tex| {
         switch(tex.tex_type) {
             .diffuse => {
-                const texture = try render_state.textures.get(tex.hdl);
-                sdl.gpu.bindFragmentSamplers(pass, 0, &.{.{ .sampler = render_state.diffuse, .texture = texture }}, 1);
+                texes[0] = render_state.textures.get(tex.hdl) catch default_tex;
             },
             .specular => {
-                const texture = try render_state.textures.get(tex.hdl);
-                sdl.gpu.bindFragmentSamplers(pass, 1, &.{.{ .sampler = render_state.specular, .texture = texture }}, 1);
+                texes[1] = render_state.textures.get(tex.hdl) catch default_tex;
             }
         }
     }
+    sdl.gpu.bindFragmentSamplers(pass, 0, &.{.{ .sampler = render_state.diffuse, .texture = texes[0] }}, 1);
+    sdl.gpu.bindFragmentSamplers(pass, 1, &.{.{ .sampler = render_state.specular, .texture = texes[1] }}, 1);
 
     const vertex_binding = [1]sdl.gpu.BufferBinding{.{
         .buffer = obj.buf,
@@ -508,7 +546,7 @@ pub fn drawModel(pass: *sdl.gpu.RenderPass, obj: RenderObject) !void {
     }};
 
     sdl.gpu.bindVertexBuffers(pass, 0, &vertex_binding, 1);
-    sdl.gpu.bindIndexBuffer(pass, &index_binding, .@"16bit");
+    sdl.gpu.bindIndexBuffer(pass, &index_binding, .@"32bit");
     sdl.gpu.drawIndexedPrimitives(pass, obj.idx_count, 1, 0, 0, 0);
 
     render_state.pending_submit_result.?.num_draw_calls += 1;

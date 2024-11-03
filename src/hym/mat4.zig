@@ -13,6 +13,10 @@ pub const Mat4 = extern struct {
         self.m = root.mul(self.*, b).m;
     }
 
+    pub inline fn apply(self: *Mat4, b: Mat4) void {
+        self.m = root.mul(b, self.*).m;
+    }
+
     pub inline fn translate(self: *Mat4, v: vec3.Vec3) void {
         self.m[3] += .{ v.v[0], v.v[1], v.v[2], 0 }; 
     }
@@ -259,7 +263,7 @@ test "hym.mat4.mul()" {
 
 pub inline fn rotation(deg: f32, axis: vec3.Vec3) Mat4 {
     var m: Mat4 = zero;
-    const c = @cos(std.math.radiansToDegrees(deg));
+    const c = @cos(std.math.degreesToRadians(deg));
     const axisn = axis.normal();
 
     const v = vec3.mul(axisn, 1 - c);

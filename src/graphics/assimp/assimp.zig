@@ -1,7 +1,12 @@
 
+// Zig bindings for assimp library. For documentation
+// refer to github.com/assimp/assimp
+// NOTE: bindings are incomplete and added on an as-needed basis.
+
 pub const AI_MAXLEN = 1024;
 pub const AI_MAX_NUMBER_OF_COLOR_SETS = 0x8;
 pub const AI_MAX_NUMBER_OF_TEXTURECOORDS = 0x8;
+pub const HINT_MAX_TEXTURE_LEN = 9;
 
 pub const Return = u32;
 
@@ -54,6 +59,8 @@ pub const MaterialProperty = extern struct {
     data: [*]const u8,
 }; 
 
+// ---- TEXTURE ----
+
 pub const TextureType = enum (u32) {
     none,
     diffuse,
@@ -89,7 +96,20 @@ pub const TextureOp = opaque { };
 
 pub const MapMode = opaque { };
 
-pub const Texture = opaque { };
+pub const Texel = extern struct {
+    b: u8,
+    g: u8,
+    r: u8,
+    a: u8,
+};
+
+pub const Texture = extern struct {
+    width: u32,
+    height: u32,
+    ach_format_hint: [HINT_MAX_TEXTURE_LEN]u8,
+    pc_data: [*]Texel, // format is always ARGB8888
+    file_name: String
+};
 
 pub const Material = extern struct {
     properties: *[*]MaterialProperty,
@@ -237,9 +257,11 @@ pub const Scene = extern struct {
     pub fn release(self: *Scene) void {
         aiReleaseImport(self);
     }
+
+    pub const getEmbeddedTexture = aiGetEmbeddedTexture;
 };
 
-pub const PostProcessSteps = packed struct (c_int) {
+pub const PostProcessSteps = packed struct (u32) {
     calc_tangent_space: bool = false,
     join_identical_vertices: bool = false,
     make_left_handed: bool = false,
@@ -278,3 +300,5 @@ extern fn aiImportFile(path: [*:0]const u8, flags: PostProcessSteps) *Scene;
 pub const importFile = aiImportFile;
 
 extern fn aiReleaseImport(scene: *Scene) void;
+
+extern fn aiGetEmbeddedTexture(scene: *const Scene, filename: [*]const u8) ?*Texture;

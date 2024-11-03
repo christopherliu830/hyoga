@@ -16,6 +16,12 @@ pub const TextureType = enum {
 pub const TextureView = struct {
     hdl: Handle,
     tex_type: TextureType,
-    path: []const u8,
 };
 
+pub const TextureMemory = struct {
+    w: u32,
+    h: u32,
+    d: u32 = 1,
+    data: []const u8,
+    format: sdl.gpu.TextureFormat = .r8g8b8a8_unorm
+};
