@@ -27,6 +27,7 @@ pub const Scene = struct {
 
 pub const RenderObject = struct {
     buf: *sdl.gpu.Buffer,
+    transform: mat4.Mat4,
     textures: []tx.TextureView,
     idx_offset: u32,
     idx_count: u32,
@@ -213,7 +214,15 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Alloca
         .models = try mdl.Arena.create(allocator, 8),
     };
 
-    const hdl_backpack = try importModel("assets/sea-keep-lonely-watcher/source/Stronghold.fbx");
+    const hdl_backpack = try importModel("assets/sea-keep-lonely-watcher/source/Stronghold.fbx", .{
+        .transform = mat4.rotation(90, vec3.create(1, 0, 0)),
+        .post_process = .{
+            .triangulate = true,
+            .split_large_meshes = true,
+            .embed_textures = true,
+            .flip_uvs = true,
+        }
+    });
     const backpack = try render_state.models.getPtr(hdl_backpack);
 
     for (backpack.meshes.items) |mesh| {
@@ -229,6 +238,7 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Alloca
 
         const render_obj = RenderObject {
             .buf = buffer,
+            .transform = backpack.transform,
             .idx_offset = vertex_buffer_size,
             .idx_count = @intCast(mesh.indices.items.len),
             .textures = mesh.textures.items,
@@ -367,7 +377,6 @@ pub fn begin() !RenderCommand {
         std.debug.panic("Could not begin render pass: {s}", .{sdl.getError()});
     };
 
-
     const cam = &render_state.scene.camera;
     const cam_pos = cam.position;
 
@@ -377,37 +386,39 @@ pub fn begin() !RenderCommand {
     const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
     const persp = hym_cam.perspectiveMatrix(45, w / h, 0.5, 100);
 
-    var ubo = TransformMatrices {
-        .model = model,
-        .mvp = mat4.mul(mat4.mul(persp, view), model),
-        .normal_transform = mat4.transpose(mat4.inverse(model)),
-    };
-
     const lighting_ubo = LightingUBO {
         .light_dir = render_state.scene.light_dir,
         .camera_pos = render_state.scene.camera.position
     };
 
-    sdl.gpu.pushVertexUniformData(cmd, 0, &ubo, @sizeOf(TransformMatrices));
     sdl.gpu.pushFragmentUniformData(cmd, 0, &lighting_ubo, @sizeOf(LightingUBO));
 
     pass.bindGraphicsPipeline(render_state.pipeline);
     pass.setStencilReference(1);
     for (render_state.objs.items) |obj| {
+        const m = mat4.mul(model, obj.transform);
+        const ubo = TransformMatrices {
+            .model = m,
+            .mvp = mat4.mul(mat4.mul(persp, view), m),
+            .normal_transform = mat4.transpose(mat4.inverse(m)),
+        };
+
+        sdl.gpu.pushVertexUniformData(cmd, 0, &ubo, @sizeOf(TransformMatrices));
         drawModel(pass, obj) catch continue;
     }
 
     // Draw outlines
     pass.bindGraphicsPipeline(render_state.outline_pipeline);
-    var mvp = mat4.identity;
-    mvp.mul(persp);
-    mvp.mul(view);
-    mvp.mul(model);
-    mvp.mul(mat4.vector_scale(vec3.create(1, 1, 1)));
-    ubo.mvp = mvp;
-    sdl.gpu.pushVertexUniformData(cmd, 0, &ubo, @sizeOf(TransformMatrices));
 
     for (render_state.objs.items) |obj| {
+        var m = mat4.mul(model, obj.transform);
+        m.mul(mat4.vector_scale(vec3.create(1, 1, 1)));
+        const ubo = TransformMatrices {
+            .model = m,
+            .mvp = mat4.mul(mat4.mul(persp, view), m),
+            .normal_transform = mat4.transpose(mat4.inverse(m)),
+        };
+        sdl.gpu.pushVertexUniformData(cmd, 0, &ubo, @sizeOf(TransformMatrices));
         drawModel(pass, obj) catch continue;
     }
 
@@ -491,8 +502,6 @@ pub fn createTextureFromFile(path: [:0]const u8) !tx.Handle {
     });
 }
 
-
-
 pub fn createTextureFromImageMemory(name: [:0] const u8, data: []const u8) !tx.Handle {
     if (render_state.texture_cache.contains(name)) {
         return render_state.texture_cache.get(name).?;
@@ -514,8 +523,8 @@ pub fn createTextureFromImageMemory(name: [:0] const u8, data: []const u8) !tx.H
 
 }
 
-pub fn importModel(path: [:0]const u8)  !mdl.Handle {
-    const mod = try mdl.load(path, render_state.allocator);
+pub fn importModel(path: [:0]const u8, settings: mdl.ImportSettings)  !mdl.Handle {
+    const mod = try mdl.load(path, settings, render_state.allocator);
     return try render_state.models.insert(mod);
 }
 

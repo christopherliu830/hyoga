@@ -359,7 +359,6 @@ pub const ImGuiConfigFlags = c_int;
 
 pub const ImGuiBackendFlags = c_int;
 
-pub const Context = struct_ImGuiContext;
 
 pub const ImGuiKeyChord = c_int;
 
@@ -814,7 +813,9 @@ pub const struct_ImGuiStorage = extern struct {
 pub const ImGuiStorage = struct_ImGuiStorage;
 
 // thirdparty/cimgui/cimgui.h:2783:9: warning: struct demoted to opaque type - has bitfield
-pub const struct_ImGuiContext = opaque {};
+pub const Context = opaque {
+    pub const destroy = destroyContext;
+};
 
 pub const ImGuiInputTextFlags = c_int;
 
@@ -4148,9 +4149,9 @@ pub extern fn ImVec4_ImVec4_Nil() [*c]Vec4;
 pub extern fn ImVec4_destroy(self: [*c]Vec4) void;
 pub extern fn ImVec4_ImVec4_Float(_x: f32, _y: f32, _z: f32, _w: f32) [*c]Vec4;
 
-pub extern fn igCreateContext(shared_font_atlas: ?*FontAtlas) ?*Context;
+extern fn igCreateContext(shared_font_atlas: ?*FontAtlas) ?*Context;
 pub const createContext = igCreateContext;
-pub extern fn igDestroyContext(ctx: ?*Context) void;
+extern fn igDestroyContext(ctx: ?*Context) void;
 pub const destroyContext = igDestroyContext;
 pub extern fn igGetCurrentContext() ?*Context;
 pub const getCurrentContext = igGetCurrentContext;

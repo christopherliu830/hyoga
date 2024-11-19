@@ -4,6 +4,7 @@ const gpu = @import("gpu.zig");
 const hyarena = @import("../genarray.zig");
 const tx = @import("texture.zig");
 const Vertex = @import("vertex.zig").Vertex;
+const mat4 = @import("../hym/mat4.zig");
 
 pub const Arena = hyarena.Arena(Model);
 pub const Handle = Arena.Handle;
@@ -27,6 +28,7 @@ pub const Model = struct {
     total_vertex_count: u32,
     total_index_count: u32,
     meshes: std.ArrayList(Mesh),
+    transform: mat4.Mat4,
 
     pub fn release(self: Model) void {
         self.vertices.deinit();
@@ -134,19 +136,23 @@ pub const Model = struct {
     }
 };
 
-pub fn load(path: [:0]const u8, allocator: std.mem.Allocator) !Model {
-    var scene = ai.importFile(path, .{ 
-        .triangulate = true, 
+pub const ImportSettings = struct {
+    transform: mat4.Mat4 = mat4.identity,
+    post_process: ai.PostProcessSteps = .{
+        .triangulate = true,
         .split_large_meshes = true,
-        .embed_textures = true,
-        .flip_uvs = true,
-    });
+    },
+};
+
+pub fn load(path: [:0]const u8, import: ImportSettings, allocator: std.mem.Allocator) !Model {
+    var scene = ai.importFile(path, import.post_process);
     defer scene.release();
 
     var model = Model {
         .total_index_count = 0,
         .total_vertex_count = 0,
         .meshes = std.ArrayList(Mesh).init(allocator),
+        .transform = import.transform,
     };
 
     try model.processNode(path, scene.root_node, scene, allocator);
