@@ -332,7 +332,7 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer,
         }
 
         const copy_cmd = try bd.device.acquireCommandBuffer();
-        defer copy_cmd.submit();
+        defer _ = copy_cmd.submit();
         const pass = try copy_cmd.beginCopyPass();
         defer pass.end();
 

@@ -258,7 +258,7 @@ pub fn uploadToBuffer(buffer: *sdl.gpu.Buffer, offset: u32, data: []const u8) !v
 
     copy_pass.uploadToBuffer(buf_location, dst_region, false);
     copy_pass.end();
-    cmd.submit();
+    _ = cmd.submit();
 }
 
 pub fn uploadToTexture(tex: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) !void {
@@ -291,11 +291,10 @@ pub fn uploadToTexture(tex: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) 
 
     copy_pass.uploadToTexture(buf_src, buf_dst, false);
     copy_pass.end();
-    cmd.submit();
+    _ = cmd.submit();
 }
 
 pub fn begin(scene: Scene) !RenderCommand {
-    sdl.gpu.
     render_state.pending_submit_result = .{};
 
     const cmd = sdl.gpu.acquireCommandBuffer(device) orelse {
@@ -306,10 +305,16 @@ pub fn begin(scene: Scene) !RenderCommand {
     var drawable_w: u32 = undefined;
     var drawable_h: u32 = undefined;
 
-    const swapchain = sdl.gpu.acquireSwapchainTexture(cmd, window_state.hdl_window, &drawable_w, &drawable_h) orelse {
+    var swapchain: ?*sdl.gpu.Texture = null;
+    if (!sdl.gpu.acquireSwapchainTexture(cmd, window_state.hdl_window, &swapchain, &drawable_w, &drawable_h)) {
+        std.log.err("Could not acquire swapchain texture", .{});
+        return error.AcquireSwapchainError;
+    }
+    else if (swapchain == null) {
         // No swapchain was acquired, probably too many frames in flight.
+        _ = cmd.cancel();
         return error.NoSwapchain;
-    };
+    }
 
     // Resize the depth buffer if the window size changed
 
@@ -399,7 +404,7 @@ pub fn begin(scene: Scene) !RenderCommand {
 
 pub fn submit(render: RenderCommand) RenderSubmitResult {
     sdl.gpu.endRenderPass(render.pass);
-    sdl.gpu.submitCommandBuffer(render.cmd);
+    _ = render.cmd.submit();
     const result = render_state.pending_submit_result.?;
     render_state.pending_submit_result = null;
     return result;
