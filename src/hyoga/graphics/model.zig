@@ -1,12 +1,12 @@
 const std = @import("std");
 const ai = @import("assimp/assimp.zig");
 const gpu = @import("gpu.zig");
-const hyarena = @import("../genarray.zig");
+const hya = @import("../genarray.zig");
 const tx = @import("texture.zig");
 const Vertex = @import("vertex.zig").Vertex;
-const mat4 = @import("../hym/mat4.zig");
+const mat4 = @import("hyoga-math").mat4;
 
-pub const Arena = hyarena.Arena(Model);
+pub const Arena = hya.Arena(Model);
 pub const Handle = Arena.Handle;
 
 pub const Mesh = struct {

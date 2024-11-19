@@ -1,4 +1,4 @@
-const vec3 = @import("../hym/vec3.zig");
+const vec3 = @import("hyoga-math").vec3;
 
 pub const Vertex = struct {
     pos: [3]f32,

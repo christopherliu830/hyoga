@@ -17,12 +17,25 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .Debug });
 
+    const hym = b.dependency("hyoga_math", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const hya = b.dependency("hyoga_arena", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const lib = b.addStaticLibrary(.{
         .name = "hyoga",
         .root_source_file = b.path("src/hyoga/root.zig"),
         .target = target,
         .optimize = optimize
     });
+
+    lib.root_module.addImport("hyoga-math", hym.module("hyoga-math"));
+    lib.root_module.addImport("hyoga-arena", hya.module("hyoga-arena"));
 
     // ---------- SDL -----------
 

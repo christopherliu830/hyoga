@@ -1,8 +1,10 @@
 const std = @import("std");
 const input = @import("input.zig");
-const vec3 = @import("hym/vec3.zig");
-const vec2 = @import("hym/vec2.zig");
+const math = @import("hyoga-math");
 const window = @import("window.zig");
+
+const vec3 = math.vec3;
+const vec2 = math.vec2;
 
 pub const Camera = struct {
     position: vec3.Vec3,

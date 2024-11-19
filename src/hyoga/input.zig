@@ -1,11 +1,13 @@
 const std = @import("std");
 const window = @import("window.zig");
-const vec2 = @import("hym/vec2.zig");
 const sdl = @import("sdl");
 const imgui = @import("graphics/imgui/imgui.zig");
 const genarray = @import("genarray.zig");
 
 pub const keycode = @import("sdl").keycode;
+
+const vec2 = @import("hyoga-math").vec2;
+
 
 const MouseButton = enum {
     left, // m1

@@ -2,9 +2,12 @@ const std = @import("std");
 const c = @import("../c.zig");
 const window = @import("../window.zig");
 
-const vec3 = @import("../hym/vec3.zig");
-const mat4 = @import("../hym/mat4.zig");
-const hym_cam = @import("../hym/cam.zig");
+const hym = @import("hyoga-math");
+const vec3 = hym.vec3;
+const mat4 = hym.mat4;
+const hym_cam = hym.cam;
+
+const hya = @import("hyoga-arena");
 
 const spirv = @import("shaders/cube_shader.zig");
 const dxil = @import("cube_dxil.zig");
@@ -21,7 +24,7 @@ const mdl = @import("model.zig");
 const Vertex = @import("vertex.zig").Vertex;
 
 pub const Scene = struct {
-    camera: camera.Camera,
+    camera: camera.Camera, 
     light_dir: vec3.Vec3,
 };
 
@@ -50,7 +53,7 @@ const RenderState = struct {
     texture_cache: tx.Cache,
 
     models: mdl.Arena,
-
+    // modelToObjs: std.StringHashMap(),
     objs: std.ArrayList(RenderObject),
 
     scene: *Scene = undefined,
@@ -95,7 +98,7 @@ pub var window_state: WindowState = .{};
 
 pub var speed: f32 = 1;
 
-pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Allocator) !void {
+pub fn init(hdl_window: *sdl.Window, allocator: std.mem.Allocator) !void {
     window_state.hdl_window = hdl_window;
 
     device = try sdl.gpu.Device.create(null, .{ .spirv = true });
@@ -208,7 +211,6 @@ pub fn init(hdl_window: *sdl.Window, in_scene: *Scene, allocator: std.mem.Alloca
         .diffuse = sdl.gpu.createSampler(device, &sampler_info).?,
         .specular  = sdl.gpu.createSampler(device, &sampler_info).?,
         .sample_count = sample_count,
-        .scene = in_scene,
         .textures = textures,
         .texture_cache = texture_cache,
         .models = try mdl.Arena.create(allocator, 8),
@@ -259,6 +261,31 @@ pub fn shutdown() void {
     device.releaseSampler(render_state.specular);
     device.releaseGraphicsPipeline(render_state.pipeline);
     device.destroy();
+}
+
+pub fn addRenderObjects(model: *mdl.Model) void {
+    for (model.meshes.items) |mesh| {
+        const vertex_buffer_size: u32 = @intCast(mesh.vertices.items.len * @sizeOf(@TypeOf(mesh.vertices.items[0])));
+        const buffer_size: u32 = @intCast(vertex_buffer_size + mesh.indices.items.len * @sizeOf(@TypeOf(mesh.indices.items[0])));
+        const buffer = try device.createBuffer(.{
+            .size = buffer_size,
+            .usage = .{ .index = true, .vertex = true}
+        });
+
+        try uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
+        try uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
+
+        const render_obj = RenderObject {
+            .buf = buffer,
+            .transform = model.transform,
+            .idx_offset = vertex_buffer_size,
+            .idx_count = @intCast(mesh.indices.items.len),
+            .textures = mesh.textures.items,
+        };
+
+        try render_state.objs.append(render_obj);
+    }
+
 }
 
 pub fn uploadToBuffer(buffer: *sdl.gpu.Buffer, offset: u32, data: []const u8) !void {
@@ -325,7 +352,7 @@ pub fn uploadToTexture(tex: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) 
     cmd.submit();
 }
 
-pub fn begin() !RenderCommand {
+pub fn begin(scene: Scene) !RenderCommand {
     render_state.pending_submit_result = .{};
 
     const cmd = sdl.gpu.acquireCommandBuffer(device) orelse {
@@ -377,7 +404,7 @@ pub fn begin() !RenderCommand {
         std.debug.panic("Could not begin render pass: {s}", .{sdl.getError()});
     };
 
-    const cam = &render_state.scene.camera;
+    const cam = &scene.camera;
     const cam_pos = cam.position;
 
     var model = mat4.rotation(@as(f32, @floatFromInt(0)) / 5000, vec3.create(0, 1, 1));
@@ -387,8 +414,8 @@ pub fn begin() !RenderCommand {
     const persp = hym_cam.perspectiveMatrix(45, w / h, 0.5, 100);
 
     const lighting_ubo = LightingUBO {
-        .light_dir = render_state.scene.light_dir,
-        .camera_pos = render_state.scene.camera.position
+        .light_dir = scene.light_dir,
+        .camera_pos = scene.camera.position
     };
 
     sdl.gpu.pushFragmentUniformData(cmd, 0, &lighting_ubo, @sizeOf(LightingUBO));

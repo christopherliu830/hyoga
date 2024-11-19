@@ -1,41 +1,47 @@
 const std = @import("std");
-const vec3 = @import("hym/vec3.zig");
 const sdl = @import("sdl");
+
+pub const math = @import("hyoga-math");
+pub const arena = @import("hyoga-arena");
 
 pub const window = @import("window.zig");
 pub const input = @import("input.zig");
 pub const gpu = @import("graphics/gpu.zig");
 pub const ui = @import("graphics/ui.zig");
 
-pub fn run() !void {
-    var general_allocator = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = general_allocator.allocator();
+const vec3 = math.vec3;
 
-    try window.init();
-    defer window.destroy();
+var general_allocator = std.heap.GeneralPurposeAllocator(.{}){};
+var allocator = general_allocator.allocator();
 
-    var scene = gpu.Scene {
+pub const Game = struct {
+    scene: gpu.Scene = .{
         .camera = .{
             .position = vec3.create(0, 0, 2.5),
             .look_direction = vec3.mul(vec3.z, -1),
         },
         .light_dir = vec3.create(0, -2, -1),
-    };
+    },
+};
 
-    try gpu.init(window.instance, &scene, allocator);
-    defer gpu.shutdown();
-
-    // imgui
-    try ui.init(.{
+pub fn init() void {
+    input.init(allocator);
+    window.init() catch std.debug.panic("Init window failed", .{});
+    gpu.init(window.instance, allocator) catch std.debug.panic("Init GPU failed", .{});
+    ui.init(.{
         .device = gpu.device,
         .window = window.instance,
-        .allocator = allocator,
-    });
-    defer ui.shutdown();
+        .allocator = allocator
+    }) catch std.debug.panic("Init UI failed", .{});
+}
 
-    input.init(allocator);
-    try scene.camera.registerInputs();
+pub fn shutdown() void {
+    window.destroy();
+    gpu.shutdown();
+    ui.shutdown();
+}
 
+pub fn run(game: *Game) !void {
     var quit = false;
     var open: bool = false;
     var last_render_result: ?gpu.RenderSubmitResult = null;
@@ -54,11 +60,11 @@ pub fn run() !void {
         try ui.beginFrame();
 
         if (ui.imgui.begin("Debug Window", &open, 0)) {
-            const pos = scene.camera.position;
+            const pos = game.scene.camera.position;
 
-            var light_dir: [3]f32 = scene.light_dir.v;
+            var light_dir: [3]f32 = game.scene.light_dir.v;
             _ = ui.imgui.inputFloat3("Light Direction", &light_dir, null, 0);
-            scene.light_dir.v = light_dir;
+            game.scene.light_dir.v = light_dir;
 
             ui.imgui.text("Camera Position: %f %f %f", pos.x(), pos.y(), pos.z());
             ui.imgui.text("Num Keys Down: %d", input.num_keys_down);
@@ -77,7 +83,7 @@ pub fn run() !void {
 
         ui.imgui.end();
 
-        const render_cmd = try gpu.begin();
+        const render_cmd = try gpu.begin(game.scene);
         ui.render(render_cmd.cmd, render_cmd.pass) catch {};
         last_render_result = gpu.submit(render_cmd);
     }
