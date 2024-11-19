@@ -17,11 +17,11 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .Debug });
 
-    const exe = b.addExecutable(.{
-        .name = "hyoga-zig",
-        .root_source_file = b.path("src/main.zig"),
+    const lib = b.addStaticLibrary(.{
+        .name = "hyoga",
+        .root_source_file = b.path("src/hyoga/root.zig"),
         .target = target,
-        .optimize = optimize,
+        .optimize = optimize
     });
 
     // ---------- SDL -----------
@@ -37,21 +37,21 @@ pub fn build(b: *std.Build) void {
         b.installBinFile("thirdparty/sdl3/SDL3.dll", "SDL3.dll");
     } 
     sdl.linkSystemLibrary("SDL3", .{});
-    exe.linkLibC();
-    exe.root_module.addImport("sdl", sdl);
+    lib.linkLibC();
+    lib.root_module.addImport("sdl", sdl);
 
     // ---------- stb_image -----------
 
-    exe.addCSourceFile(.{
+    lib.addCSourceFile(.{
         .file = b.path("thirdparty/stb_image.c"),
         .flags = &[_][]const u8{"-std=c99"},
     });
-    exe.addIncludePath(b.path("thirdparty"));
+    lib.addIncludePath(b.path("thirdparty"));
 
     // ---------- imgui -----------
 
-    exe.addCSourceFile(.{ .file = b.path("thirdparty/cimgui/cimgui.cpp") });
-    exe.addCSourceFiles(.{
+    lib.addCSourceFile(.{ .file = b.path("thirdparty/cimgui/cimgui.cpp") });
+    lib.addCSourceFiles(.{
         .root = b.path("thirdparty/cimgui/imgui"),
         .files = &.{
             "imgui_demo.cpp",
@@ -63,11 +63,20 @@ pub fn build(b: *std.Build) void {
     });
 
     // ---------- assimp -----------
-    exe.addLibraryPath(b.path("thirdparty/assimp"));
     b.installBinFile("thirdparty/assimp/assimp-vc143-mt.dll", "assimp-vc143-mt.dll");
-    exe.linkSystemLibrary("assimp-vc143-mt");
+    lib.addLibraryPath(b.path("thirdparty/assimp"));
+    lib.linkSystemLibrary("assimp-vc143-mt");
 
-    exe.linkLibCpp();
+    lib.linkLibCpp();
+
+    const exe = b.addExecutable(.{
+        .name = "hyoga-zig",
+        .root_source_file = b.path("src/game/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    exe.root_module.addImport("hyoga", &lib.root_module);
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default

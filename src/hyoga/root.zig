@@ -1,15 +1,13 @@
 const std = @import("std");
-const camera = @import("camera.zig");
-const window = @import("window.zig");
-const input = @import("input.zig");
-const zlm = @import ("zlm/zlm.zig");
-const math = @import("math.zig");
-const sdl = @import("sdl");
-const gpu = @import("graphics/gpu.zig");
 const vec3 = @import("hym/vec3.zig");
-const ui = @import("graphics/ui.zig");
+const sdl = @import("sdl");
 
-pub fn main() !void {
+pub const window = @import("window.zig");
+pub const input = @import("input.zig");
+pub const gpu = @import("graphics/gpu.zig");
+pub const ui = @import("graphics/ui.zig");
+
+pub fn run() !void {
     var general_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = general_allocator.allocator();
 
@@ -24,10 +22,8 @@ pub fn main() !void {
         .light_dir = vec3.create(0, -2, -1),
     };
 
-
     try gpu.init(window.instance, &scene, allocator);
     defer gpu.shutdown();
-
 
     // imgui
     try ui.init(.{
@@ -38,7 +34,6 @@ pub fn main() !void {
     defer ui.shutdown();
 
     input.init(allocator);
-
     try scene.camera.registerInputs();
 
     var quit = false;
@@ -87,4 +82,3 @@ pub fn main() !void {
         last_render_result = gpu.submit(render_cmd);
     }
 }
-
