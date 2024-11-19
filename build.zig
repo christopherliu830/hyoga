@@ -82,6 +82,8 @@ pub fn build(b: *std.Build) void {
 
     lib.linkLibCpp();
 
+    b.installArtifact(lib);
+
     const exe = b.addExecutable(.{
         .name = "hyoga-zig",
         .root_source_file = b.path("src/game/main.zig"),

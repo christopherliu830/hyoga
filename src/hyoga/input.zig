@@ -2,7 +2,7 @@ const std = @import("std");
 const window = @import("window.zig");
 const sdl = @import("sdl");
 const imgui = @import("graphics/imgui/imgui.zig");
-const genarray = @import("genarray.zig");
+const hya = @import("hyoga-arena");
 
 pub const keycode = @import("sdl").keycode;
 
@@ -60,8 +60,8 @@ pub const MouseEvent = union(MouseButton) {
     wheel: sdl.events.MouseWheelEvent,
 };
 
-const KeybindList = genarray.Arena(InputHandler);
-const MousebindList = genarray.Arena(MouseInputHandler);
+const KeybindList = hya.Arena(InputHandler);
+const MousebindList = hya.Arena(MouseInputHandler);
 const Keybinds = std.AutoHashMap(keycode.Keycode, KeybindList);
 const Mousebinds = std.AutoHashMap(MouseButton, MousebindList);
 const KeyState = [8]keycode.Keycode; // 32 keys down at once

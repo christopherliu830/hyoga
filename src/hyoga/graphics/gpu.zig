@@ -54,7 +54,7 @@ const RenderState = struct {
 
     models: mdl.Arena,
     // modelToObjs: std.StringHashMap(),
-    objs: std.ArrayList(RenderObject),
+    objs: hya.Arena(RenderObject),
 
     scene: *Scene = undefined,
     sample_count: sdl.gpu.SampleCount = .@"1",
@@ -204,7 +204,7 @@ pub fn init(hdl_window: *sdl.Window, allocator: std.mem.Allocator) !void {
 
     render_state = .{
         .allocator = allocator,
-        .objs = std.ArrayList(RenderObject).init(allocator),
+        .objs = try hya.Arena(RenderObject).create(allocator, 1),
         .frames = 0,
         .pipeline = pipeline,
         .outline_pipeline = createOutlineShader(color_target_desc),
@@ -215,39 +215,6 @@ pub fn init(hdl_window: *sdl.Window, allocator: std.mem.Allocator) !void {
         .texture_cache = texture_cache,
         .models = try mdl.Arena.create(allocator, 8),
     };
-
-    const hdl_backpack = try importModel("assets/sea-keep-lonely-watcher/source/Stronghold.fbx", .{
-        .transform = mat4.rotation(90, vec3.create(1, 0, 0)),
-        .post_process = .{
-            .triangulate = true,
-            .split_large_meshes = true,
-            .embed_textures = true,
-            .flip_uvs = true,
-        }
-    });
-    const backpack = try render_state.models.getPtr(hdl_backpack);
-
-    for (backpack.meshes.items) |mesh| {
-        const vertex_buffer_size: u32 = @intCast(mesh.vertices.items.len * @sizeOf(@TypeOf(mesh.vertices.items[0])));
-        const buffer_size: u32 = @intCast(vertex_buffer_size + mesh.indices.items.len * @sizeOf(@TypeOf(mesh.indices.items[0])));
-        const buffer = try device.createBuffer(.{
-            .size = buffer_size,
-            .usage = .{ .index = true, .vertex = true}
-        });
-
-        try uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
-        try uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
-
-        const render_obj = RenderObject {
-            .buf = buffer,
-            .transform = backpack.transform,
-            .idx_offset = vertex_buffer_size,
-            .idx_count = @intCast(mesh.indices.items.len),
-            .textures = mesh.textures.items,
-        };
-
-        try render_state.objs.append(render_obj);
-    }
 }
 
 pub fn shutdown() void {
@@ -261,31 +228,6 @@ pub fn shutdown() void {
     device.releaseSampler(render_state.specular);
     device.releaseGraphicsPipeline(render_state.pipeline);
     device.destroy();
-}
-
-pub fn addRenderObjects(model: *mdl.Model) void {
-    for (model.meshes.items) |mesh| {
-        const vertex_buffer_size: u32 = @intCast(mesh.vertices.items.len * @sizeOf(@TypeOf(mesh.vertices.items[0])));
-        const buffer_size: u32 = @intCast(vertex_buffer_size + mesh.indices.items.len * @sizeOf(@TypeOf(mesh.indices.items[0])));
-        const buffer = try device.createBuffer(.{
-            .size = buffer_size,
-            .usage = .{ .index = true, .vertex = true}
-        });
-
-        try uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
-        try uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
-
-        const render_obj = RenderObject {
-            .buf = buffer,
-            .transform = model.transform,
-            .idx_offset = vertex_buffer_size,
-            .idx_count = @intCast(mesh.indices.items.len),
-            .textures = mesh.textures.items,
-        };
-
-        try render_state.objs.append(render_obj);
-    }
-
 }
 
 pub fn uploadToBuffer(buffer: *sdl.gpu.Buffer, offset: u32, data: []const u8) !void {
@@ -353,6 +295,7 @@ pub fn uploadToTexture(tex: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) 
 }
 
 pub fn begin(scene: Scene) !RenderCommand {
+    sdl.gpu.
     render_state.pending_submit_result = .{};
 
     const cmd = sdl.gpu.acquireCommandBuffer(device) orelse {
@@ -407,9 +350,6 @@ pub fn begin(scene: Scene) !RenderCommand {
     const cam = &scene.camera;
     const cam_pos = cam.position;
 
-    var model = mat4.rotation(@as(f32, @floatFromInt(0)) / 5000, vec3.create(0, 1, 1));
-    model.apply(mat4.rotation(@as(f32, @floatFromInt(0)) / 5000, vec3.create(1, 1, 0)));
-    model.apply(mat4.vector_scale(vec3.create(0.1, 0.1, 0.1)));
     const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
     const persp = hym_cam.perspectiveMatrix(45, w / h, 0.5, 100);
 
@@ -422,12 +362,12 @@ pub fn begin(scene: Scene) !RenderCommand {
 
     pass.bindGraphicsPipeline(render_state.pipeline);
     pass.setStencilReference(1);
-    for (render_state.objs.items) |obj| {
-        const m = mat4.mul(model, obj.transform);
+    var it = render_state.objs.iterator();
+    while (it.next()) |obj| {
         const ubo = TransformMatrices {
-            .model = m,
-            .mvp = mat4.mul(mat4.mul(persp, view), m),
-            .normal_transform = mat4.transpose(mat4.inverse(m)),
+            .model = obj.transform,
+            .mvp = mat4.mul(mat4.mul(persp, view), obj.transform),
+            .normal_transform = mat4.transpose(mat4.inverse(obj.transform)),
         };
 
         sdl.gpu.pushVertexUniformData(cmd, 0, &ubo, @sizeOf(TransformMatrices));
@@ -437,8 +377,9 @@ pub fn begin(scene: Scene) !RenderCommand {
     // Draw outlines
     pass.bindGraphicsPipeline(render_state.outline_pipeline);
 
-    for (render_state.objs.items) |obj| {
-        var m = mat4.mul(model, obj.transform);
+    it = render_state.objs.iterator();
+    while (it.next()) |obj| {
+        var m = obj.transform;
         m.mul(mat4.vector_scale(vec3.create(1, 1, 1)));
         const ubo = TransformMatrices {
             .model = m,
@@ -553,6 +494,32 @@ pub fn createTextureFromImageMemory(name: [:0] const u8, data: []const u8) !tx.H
 pub fn importModel(path: [:0]const u8, settings: mdl.ImportSettings)  !mdl.Handle {
     const mod = try mdl.load(path, settings, render_state.allocator);
     return try render_state.models.insert(mod);
+}
+
+pub fn addModel(hdl: mdl.Handle) !void {
+    const model = try render_state.models.get(hdl);
+    for (model.meshes.items) |mesh| {
+        const vertex_buffer_size: u32 = @intCast(mesh.vertices.items.len * @sizeOf(@TypeOf(mesh.vertices.items[0])));
+        const buffer_size: u32 = @intCast(vertex_buffer_size + mesh.indices.items.len * @sizeOf(@TypeOf(mesh.indices.items[0])));
+        const buffer = try device.createBuffer(.{
+            .size = buffer_size,
+            .usage = .{ .index = true, .vertex = true}
+        });
+
+        try uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
+        try uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
+
+        const render_obj = RenderObject {
+            .buf = buffer,
+            .transform = model.transform,
+            .idx_offset = vertex_buffer_size,
+            .idx_count = @intCast(mesh.indices.items.len),
+            .textures = mesh.textures.items,
+        };
+
+        _ = try render_state.objs.insert(render_obj);
+    }
+
 }
 
 pub fn drawModel(pass: *sdl.gpu.RenderPass, obj: RenderObject) !void {
