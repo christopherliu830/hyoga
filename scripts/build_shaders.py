@@ -5,7 +5,7 @@ from textwrap import fill
 from pathlib import Path
 
 cwd = Path(os.getcwd()).resolve()
-shaders_path = cwd.joinpath("src/graphics/shaders")
+shaders_path = cwd.joinpath("src/hyoga/graphics/shaders")
 
 vert_files = shaders_path.glob("*.vert")
 shaders = [x for x in shaders_path.glob("*.vert")]

@@ -143,7 +143,6 @@ pub const CommandBuffer = opaque {
 		};
 	}
 
-
 	pub const submit = SDL_SubmitGPUCommandBuffer;
 
 	pub const cancel = SDL_CancelGPUCommandBuffer;
@@ -316,7 +315,8 @@ pub const TextureUsageFlags = packed struct (c_int) {
 	graphics_storage_read: bool = false,
 	compute_storage_read: bool = false,
 	compute_storage_write: bool = false,
-	_padding: u26 = 0,
+	compute_storage_simultaneous_read_write: bool = false,
+	_padding: u25 = 0,
 };
 
 pub const TextureType = enum (c_uint) {
@@ -910,7 +910,7 @@ pub extern fn SDL_PushGPUFragmentUniformData(command_buffer: ?*CommandBuffer, sl
 pub const pushFragmentUniformData = SDL_PushGPUFragmentUniformData;
 pub extern fn SDL_PushGPUComputeUniformData(command_buffer: ?*CommandBuffer, slot_index: u32, data: ?*const anyopaque, length: u32) void;
 pub const pushComputeUniformData = SDL_PushGPUComputeUniformData;
-pub extern fn SDL_BeginGPURenderPass(command_buffer: ?*CommandBuffer, color_target_infos: [*c]const ColorTargetInfo, num_color_targets: u32, depth_stencil_target_info: [*c]const DepthStencilTargetInfo) ?*RenderPass;
+pub extern fn SDL_BeginGPURenderPass(command_buffer: ?*CommandBuffer, color_target_infos: [*c]const ColorTargetInfo, num_color_targets: u32, depth_stencil_target_info: ?*const DepthStencilTargetInfo) ?*RenderPass;
 pub const beginRenderPass = SDL_BeginGPURenderPass;
 
 pub extern fn SDL_BindGPUGraphicsPipeline(render_pass: *RenderPass, graphics_pipeline: ?*GraphicsPipeline) void;
