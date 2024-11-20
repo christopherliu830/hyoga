@@ -32,9 +32,9 @@ pub fn beginFrame() !void {
     imgui.newFrame();
 }
 
-pub fn render(cmd: *sdl.gpu.CommandBuffer, pass: *sdl.gpu.RenderPass) !void {
+pub fn render(cmd: *sdl.gpu.CommandBuffer) !void {
     imgui.render();
-    try backend.renderDrawData(imgui.getDrawData(), cmd, pass);
+    try backend.renderDrawData(imgui.getDrawData(), cmd);
 }
 
 pub fn shutdown() void {

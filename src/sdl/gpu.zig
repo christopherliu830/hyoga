@@ -143,16 +143,23 @@ pub const CommandBuffer = opaque {
 		};
 	}
 
+	pub const beginRenderPass = SDL_BeginGPURenderPass;
+
 	pub const submit = SDL_SubmitGPUCommandBuffer;
 
 	pub const cancel = SDL_CancelGPUCommandBuffer;
 };
 
 pub const RenderPass = opaque {
-
-	pub const setStencilReference = SDL_SetGPUStencilReference;
-
 	pub const bindGraphicsPipeline = SDL_BindGPUGraphicsPipeline;
+	pub const setScissor = SDL_SetGPUScissor;
+	pub const setStencilReference = SDL_SetGPUStencilReference;
+	pub const bindVertexBuffers = SDL_BindGPUVertexBuffers;
+	pub const bindIndexBuffer = SDL_BindGPUIndexBuffer;
+	pub const bindVertexSamplers = SDL_BindGPUVertexSamplers;
+	pub const bindFragmentSamplers = SDL_BindGPUFragmentSamplers;
+	pub const drawIndexedPrimitives = SDL_DrawGPUIndexedPrimitives;
+	pub const end = SDL_EndGPURenderPass;
 };
 
 pub const ComputePass = opaque {};
@@ -824,8 +831,8 @@ pub const BufferBinding = extern struct {
 };
 
 pub const TextureSamplerBinding = extern struct {
-	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),
-	sampler: ?*Sampler = @import("std").mem.zeroes(?*Sampler),
+	texture: ?*Texture = null,
+	sampler: ?*Sampler = null, 
 };
 
 pub const StorageBufferWriteOnlyBinding = extern struct {
@@ -888,29 +895,29 @@ pub extern fn SDL_PushGPUDebugGroup(command_buffer: ?*CommandBuffer, name: [*c]c
 pub const pushDebugGroup = SDL_PushGPUDebugGroup;
 pub extern fn SDL_PopGPUDebugGroup(command_buffer: ?*CommandBuffer) void;
 pub const popDebugGroup = SDL_PopGPUDebugGroup;
-pub extern fn SDL_ReleaseGPUTexture(device: ?*Device, texture: ?*Texture) void;
+pub extern fn SDL_ReleaseGPUTexture(device: *Device, texture: ?*Texture) void;
 pub const releaseTexture = SDL_ReleaseGPUTexture;
-pub extern fn SDL_ReleaseGPUSampler(device: ?*Device, sampler: ?*Sampler) void;
+pub extern fn SDL_ReleaseGPUSampler(device: *Device, sampler: ?*Sampler) void;
 pub const releaseSampler = SDL_ReleaseGPUSampler;
-pub extern fn SDL_ReleaseGPUBuffer(device: ?*Device, buffer: ?*Buffer) void;
+pub extern fn SDL_ReleaseGPUBuffer(device: *Device, buffer: ?*Buffer) void;
 pub const releaseBuffer = SDL_ReleaseGPUBuffer;
-pub extern fn SDL_ReleaseGPUTransferBuffer(device: ?*Device, transfer_buffer: ?*TransferBuffer) void;
+pub extern fn SDL_ReleaseGPUTransferBuffer(device: *Device, transfer_buffer: ?*TransferBuffer) void;
 pub const releaseTransferBuffer = SDL_ReleaseGPUTransferBuffer;
-pub extern fn SDL_ReleaseGPUComputePipeline(device: ?*Device, compute_pipeline: ?*ComputePipeline) void;
+pub extern fn SDL_ReleaseGPUComputePipeline(device: *Device, compute_pipeline: ?*ComputePipeline) void;
 pub const releaseComputePipeline = SDL_ReleaseGPUComputePipeline;
-pub extern fn SDL_ReleaseGPUShader(device: ?*Device, shader: ?*Shader) void;
+pub extern fn SDL_ReleaseGPUShader(device: *Device, shader: ?*Shader) void;
 pub const releaseShader = SDL_ReleaseGPUShader;
-pub extern fn SDL_ReleaseGPUGraphicsPipeline(device: ?*Device, graphics_pipeline: ?*GraphicsPipeline) void;
+pub extern fn SDL_ReleaseGPUGraphicsPipeline(device: *Device, graphics_pipeline: ?*GraphicsPipeline) void;
 pub const releaseGraphicsPipeline = SDL_ReleaseGPUGraphicsPipeline;
-pub extern fn SDL_AcquireGPUCommandBuffer(device: ?*Device) ?*CommandBuffer;
+pub extern fn SDL_AcquireGPUCommandBuffer(device: *Device) ?*CommandBuffer;
 pub const acquireCommandBuffer = SDL_AcquireGPUCommandBuffer;
-pub extern fn SDL_PushGPUVertexUniformData(command_buffer: ?*CommandBuffer, slot_index: u32, data: ?*const anyopaque, length: u32) void;
+pub extern fn SDL_PushGPUVertexUniformData(command_buffer: *CommandBuffer, slot_index: u32, data: ?*const anyopaque, length: u32) void;
 pub const pushVertexUniformData = SDL_PushGPUVertexUniformData;
-pub extern fn SDL_PushGPUFragmentUniformData(command_buffer: ?*CommandBuffer, slot_index: u32, data: ?*const anyopaque, length: u32) void;
+pub extern fn SDL_PushGPUFragmentUniformData(command_buffer: *CommandBuffer, slot_index: u32, data: ?*const anyopaque, length: u32) void;
 pub const pushFragmentUniformData = SDL_PushGPUFragmentUniformData;
-pub extern fn SDL_PushGPUComputeUniformData(command_buffer: ?*CommandBuffer, slot_index: u32, data: ?*const anyopaque, length: u32) void;
+pub extern fn SDL_PushGPUComputeUniformData(command_buffer: *CommandBuffer, slot_index: u32, data: ?*const anyopaque, length: u32) void;
 pub const pushComputeUniformData = SDL_PushGPUComputeUniformData;
-pub extern fn SDL_BeginGPURenderPass(command_buffer: ?*CommandBuffer, color_target_infos: [*c]const ColorTargetInfo, num_color_targets: u32, depth_stencil_target_info: ?*const DepthStencilTargetInfo) ?*RenderPass;
+pub extern fn SDL_BeginGPURenderPass(command_buffer: *CommandBuffer, color_target_infos: [*]const ColorTargetInfo, num_color_targets: u32, depth_stencil_target_info: ?*const DepthStencilTargetInfo) ?*RenderPass;
 pub const beginRenderPass = SDL_BeginGPURenderPass;
 
 pub extern fn SDL_BindGPUGraphicsPipeline(render_pass: *RenderPass, graphics_pipeline: ?*GraphicsPipeline) void;

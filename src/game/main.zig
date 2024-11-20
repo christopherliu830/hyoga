@@ -24,7 +24,6 @@ pub fn main() !void {
             .triangulate = true,
             .split_large_meshes = true,
             .embed_textures = true,
-            .flip_uvs = true,
         }
     }); 
 

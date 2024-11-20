@@ -125,8 +125,7 @@ pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
         .target_info = .{
             .num_color_targets = 1,
             .color_target_descriptions = &color_target_desc,
-            .depth_stencil_format = .d32_float_s8_uint,
-            .has_depth_stencil_target = true,
+            .has_depth_stencil_target = false,
         },
         .rasterizer_state = .{
             .fill_mode = .fill,
@@ -161,6 +160,9 @@ pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
 pub fn createDeviceObjects() !void {
     const bd = getBackendData().?;
     bd.pipeline = try createPipeline();
+    bd.color_target = sdl.gpu.ColorTargetInfo {
+
+    };
     bd.font_texture = try createFontsTexture();
     bd.sampler = try createSampler();
 }
@@ -263,7 +265,20 @@ pub fn createSampler() !*sdl.gpu.Sampler {
         .compare_op = .never,
     });
 }
-pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.RenderPass) !void {
+pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer) !void {
+    const bd = getBackendData().?;
+
+    const color_target = [1]sdl.gpu.ColorTargetInfo {.{
+        .texture = gpu.activeRenderTarget(),
+        .clear_color = .{ .r = 0, .g = 0, .b = 0, .a = 0},
+        .load_op = .load,
+        .store_op = .store,
+        .cycle = false,
+    }};
+
+    const pass = cmd.beginRenderPass(&color_target, 1, null).?;
+    defer pass.end();
+
     const fb_width = draw_data.DisplaySize.x * draw_data.FramebufferScale.x;
     const fb_height = draw_data.DisplaySize.y * draw_data.FramebufferScale.y;
 
@@ -271,7 +286,6 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer,
         return;
     }
 
-    const bd = getBackendData().?;
     if (draw_data.TotalVtxCount > 0) {
         if (bd.buf_vertex == null or bd.size_buf_vertex < draw_data.TotalVtxCount * @sizeOf(imgui.ImDrawVert)) {
 
@@ -333,8 +347,8 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer,
 
         const copy_cmd = try bd.device.acquireCommandBuffer();
         defer _ = copy_cmd.submit();
-        const pass = try copy_cmd.beginCopyPass();
-        defer pass.end();
+        const cpass = try copy_cmd.beginCopyPass();
+        defer cpass.end();
 
         const vtx_src = sdl.gpu.TransferBufferLocation {
             .transfer_buffer = buf_transfer,
@@ -347,7 +361,7 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer,
             .size = bd.size_buf_vertex,
         };
 
-        sdl.gpu.uploadToBuffer(pass, &vtx_src, &vtx_dst, false);
+        sdl.gpu.uploadToBuffer(cpass, &vtx_src, &vtx_dst, false);
 
         const idx_src = sdl.gpu.TransferBufferLocation {
             .transfer_buffer = buf_transfer,
@@ -360,11 +374,11 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer,
             .size = bd.size_buf_index,
         };
 
-        sdl.gpu.uploadToBuffer(pass, &idx_src, &idx_dst, false);
+        sdl.gpu.uploadToBuffer(cpass, &idx_src, &idx_dst, false);
     }
 
     // Setup render state
-    setupRenderState(cmd, render_pass, draw_data);
+    setupRenderState(cmd, pass, draw_data);
 
     const clip_off = draw_data.DisplayPos;
     const clip_scale = draw_data.FramebufferScale;
@@ -395,13 +409,13 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer,
                 .w = @intFromFloat(clip_max.x - clip_min.x),
                 .h = @intFromFloat(clip_max.y - clip_min.y),
             };
-            sdl.gpu.setScissor(render_pass, &scissor);
+            sdl.gpu.setScissor(pass, &scissor);
             const binding = [_]sdl.gpu.TextureSamplerBinding {.{
                 .sampler = bd.sampler,
                 .texture = bd.font_texture,
             }};
-            sdl.gpu.bindFragmentSamplers(render_pass, 0, &binding, 1);
-            sdl.gpu.drawIndexedPrimitives(render_pass,
+            sdl.gpu.bindFragmentSamplers(pass, 0, &binding, 1);
+            sdl.gpu.drawIndexedPrimitives(pass,
                 pcmd.ElemCount,
                 1,
                 @intCast(pcmd.IdxOffset + global_idx_offset),
@@ -418,7 +432,7 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer,
         .w = @intFromFloat(fb_width),
         .h = @intFromFloat(fb_height),
     };
-    sdl.gpu.setScissor(render_pass, &scissor);
+    sdl.gpu.setScissor(pass, &scissor);
 }
 
 pub fn setupRenderState(cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.RenderPass, draw_data: *imgui.ImDrawData) void {

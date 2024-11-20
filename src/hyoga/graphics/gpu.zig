@@ -36,6 +36,7 @@ pub const RenderObject = struct {
     idx_offset: u32,
     idx_count: u32,
     pipeline: *sdl.gpu.GraphicsPipeline,
+    material: mat.Material,
 };
 
 pub const RenderSubmitResult = struct {
@@ -48,20 +49,27 @@ const RenderState = struct {
     outline_pipeline: *sdl.gpu.GraphicsPipeline,
     post_pipeline: *sdl.gpu.GraphicsPipeline,
     quad_buffer: *sdl.gpu.Buffer,
-    diffuse: *sdl.gpu.Sampler = undefined,
+    sampler: *sdl.gpu.Sampler = undefined,
     specular: *sdl.gpu.Sampler = undefined,
 
     textures: tx.Arena,
     texture_cache: tx.Cache,
 
     models: mdl.Arena,
-    // modelToObjs: std.StringHashMap(),
     objs: hya.Arena(RenderObject),
+    robjs: PassInfo,
 
     scene: *Scene = undefined,
     sample_count: sdl.gpu.SampleCount = .@"1",
 
+    active_target: ?*sdl.gpu.Texture,
     pending_submit_result: ?RenderSubmitResult = null,
+};
+
+const PassInfo = struct {
+    items: hya.Arena(RenderObject),
+    targets: []const sdl.gpu.ColorTargetInfo,
+    depth_target: ?*const sdl.gpu.DepthStencilTargetInfo,
 };
 
 const GPU = struct {
@@ -221,18 +229,22 @@ pub fn init(hdl_window: *sdl.Window, allocator: std.mem.Allocator) !void {
         .mag_filter = .linear,
     };
 
-    const verts = [_][4]f32 {
-        .{-1, -1, 0, 1},
-        .{ 1,  1, 1, 0},
-        .{-1,  1, 0, 0},
-        .{-1, -1, 0, 1},
-        .{ 1, -1, 1, 1},
-        .{ 1,  1, 1, 0}
+    const Verts = extern struct {
+        v: [16]f32,
+        i: [6]u32,
+    };
+    const verts = Verts {
+        .v = .{
+            -1, -1, 0, 1,
+            -1,  1, 0, 0,
+             1, -1, 1, 1,
+             1,  1, 1, 0, },
+        .i = .{ 0, 3, 1, 0, 2, 3, }
     };
 
     const quad_buffer = sdl.gpu.createBuffer(ctx.device, &.{
-        .size = @sizeOf(@TypeOf(verts)),
-        .usage = .{ .vertex = true },
+        .size = @sizeOf(Verts),
+        .usage = .{ .vertex = true, .index = true },
     }).?;
 
     try uploadToBuffer(quad_buffer, 0, &std.mem.toBytes(verts));
@@ -243,12 +255,14 @@ pub fn init(hdl_window: *sdl.Window, allocator: std.mem.Allocator) !void {
         .outline_pipeline = createOutlineShader(),
         .post_pipeline = createPostProcessShader(),
         .quad_buffer = quad_buffer,
-        .diffuse = sdl.gpu.createSampler(ctx.device, &sampler_info).?,
+        .sampler = sdl.gpu.createSampler(ctx.device, &sampler_info).?,
         .specular  = sdl.gpu.createSampler(ctx.device, &sampler_info).?,
         .sample_count = sample_count,
         .textures = textures,
         .texture_cache = texture_cache,
         .models = try mdl.Arena.create(ctx.allocator, 8),
+        .active_target = null,
+        .robjs = undefined,
     };
 }
 
@@ -272,7 +286,7 @@ pub fn shutdown() void {
 
     ctx.device.releaseBuffer(render_state.quad_buffer);
     ctx.device.releaseTexture(window_state.tex_depth);
-    ctx.device.releaseSampler(render_state.diffuse);
+    ctx.device.releaseSampler(render_state.sampler);
     ctx.device.releaseSampler(render_state.specular);
     ctx.device.releaseGraphicsPipeline(render_state.default_pipeline);
     ctx.device.releaseGraphicsPipeline(render_state.outline_pipeline);
@@ -283,6 +297,10 @@ pub fn shutdown() void {
 
 pub fn device() *sdl.gpu.Device {
     return ctx.device;
+}
+
+pub fn activeRenderTarget() ?*sdl.gpu.Texture {
+    return render_state.active_target;
 }
 
 pub fn uploadToBuffer(buffer: *sdl.gpu.Buffer, offset: u32, data: []const u8) !void {
@@ -352,38 +370,38 @@ pub fn uploadToTexture(tex: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) 
 pub fn begin() !*sdl.gpu.CommandBuffer {
     render_state.pending_submit_result = .{};
 
-    return sdl.gpu.acquireCommandBuffer(ctx.device) orelse {
+    var drawable_w: u32 = undefined;
+    var drawable_h: u32 = undefined;
+
+    const cmd = sdl.gpu.acquireCommandBuffer(ctx.device) orelse {
         std.log.err("could not acquire command buffer", .{});
         return error.SDLError;
     };
-}
-
-pub fn render(scene: *Scene) !void {
-    const cmd = try begin();
-
-    var drawable_w: u32 = undefined;
-    var drawable_h: u32 = undefined;
 
     var swapchain: ?*sdl.gpu.Texture = null;
     if (!sdl.gpu.acquireSwapchainTexture(cmd, window_state.hdl_window, &swapchain, &drawable_w, &drawable_h)) {
         std.log.err("Could not acquire swapchain texture", .{});
         return error.AcquireSwapchainError;
     }
-    else if (swapchain == null) {
+    else if (swapchain) |s| {
+        if (window_state.prev_drawable_w != drawable_w or window_state.prev_drawable_h != drawable_h) {
+            ctx.device.releaseTexture(window_state.tex_depth);
+            window_state.tex_depth = try createDepthTexture(drawable_w, drawable_h);
+        }
+
+        window_state.prev_drawable_w = drawable_w;
+        window_state.prev_drawable_h = drawable_h;
+
+        render_state.active_target = s;
+            return cmd;
+    } else {
         // No swapchain was acquired, probably too many frames in flight.
         _ = cmd.cancel();
         return error.NoSwapchain;
     }
+}
 
-    // Resize the depth buffer if the window size changed
-
-    if (window_state.prev_drawable_w != drawable_w or window_state.prev_drawable_h != drawable_h) {
-        ctx.device.releaseTexture(window_state.tex_depth);
-        window_state.tex_depth = try createDepthTexture(drawable_w, drawable_h);
-    }
-
-    window_state.prev_drawable_w = drawable_w;
-    window_state.prev_drawable_h = drawable_h;
+pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
 
     const tex = sdl.gpu.createTexture(ctx.device, &.{
         .type = .@"2d",
@@ -395,6 +413,7 @@ pub fn render(scene: *Scene) !void {
         .num_levels = 1,
         .sample_count = .@"1",
     });
+
     defer sdl.gpu.releaseTexture(ctx.device, tex);
 
     const target: []const sdl.gpu.ColorTargetInfo = &.{
@@ -407,60 +426,100 @@ pub fn render(scene: *Scene) !void {
         }
     };
 
-    drawScene(cmd, target, scene);
+    const depth_target = sdl.gpu.DepthStencilTargetInfo {
+        .clear_depth = 1,
+        .clear_stencil = 0,
+        .load_op = .clear,
+        .store_op = .store,
+        .stencil_load_op = .clear,
+        .stencil_store_op = .store,
+        .texture = window_state.tex_depth,
+        .cycle = true,
+    };
+
+    var pass = PassInfo {
+        .targets = target,
+        .depth_target = &depth_target,
+        .items = render_state.objs,
+    };
+
+    doPass(cmd, &pass, scene) catch {};
 
     const screen: []const sdl.gpu.ColorTargetInfo = &.{
         .{
-            .texture = swapchain.?,
+            .texture = render_state.active_target,
             .load_op = .dont_care,
             .store_op = .store,
             .cycle = true,
         }
     };
 
-    const pass = sdl.gpu.beginRenderPass(cmd, screen.ptr, 1, null).?;
-    pass.bindGraphicsPipeline(render_state.post_pipeline);
-    sdl.gpu.bindFragmentSamplers(pass, 0, &.{.{ .sampler = render_state.diffuse, .texture = tex }}, 1);
-    sdl.gpu.bindVertexBuffers(pass, 0, &.{ .buffer = render_state.quad_buffer, .offset =  0}, 1);
-    sdl.gpu.drawPrimitives(pass, 6, 1, 0, 0);
-    sdl.gpu.endRenderPass(pass);
+    var arena = try hya.Arena(RenderObject).create(ctx.allocator, 1);
+    _ = try arena.insert(.{
+        .pipeline = render_state.post_pipeline,
+        .transform = mat4.identity,
+        .textures = undefined,
+        .buf = render_state.quad_buffer,
+        .idx_count = 6,
+        .idx_offset = @sizeOf(f32) * 4 * 4,
+        .material = .{
+            .pipeline = render_state.post_pipeline,
+            .fragment_textures = .{ .{ .sampler = render_state.sampler, .texture = tex }, .{}},
+            .num_fragment_textures = 1
+        }
+    });
 
-    // const depth_target = sdl.gpu.DepthStencilTargetInfo {
-    //     .clear_depth = 1,
-    //     .clear_stencil = 0,
-    //     .load_op = .clear,
-    //     .store_op = .store,
-    //     .stencil_load_op = .clear,
-    //     .stencil_store_op = .store,
-    //     .texture = window_state.tex_depth,
-    //     .cycle = true,
-    // };
+    pass = .{
+        .items = arena,
+        .targets = screen,
+        .depth_target = null,
+    };
 
-    // const pass = sdl.gpu.beginRenderPass(cmd, target.ptr, @intCast(target.len), &depth_target).?;
-    // pass.bindGraphicsPipeline(render_state.outline_pipeline);
+    doPass(cmd, &pass, scene) catch {};
+}
 
-    // const cam = scene.camera;
-    // const cam_pos = cam.position;
+pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void {
+    const color_targets = job.targets;
+    const pass = sdl.gpu.beginRenderPass(cmd, color_targets.ptr, @intCast(color_targets.len), job.depth_target).?;
 
-    // const aspect = @as(f32, @floatFromInt(window_state.prev_drawable_w)) / @as(f32, @floatFromInt(window_state.prev_drawable_h));
-    // const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
-    // const persp = hym_cam.perspectiveMatrix(45, aspect, 0.5, 100);
+    const lighting_ubo = LightingUBO {
+        .light_dir = scene.light_dir,
+        .camera_pos = scene.camera.position
+    };
 
-    // var it = render_state.objs.iterator();
-    // while (it.next()) |obj| {
-    //     const ubo = TransformMatrices {
-    //         .model = obj.transform,
-    //         .mvp = mat4.mul(mat4.mul(persp, view), obj.transform),
-    //         .normal_transform = mat4.transpose(mat4.inverse(obj.transform)),
-    //     };
-    //     sdl.gpu.pushVertexUniformData(cmd, 0, &ubo, @sizeOf(TransformMatrices));
+    sdl.gpu.pushFragmentUniformData(cmd, 0, &lighting_ubo, @sizeOf(LightingUBO));
 
-    //     drawModel(pass, obj) catch continue;
-    // }
+    const cam = scene.camera;
+    const cam_pos = cam.position;
 
-    // sdl.gpu.endRenderPass(pass);
+    const aspect = @as(f32, @floatFromInt(window_state.prev_drawable_w)) / @as(f32, @floatFromInt(window_state.prev_drawable_h));
+    const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
+    const persp = hym_cam.perspectiveMatrix(45, aspect, 0.5, 100);
 
-    _ = cmd.submit();
+    var it = job.items.iterator();
+    var last_pipeline: ?*sdl.gpu.GraphicsPipeline = null;
+    while (it.next()) |item| {
+
+        if (item.pipeline != last_pipeline) {
+            last_pipeline = item.pipeline;
+            pass.bindGraphicsPipeline(item.pipeline);
+        }
+
+        const ubo = TransformMatrices {
+            .model = item.transform,
+            .mvp = mat4.mul(mat4.mul(persp, view), item.transform),
+            .normal_transform = mat4.transpose(mat4.inverse(item.transform)),
+        };
+        sdl.gpu.pushVertexUniformData(cmd, 0, &ubo, @sizeOf(TransformMatrices));
+
+        pass.bindVertexSamplers(0, &item.material.vertex_textures, item.material.num_vertex_textures);
+        pass.bindFragmentSamplers(0, &item.material.fragment_textures, item.material.num_fragment_textures);
+        pass.bindVertexBuffers(0, &.{ .buffer = item.buf, .offset = 0 }, 1);
+        pass.bindIndexBuffer(&.{ .buffer = item.buf, .offset = item.idx_offset }, .@"32bit");
+        pass.drawIndexedPrimitives(item.idx_count, 1, 0, 0, 0);
+    }
+
+    pass.end();
 }
 
 pub fn drawScene(cmd: *sdl.gpu.CommandBuffer, target: []const sdl.gpu.ColorTargetInfo, scene: *Scene) void {
@@ -480,6 +539,13 @@ pub fn drawScene(cmd: *sdl.gpu.CommandBuffer, target: []const sdl.gpu.ColorTarge
         std.debug.panic("Could not begin render pass: {s}", .{sdl.getError()});
     };
 
+    const lighting_ubo = LightingUBO {
+        .light_dir = scene.light_dir,
+        .camera_pos = scene.camera.position
+    };
+
+    sdl.gpu.pushFragmentUniformData(cmd, 0, &lighting_ubo, @sizeOf(LightingUBO));
+
     const cam = scene.camera;
     const cam_pos = cam.position;
 
@@ -487,12 +553,6 @@ pub fn drawScene(cmd: *sdl.gpu.CommandBuffer, target: []const sdl.gpu.ColorTarge
     const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
     const persp = hym_cam.perspectiveMatrix(45, aspect, 0.5, 100);
 
-    const lighting_ubo = LightingUBO {
-        .light_dir = scene.light_dir,
-        .camera_pos = scene.camera.position
-    };
-
-    sdl.gpu.pushFragmentUniformData(cmd, 0, &lighting_ubo, @sizeOf(LightingUBO));
 
     var it = render_state.objs.iterator();
     var last_pipeline: ?*sdl.gpu.GraphicsPipeline = null;
@@ -515,39 +575,13 @@ pub fn drawScene(cmd: *sdl.gpu.CommandBuffer, target: []const sdl.gpu.ColorTarge
     sdl.gpu.endRenderPass(pass);
 } 
 
-pub fn submit(render_cmd: RenderCommand) RenderSubmitResult {
-    sdl.gpu.endRenderPass(render_cmd.pass);
-    _ = render_cmd.cmd.submit();
+pub fn submit(cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
+    _ = cmd.submit();
     const result = render_state.pending_submit_result.?;
     render_state.pending_submit_result = null;
+    render_state.active_target = null;
     return result;
 }
-
-// pub fn present(cmd: *sdl.gpu.CommandBuffer, texture: *sdl.gpu.Texture) void {
-//     var drawable_w: u32 = undefined;
-//     var drawable_h: u32 = undefined;
-
-//     var swapchain: ?*sdl.gpu.Texture = null;
-//     if (!sdl.gpu.acquireSwapchainTexture(cmd, window_state.hdl_window, &swapchain, &drawable_w, &drawable_h)) {
-//         std.log.err("Could not acquire swapchain texture", .{});
-//         return error.AcquireSwapchainError;
-//     }
-//     else if (swapchain == null) {
-//         // No swapchain was acquired, probably too many frames in flight.
-//         _ = cmd.cancel();
-//         return error.NoSwapchain;
-//     }
-
-//     // Resize the depth buffer if the window size changed
-
-//     if (window_state.prev_drawable_w != drawable_w or window_state.prev_drawable_h != drawable_h) {
-//         device_state.device.releaseTexture(window_state.tex_depth);
-//         window_state.tex_depth = try createDepthTexture(drawable_w, drawable_h);
-//     }
-
-//     window_state.prev_drawable_w = drawable_w;
-//     window_state.prev_drawable_h = drawable_h;
-// }
 
 pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
     var depthtex_createinfo = sdl.gpu.TextureCreateInfo{
@@ -653,13 +687,38 @@ pub fn addModel(hdl: mdl.Handle) !void {
         try uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
         try uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
 
+        var frag_bindings = [2]sdl.gpu.TextureSamplerBinding { .{}, .{} };
+        var num_frag_bindings: u32 = 0;
+        
+        for(mesh.textures.items) |t| {
+            const tex: tx.TextureView = t;
+            const idx: ?usize = switch (tex.tex_type) {
+                .diffuse => 0,
+                .specular => 1,
+            };
+            if (idx != null and frag_bindings[idx.?].texture == null ) {
+                frag_bindings[idx.?] = .{
+                    .sampler = render_state.sampler,
+                    .texture = try render_state.textures.get(tex.hdl)
+                };
+                num_frag_bindings += 1;
+            }
+        }
+
         const render_obj = RenderObject {
             .buf = buffer,
             .transform = model.transform,
             .idx_offset = vertex_buffer_size,
             .idx_count = @intCast(mesh.indices.items.len),
             .textures = mesh.textures.items,
-            .pipeline = render_state.default_pipeline
+            .pipeline = render_state.default_pipeline,
+            .material = .{
+                .pipeline = render_state.default_pipeline,
+                .fragment_textures = frag_bindings,
+                .num_fragment_textures = num_frag_bindings,
+                .vertex_textures = .{ undefined, undefined },
+                .num_vertex_textures = 0,
+            },
         };
 
         _ = try render_state.objs.insert(render_obj);
@@ -680,8 +739,8 @@ pub fn drawModel(pass: *sdl.gpu.RenderPass, obj: RenderObject) !void {
             }
         }
     }
-    sdl.gpu.bindFragmentSamplers(pass, 0, &.{.{ .sampler = render_state.diffuse, .texture = texes[0] }}, 1);
-    sdl.gpu.bindFragmentSamplers(pass, 1, &.{.{ .sampler = render_state.specular, .texture = texes[1] }}, 1);
+    sdl.gpu.bindFragmentSamplers(pass, 0, &.{.{ .sampler = render_state.sampler, .texture = texes[0] }}, 1);
+    sdl.gpu.bindFragmentSamplers(pass, 1, &.{.{ .sampler = render_state.sampler, .texture = texes[1] }}, 1);
 
     const vertex_binding = [1]sdl.gpu.BufferBinding{.{
         .buffer = obj.buf,
