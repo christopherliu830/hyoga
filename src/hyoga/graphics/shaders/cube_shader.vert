@@ -12,15 +12,15 @@ layout (location = 3) out vec2 out_uv;
 layout(set = 1, binding = 0) uniform TransformMatrices
 {
     mat4x4 model;
-    mat4x4 mvp;
-    mat4x4 normal;
+    mat4x4 trans_inverse_model;
+    mat4x4 vp;
 } ubo;
 
 
 void main() {
-    gl_Position = ubo.mvp * vec4(in_pos, 1);
+    gl_Position = ubo.vp * ubo.model * vec4(in_pos, 1);
     out_pos = vec3(ubo.model * vec4(in_pos, 1));
     out_color = vec3(1, 1, 1);
-    out_normal = normalize(mat3(ubo.normal) * in_normal);
+    out_normal = normalize(mat3(ubo.trans_inverse_model) * in_normal);
     out_uv = in_uv;
 }

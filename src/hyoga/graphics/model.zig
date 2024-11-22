@@ -115,7 +115,7 @@ pub const Model = struct {
                         }
                         try m.textures.append(tx.TextureView {
                             .hdl = handle,
-                            .tex_type = x[1],
+                            .type = x[1],
                         });
                         std.debug.assert(handle.is_valid());
                     } else { // Texture is a relative path
@@ -124,7 +124,7 @@ pub const Model = struct {
                         const handle = try gpu.createTextureFromFile(tex_path);
                         try m.textures.append(tx.TextureView {
                             .hdl = handle,
-                            .tex_type = x[1],
+                            .type = x[1],
                         });
                     }
                 }

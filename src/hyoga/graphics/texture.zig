@@ -16,7 +16,7 @@ pub const TextureType = enum {
 
 pub const TextureView = struct {
     hdl: Handle,
-    tex_type: TextureType,
+    type: TextureType,
 };
 
 pub const TextureMemory = struct {

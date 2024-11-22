@@ -1,17 +1,11 @@
+const std = @import("std");
 const sdl = @import("sdl");
+const prog = @import("shader_program.zig");
 const tx = @import("texture.zig");
 
 pub const Material = struct {
     pipeline: *sdl.gpu.GraphicsPipeline,
-    vertex_textures: [2]sdl.gpu.TextureSamplerBinding = .{ .{}, .{} },
-    num_vertex_textures: u32 = 0,
-    fragment_textures: [2]sdl.gpu.TextureSamplerBinding = .{ .{}, .{}, },
-    num_fragment_textures: u32 = 0,
+    vert_program_def: prog.ShaderDefinition,
+    frag_program_def: prog.ShaderDefinition,
+    textures: []const tx.TextureView = &.{},
 };
-//     vertex_uniforms: [4]ResourceType,
-//     num_vertex_uniforms: u32,
-//     fragment_uniforms: [4]ResourceType,
-//     num_fragment_uniforms: u32,
-//     vertex_bindings: []sdl.gpu.BufferBinding,
-//     index_bindings: []sdl.gpu.BufferBinding,
-//     fragment_samplers: []sdl.gpu.TextureSamplerBinding,
