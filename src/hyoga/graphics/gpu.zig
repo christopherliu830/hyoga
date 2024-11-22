@@ -9,7 +9,6 @@ const hym_cam = hym.cam;
 
 const hya = @import("hyoga-arena");
 
-const spirv = @import("shaders/cube_shader.zig");
 const dxil = @import("cube_dxil.zig");
 const dxbc = @import("cube_dxbc.zig");
 
@@ -21,7 +20,6 @@ const cube = @import("primitives.zig").createCube();
 const tx = @import("texture.zig");
 const mdl = @import("model.zig");
 const mat = @import("material.zig");
-const shader = @import("shader_program.zig");
 
 const Vertex = @import("vertex.zig").Vertex;
 
@@ -30,13 +28,11 @@ pub const Scene = struct {
     light_dir: vec3.Vec3,
 };
 
-pub const RenderObject = struct {
+const RenderObject = struct {
     buf: *sdl.gpu.Buffer,
     transform: mat4.Mat4,
-    textures: []tx.TextureView,
     idx_offset: u32,
     idx_count: u32,
-    pipeline: *sdl.gpu.GraphicsPipeline,
     material: mat.Material,
 };
 
@@ -46,13 +42,11 @@ pub const RenderSubmitResult = struct {
 };
 
 const RenderState = struct {
-    default_pipeline: *sdl.gpu.GraphicsPipeline,
     default_material: mat.Material,
     outline_pipeline: *sdl.gpu.GraphicsPipeline,
     post_pipeline: *sdl.gpu.GraphicsPipeline,
     quad_buffer: *sdl.gpu.Buffer,
     sampler: *sdl.gpu.Sampler = undefined,
-    specular: *sdl.gpu.Sampler = undefined,
 
     textures: tx.Arena,
     texture_cache: tx.Cache,
@@ -62,7 +56,6 @@ const RenderState = struct {
     robjs: PassInfo,
 
     scene: *Scene = undefined,
-    sample_count: sdl.gpu.SampleCount = .@"1",
 
     active_target: ?*sdl.gpu.Texture,
     pending_submit_result: ?RenderSubmitResult = null,
@@ -103,15 +96,18 @@ const RenderCommand = struct {
 
 const ShaderType = enum { vertex, fragment };
 
-const LightingUBO = extern struct {
-    light_dir: vec3.Vec3,
-    camera_pos: vec3.Vec3
+pub const PassType = enum {
+    default,
+    post_process,
+    ui,
 };
 
-const TransformMatrices= extern struct {
-    model: mat4.Mat4,
-    mvp: mat4.Mat4,
-    normal_transform: mat4.Mat4
+pub const BuildPipelineParams = struct {
+    vert: *sdl.gpu.Shader,
+    frag: *sdl.gpu.Shader,
+    pass: PassType,
+    enable_depth: bool = true,
+    enable_stencil: bool = true,
 };
 
 pub var ctx: GPU = undefined;
@@ -136,90 +132,7 @@ pub fn init(hdl_window: *sdl.Window, allocator: std.mem.Allocator) !void {
         }
     };
 
-    const vertex_shader = try ctx.device.createShader(spirv.vert_info);
-    defer ctx.device.releaseShader(vertex_shader);
-    const fragment_shader = try ctx.device.createShader(spirv.frag_info);
-    defer ctx.device.releaseShader(fragment_shader);
-
-    const sample_count = .@"1";
-
-    const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ ctx.swapchain_target_desc };
-
-    const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
-        .slot = 0,
-        .input_rate = .vertex,
-        .instance_step_rate = 0,
-        .pitch = @sizeOf(@TypeOf(cube.vertices[0])),
-    }};
-
-    const vertex_attributes: []const sdl.gpu.VertexAttribute = &.{
-        .{
-            .buffer_slot = 0,
-            .format = .float3,
-            .location = 0,
-            .offset = 0,
-        },
-        .{
-            .buffer_slot = 0,
-            .format = .float3,
-            .location = 1,
-            .offset = @offsetOf(@TypeOf(cube.vertices[0]), "normal"),
-        },
-        .{
-            .buffer_slot = 0,
-            .format = .float2,
-            .location = 2,
-            .offset = @offsetOf(@TypeOf(cube.vertices[0]), "uv"),
-        }
-    };
-
-    const stencil_state = sdl.gpu.StencilOpState {
-        .compare_op = .always,
-        .depth_fail_op = .replace,
-        .fail_op = .replace,
-        .pass_op = .replace,
-    };
-
-    const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
-        .target_info = .{
-            .num_color_targets = 1,
-            .color_target_descriptions = color_target_desc.ptr,
-            .depth_stencil_format = .d32_float_s8_uint,
-            .has_depth_stencil_target = true,
-        },
-        .depth_stencil_state = .{
-            .enable_depth_test = true,
-            .enable_depth_write = true,
-            .enable_stencil_test = true,
-            .compare_op = .less_or_equal,
-            .compare_mask = 0x00,
-            .write_mask = 0xff,
-            .front_stencil_state = stencil_state,
-            .back_stencil_state = stencil_state,
-        },
-        .multisample_state = .{ .sample_count = sample_count },
-        .primitive_type = .trianglelist,
-        .vertex_shader = vertex_shader,
-        .fragment_shader = fragment_shader,
-        .vertex_input_state = .{
-            .num_vertex_buffers = @intCast(vertex_buffer_desc.len),
-            .vertex_buffer_descriptions = vertex_buffer_desc.ptr,
-            .num_vertex_attributes = @intCast(vertex_attributes.len),
-            .vertex_attributes = vertex_attributes.ptr,
-        },
-        .props = 0,
-    };
-
-    const pipeline = sdl.gpu.createGraphicsPipeline(ctx.device, &pipeline_desc) orelse {
-        std.log.err("Could not create pipeline: {s}", .{sdl.getError()});
-        unreachable;
-    };
-
-    const material = mat.Material {
-        .pipeline = pipeline,
-        .vert_program_def = spirv.vert_program,
-        .frag_program_def = spirv.frag_program,
-    };
+    const material = mat.readFromPath(ctx.device, "shaders/standard", allocator) catch unreachable;
 
     var w: c_int = 0;
     var h: c_int = 0;
@@ -257,22 +170,21 @@ pub fn init(hdl_window: *sdl.Window, allocator: std.mem.Allocator) !void {
 
     try uploadToBuffer(quad_buffer, 0, &std.mem.toBytes(verts));
 
+
     render_state = .{
         .objs = try hya.Arena(RenderObject).create(ctx.allocator, 1),
-        .default_pipeline = pipeline,
         .default_material = material,
         .outline_pipeline = createOutlineShader(),
         .post_pipeline = createPostProcessShader(),
         .quad_buffer = quad_buffer,
         .sampler = sdl.gpu.createSampler(ctx.device, &sampler_info).?,
-        .specular  = sdl.gpu.createSampler(ctx.device, &sampler_info).?,
-        .sample_count = sample_count,
         .textures = textures,
         .texture_cache = texture_cache,
         .models = try mdl.Arena.create(ctx.allocator, 8),
         .active_target = null,
         .robjs = undefined,
     };
+
 }
 
 pub fn shutdown() void {
@@ -296,8 +208,6 @@ pub fn shutdown() void {
     ctx.device.releaseBuffer(render_state.quad_buffer);
     ctx.device.releaseTexture(window_state.tex_depth);
     ctx.device.releaseSampler(render_state.sampler);
-    ctx.device.releaseSampler(render_state.specular);
-    ctx.device.releaseGraphicsPipeline(render_state.default_pipeline);
     ctx.device.releaseGraphicsPipeline(render_state.outline_pipeline);
     ctx.device.releaseGraphicsPipeline(render_state.post_pipeline);
     ctx.device.destroy();
@@ -468,16 +378,14 @@ pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
 
     var arena = try hya.Arena(RenderObject).create(ctx.allocator, 1);
     _ = try arena.insert(.{
-        .pipeline = render_state.post_pipeline,
         .transform = mat4.identity,
-        .textures = undefined,
         .buf = render_state.quad_buffer,
         .idx_count = 6,
         .idx_offset = @sizeOf(f32) * 4 * 4,
         .material = .{
             .pipeline = render_state.post_pipeline,
             .vert_program_def = .{},
-            .frag_program_def = .{ .textures = &.{ .diffuse }},
+            .frag_program_def = .{ .textures = .{ .diffuse, null, null, null }},
             .textures = &.{.{ .type = .diffuse, .hdl = tex_hdl }},
         },
     });
@@ -495,7 +403,7 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
     const color_targets = job.targets;
     const pass = sdl.gpu.beginRenderPass(cmd, color_targets.ptr, @intCast(color_targets.len), job.depth_target).?;
 
-    const lighting_ubo = LightingUBO {
+    const lighting_ubo = mat.LightingUBO {
         .light_dir = scene.light_dir,
         .camera_pos = scene.camera.position
     };
@@ -517,32 +425,33 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
         }
 
         if (item.material.vert_program_def.uniform_location_mvp) |slot_index| {
-            const ubo = shader.MvpUniformGroup {
+            const ubo = mat.MvpUniformGroup {
                 .model = item.transform,
                 .inverse_model = mat4.transpose(mat4.inverse(item.transform)),
                 .view_proj = mat4.mul(persp, view),
             };
-            sdl.gpu.pushVertexUniformData(cmd, slot_index, &ubo, @sizeOf(TransformMatrices));
+            sdl.gpu.pushVertexUniformData(cmd, slot_index, &ubo, @sizeOf(mat.MvpUniformGroup));
         }
 
         if (item.material.frag_program_def.uniform_location_mvp) |slot_index| {
-            const ubo = shader.MvpUniformGroup {
+            const ubo = mat.MvpUniformGroup {
                 .model = item.transform,
                 .inverse_model = mat4.transpose(mat4.inverse(item.transform)),
                 .view_proj = mat4.mul(persp, view),
             };
-            sdl.gpu.pushFragmentUniformData(cmd, slot_index, &ubo, @sizeOf(TransformMatrices));
+            sdl.gpu.pushFragmentUniformData(cmd, slot_index, &ubo, @sizeOf(mat.MvpUniformGroup));
         }
 
         if (item.material.vert_program_def.uniform_location_lighting) |slot_index| {
-            sdl.gpu.pushFragmentUniformData(cmd, slot_index, &lighting_ubo, @sizeOf(LightingUBO));
+            sdl.gpu.pushFragmentUniformData(cmd, slot_index, &lighting_ubo, @sizeOf(mat.LightingUBO));
         }
 
         if (item.material.frag_program_def.uniform_location_lighting) |slot_index| {
-            sdl.gpu.pushFragmentUniformData(cmd, slot_index, &lighting_ubo, @sizeOf(LightingUBO));
+            sdl.gpu.pushFragmentUniformData(cmd, slot_index, &lighting_ubo, @sizeOf(mat.LightingUBO));
         }
 
         for (item.material.vert_program_def.textures, 0..) |requested_tex, i| {
+            if (requested_tex == null) continue;
             for (item.material.textures) |mat_tex| {
                 if (mat_tex.type == requested_tex) {
                     const texture = try render_state.textures.get(mat_tex.hdl);
@@ -553,6 +462,7 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
         }
 
         for (item.material.frag_program_def.textures, 0..) |requested_tex, i| {
+            if (requested_tex == null) continue;
             for (item.material.textures) |mat_tex| {
                 if (mat_tex.type == requested_tex) {
                     const texture = try render_state.textures.get(mat_tex.hdl);
@@ -587,7 +497,7 @@ pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
         .height = @intCast(h),
         .layer_count_or_depth = 1,
         .num_levels = 1,
-        .sample_count = render_state.sample_count,
+        .sample_count = .@"1",
         .props = 0,
     };
 
@@ -664,6 +574,117 @@ pub fn createTextureFromImageMemory(name: [:0] const u8, data: []const u8) !tx.H
 
 }
 
+pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
+    const sample_count = .@"1";
+
+    const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ ctx.swapchain_target_desc };
+
+    const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{
+        switch(params.pass) {
+            .default => .{
+                .slot = 0,
+                .input_rate = .vertex,
+                .instance_step_rate = 0,
+                .pitch = @sizeOf(Vertex),
+            },
+            .post_process => .{
+                .slot = 0,
+                .input_rate = .vertex,
+                .instance_step_rate = 0,
+                .pitch = @sizeOf(f32) * 4,
+            },
+            .ui => .{
+                .slot = 0,
+                .input_rate = .vertex,
+                .instance_step_rate = 0,
+                .pitch = unreachable,
+            }
+        }
+    };
+
+    const vertex_attributes: []const sdl.gpu.VertexAttribute = switch(params.pass) {
+        .default => &.{
+            .{
+                .buffer_slot = 0,
+                .format = .float3,
+                .location = 0,
+                .offset = 0,
+            },
+            .{
+                .buffer_slot = 0,
+                .format = .float3,
+                .location = 1,
+                .offset = @offsetOf(@TypeOf(cube.vertices[0]), "normal"),
+            },
+            .{
+                .buffer_slot = 0,
+                .format = .float2,
+                .location = 2,
+                .offset = @offsetOf(@TypeOf(cube.vertices[0]), "uv"),
+            }
+        },
+        .post_process => &.{
+            .{
+                .buffer_slot = 0,
+                .format = .float2,
+                .location = 0,
+                .offset = 0,
+            },
+            .{
+                .buffer_slot = 0,
+                .format = .float2,
+                .location = 1,
+                .offset = 8,
+            },
+        },
+        else => unreachable,
+    };
+
+    const stencil_state = sdl.gpu.StencilOpState {
+        .compare_op = .always,
+        .depth_fail_op = .keep,
+        .fail_op = .keep,
+        .pass_op = .replace,
+    };
+
+    const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
+        .target_info = .{
+            .num_color_targets = 1,
+            .color_target_descriptions = color_target_desc.ptr,
+            .depth_stencil_format = .d32_float_s8_uint,
+            .has_depth_stencil_target = true,
+        },
+        .depth_stencil_state = .{
+            .enable_depth_test = params.enable_depth,
+            .enable_depth_write = params.enable_depth,
+            .enable_stencil_test = params.enable_stencil,
+            .compare_op = .less_or_equal,
+            .compare_mask = 0xff,
+            .write_mask = 0xff,
+            .front_stencil_state = stencil_state,
+            .back_stencil_state = stencil_state,
+        },
+        .multisample_state = .{ .sample_count = sample_count },
+        .primitive_type = .trianglelist,
+        .vertex_shader = params.vert,
+        .fragment_shader = params.frag,
+        .vertex_input_state = .{
+            .num_vertex_buffers = @intCast(vertex_buffer_desc.len),
+            .vertex_buffer_descriptions = vertex_buffer_desc.ptr,
+            .num_vertex_attributes = @intCast(vertex_attributes.len),
+            .vertex_attributes = vertex_attributes.ptr,
+        },
+        .props = 0,
+    };
+
+    const pipeline = sdl.gpu.createGraphicsPipeline(ctx.device, &pipeline_desc) orelse {
+        std.log.err("Could not create pipeline: {s}", .{sdl.getError()});
+        unreachable;
+    };
+
+    return pipeline;
+}
+
 pub fn importModel(path: [:0]const u8, settings: mdl.ImportSettings)  !mdl.Handle {
     const mod = try mdl.load(path, settings, ctx.allocator);
     return try render_state.models.insert(mod);
@@ -682,24 +703,6 @@ pub fn addModel(hdl: mdl.Handle) !void {
         try uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
         try uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
 
-        // var frag_bindings = [2]sdl.gpu.TextureSamplerBinding { .{}, .{} };
-        // var num_frag_bindings: u32 = 0;
-        
-        // for(mesh.textures.items) |t| {
-        //     const tex: tx.TextureView = t;
-        //     const idx: ?usize = switch (tex.tex_type) {
-        //         .diffuse => 0,
-        //         .specular => 1,
-        //     };
-        //     if (idx != null and frag_bindings[idx.?].texture == null ) {
-        //         frag_bindings[idx.?] = .{
-        //             .sampler = render_state.sampler,
-        //             .texture = try render_state.textures.get(tex.hdl)
-        //         };
-        //         num_frag_bindings += 1;
-        //     }
-        // }
-        
         var material = render_state.default_material;
         material.textures = mesh.textures.items;
 
@@ -708,8 +711,6 @@ pub fn addModel(hdl: mdl.Handle) !void {
             .transform = model.transform,
             .idx_offset = vertex_buffer_size,
             .idx_count = @intCast(mesh.indices.items.len),
-            .textures = mesh.textures.items,
-            .pipeline = render_state.default_pipeline,
             .material = material,
         };
 
