@@ -41,24 +41,21 @@ pub const MaterialInfo = struct {
     frag: ProgramInfo, 
 };
 
-pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, parent_allocator: std.mem.Allocator) !Material {
-    var arena = std.heap.ArenaAllocator.init(parent_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-    
-    const info_path = try std.mem.concat(allocator, u8, &.{path, ".json"});
+pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, arena: std.mem.Allocator) !Material {
+    const info_path = try std.mem.concat(arena, u8, &.{path, ".json"});
     const info_file = try std.fs.cwd().openFile(info_path, .{});
     defer info_file.close();
-    const info_bytes = try info_file.readToEndAlloc(allocator, 4096);
-    const info = try std.json.parseFromSliceLeaky(MaterialInfo, allocator, info_bytes, .{});
+    const info_bytes = try info_file.readToEndAlloc(arena, 4096);
+    const info = try std.json.parseFromSliceLeaky(MaterialInfo, arena, info_bytes, .{});
 
     const v_sampler_count = if (info.vert.samplers) |s| s.map.count() else 0;
     const v_uniform_count = if (info.vert.uniforms) |u| u.map.count() else 0;
-    const vert_path = try std.mem.concat(allocator, u8, &.{path, ".vert.spv"});
+    const vert_path = try std.mem.concat(arena, u8, &.{path, ".vert.spv"});
     const vert_file = try std.fs.cwd().openFile(vert_path, .{});
     defer vert_file.close();
-    const vert_code = try vert_file.readToEndAlloc(allocator, 4096);
-    const vert_shader = try device.createShader(.{
+    const vert_code = try vert_file.readToEndAlloc(arena, 4096);
+    const vert_shader = device.createShader(&.{
+        .stage = .vertex,
         .code = vert_code.ptr,
         .code_size = @intCast(vert_code.len),
         .entrypoint = "main",
@@ -67,16 +64,18 @@ pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, parent_allocator:
         .num_storage_textures = 0,
         .num_storage_buffers = 0,
         .num_uniform_buffers = @intCast(v_uniform_count),
-    });
+        .props = 0
+    }).?;
     defer device.releaseShader(vert_shader);
 
     const f_sampler_count = if (info.frag.samplers) |s| s.map.count() else 0;
     const f_uniform_count = if (info.frag.uniforms) |u| u.map.count() else 0;
-    const frag_path = try std.mem.concat(allocator, u8, &.{path, ".frag.spv"});
+    const frag_path = try std.mem.concat(arena, u8, &.{path, ".frag.spv"});
     const frag_file = try std.fs.cwd().openFile(frag_path, .{});
     defer frag_file.close();
-    const frag_code = try frag_file.readToEndAlloc(allocator, 4096);
-    const frag_shader = try device.createShader(.{
+    const frag_code = try frag_file.readToEndAlloc(arena, 4096);
+    const frag_shader = device.createShader(&.{
+        .stage = .fragment,
         .code = frag_code.ptr,
         .code_size = @intCast(frag_code.len),
         .entrypoint = "main",
@@ -85,7 +84,8 @@ pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, parent_allocator:
         .num_storage_textures = 0,
         .num_storage_buffers = 0,
         .num_uniform_buffers = @intCast(f_uniform_count),
-    }); 
+        .props = 0
+    }).?; 
     defer device.releaseShader(frag_shader);
 
     const pipeline= gpu.buildPipeline(.{

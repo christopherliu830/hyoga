@@ -43,7 +43,7 @@ pub fn init(info: *const InitInfo, allocator: std.mem.Allocator) !void {
         .window = info.window,
         .pipeline = try createPipeline(),
         .font_texture = try createFontsTexture(),
-        .sampler = try createSampler(),
+        .sampler = createSampler(),
     };
 
     io.BackendRendererName = "imgui_impl_sdlgpu";
@@ -74,10 +74,10 @@ pub fn newFrame() !void {
 pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
     const bd = getBackendData().?;
 
-    const vert_shader = try bd.device.createShader(shader_code.vert_info);
+    const vert_shader = bd.device.createShader(&shader_code.vert_info).?;
     defer bd.device.releaseShader(vert_shader);
 
-    const frag_shader = try bd.device.createShader(shader_code.frag_info);
+    const frag_shader = bd.device.createShader(&shader_code.frag_info).?;
     defer bd.device.releaseShader(frag_shader);
 
     const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
@@ -109,7 +109,7 @@ pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
     };
 
     const color_target_desc = [_]sdl.gpu.ColorTargetDescription {.{ 
-        .format = sdl.gpu.getSwapchainTextureFormat(bd.device, bd.window),
+        .format = bd.device.getSwapchainTextureFormat(bd.window),
         .blend_state = .{
             .enable_blend = true,
             .src_color_blendfactor = .src_alpha,
@@ -154,7 +154,7 @@ pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
         .props = 0,
     };
 
-    return try bd.device.createGraphicsPipeline(pipeline);
+    return bd.device.createGraphicsPipeline(&pipeline).?;
 }
 
 pub fn createDeviceObjects() !void {
@@ -179,7 +179,7 @@ pub fn createFontsTexture() !*sdl.gpu.Texture {
     const w: u32 = @intCast(out_width);
     const h: u32 = @intCast(out_height);
 
-    const texture = try bd.device.createTexture(.{
+    const texture = bd.device.createTexture(&.{
         .type = .@"2d",
         .format = .r8g8b8a8_unorm,
         .usage = .{ .sampler = true },
@@ -187,7 +187,7 @@ pub fn createFontsTexture() !*sdl.gpu.Texture {
         .height = h,
         .layer_count_or_depth = 1,
         .num_levels = 1,
-    });
+    }).?;
 
     // const buf_transfer = try bd.device.createTransferBuffer(.{
     //     .size = @intCast(out_width * out_height * 4),
@@ -247,9 +247,9 @@ pub fn createFontsTexture() !*sdl.gpu.Texture {
     // cmd.submit();
 }
 
-pub fn createSampler() !*sdl.gpu.Sampler {
+pub fn createSampler() *sdl.gpu.Sampler {
     const bd = getBackendData().?;
-    return bd.device.createSampler(.{
+    return bd.device.createSampler(&.{
         .mag_filter = .linear,
         .min_filter = .linear,
         .mipmap_mode = .linear,
@@ -263,7 +263,7 @@ pub fn createSampler() !*sdl.gpu.Sampler {
         .enable_anisotropy = false,
         .enable_compare = false,
         .compare_op = .never,
-    });
+    }).?;
 }
 pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer) !void {
     const bd = getBackendData().?;
@@ -298,7 +298,7 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer)
                 .size = new_vtx_size
             };
 
-            const buf_vertex = sdl.gpu.createBuffer(bd.device, &vtx_buf_info).?;
+            const buf_vertex = bd.device.createBuffer(&vtx_buf_info).?;
             bd.buf_vertex = buf_vertex;
             bd.size_buf_vertex = new_vtx_size;
         }
@@ -311,7 +311,7 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer)
                 .usage = .{ .index = true },
                 .size = new_idx_size,
             };
-            const buf_index = sdl.gpu.createBuffer(bd.device, &idx_buf_info);
+            const buf_index = bd.device.createBuffer(&idx_buf_info);
             bd.buf_index = buf_index;
             bd.size_buf_index = new_idx_size;
         }
@@ -321,12 +321,12 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer)
             .size = bd.size_buf_vertex + bd.size_buf_index,
             .usage = .upload
         };
-        const buf_transfer = bd.device.createTransferBuffer(buf_transfer_desc) catch unreachable;
+        const buf_transfer = bd.device.createTransferBuffer(&buf_transfer_desc).?;
         defer bd.device.releaseTransferBuffer(buf_transfer);
 
         // var vtx_mapped_ptr : [*]imgui.ImDrawVert = @alignCast(@ptrCast(sdl.gpu.mapTransferBuffer(bd.device, buf_transfer, false)));
-        const ptr = try bd.device.mapTransferBuffer(buf_transfer, false);
-        defer sdl.gpu.unmapTransferBuffer(bd.device, buf_transfer);
+        const ptr: [*]u8 = @ptrCast(@alignCast(bd.device.mapTransferBuffer(buf_transfer, false).?));
+        defer bd.device.unmapTransferBuffer(buf_transfer);
         var vtx_mapped_ptr: [*]imgui.ImDrawVert = @alignCast(@ptrCast(ptr));
         var idx_mapped_ptr: [*]imgui.ImDrawIdx = @alignCast(@ptrCast(ptr + bd.size_buf_vertex));
 
@@ -345,9 +345,9 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer)
             idx_mapped_ptr += idx_size;
         }
 
-        const copy_cmd = try bd.device.acquireCommandBuffer();
+        const copy_cmd = bd.device.acquireCommandBuffer().?;
         defer _ = copy_cmd.submit();
-        const cpass = try copy_cmd.beginCopyPass();
+        const cpass = copy_cmd.beginCopyPass().?;
         defer cpass.end();
 
         const vtx_src = sdl.gpu.TransferBufferLocation {
@@ -361,7 +361,7 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer)
             .size = bd.size_buf_vertex,
         };
 
-        sdl.gpu.uploadToBuffer(cpass, &vtx_src, &vtx_dst, false);
+        cpass.uploadToBuffer(&vtx_src, &vtx_dst, false);
 
         const idx_src = sdl.gpu.TransferBufferLocation {
             .transfer_buffer = buf_transfer,
@@ -374,7 +374,7 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer)
             .size = bd.size_buf_index,
         };
 
-        sdl.gpu.uploadToBuffer(cpass, &idx_src, &idx_dst, false);
+        cpass.uploadToBuffer(&idx_src, &idx_dst, false);
     }
 
     // Setup render state
@@ -409,13 +409,13 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer)
                 .w = @intFromFloat(clip_max.x - clip_min.x),
                 .h = @intFromFloat(clip_max.y - clip_min.y),
             };
-            sdl.gpu.setScissor(pass, &scissor);
+            pass.setScissor(&scissor);
             const binding = [_]sdl.gpu.TextureSamplerBinding {.{
                 .sampler = bd.sampler,
                 .texture = bd.font_texture,
             }};
-            sdl.gpu.bindFragmentSamplers(pass, 0, &binding, 1);
-            sdl.gpu.drawIndexedPrimitives(pass,
+            pass.bindFragmentSamplers(0, &binding, 1);
+            pass.drawIndexedPrimitives(
                 pcmd.ElemCount,
                 1,
                 @intCast(pcmd.IdxOffset + global_idx_offset),
@@ -432,7 +432,7 @@ pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer)
         .w = @intFromFloat(fb_width),
         .h = @intFromFloat(fb_height),
     };
-    sdl.gpu.setScissor(pass, &scissor);
+    pass.setScissor(&scissor);
 }
 
 pub fn setupRenderState(cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.RenderPass, draw_data: *imgui.ImDrawData) void {
@@ -440,7 +440,7 @@ pub fn setupRenderState(cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.Rende
     const fb_width = draw_data.DisplaySize.x * draw_data.FramebufferScale.x;
     const fb_height = draw_data.DisplaySize.y * draw_data.FramebufferScale.y;
 
-    sdl.gpu.bindGraphicsPipeline(render_pass, bd.*.pipeline);
+    render_pass.bindGraphicsPipeline(bd.*.pipeline);
     if (draw_data.*.TotalVtxCount > 0) {
         const vertex_buffers = [1]sdl.gpu.BufferBinding {.{ 
             .buffer = bd.*.buf_vertex,
@@ -450,9 +450,9 @@ pub fn setupRenderState(cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.Rende
             .buffer = bd.*.buf_index,
             .offset = 0,
         }};
-        sdl.gpu.bindVertexBuffers(render_pass, 0, &vertex_buffers, 1);
-        sdl.gpu.bindIndexBuffer(render_pass, &index_buffers, if (@sizeOf(imgui.ImDrawIdx) == 2) .@"16bit" else .@"32bit");
-        sdl.gpu.bindFragmentSamplers(render_pass, 0, &.{.{ .sampler = bd.sampler, .texture = bd.font_texture }}, 1);
+        render_pass.bindVertexBuffers(0, &vertex_buffers, 1);
+        render_pass.bindIndexBuffer(&index_buffers, if (@sizeOf(imgui.ImDrawIdx) == 2) .@"16bit" else .@"32bit");
+        render_pass.bindFragmentSamplers(0, &[_]sdl.gpu.TextureSamplerBinding{.{ .sampler = bd.sampler, .texture = bd.font_texture }}, 1);
 
         // Setup viewport
         const l = draw_data.DisplayPos.x;
@@ -474,9 +474,9 @@ pub fn setupRenderState(cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.Rende
             .min_depth = 0,
             .max_depth = 1,
         };
-        sdl.gpu.setViewport(render_pass, &viewport);
+        render_pass.setViewport(&viewport);
 
-        sdl.gpu.pushVertexUniformData(cmd, 0, &proj, @sizeOf(f32) * 16);
+        cmd.pushVertexUniformData(0, &proj, @sizeOf(f32) * 16);
     }
 }
 

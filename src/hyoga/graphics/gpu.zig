@@ -69,6 +69,7 @@ const PassInfo = struct {
 
 const GPU = struct {
     allocator: std.mem.Allocator,
+    arena: std.heap.ArenaAllocator,
     device: *sdl.gpu.Device,
     swapchain_target_desc: sdl.gpu.ColorTargetDescription,
     frames: u32 = 0,
@@ -116,23 +117,21 @@ pub var window_state: WindowState = .{};
 
 pub var speed: f32 = 1;
 
-pub fn init(hdl_window: *sdl.Window, allocator: std.mem.Allocator) !void {
+pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
     window_state.hdl_window = hdl_window;
-
-    const d = try sdl.gpu.Device.create(null, .{ .spirv = true });
-    try d.claimWindow(hdl_window);
+    const d = sdl.gpu.createDevice(.{ .spirv = true }, true, null).?;
+    _ = d.claimWindow(hdl_window);
 
     ctx = .{
-        .allocator = allocator,
-
+        .allocator = gpa,
+        .arena = std.heap.ArenaAllocator.init(gpa),
         .device = d,
-
         .swapchain_target_desc = .{
-            .format = sdl.gpu.getSwapchainTextureFormat(d, hdl_window)
+            .format = d.getSwapchainTextureFormat(hdl_window)
         }
     };
 
-    const material = mat.readFromPath(ctx.device, "shaders/standard", allocator) catch unreachable;
+    const material = mat.readFromPath(ctx.device, "shaders/standard", ctx.arena.allocator()) catch unreachable;
 
     var w: c_int = 0;
     var h: c_int = 0;
@@ -163,13 +162,12 @@ pub fn init(hdl_window: *sdl.Window, allocator: std.mem.Allocator) !void {
         .i = .{ 0, 3, 1, 0, 2, 3, }
     };
 
-    const quad_buffer = sdl.gpu.createBuffer(ctx.device, &.{
+    const quad_buffer = ctx.device.createBuffer(&.{
         .size = @sizeOf(Verts),
         .usage = .{ .vertex = true, .index = true },
     }).?;
 
     try uploadToBuffer(quad_buffer, 0, &std.mem.toBytes(verts));
-
 
     render_state = .{
         .objs = try hya.Arena(RenderObject).create(ctx.allocator, 1),
@@ -177,22 +175,21 @@ pub fn init(hdl_window: *sdl.Window, allocator: std.mem.Allocator) !void {
         .outline_pipeline = createOutlineShader(),
         .post_pipeline = createPostProcessShader(),
         .quad_buffer = quad_buffer,
-        .sampler = sdl.gpu.createSampler(ctx.device, &sampler_info).?,
+        .sampler = ctx.device.createSampler(&sampler_info).?,
         .textures = textures,
         .texture_cache = texture_cache,
         .models = try mdl.Arena.create(ctx.allocator, 8),
         .active_target = null,
         .robjs = undefined,
     };
-
 }
 
 pub fn shutdown() void {
-    sdl.gpu.releaseWindowFromDevice(ctx.device, window_state.hdl_window);
+    ctx.device.releaseWindow(window_state.hdl_window);
 
     var tx_it = render_state.textures.iterator();
     while (tx_it.next()) |item| {
-        sdl.gpu.releaseTexture(ctx.device, item);
+        ctx.device.releaseTexture(item);
     }
     
     var it = render_state.texture_cache.keyIterator();
@@ -223,19 +220,19 @@ pub fn activeRenderTarget() ?*sdl.gpu.Texture {
 }
 
 pub fn uploadToBuffer(buffer: *sdl.gpu.Buffer, offset: u32, data: []const u8) !void {
-    const buf_transfer = try ctx.device.createTransferBuffer(.{
+    const buf_transfer = ctx.device.createTransferBuffer(&.{
         .usage = .upload,
         .size = @intCast(data.len),
-    });
-    defer ctx.device.destroyTransferBuffer(buf_transfer);
+    }).?;
+    defer ctx.device.releaseTransferBuffer(buf_transfer);
 
-    const map = try ctx.device.mapTransferBuffer(buf_transfer, false);
+    const map: [*]u8 = @ptrCast(@alignCast(ctx.device.mapTransferBuffer(buf_transfer, false).?));
     @memcpy(map, data);
     ctx.device.unmapTransferBuffer(buf_transfer);
 
-    const cmd = try ctx.device.acquireCommandBuffer();
+    const cmd = ctx.device.acquireCommandBuffer().?;
 
-    const copy_pass = try cmd.beginCopyPass();
+    const copy_pass = cmd.beginCopyPass().?;
 
     const buf_location = sdl.gpu.TransferBufferLocation {
         .transfer_buffer = buf_transfer,
@@ -248,24 +245,24 @@ pub fn uploadToBuffer(buffer: *sdl.gpu.Buffer, offset: u32, data: []const u8) !v
         .size = @intCast(data.len),
     };
 
-    copy_pass.uploadToBuffer(buf_location, dst_region, false);
+    copy_pass.uploadToBuffer(&buf_location, &dst_region, false);
     copy_pass.end();
     _ = cmd.submit();
 }
 
 pub fn uploadToTexture(tex: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) !void {
-    const buf_transfer = try ctx.device.createTransferBuffer(.{
+    const buf_transfer = ctx.device.createTransferBuffer(&.{
         .size = @intCast(data.len),
         .usage = .upload
-    });
+    }).?;
     defer ctx.device.releaseTransferBuffer(buf_transfer);
-    const ptr_transfer = try ctx.device.mapTransferBuffer(buf_transfer, false);
+    const ptr_transfer: [*]u8 = @ptrCast(@alignCast(ctx.device.mapTransferBuffer(buf_transfer, false).?));
     @memcpy(ptr_transfer, data);
     ctx.device.unmapTransferBuffer(buf_transfer);
 
     // copy to transfer buffer
-    const cmd = try ctx.device.acquireCommandBuffer();
-    const copy_pass = try cmd.beginCopyPass();
+    const cmd = ctx.device.acquireCommandBuffer().?;
+    const copy_pass = cmd.beginCopyPass().?;
 
     const buf_src = sdl.gpu.TextureTransferInfo {
         .transfer_buffer = buf_transfer,
@@ -281,7 +278,7 @@ pub fn uploadToTexture(tex: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) 
         .d = 1,
     };
 
-    copy_pass.uploadToTexture(buf_src, buf_dst, false);
+    copy_pass.uploadToTexture(&buf_src, &buf_dst, false);
     copy_pass.end();
     _ = cmd.submit();
 }
@@ -292,13 +289,13 @@ pub fn begin() !*sdl.gpu.CommandBuffer {
     var drawable_w: u32 = undefined;
     var drawable_h: u32 = undefined;
 
-    const cmd = sdl.gpu.acquireCommandBuffer(ctx.device) orelse {
+    const cmd = ctx.device.acquireCommandBuffer() orelse {
         std.log.err("could not acquire command buffer", .{});
         return error.SDLError;
     };
 
     var swapchain: ?*sdl.gpu.Texture = null;
-    if (!sdl.gpu.acquireSwapchainTexture(cmd, window_state.hdl_window, &swapchain, &drawable_w, &drawable_h)) {
+    if (!cmd.acquireSwapchainTexture(window_state.hdl_window, &swapchain, &drawable_w, &drawable_h)) {
         std.log.err("Could not acquire swapchain texture", .{});
         return error.AcquireSwapchainError;
     }
@@ -322,7 +319,7 @@ pub fn begin() !*sdl.gpu.CommandBuffer {
 
 pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
 
-    const tex = sdl.gpu.createTexture(ctx.device, &.{
+    const tex = ctx.device.createTexture(&.{
         .type = .@"2d",
         .format = ctx.swapchain_target_desc.format,
         .usage = .{ .color_target = true, .sampler = true },
@@ -336,7 +333,7 @@ pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     const tex_hdl = try render_state.textures.insert(tex);
 
     defer _ = render_state.textures.remove(tex_hdl);
-    defer sdl.gpu.releaseTexture(ctx.device, tex);
+    defer ctx.device.releaseTexture(tex);
 
     const target: []const sdl.gpu.ColorTargetInfo = &.{
         .{
@@ -401,7 +398,7 @@ pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
 
 pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void {
     const color_targets = job.targets;
-    const pass = sdl.gpu.beginRenderPass(cmd, color_targets.ptr, @intCast(color_targets.len), job.depth_target).?;
+    const pass = cmd.beginRenderPass(color_targets.ptr, @intCast(color_targets.len), job.depth_target).?;
 
     const lighting_ubo = mat.LightingUBO {
         .light_dir = scene.light_dir,
@@ -430,7 +427,7 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
                 .inverse_model = mat4.transpose(mat4.inverse(item.transform)),
                 .view_proj = mat4.mul(persp, view),
             };
-            sdl.gpu.pushVertexUniformData(cmd, slot_index, &ubo, @sizeOf(mat.MvpUniformGroup));
+            cmd.pushVertexUniformData(slot_index, &ubo, @sizeOf(mat.MvpUniformGroup));
         }
 
         if (item.material.frag_program_def.uniform_location_mvp) |slot_index| {
@@ -439,15 +436,15 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
                 .inverse_model = mat4.transpose(mat4.inverse(item.transform)),
                 .view_proj = mat4.mul(persp, view),
             };
-            sdl.gpu.pushFragmentUniformData(cmd, slot_index, &ubo, @sizeOf(mat.MvpUniformGroup));
+            cmd.pushFragmentUniformData(slot_index, &ubo, @sizeOf(mat.MvpUniformGroup));
         }
 
         if (item.material.vert_program_def.uniform_location_lighting) |slot_index| {
-            sdl.gpu.pushFragmentUniformData(cmd, slot_index, &lighting_ubo, @sizeOf(mat.LightingUBO));
+            cmd.pushFragmentUniformData(slot_index, &lighting_ubo, @sizeOf(mat.LightingUBO));
         }
 
         if (item.material.frag_program_def.uniform_location_lighting) |slot_index| {
-            sdl.gpu.pushFragmentUniformData(cmd, slot_index, &lighting_ubo, @sizeOf(mat.LightingUBO));
+            cmd.pushFragmentUniformData(slot_index, &lighting_ubo, @sizeOf(mat.LightingUBO));
         }
 
         for (item.material.vert_program_def.textures, 0..) |requested_tex, i| {
@@ -482,6 +479,7 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
 
 pub fn submit(cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
     _ = cmd.submit();
+    _ = ctx.arena.reset(.retain_capacity);
     const result = render_state.pending_submit_result.?;
     render_state.pending_submit_result = null;
     render_state.active_target = null;
@@ -489,7 +487,7 @@ pub fn submit(cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
 }
 
 pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
-    var depthtex_createinfo = sdl.gpu.TextureCreateInfo{
+    const depthtex_createinfo = sdl.gpu.TextureCreateInfo {
         .type = .@"2d",
         .format = .d32_float_s8_uint,
         .usage = .{ .depth_stencil_target = true },
@@ -501,7 +499,7 @@ pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
         .props = 0,
     };
 
-    return sdl.gpu.createTexture(ctx.device, &depthtex_createinfo) orelse {
+    return ctx.device.createTexture(&depthtex_createinfo) orelse {
         std.log.err("could not create depth texture: {s}", .{sdl.getError()});
         return error.SDLError;
     };
@@ -521,9 +519,10 @@ pub fn createTextureFromMemory(name: [:0] const u8, data: tx.TextureMemory) !tx.
         .layer_count_or_depth = 1,
         .num_levels = 1,
         .sample_count = .@"1",
+        .props = 0
     };
 
-    const tex = sdl.gpu.createTexture(ctx.device, &texture_info).?;
+    const tex = ctx.device.createTexture(&texture_info).?;
     try uploadToTexture(tex, data.w, data.h, data.data);
 
     const path_copy = try ctx.allocator.dupe(u8, name);
@@ -677,7 +676,7 @@ pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
         .props = 0,
     };
 
-    const pipeline = sdl.gpu.createGraphicsPipeline(ctx.device, &pipeline_desc) orelse {
+    const pipeline = ctx.device.createGraphicsPipeline(&pipeline_desc) orelse {
         std.log.err("Could not create pipeline: {s}", .{sdl.getError()});
         unreachable;
     };
@@ -695,10 +694,10 @@ pub fn addModel(hdl: mdl.Handle) !void {
     for (model.meshes.items) |mesh| {
         const vertex_buffer_size: u32 = @intCast(mesh.vertices.items.len * @sizeOf(@TypeOf(mesh.vertices.items[0])));
         const buffer_size: u32 = @intCast(vertex_buffer_size + mesh.indices.items.len * @sizeOf(@TypeOf(mesh.indices.items[0])));
-        const buffer = try ctx.device.createBuffer(.{
+        const buffer = ctx.device.createBuffer(&.{
             .size = buffer_size,
             .usage = .{ .index = true, .vertex = true}
-        });
+        }).?;
 
         try uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
         try uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
@@ -757,9 +756,9 @@ pub fn createOutlineShader() *sdl.gpu.GraphicsPipeline {
         .pass_op = .keep,
     };
 
-    const vert_shader = ctx.device.createShader(@import("shaders/single_color.zig").vert_info) catch std.debug.panic("Could not load shader!", .{});
+    const vert_shader = ctx.device.createShader(&@import("shaders/single_color.zig").vert_info).?;
     defer ctx.device.releaseShader(vert_shader);
-    const frag_shader = ctx.device.createShader(@import("shaders/single_color.zig").frag_info) catch std.debug.panic("Could not load shader!", .{});
+    const frag_shader = ctx.device.createShader(&@import("shaders/single_color.zig").frag_info).?;
     defer ctx.device.releaseShader(frag_shader);
 
     const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
@@ -793,7 +792,7 @@ pub fn createOutlineShader() *sdl.gpu.GraphicsPipeline {
         .props = 0,
     };
 
-    return ctx.device.createGraphicsPipeline(pipeline_desc) catch std.debug.panic("Could not create pipeline!", .{});
+    return ctx.device.createGraphicsPipeline(&pipeline_desc).?;
 }
 
 pub fn createPostProcessShader() *sdl.gpu.GraphicsPipeline {
@@ -824,9 +823,9 @@ pub fn createPostProcessShader() *sdl.gpu.GraphicsPipeline {
         },
     };
 
-    const vert_shader = ctx.device.createShader(@import("shaders/post_process.zig").vert_info) catch std.debug.panic("Could not load shader!", .{});
+    const vert_shader = ctx.device.createShader(&@import("shaders/post_process.zig").vert_info).?;
     defer ctx.device.releaseShader(vert_shader);
-    const frag_shader = ctx.device.createShader(@import("shaders/post_process.zig").frag_info) catch std.debug.panic("Could not load shader!", .{});
+    const frag_shader = ctx.device.createShader(&@import("shaders/post_process.zig").frag_info).?;
     defer ctx.device.releaseShader(frag_shader);
 
     const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
@@ -851,5 +850,5 @@ pub fn createPostProcessShader() *sdl.gpu.GraphicsPipeline {
         .props = 0,
     };
 
-    return ctx.device.createGraphicsPipeline(pipeline_desc) catch std.debug.panic("Could not create pipeline!", .{});
+    return ctx.device.createGraphicsPipeline(&pipeline_desc).?;
 }
