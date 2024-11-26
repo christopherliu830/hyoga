@@ -1,15 +1,34 @@
 const std = @import("std");
 const sdl = @import("sdl");
+const hya = @import("hyoga-arena");
 const gpu = @import("gpu.zig");
 const tx = @import("texture.zig");
 const Mat4 = @import("hyoga-math").Mat4;
 const Vec3 = @import("hyoga-math").Vec3;
 
+pub const Handle = hya.Arena(Material).Handle;
+
+
+pub const MaterialTemplate = struct {
+    pipeline: *sdl.gpu.GraphicsPipeline,
+    vert_program_def: ShaderDefinition,
+    frag_program_def: ShaderDefinition,
+};
+
 pub const Material = struct {
     pipeline: *sdl.gpu.GraphicsPipeline,
     vert_program_def: ShaderDefinition,
     frag_program_def: ShaderDefinition,
-    textures: []const tx.TextureView = &.{},
+    textures: tx.TextureSet,
+
+    pub fn fromTemplate(template: MaterialTemplate, textures: tx.TextureSet) Material {
+        return Material {
+            .pipeline = template.pipeline,
+            .vert_program_def = template.vert_program_def,
+            .frag_program_def = template.frag_program_def,
+            .textures = textures
+        };
+    }
 };
 
 pub const MvpUniformGroup = extern struct {
@@ -41,7 +60,7 @@ pub const MaterialInfo = struct {
     frag: ProgramInfo, 
 };
 
-pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, arena: std.mem.Allocator) !Material {
+pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, arena: std.mem.Allocator) !MaterialTemplate {
     const info_path = try std.mem.concat(arena, u8, &.{path, ".json"});
     const info_file = try std.fs.cwd().openFile(info_path, .{});
     defer info_file.close();
@@ -133,7 +152,7 @@ pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, arena: std.mem.Al
         }
     }
 
-    return Material {
+    return MaterialTemplate {
         .pipeline = pipeline,
         .vert_program_def = .{
             .uniform_location_mvp = v_uniform_mvp,

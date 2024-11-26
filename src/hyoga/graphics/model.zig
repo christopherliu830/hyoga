@@ -1,7 +1,8 @@
 const std = @import("std");
+const hya = @import("hyoga-arena");
 const ai = @import("assimp/assimp.zig");
 const gpu = @import("gpu.zig");
-const hya = @import("hyoga-arena");
+const mt = @import("material.zig");
 const tx = @import("texture.zig");
 const Vertex = @import("vertex.zig").Vertex;
 const mat4 = @import("hyoga-math").mat4;
@@ -12,14 +13,13 @@ pub const Handle = Arena.Handle;
 pub const Mesh = struct {
     vertices: std.ArrayList(Vertex),
     indices: std.ArrayList(u32),
+    material: mt.Handle,
 
-    textures: std.ArrayList(tx.TextureView),
-
-    pub fn create(allocator: std.mem.Allocator) Mesh {
+    pub fn create(allocator: std.mem.Allocator, material: mt.Handle) Mesh {
         return .{
             .vertices = std.ArrayList(Vertex).init(allocator),
             .indices = std.ArrayList(u32).init(allocator),
-            .textures = std.ArrayList(tx.TextureView).init(allocator),
+            .material = material,
         };
     }
 };
@@ -36,103 +36,67 @@ pub const Model = struct {
         self.textures.deinit();
     }
 
-    fn processNode(model: *Model, path: [:0]const u8, node: *ai.Node, scene: *ai.Scene, allocator: std.mem.Allocator) !void {
+    pub const ProcessModelParams = struct {
+        path: [:0]const u8,
+        scene: *ai.Scene,
+        node: *ai.Node,
+        mesh: ?*ai.Mesh = null,
+        materials: []mt.Handle,
+        allocator: std.mem.Allocator,
+    };
+
+    fn processNode(model: *Model, params: ProcessModelParams) !void {
+        const node = params.node;
         try model.meshes.ensureTotalCapacity(node.num_meshes);
         for (node.meshes[0..node.num_meshes]) |idx_mesh| {
-            const mesh = scene.meshes[idx_mesh];
-            try model.meshes.append(try model.processMesh(path, mesh, scene, allocator));
+            const mesh = params.scene.meshes[idx_mesh];
+            var sub = params;
+            sub.mesh = mesh;
+            try model.meshes.append(try model.processMesh(sub));
         }
 
         for (node.children[0..node.num_children]) |child| {
-            try model.processNode(path, child, scene, allocator);
+            var sub = params;
+            sub.node = child;
+            try model.processNode(sub);
         }
     }
 
-    fn processMesh(model: *Model, path: [:0]const u8, mesh: *ai.Mesh, scene: *const ai.Scene, allocator: std.mem.Allocator) !Mesh {
-        var m = Mesh.create(allocator);
-        try m.vertices.ensureTotalCapacity(mesh.num_vertices);
-        model.total_vertex_count += mesh.num_vertices;
-        for (0..mesh.num_vertices) |i| {
-            const x: f32 = @floatCast(mesh.vertices[i].x);
-            const y: f32 = @floatCast(mesh.vertices[i].y);
-            const z: f32 = @floatCast(mesh.vertices[i].z);
-            const nx: f32 = @floatCast(mesh.normals[i].x);
-            const ny: f32 = @floatCast(mesh.normals[i].y);
-            const nz: f32 = @floatCast(mesh.normals[i].z);
-            try m.vertices.append(.{
+    fn processMesh(model: *Model, params: ProcessModelParams) !Mesh {
+        const in_mesh = params.mesh.?;
+        var out_mesh = Mesh.create(params.allocator, params.materials[in_mesh.material_index]);
+        try out_mesh.vertices.ensureTotalCapacity(in_mesh.num_vertices);
+        model.total_vertex_count += in_mesh.num_vertices;
+
+        for (0..in_mesh.num_vertices) |i| {
+            const x: f32 = @floatCast(in_mesh.vertices[i].x);
+            const y: f32 = @floatCast(in_mesh.vertices[i].y);
+            const z: f32 = @floatCast(in_mesh.vertices[i].z);
+            const nx: f32 = @floatCast(in_mesh.normals[i].x);
+            const ny: f32 = @floatCast(in_mesh.normals[i].y);
+            const nz: f32 = @floatCast(in_mesh.normals[i].z);
+            try out_mesh.vertices.append(.{
                 .pos = .{ x, y, z },
                 .normal = .{ nx, ny, nz },
                 .uv = .{ 0, 0 },
             });
-            if (mesh.texture_coords[0]) |tex_coords| {
+            if (in_mesh.texture_coords[0]) |tex_coords| {
                 const u: f32 = @floatCast(tex_coords[i].x);
                 const v: f32 = @floatCast(tex_coords[i].y);
-                m.vertices.items[i].uv = .{ u, v };
+                out_mesh.vertices.items[i].uv = .{ u, v };
             }
         }
 
-        for (mesh.faces[0..mesh.num_faces]) |face| {
-            const start = m.indices.items.len;
-            try m.indices.ensureTotalCapacity(start + face.num_indices);
+        for (in_mesh.faces[0..in_mesh.num_faces]) |face| {
+            const start = out_mesh.indices.items.len;
+            try out_mesh.indices.ensureTotalCapacity(start + face.num_indices);
             model.total_index_count += face.num_indices;
             for (face.indices[0..face.num_indices]) |idx| {
-                try m.indices.append(@intCast(idx));
+                try out_mesh.indices.append(@intCast(idx));
             }
         }
 
-        if (mesh.material_index >= 0) {
-            const material = scene.materials[mesh.material_index];
-            const diffuse_count = material.getTextureCount(.diffuse);
-            const specular_count = material.getTextureCount(.specular);
-            try m.textures.ensureTotalCapacity(m.textures.items.len + diffuse_count + specular_count);
-            inline for (.{
-                .{diffuse_count, tx.TextureType.diffuse, ai.TextureType.diffuse}, 
-                .{specular_count, tx.TextureType.specular, ai.TextureType.specular},
-            }) |x| {
-                for (0..x[0]) |i| {
-
-                    var str: ai.String = .{};
-                    _ = material.getTexture(ai.Material.GetTextureInfo {
-                        .tex_type = x[2],
-                        .index = @intCast(i),
-                        .path = &str,
-                    });
-
-                    const tex_identifier: [:0]u8 = str.data[0..str.len :0];
-                    if (scene.getEmbeddedTexture(tex_identifier.ptr)) |tex| {
-                        var handle: tx.Handle = undefined;
-                        if (tex.height == 0) {
-                            const data = std.mem.sliceAsBytes(tex.pc_data[0..tex.width]);
-                            handle = try gpu.createTextureFromImageMemory(tex_identifier, data); 
-                        }
-                        else {
-                            const data = std.mem.sliceAsBytes(tex.pc_data[0..tex.width * tex.height]);
-                            handle = try gpu.createTextureFromMemory(tex_identifier, .{
-                                .w = tex.width, .h = tex.height, .d = 4,
-                                .data = data,
-                                .format = .b8g8r8a8_unorm
-                            });
-                        }
-                        try m.textures.append(tx.TextureView {
-                            .hdl = handle,
-                            .type = x[1],
-                        });
-                        std.debug.assert(handle.is_valid());
-                    } else { // Texture is a relative path
-                        const tex_path: [:0]u8 = try std.fs.path.joinZ(allocator, &[_][]const u8 { std.fs.path.dirname(path).?, tex_identifier});
-                        defer allocator.free(tex_path);
-                        const handle = try gpu.createTextureFromFile(tex_path);
-                        try m.textures.append(tx.TextureView {
-                            .hdl = handle,
-                            .type = x[1],
-                        });
-                    }
-                }
-            }
-
-        }
-
-        return m;
+        return out_mesh;
     }
 };
 
@@ -144,7 +108,7 @@ pub const ImportSettings = struct {
     },
 };
 
-pub fn load(path: [:0]const u8, import: ImportSettings, allocator: std.mem.Allocator) !Model {
+pub fn load(path: [:0]const u8, import: ImportSettings, mats: []mt.Handle, allocator: std.mem.Allocator) !Model {
     var scene = ai.importFile(path, import.post_process);
     defer scene.release();
 
@@ -155,7 +119,13 @@ pub fn load(path: [:0]const u8, import: ImportSettings, allocator: std.mem.Alloc
         .transform = import.transform,
     };
 
-    try model.processNode(path, scene.root_node, scene, allocator);
+    try model.processNode(.{
+        .path = path,
+        .scene = scene,
+        .node = scene.root_node,
+        .materials = mats,
+        .allocator = allocator
+    });
 
     return model;
 }

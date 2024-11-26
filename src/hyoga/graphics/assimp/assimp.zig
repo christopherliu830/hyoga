@@ -1,3 +1,13 @@
+//
+const std = @import("std");
+const tx = @import("../texture.zig");
+
+pub const tex_to_hyoga_type = std.EnumMap(TextureType, tx.TextureType).init(.{
+    .diffuse = .diffuse,
+    .specular = .specular,
+    .height = .height,
+    .normals = .normal,
+});
 
 // Zig bindings for assimp library. For documentation
 // refer to github.com/assimp/assimp

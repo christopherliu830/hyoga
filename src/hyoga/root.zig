@@ -7,12 +7,10 @@ pub const arena = @import("hyoga-arena");
 pub const window = @import("window.zig");
 pub const input = @import("input.zig");
 pub const gpu = @import("graphics/gpu.zig");
+pub const material = @import("graphics/material.zig");
 pub const ui = @import("graphics/ui.zig");
 
 const vec3 = math.vec3;
-
-var general_allocator = std.heap.GeneralPurposeAllocator(.{}){};
-var allocator = general_allocator.allocator();
 
 pub const Game = struct {
     scene: gpu.Scene = .{
@@ -24,7 +22,7 @@ pub const Game = struct {
     },
 };
 
-pub fn init() void {
+pub fn init(allocator: std.mem.Allocator) void {
     input.init(allocator);
     window.init() catch std.debug.panic("Init window failed", .{});
     gpu.init(window.instance, allocator) catch std.debug.panic("Init GPU failed", .{});

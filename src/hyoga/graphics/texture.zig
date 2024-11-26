@@ -9,9 +9,13 @@ pub const Handle = Arena.Handle;
 
 pub const Cache = std.StringHashMap(Handle);
 
+pub const TextureSet = std.EnumMap(TextureType, Handle);
+
 pub const TextureType = enum {
     diffuse,
     specular,
+    height,
+    normal,
 };
 
 pub const TextureView = struct {

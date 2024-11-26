@@ -26,6 +26,6 @@ void main() {
     vec3 reflected = reflect(-ld, normal);
     float spec = pow(max(dot(eye_direction, reflected), 0), 32) * 0.5;
 
-    out_color = texture(tex_diffuse, uv) * (ambient + diffuse * 0.5) * vec4(vtx_color, 1) +
+    out_color = texture(tex_diffuse, uv) * (ambient + diffuse) * vec4(vtx_color, 1) +
                 texture(tex_specular, uv).r * spec;
-}
+ }

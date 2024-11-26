@@ -7,7 +7,7 @@
     },
     "frag": {
         "uniforms": {
-            "lighting": 1
+            "lighting": 0
         },
         "samplers": {
             "diffuse": 0,
