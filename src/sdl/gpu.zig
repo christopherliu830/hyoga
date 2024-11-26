@@ -1,13 +1,9 @@
-const std = @import("std");
 const PixelFormat = @import("pixels.zig").PixelFormat;
 const FColor = @import("pixels.zig").FColor;
 pub const Rect = @import("rect.zig").Rect;
 const PropertiesID = @import("properties.zig").PropertiesID;
 const FlipMode = @import("surface.zig").FlipMode;
 const Window = @import("video.zig").Window;
-
-const getError = @import("c.zig").SDL_GetError;
-const root = @This();
 
 pub const Device = opaque {
 	pub const destroy = SDL_DestroyGPUDevice;

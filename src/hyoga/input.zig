@@ -154,7 +154,7 @@ pub fn postMouse(mouse: MouseButton, action: InputFlags, event: MouseEvent) void
 
 pub fn update(event: sdl.events.Event) void {
     if (!imgui.getIO().WantCaptureKeyboard) switch (event.type) {
-        sdl.events.key_down => {
+        sdl.events.type.key_down => {
             const key = event.key.key;
             if (!event.key.repeat) {
                 keys_down[num_keys_down] = key;
@@ -166,7 +166,7 @@ pub fn update(event: sdl.events.Event) void {
             }
         },
 
-        sdl.events.key_up => {
+        sdl.events.type.key_up => {
             const key = event.key.key;
 
             if (num_keys_down > 0) {
@@ -185,7 +185,7 @@ pub fn update(event: sdl.events.Event) void {
     };
 
     if (!imgui.getIO().WantCaptureMouse) switch(event.type) {
-        sdl.events.mouse_button_down => {
+        sdl.events.type.mouse_button_down => {
             switch(event.button.button) {
                 1 => {
                     mouse_state.left = true;
@@ -202,7 +202,7 @@ pub fn update(event: sdl.events.Event) void {
                 else => {},
             }
         },
-        sdl.events.mouse_button_up => {
+        sdl.events.type.mouse_button_up => {
             switch(event.button.button) {
                 1 => {
                     mouse_state.left = false;
@@ -219,12 +219,12 @@ pub fn update(event: sdl.events.Event) void {
                 else => {},
             }
         },
-        sdl.events.mouse_motion => {
+        sdl.events.type.mouse_motion => {
             mouse_state.motion.x = event.motion.xrel;
             mouse_state.motion.y = event.motion.yrel;
             postMouse(.motion, .{ .down = true }, .{ .motion = event.motion });
         },
-        sdl.events.mouse_wheel => {
+        sdl.events.type.mouse_wheel => {
             postMouse(.wheel, .{ .down = true }, .{ .wheel = event.wheel });
         },
         else => {},

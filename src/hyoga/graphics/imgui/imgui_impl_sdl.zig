@@ -158,8 +158,8 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
     const io = imgui.getIO();
 
     switch (event.type) {
-        sdl.events.mouse_motion => {
-            if (getViewportForWindowID(event.motion.windowid) == null) {
+        sdl.events.type.mouse_motion => {
+            if (getViewportForWindowID(event.motion.windowID) == null) {
                 return false;
             }
 
@@ -167,7 +167,7 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             if (io.ConfigFlags & imgui.ImGuiConfigFlags_ViewportsEnable != 0) {
                 var window_x: c_int = undefined;
                 var window_y: c_int = undefined;
-                _ = sdl.video.getWindowPosition(sdl.video.getWindowFromID(event.motion.windowid), &window_x, &window_y);
+                _ = sdl.video.getWindowPosition(sdl.video.getWindowFromID(event.motion.windowID), &window_x, &window_y);
                 mouse_pos.x += @floatFromInt(window_x);
                 mouse_pos.y += @floatFromInt(window_y);
             }
@@ -177,8 +177,8 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             imgui.ImGuiIO_AddMousePosEvent(io, mouse_pos.x, mouse_pos.y);
             return true;
         },
-        sdl.events.mouse_wheel => {
-            if (getViewportForWindowID(event.motion.windowid) == null) {
+        sdl.events.type.mouse_wheel => {
+            if (getViewportForWindowID(event.motion.windowID) == null) {
                 return false;
             }
 
@@ -190,8 +190,8 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             imgui.ImGuiIO_AddMouseWheelEvent(io, wheel_x, wheel_y);
             return true;
         },
-        sdl.events.mouse_button_down, sdl.events.mouse_button_up => {
-            if (getViewportForWindowID(event.motion.windowid) == null) {
+        sdl.events.type.mouse_button_down, sdl.events.type.mouse_button_up => {
+            if (getViewportForWindowID(event.motion.windowID) == null) {
                 return false;
             }
 
@@ -208,75 +208,75 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             const source = if (event.motion.which == sdl.c.SDL_TOUCH_MOUSEID) imgui.ImGuiMouseSource_TouchScreen else imgui.ImGuiMouseSource_Mouse;
             if (source < 0) unreachable; // suppress error
             imgui.ImGuiIO_AddMouseSourceEvent(io, @intCast(source));
-            imgui.ImGuiIO_AddMouseButtonEvent(io, mouse_button, (event.type == sdl.events.mouse_button_down));
+            imgui.ImGuiIO_AddMouseButtonEvent(io, mouse_button, (event.type == sdl.events.type.mouse_button_down));
             const mask = @as(i32, 1) << @intCast(mouse_button);
-            bd.mouse_buttons_down = if (event.type == sdl.events.mouse_button_down) bd.mouse_buttons_down | mask else bd.mouse_buttons_down & ~mask;
+            bd.mouse_buttons_down = if (event.type == sdl.events.type.mouse_button_down) bd.mouse_buttons_down | mask else bd.mouse_buttons_down & ~mask;
             return true;
         },
-        sdl.events.text_input => {
-            if (getViewportForWindowID(event.text.windowid) == null) {
+        sdl.events.type.text_input => {
+            if (getViewportForWindowID(event.text.windowID) == null) {
                 return false;
             }
             imgui.ImGuiIO_AddInputCharactersUTF8(io, event.text.text);
             return true;
         },
-        sdl.events.key_down,
-        sdl.events.key_up => {
-            if (getViewportForWindowID(event.key.windowid) == null) {
+        sdl.events.type.key_down,
+        sdl.events.type.key_up => {
+            if (getViewportForWindowID(event.key.windowID) == null) {
                 return false;
             }
             updateKeyModifiers(event.key.mod);
             const key = keyEventToImGuiKey(event.key.key, event.key.scancode);
-            imgui.ImGuiIO_AddKeyEvent(io, key, event.type == sdl.events.key_down);
+            imgui.ImGuiIO_AddKeyEvent(io, key, event.type == sdl.events.type.key_down);
         },
-        sdl.events.display_orientation,
-        sdl.events.display_added,
-        sdl.events.display_removed,
-        sdl.events.display_moved,
-        sdl.events.display_content_scale_changed => {
+        sdl.events.type.display_orientation,
+        sdl.events.type.display_added,
+        sdl.events.type.display_removed,
+        sdl.events.type.display_moved,
+        sdl.events.type.display_content_scale_changed => {
             bd.want_update_monitors = true;
             return true;
         },
-        sdl.events.window_mouse_enter => {
-            if (getViewportForWindowID(event.window.windowid) == null) {
+        sdl.events.type.window_mouse_enter => {
+            if (getViewportForWindowID(event.window.windowID) == null) {
                 return false;
             }
-            bd.mouse_window_id = event.window.windowid;
+            bd.mouse_window_id = event.window.windowID;
             bd.mouse_pending_leave_frame = 0;
             return true;
         },
-        sdl.events.window_mouse_leave => {
-            if (getViewportForWindowID(event.window.windowid) == null) {
+        sdl.events.type.window_mouse_leave => {
+            if (getViewportForWindowID(event.window.windowID) == null) {
                 return false;
             }
             bd.mouse_pending_leave_frame = imgui.igGetFrameCount() + 1;
             return true;
         },
-        sdl.events.window_focus_gained,
-        sdl.events.window_focus_lost => {
-            if (getViewportForWindowID(event.window.windowid) == null) {
+        sdl.events.type.window_focus_gained,
+        sdl.events.type.window_focus_lost => {
+            if (getViewportForWindowID(event.window.windowID) == null) {
                 return false;
             }
-            imgui.ImGuiIO_AddFocusEvent(io, event.type == sdl.events.window_focus_gained);
+            imgui.ImGuiIO_AddFocusEvent(io, event.type == sdl.events.type.window_focus_gained);
             return true;
         },
-        sdl.events.window_close_requested,
-        sdl.events.window_moved,
-        sdl.events.window_resized => {
-            const viewport = getViewportForWindowID(event.window.windowid) orelse return false;
-            if (event.type == sdl.events.window_close_requested) {
+        sdl.events.type.window_close_requested,
+        sdl.events.type.window_moved,
+        sdl.events.type.window_resized => {
+            const viewport = getViewportForWindowID(event.window.windowID) orelse return false;
+            if (event.type == sdl.events.type.window_close_requested) {
                 viewport.PlatformRequestClose = true;
             }
-            if (event.type == sdl.events.window_moved) {
+            if (event.type == sdl.events.type.window_moved) {
                 viewport.PlatformRequestMove = true;
             }
-            if (event.type == sdl.events.window_resized) {
+            if (event.type == sdl.events.type.window_resized) {
                 viewport.PlatformRequestResize = true;
             }
             return true;
         },
-        sdl.events.gamepad_added,
-        sdl.events.gamepad_removed => {
+        sdl.events.type.gamepad_added,
+        sdl.events.type.gamepad_removed => {
             bd.want_update_gamepads_list = true;
             return true;
         },

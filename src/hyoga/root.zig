@@ -49,12 +49,12 @@ pub fn run(game: *Game) !void {
     _ = &last_render_result;
     while (!quit) {
         var event: sdl.events.Event = undefined;
-        while (sdl.events.pollEvent(&event)) {
+        while (sdl.events.poll(&event)) {
             try ui.processEvent(event);
             input.update(event);
 
             switch (event.type) {
-                sdl.events.quit => quit = true,
+                sdl.events.type.quit => quit = true,
                 else => {},
             }
         }
