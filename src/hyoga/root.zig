@@ -6,13 +6,16 @@ pub const arena = @import("hyoga-arena");
 
 pub const window = @import("window.zig");
 pub const input = @import("input.zig");
-pub const gpu = @import("graphics/gpu.zig");
 pub const material = @import("graphics/material.zig");
 pub const ui = @import("graphics/ui.zig");
+
+pub const gpu = @import("graphics/gpu.zig");
+
 
 const vec3 = math.vec3;
 
 pub const Game = struct {
+    quit: bool = false,
     scene: gpu.Scene = .{
         .camera = .{
             .position = vec3.create(0, 0, 2.5),
@@ -20,6 +23,8 @@ pub const Game = struct {
         },
         .light_dir = vec3.create(0, -2, -1),
     },
+    user_data: ?*anyopaque = null,
+    fn_update: *const fn (*Game) void,
 };
 
 pub fn init(allocator: std.mem.Allocator) void {
@@ -40,48 +45,50 @@ pub fn shutdown() void {
 }
 
 pub fn run(game: *Game) !void {
-    var quit = false;
     var open: bool = false;
     _ = &open;
     var last_render_result: ?gpu.RenderSubmitResult = null;
     _ = &last_render_result;
-    while (!quit) {
+    while (!game.quit) {
         var event: sdl.events.Event = undefined;
         while (sdl.events.poll(&event)) {
             try ui.processEvent(event);
             input.update(event);
 
             switch (event.type) {
-                sdl.events.type.quit => quit = true,
+                sdl.events.type.quit => game.quit = true,
                 else => {},
             }
         }
 
+
         try ui.beginFrame();
 
-        if (ui.imgui.begin("Debug Window", &open, 0)) {
-            const pos = game.scene.camera.position;
+        game.fn_update(game);
 
-            var light_dir: [3]f32 = game.scene.light_dir.v;
-            _ = ui.imgui.inputFloat3("Light Direction", &light_dir, null, 0);
-            game.scene.light_dir.v = light_dir;
+        // if (ui.imgui.begin("Debug Window", &open, 0)) {
+        //     const pos = game.scene.camera.position;
 
-            ui.imgui.text("Camera Position: %f %f %f", pos.x(), pos.y(), pos.z());
-            ui.imgui.text("Num Keys Down: %d", input.num_keys_down);
+        //     var light_dir: [3]f32 = game.scene.light_dir.v;
+        //     _ = ui.imgui.inputFloat3("Light Direction", &light_dir, null, 0);
+        //     game.scene.light_dir.v = light_dir;
 
-            if (ui.imgui.collapsingHeader_TreeNodeFlags("Rendering", 0)) {
-                if (last_render_result) |render_result| {
-                    ui.imgui.text("Draw Calls: %d", render_result.num_draw_calls);
-                    ui.imgui.text("Drawn Vert Count: %d", render_result.num_drawn_verts);
-                }
-            }
+        //     ui.imgui.text("Camera Position: %f %f %f", pos.x(), pos.y(), pos.z());
+        //     ui.imgui.text("Num Keys Down: %d", input.num_keys_down);
 
-            if (ui.imgui.button("Quit", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
-                quit = true;
-            }
-        }
+        //     if (ui.imgui.collapsingHeader_TreeNodeFlags("Rendering", 0)) {
+        //         if (last_render_result) |render_result| {
+        //             ui.imgui.text("Draw Calls: %d", render_result.num_draw_calls);
+        //             ui.imgui.text("Drawn Vert Count: %d", render_result.num_drawn_verts);
+        //         }
+        //     }
 
-        ui.imgui.end();
+        //     if (ui.imgui.button("Quit", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
+        //         quit = true;
+        //     }
+        // }
+
+        // ui.imgui.end();
 
         const cmd = try gpu.begin();
         gpu.render(cmd, &game.scene) catch {};

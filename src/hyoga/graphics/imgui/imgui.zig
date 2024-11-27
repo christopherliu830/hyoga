@@ -4197,7 +4197,7 @@ pub extern fn igStyleColorsLight(dst: [*c]ImGuiStyle) void;
 pub const styleColorsLight = igStyleColorsLight;
 pub extern fn igStyleColorsClassic(dst: [*c]ImGuiStyle) void;
 pub const styleColorsClassic = igStyleColorsClassic;
-pub extern fn igBegin(name: ?[*:0]const u8, p_open: [*c]bool, flags: ImGuiWindowFlags) bool;
+pub extern fn igBegin(name: ?[*:0]const u8, p_open: ?*bool, flags: ImGuiWindowFlags) bool;
 pub const begin = igBegin;
 pub extern fn igEnd() void;
 pub const end = igEnd;

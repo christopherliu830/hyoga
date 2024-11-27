@@ -1,10 +1,5 @@
 #version 450 core
 
-layout (location = 0) out vec3 out_pos;
-layout (location = 1) out vec3 out_color;
-layout (location = 2) out vec3 out_normal;
-layout (location = 3) out vec2 out_uv;
-
 struct Vertex {
     float3 position;
     float3 normal;
@@ -37,7 +32,6 @@ struct VOut {
 VOut vertexMain(Vertex input)
 {
     VOut output;
-    // output.position = mul(float4(input.position, 1), mul(camera.model, camera.vp));
     output.position = mul(float4(input.position, 1), mul(camera.model, camera.vp));
     output.vert_world_pos = vec3(camera.model * vec4(input.position, 1));
     output.color = vec3(1, 1, 1);

@@ -34,7 +34,7 @@ for shader in shaders:
             "-entry", "vertexMain",
             "-o", shader.with_suffix(".vert.spv")])
 
-    sp.run(["slangc", shader.with_suffix(".frag"), 
+    sp.run(["slangc", shader, 
         "-profile", "glsl_450",
         "-target", "spirv",
         "-entry", "fragmentMain",

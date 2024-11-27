@@ -22,22 +22,42 @@ const mt = @import("material.zig");
 
 const Vertex = @import("vertex.zig").Vertex;
 
+// Exports
+pub const RenderItemHandle = hya.Handle(RenderItem);
+pub const ModelHandle = mdl.Handle;
+
 pub const Scene = struct {
     camera: camera.Camera, 
     light_dir: vec3.Vec3,
 };
 
-const RenderObject = struct {
-    buf: *sdl.gpu.Buffer,
-    transform: mat4.Mat4,
-    idx_offset: u32,
-    idx_count: u32,
-    material: mt.Handle,
-};
-
 pub const RenderSubmitResult = struct {
     num_drawn_verts: u32 = 0,
     num_draw_calls: u32 = 0,
+};
+
+pub const PassType = enum {
+    default,
+    post_process,
+    ui,
+};
+
+pub const BuildPipelineParams = struct {
+    vert: *sdl.gpu.Shader,
+    frag: *sdl.gpu.Shader,
+    pass: PassType,
+    enable_depth: bool = true,
+    enable_stencil: bool = true,
+};
+
+const RenderItem = struct {
+    next: ?RenderItemHandle = null,
+    buf: *sdl.gpu.Buffer,
+    transform: mat4.Mat4 = mat4.identity,
+    parent_transform: ?*mat4.Mat4 = null,
+    idx_offset: u32,
+    idx_count: u32,
+    material: mt.Handle,
 };
 
 const RenderState = struct {
@@ -52,7 +72,7 @@ const RenderState = struct {
 
     models: mdl.Arena,
     materials: hya.Arena(mt.Material),
-    objs: hya.Arena(RenderObject),
+    objs: hya.Arena(RenderItem),
     robjs: PassInfo,
 
     scene: *Scene = undefined,
@@ -62,7 +82,7 @@ const RenderState = struct {
 };
 
 const PassInfo = struct {
-    items: hya.Arena(RenderObject),
+    items: hya.Arena(RenderItem),
     targets: []const sdl.gpu.ColorTargetInfo,
     depth_target: ?*const sdl.gpu.DepthStencilTargetInfo,
 };
@@ -85,6 +105,8 @@ const WindowState = struct {
     prev_drawable_h: u32 = 0,
 };
 
+
+
 const RenderTarget = struct {
     target: []sdl.gpu.ColorTargetInfo,
     scene: *Scene,
@@ -96,20 +118,6 @@ const RenderCommand = struct {
 };
 
 const ShaderType = enum { vertex, fragment };
-
-pub const PassType = enum {
-    default,
-    post_process,
-    ui,
-};
-
-pub const BuildPipelineParams = struct {
-    vert: *sdl.gpu.Shader,
-    frag: *sdl.gpu.Shader,
-    pass: PassType,
-    enable_depth: bool = true,
-    enable_stencil: bool = true,
-};
 
 pub var ctx: GPU = undefined;
 pub var render_state: RenderState = undefined;
@@ -176,7 +184,7 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
     try uploadToBuffer(quad_buffer, 0, &std.mem.toBytes(verts));
 
     render_state = .{
-        .objs = try hya.Arena(RenderObject).create(ctx.allocator, 1),
+        .objs = try hya.Arena(RenderItem).create(ctx.allocator, 1),
         .default_material = material,
         .post_material = quad_mat_template,
         .outline_pipeline = createOutlineShader(),
@@ -388,15 +396,14 @@ pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     const hdl_material = try render_state.materials.insert(material);
     defer render_state.materials.release(hdl_material);
 
-    const render_object = RenderObject {
-        .transform = mat4.identity,
+    const render_object = RenderItem {
         .buf = render_state.quad_buffer,
         .idx_count = 6,
         .idx_offset = @sizeOf(f32) * 4 * 4,
         .material = hdl_material
     };
 
-    var temp_list = try hya.Arena(RenderObject).create(ctx.arena.allocator(), 1);
+    var temp_list = try hya.Arena(RenderItem).create(ctx.arena.allocator(), 1);
     _ = try temp_list.insert(render_object);
 
     pass = .{
@@ -446,11 +453,11 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
             const pushUniform = params[1];
             const pushSampler = params[2];
             if (program_def.uniform_location_mvp) |slot_index| {
+                const mat_model = mat4.mul(item.transform, (item.parent_transform orelse &mat4.identity).*);
                 const ubo = mt.MvpUniformGroup {
-                    .model = item.transform,
                     .inverse_model = mat4.transpose(mat4.inverse(item.transform)),
-                    // .view_proj = mat4.transpose(mat4.mul(persp, view)),
-                    .view_proj = mat4.mul(view, persp)
+                    .view_proj = mat4.mul(view, persp),
+                    .model = mat_model,
                 };
                 pushUniform(cmd, slot_index, &ubo, @sizeOf(mt.MvpUniformGroup));
             }
@@ -749,8 +756,9 @@ pub fn importModel(path: [:0]const u8, settings: mdl.ImportSettings)  !mdl.Handl
     return try render_state.models.insert(model);
 }
 
-pub fn addModel(hdl: mdl.Handle) !void {
+pub fn addModel(hdl: mdl.Handle, owner: *mat4.Mat4) !RenderItemHandle {
     const model = try render_state.models.get(hdl);
+    var last_handle: ?RenderItemHandle = null;
 
     for (model.meshes.items) |mesh| {
         const vertex_buffer_size: u32 = @intCast(mesh.vertices.items.len * @sizeOf(@TypeOf(mesh.vertices.items[0])));
@@ -763,17 +771,33 @@ pub fn addModel(hdl: mdl.Handle) !void {
         try uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
         try uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
 
-        const render_obj = RenderObject {
+        const render_obj = RenderItem {
             .buf = buffer,
+            .next = last_handle,
             .transform = model.transform,
+            .parent_transform = owner,
             .idx_offset = vertex_buffer_size,
             .idx_count = @intCast(mesh.indices.items.len),
             .material = mesh.material,
         };
 
-        _ = try render_state.objs.insert(render_obj);
+        last_handle = try render_state.objs.insert(render_obj);
     }
 
+    return last_handle.?;
+}
+
+pub fn removeModel(handle: RenderItemHandle) void {
+    var next_node: ?RenderItemHandle = handle;
+    while (next_node) |node| {
+        const obj = render_state.objs.get(node) catch {
+            std.log.warn("[GPU]: Invalid handle for removeModel, returning...", .{});
+            return;
+        };
+        next_node = obj.next;
+        ctx.device.releaseBuffer(obj.buf);
+        render_state.objs.release(node);
+    }
 }
 
 pub fn addMaterial(material: mt.Material) !mt.Handle {

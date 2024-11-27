@@ -30,7 +30,7 @@ pub const Camera = struct {
         const right = vec3.cross(self.look_direction, vec3.y);
         const up = vec3.cross(self.look_direction, right);
         self.position.add(vec3.mul(right, -self.pending_input.x() / 100.0));
-        self.position.add(vec3.mul(up, self.pending_input.y() / 100.0));
+        self.position.add(vec3.mul(up, -self.pending_input.y() / 100.0));
     }
 
 };
