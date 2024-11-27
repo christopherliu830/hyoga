@@ -8,13 +8,11 @@ from pathlib import Path
 cwd = Path(os.getcwd()).resolve()
 shaders_path = cwd.joinpath("shaders")
 
-vert_files = shaders_path.glob("*.vert")
-shaders = [x for x in shaders_path.glob("*.vert")]
+vert_files = shaders_path.glob("*.slang")
+shaders = [x for x in shaders_path.glob("*.slang")]
 
 # spirv
 for shader in shaders:
-    frag_path = shader.with_suffix(".frag")
-    out_file_path = shader.with_suffix(".zig")
     vert_spv_path = shader.with_suffix(".vert.spv")
     frag_spv_path = shader.with_suffix(".frag.spv")
     resources_path = shader.with_suffix(".json")
@@ -26,16 +24,19 @@ for shader in shaders:
         vert_resources = resources["vert"]
         frag_resources = resources["frag"]
 
-    if out_file_path.exists() and \
-        shader.stat().st_mtime <= out_file_path.stat().st_mtime and \
-        frag_path.exists() and frag_path.stat().st_mtime <= out_file_path.stat().st_mtime and \
-        resources_path.exists() and resources_path.stat().st_mtime <= out_file_path.stat().st_mtime: continue
+    if vert_spv_path.exists() and \
+        shader.stat().st_mtime <= vert_spv_path.stat().st_mtime and \
+        resources_path.exists() and resources_path.stat().st_mtime <= vert_spv_path.stat().st_mtime: continue
 
-    sp.run(["glslangValidator", shader, 
-            "-V",  # spirv binary
-            "-o", vert_spv_path])
+    sp.run(["slangc", shader, 
+            "-profile", "glsl_450",
+            "-target", "spirv",
+            "-entry", "vertexMain",
+            "-o", shader.with_suffix(".vert.spv")])
 
-    if frag_path.exists(): sp.run(["glslangValidator", shader.with_suffix(".frag"), 
-        "-V",  # spirv binary
-        "-o", frag_spv_path])
+    sp.run(["slangc", shader.with_suffix(".frag"), 
+        "-profile", "glsl_450",
+        "-target", "spirv",
+        "-entry", "fragmentMain",
+        "-o", shader.with_suffix(".vert.spv")])
     

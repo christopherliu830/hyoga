@@ -341,7 +341,7 @@ pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     }).?;
 
     const tex_hdl = try render_state.textures.insert(tex);
-    defer _ = render_state.textures.release(tex_hdl);
+    defer render_state.textures.release(tex_hdl);
     defer ctx.device.releaseTexture(tex);
 
     const target: []const sdl.gpu.ColorTargetInfo = &.{
@@ -449,7 +449,8 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
                 const ubo = mt.MvpUniformGroup {
                     .model = item.transform,
                     .inverse_model = mat4.transpose(mat4.inverse(item.transform)),
-                    .view_proj = mat4.mul(persp, view),
+                    // .view_proj = mat4.transpose(mat4.mul(persp, view)),
+                    .view_proj = mat4.mul(view, persp)
                 };
                 pushUniform(cmd, slot_index, &ubo, @sizeOf(mt.MvpUniformGroup));
             }

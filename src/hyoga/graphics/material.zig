@@ -64,7 +64,7 @@ pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, arena: std.mem.Al
     const info_path = try std.mem.concat(arena, u8, &.{path, ".json"});
     const info_file = try std.fs.cwd().openFile(info_path, .{});
     defer info_file.close();
-    const info_bytes = try info_file.readToEndAlloc(arena, 4096);
+    const info_bytes = try info_file.readToEndAlloc(arena, 1024 * 16);
     const info = try std.json.parseFromSliceLeaky(MaterialInfo, arena, info_bytes, .{});
 
     const v_sampler_count = if (info.vert.samplers) |s| s.map.count() else 0;
@@ -72,7 +72,7 @@ pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, arena: std.mem.Al
     const vert_path = try std.mem.concat(arena, u8, &.{path, ".vert.spv"});
     const vert_file = try std.fs.cwd().openFile(vert_path, .{});
     defer vert_file.close();
-    const vert_code = try vert_file.readToEndAlloc(arena, 4096);
+    const vert_code = try vert_file.readToEndAlloc(arena, 1024 * 16);
     const vert_shader = device.createShader(&.{
         .stage = .vertex,
         .code = vert_code.ptr,
