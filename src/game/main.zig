@@ -8,43 +8,59 @@ const Object = struct {
     render: hy.gpu.RenderItemHandle,
 };
 
-const Objects = struct {
+const Context = struct {
     allocator: std.mem.Allocator,
     backpack: hy.gpu.ModelHandle,
-    array: []Object,
+    objects: hya.Arena(Object),
     num_allocated: u32,
 };
 
-fn growIfNeeded(objects: *Objects) !void {
-    const len = objects.array.len;
-    if (len == 0 or objects.num_allocated == len) {
-        const new_array = try objects.allocator.alloc(Object, if (len == 0) 8 else len * 2);
+fn growIfNeeded(ctx: *Context) !void {
+    const len = if (ctx.objects.len > 0) ctx.objects.len * 2 else 8;
+    if (len > ctx.objects.capacity()) {
+        var it = ctx.objects.iterator();
 
-        // Move all
-        for (objects.array, 0..) |obj, i| {
-            new_array[i] = obj;
+        try ctx.objects.resize(len); // Invalidate pointers
+
+        it.reset();
+        while (it.nextPtr()) |obj| {
             hy.gpu.removeModel(obj.render);
-            new_array[i].render = try hy.gpu.addModel(objects.backpack, &new_array[i].transform);
-        }
-        objects.array = new_array;
+            obj.render = try hy.gpu.addModel(ctx.backpack, &obj.transform);
+        } 
     }
 }
 
 pub fn update(game: *hy.Game) void {
-    var objects: *Objects = @ptrCast(@alignCast(game.user_data.?));
-    if (objects.array.len == 0) {}
+    var ctx: *Context = @ptrCast(@alignCast(game.user_data.?));
+    if (ctx.objects.len == 0) {}
+
+    var mat = math.mat4.identity;
+    mat.translate(game.scene.camera.position);
+    mat.translate(math.vec3.mul(game.scene.camera.look_direction, 3));
+
     const ui = hy.ui.imgui;
     if (ui.begin("Main Menu", null, 0)) {
         if (ui.button("Add Backpack", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
-            growIfNeeded(objects) catch unreachable;
-            var object = &objects.array[objects.num_allocated];
-            var second = math.mat4.identity;
-            second.translate(game.scene.camera.position);
-            second.translate(math.vec3.mul(game.scene.camera.look_direction, 3));
-            object.transform = second;
-            object.render = hy.gpu.addModel(objects.backpack, &object.transform) catch std.debug.panic("Out of Memory", .{});
-            objects.num_allocated += 1;
+
+            growIfNeeded(ctx) catch unreachable;
+
+            const hdl = ctx.objects.insert(.{ .transform = mat, .render = undefined }) catch unreachable;
+            const obj = ctx.objects.getPtr(hdl) catch unreachable;
+
+            obj.render = hy.gpu.addModel(ctx.backpack, &obj.transform) catch std.debug.panic("Out of Memory", .{});
+            std.debug.print("Added {}\n", .{obj.render});
+            ctx.num_allocated += 1;
         }
+
+        var it = ctx.objects.iterator();
+        while (it.next()) |obj| {
+            ui.pushID_Ptr(obj);
+            if (ui.button("Delete Item", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
+                hy.gpu.removeModel(obj.render);
+            }
+            ui.popID();
+        }
+        std.debug.print("\n", .{});
 
         if (ui.button("Quit", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
             game.quit = true;
@@ -68,10 +84,10 @@ pub fn main() !void {
         }
     }); 
 
-    var objects: Objects = .{
+    var objects: Context = .{
         .allocator = gpa.allocator(),
         .backpack = hdl_backpack,
-        .array = &.{},
+        .objects = try hya.Arena(Object).create(gpa.allocator(), 1),
         .num_allocated = 0,
     };
 

@@ -85,7 +85,7 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(lib);
 
     const exe = b.addExecutable(.{
-        .name = "hyoga-zig",
+        .name = "game",
         .root_source_file = b.path("src/game/main.zig"),
         .target = target,
         .optimize = optimize,
