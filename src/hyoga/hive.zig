@@ -111,7 +111,7 @@ pub fn Hive(comptime T: type) type {
             // Index to the last erased element in the group.
             _,
 
-            pub fn unwrap(i: @This()) ?Size {
+            inline fn unwrap(i: @This()) ?Size {
                 return switch(i) {
                     .none => return null,
                     else => @intFromEnum(i)

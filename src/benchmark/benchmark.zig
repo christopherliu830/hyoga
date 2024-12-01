@@ -11,7 +11,15 @@ pub fn main() !void {
     defer bench.deinit();
 
     const hive = Hive { .seed = try allocator.create(u64) };
-    try bench.addParam("Hive", &hive, .{});
+
+    var a = hive;
+    a = try a.generate(allocator);
+    a.iters = 1;
+
+    const single = a;
+
+    try bench.addParam("Hive - Random", &hive, .{ .iterations = 1024 });
+    try bench.addParam("Hive - One loop time", &single , .{ });
     try stdout.writeAll("\n");
     try bench.run(stdout);
 }
