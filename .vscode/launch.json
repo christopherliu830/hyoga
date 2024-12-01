@@ -16,19 +16,23 @@
             "console": "externalTerminal"
         },
         {
-            "name": "Debug",
-            "type": "lldb-dap",
-            "request": "launch",
-            "program": "${workspaceFolder}/zig-out/bin/hyoga-zig.exe",
-            "cwd": "${workspaceRoot}",
-        },
-        {
             "name" : "Debug Test",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceRoot}/zig-out/debug/test",
+            "program": "${workspaceRoot}/zig-out/debug/test.exe",
             "cwd": "${workspaceRoot}",
             "preLaunchTask": "Build Test"
+        },
+        {
+            "name" : "Debug Benchmark",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/zig-out/bin/benchmarks.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}",
+            "environment": [],
+            "console": "externalTerminal"
         }
     ]
 }

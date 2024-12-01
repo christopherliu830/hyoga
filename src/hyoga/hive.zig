@@ -20,21 +20,40 @@ pub fn Hive(comptime T: type) type {
 
             pub fn next(self: *Iterator) ?*T {
                 const cursor = &self.cursor;
+                std.debug.assert(@intFromPtr(cursor.group.skipfieldStart()) <= @intFromPtr(cursor.skip));
+                std.debug.assert(@intFromPtr(cursor.skip) <= @intFromPtr(cursor.group.skipfield + cursor.group.capacity + 1));
+                std.debug.assert(@intFromPtr(cursor.group.elementsStart()) <= @intFromPtr(cursor.element));
+                std.debug.assert(@intFromPtr(cursor.element) <= @intFromPtr(cursor.group.elementsEnd()));
 
                 if (cursor.skip == self.end) return null;
 
+                if (cursor.skip.value != 0) {
+                    cursor.element = cursor.element.right(cursor.skip.value);
+                    cursor.skip = cursor.skip.right(cursor.skip.value);
+                }
+
                 const ret = &cursor.element.data;
-                const group_end = cursor.group.elementsEnd();
+
                 cursor.skip = cursor.skip.right(1);
-                const skiplen = cursor.skip.value;
+                var skiplen = cursor.skip.value;
                 cursor.element = cursor.element.right(1 + skiplen);
 
-                if (cursor.element == group_end) {
+                // Need while here in case of completely empty groups.
+                // TODO: remove empty groups from list so they dont need to be iterated over
+                while (cursor.element == cursor.group.elementsEnd()) {
+
                     if (cursor.group.next_group) |next_group| {
                         cursor.group = next_group;
                         cursor.element = next_group.elementsStart();
                         cursor.skip = next_group.skipfieldStart();
-                    } 
+
+                        if (cursor.skip.value != 0) { // TODO: Remove
+                            cursor.element = cursor.element.right(cursor.skip.value);
+                            cursor.skip = cursor.skip.right(cursor.skip.value);
+                        }
+
+                        skiplen = 0;
+                    } else break;
                 }
 
                 cursor.skip = cursor.skip.right(skiplen);
@@ -92,7 +111,7 @@ pub fn Hive(comptime T: type) type {
             // Index to the last erased element in the group.
             _,
 
-            fn unwrap(i: @This()) ?Size {
+            pub fn unwrap(i: @This()) ?Size {
                 return switch(i) {
                     .none => return null,
                     else => @intFromEnum(i)
@@ -155,7 +174,8 @@ pub fn Hive(comptime T: type) type {
             fn alignedSize(num_elements: Size) usize {
                 // Start of skipfield must be aligned on T,
                 // so allocate by block
-                const raw_size = num_elements * (@sizeOf(Skip) + @sizeOf(Slot)) + @sizeOf(Skip);
+                const capacity: usize = @intCast(num_elements);
+                const raw_size = capacity * (@sizeOf(Skip) + @sizeOf(Slot)) + @sizeOf(Skip);
                 const aligned_size = (raw_size + @sizeOf(Stride) - 1) / @sizeOf(Stride);
                 return aligned_size;
             }
@@ -191,6 +211,7 @@ pub fn Hive(comptime T: type) type {
 
         tail: Cursor,
         groups: ?*Group = null,
+        groups_with_vacancy: ?*Group = null,
         total_capacity: usize = 0,
         total_size: usize = 0,
         block_capacity: Size = 8,
@@ -219,13 +240,18 @@ pub fn Hive(comptime T: type) type {
         }
 
         pub fn iterator(self: *Self) Iterator {
+
+            const cursor = Cursor {
+                .group = self.groups.?,
+                .element = self.groups.?.elementsStart(),
+                .skip = self.groups.?.skipfieldStart(),
+            };
+
+            const end = if (self.total_size == 0 and self.groups != null) self.groups.?.skipfieldStart() else self.tail.skip;
+
             return Iterator {
-                .end = self.tail.skip,
-                .cursor = .{
-                    .group = self.groups.?,
-                    .element = self.groups.?.elementsStart(),
-                    .skip = self.groups.?.skipfieldStart(),
-                },
+                .end = end,
+                .cursor = cursor,
             };
         }
 
@@ -233,7 +259,7 @@ pub fn Hive(comptime T: type) type {
             // Init
             if (self.groups == null) {
                 var group: *Group = undefined;
-                const capacity = @min(self.block_capacity * 2, self.max_block_capacity);
+                const capacity = @min(self.block_capacity, self.max_block_capacity);
                 group = try self.createGroup(null, capacity);
                 group.size = 1;
                 group.elements[0] = .{ .data = value };
@@ -261,7 +287,7 @@ pub fn Hive(comptime T: type) type {
 
                 const slot = &group.elements[group.free_list_head.unwrap().?];
                 const skip = &group.skipfield[group.free_list_head.unwrap().?];
-                const free_list_head = slot.free_node;
+                const free_node = slot.free_node;
 
                 // Fix up skipblock
                 const skiplen = skip.value - 1; 
@@ -270,15 +296,18 @@ pub fn Hive(comptime T: type) type {
                     skip.right(1).value = skiplen;
                     skip.right(skiplen).value = skiplen;
 
-                    if (free_list_head.next.unwrap()) |node| {
-                        group.elements[node].free_node.prev = group.indexOf(slot);
+                    if (free_node.next.unwrap()) |node| {
+                        group.elements[node].free_node.prev = group.indexOf(slot.right(1));
                     }
 
                     // Point free list head to new skipblock start
                     group.free_list_head = @enumFromInt(@intFromEnum(group.free_list_head) + 1);
-                } else {
-                    group.free_list_head = free_list_head.next;
-                    slot.free_node.prev = .none;
+                    slot.right(1).* = .{ .free_node = free_node };
+                } else { // Remove free list
+                    group.free_list_head = free_node.next;
+                    if (group.free_list_head.unwrap()) |head| {
+                        group.elements[head].free_node.prev = .none;
+                    }
                 }
 
                 slot.* = .{ .data = value };
@@ -302,6 +331,7 @@ pub fn Hive(comptime T: type) type {
 
                 // End of group, allocate new.
                 else { 
+                    self.block_capacity *= 2;
                     const capacity = @min(self.block_capacity, self.max_block_capacity);
                     var group = try self.createGroup(self.tail.group, capacity);
                     group.elements[0] = .{ .data = value };
@@ -326,12 +356,12 @@ pub fn Hive(comptime T: type) type {
         pub fn remove(self: *Self, cursor: Cursor) void {
             std.debug.assert(self.total_size != 0);
             std.debug.assert(cursor.element != self.tail.element);
-
             self.total_size -= 1;
-            const group = cursor.group;
-            const if_start_node_1_else_0: u1 = if (cursor.skip == group.skipfieldStart()) 0 else 1;
 
-            const has_left_skipblock = cursor.skip.left(if_start_node_1_else_0).value != 0;
+            const group = cursor.group;
+            const if_start_node_0_else_1: u1 = if (cursor.skip == group.skipfieldStart()) 0 else 1;
+
+            const has_left_skipblock = cursor.skip.left(if_start_node_0_else_1).value != 0;
             const has_right_skipblock = cursor.skip.right(1).value != 0;
 
             // No consecutive erased elements, create a skipblock of len 1
@@ -343,9 +373,15 @@ pub fn Hive(comptime T: type) type {
 
                 if (group.free_list_head.unwrap()) |head| {
                     group.elements[head].free_node.prev = index;
-                } 
+                } else {
+                    group.next_group_with_vacancy = self.groups_with_vacancy;
+                    if (self.groups_with_vacancy) |vacant_group| {
+                        vacant_group.prev_group_with_vacancy = group;
+                    }
+                    self.groups_with_vacancy = group.next_group_with_vacancy;
+                }
 
-                group.elements[index.unwrap().?] = .{ .free_node = .{
+                cursor.element.* = .{ .free_node = .{
                     .prev= .none,
                     .next= group.free_list_head,
                 }};
@@ -363,6 +399,7 @@ pub fn Hive(comptime T: type) type {
 
                 start.value = skiplen;
                 cursor.skip.value = skiplen;
+                // cursor.element.* = .{ .free_node = .{ .next = .none, .prev = .none }};
             } 
 
             // A skipblock on the right.
@@ -419,6 +456,8 @@ pub fn Hive(comptime T: type) type {
                     cursor.group.free_list_head = @enumFromInt(free_node.next.unwrap().?);
                 }
             }
+
+            std.debug.assert(group.free_list_head == .none or group.elements[group.free_list_head.unwrap().?].free_node.prev == .none);
         }
 
         fn createGroup(self: *Self, next_group: ?*Group, capacity: Size) !*Group {
@@ -446,7 +485,7 @@ test "hive.remove" {
     const allocator = std.testing.allocator;
     var hive = try Hive(u128).create(allocator, .{ .initial_block_capacity = 8 });
     defer hive.deinit();
-    _ = try hive.insert(1);
+    const a = try hive.insert(1);
     const b = try hive.insert(2);
     const c = try hive.insert(3);
     const d = try hive.insert(4);
@@ -460,9 +499,9 @@ test "hive.remove" {
     hive.remove(f);  
     hive.remove(e); // [_] [_] [1] skipblock on right
     hive.remove(d); // [2] [_] [2] skipblock merge
+    hive.remove(a); // First element
 
     var it = hive.iterator();
-    try std.testing.expectEqual(1, it.next().?.*);
     try std.testing.expectEqual(7, it.next().?.*);
     try std.testing.expectEqual(null, it.next());
 }
@@ -483,4 +522,8 @@ test "hive.reuse" {
     try std.testing.expectEqual(4, it.next().?.*);
     try std.testing.expectEqual(3, it.next().?.*);
     try std.testing.expectEqual(null, it.next());
+}
+
+test "hive.basic" {
+
 }

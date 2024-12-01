@@ -3,6 +3,7 @@ const sdl = @import("sdl");
 
 pub const math = @import("hyoga-math");
 pub const arena = @import("hyoga-arena");
+pub const Hive = @import("hive.zig").Hive;
 
 pub const window = @import("window.zig");
 pub const input = @import("input.zig");

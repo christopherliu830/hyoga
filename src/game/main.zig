@@ -69,12 +69,10 @@ pub fn update(game: *hy.Game) void {
     ui.end();
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}) {};
-    const allocator = gpa.allocator();
 
-    hy.init(allocator);
-    defer hy.shutdown();
+pub fn main() !void {
+    // hy.init(allocator);
+    // defer hy.shutdown();
 
     // const hdl_backpack = try hy.gpu.importModel("assets/backpack/backpack.obj", .{
     //     .transform = math.mat4.identity,
@@ -91,11 +89,11 @@ pub fn main() !void {
     //     .num_allocated = 0,
     // };
 
-    var game = hy.Game {
-        .fn_update = update,
-        .user_data = null,
-    };
+    // var game = hy.Game {
+    //     .fn_update = update,
+    //     .user_data = null,
+    // };
 
-    try game.scene.camera.registerInputs();
-    try hy.run(&game);
+    // try game.scene.camera.registerInputs();
+    // try hy.run(&game);
 }
