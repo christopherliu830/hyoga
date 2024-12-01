@@ -32,28 +32,23 @@ pub fn Hive(comptime T: type) type {
                     cursor.skip = cursor.skip.right(cursor.skip.value);
                 }
 
+                if (cursor.skip == self.end) return null;
+
                 const ret = &cursor.element.data;
 
                 cursor.skip = cursor.skip.right(1);
                 var skiplen = cursor.skip.value;
                 cursor.element = cursor.element.right(1 + skiplen);
 
-                // Need while here in case of completely empty groups.
-                // TODO: remove empty groups from list so they dont need to be iterated over
-                while (cursor.element == cursor.group.elementsEnd()) {
-
+                if (cursor.element == cursor.group.elementsEnd()) {
                     if (cursor.group.next_group) |next_group| {
                         cursor.group = next_group;
-                        cursor.element = next_group.elementsStart();
-                        cursor.skip = next_group.skipfieldStart();
-
-                        if (cursor.skip.value != 0) { // TODO: Remove
-                            cursor.element = cursor.element.right(cursor.skip.value);
-                            cursor.skip = cursor.skip.right(cursor.skip.value);
-                        }
+                        const len = next_group.skipfieldStart().value;
+                        cursor.element = next_group.elementsStart().right(len);
+                        cursor.skip = next_group.skipfieldStart().right(len);
 
                         skiplen = 0;
-                    } else break;
+                    }
                 }
 
                 cursor.skip = cursor.skip.right(skiplen);
@@ -143,7 +138,7 @@ pub fn Hive(comptime T: type) type {
         };
 
         // group == element memory block + skipfield + block metadata
-        const Group = struct {
+        pub const Group = struct {
             skipfield: [*]Skip, // Start of the skipfield.
             next_group: ?*Group = null,
             elements: [*]Slot, // Start of the memory block
@@ -205,12 +200,14 @@ pub fn Hive(comptime T: type) type {
             fn deinit(self: *Group, allocator: std.mem.Allocator) void {
                 const ptr_data: [*]align(@alignOf(T))Stride = @ptrCast(@alignCast(self.elements));
                 const data = ptr_data[0..Group.alignedSize(self.capacity)];
+                self.group_no = 0;
                 allocator.free(data);
+                allocator.destroy(self);
             }
         };
 
+        head: ?Cursor = null,
         tail: Cursor,
-        groups: ?*Group = null,
         groups_with_vacancy: ?*Group = null,
         total_capacity: usize = 0,
         total_size: usize = 0,
@@ -226,38 +223,39 @@ pub fn Hive(comptime T: type) type {
             const hive = Hive(T) {
                 .allocator = allocator,
                 .block_capacity = options.initial_block_capacity,
+                .head = undefined,
                 .tail = undefined,
             };
             return hive;
         }
 
         pub fn deinit(self: *Self) void {
-            while (self.groups) |group| {
-                self.groups = group.next_group;
+            var q_group = self.head.?.group;
+            while (q_group) |group| {
                 group.deinit(self.allocator);
-                self.allocator.destroy(group);
+                q_group = group.next_group;
             }
         }
 
         pub fn iterator(self: *Self) Iterator {
 
-            const cursor = Cursor {
-                .group = self.groups.?,
-                .element = self.groups.?.elementsStart(),
-                .skip = self.groups.?.skipfieldStart(),
-            };
+            // const cursor = Cursor {
+            //     .group = self.groups.?,
+            //     .element = self.groups.?.elementsStart(),
+            //     .skip = self.groups.?.skipfieldStart(),
+            // };
 
-            const end = if (self.total_size == 0 and self.groups != null) self.groups.?.skipfieldStart() else self.tail.skip;
+            // const end = if (self.total_size == 0 and self.groups != null) self.groups.?.skipfieldStart() else self.tail.skip;
 
             return Iterator {
-                .end = end,
-                .cursor = cursor,
+                .end = self.tail.skip,
+                .cursor = self.head.?,
             };
         }
 
         pub fn insert(self: *Self, value: T) !Cursor {
             // Init
-            if (self.groups == null) {
+            if (self.head == null) {
                 var group: *Group = undefined;
                 const capacity = @min(self.block_capacity, self.max_block_capacity);
                 group = try self.createGroup(null, capacity);
@@ -265,31 +263,28 @@ pub fn Hive(comptime T: type) type {
                 group.elements[0] = .{ .data = value };
                 self.total_capacity = 1;
                 self.total_size += 1;
-                self.groups = group;
-                const cursor = Cursor {
+
+                self.head = .{
                     .group = group,
                     .element = group.elementsStart(),
                     .skip = group.skipfieldStart()
                 };
-                self.tail = cursor;
+
+                self.tail = self.head.?;
                 self.tail.element = self.tail.element.right(1);
                 self.tail.skip = self.tail.skip.right(1);
-                return cursor;
+                return self.head.?;
             } 
 
-            // TODO: To linked list
-            var empty_group = self.groups;
-            while (empty_group != null and empty_group.?.free_list_head == .none) {
-                empty_group = empty_group.?.next_group;
-            }
-            if (empty_group) |group| {
+            if (self.groups_with_vacancy) |group| {
+                group.size += 1;
                 self.total_size += 1;
 
                 const slot = &group.elements[group.free_list_head.unwrap().?];
                 const skip = &group.skipfield[group.free_list_head.unwrap().?];
                 const free_node = slot.free_node;
 
-                // Fix up skipblock
+                // Fix up skipblock and vacancy groups
                 const skiplen = skip.value - 1; 
 
                 if (skiplen != 0) {
@@ -303,15 +298,29 @@ pub fn Hive(comptime T: type) type {
                     // Point free list head to new skipblock start
                     group.free_list_head = @enumFromInt(@intFromEnum(group.free_list_head) + 1);
                     slot.right(1).* = .{ .free_node = free_node };
-                } else { // Remove free list
+                } 
+                // Remove free list
+                else { 
                     group.free_list_head = free_node.next;
                     if (group.free_list_head.unwrap()) |head| {
                         group.elements[head].free_node.prev = .none;
+                    } 
+                    // No elements free, remove from vacancy list
+                    else {
+                        self.groups_with_vacancy = self.groups_with_vacancy.?.next_group_with_vacancy;
                     }
                 }
 
                 slot.* = .{ .data = value };
                 skip.value = 0;
+
+                if (group == self.head.?.group and group.indexOf(slot).unwrap().? < group.indexOf(self.head.?.element).unwrap().?) {
+                    self.head = .{
+                        .element = slot,
+                        .skip= skip,
+                        .group = group,
+                    };
+                }
 
                 return .{
                     .group = group,
@@ -322,6 +331,8 @@ pub fn Hive(comptime T: type) type {
                 // Not at end of group yet.
                 if (self.tail.element != self.tail.group.elementsEnd()) {
                     self.total_size += 1;
+                    self.tail.group.size += 1;
+
                     self.tail.element.* = .{ .data = value };
                     const cursor = self.tail;
                     self.tail.element = self.tail.element.right(1);
@@ -335,6 +346,7 @@ pub fn Hive(comptime T: type) type {
                     const capacity = @min(self.block_capacity, self.max_block_capacity);
                     var group = try self.createGroup(self.tail.group, capacity);
                     group.elements[0] = .{ .data = value };
+                    group.size = 1;
                     self.total_capacity += group.capacity;
                     self.total_size += 1;
 
@@ -357,107 +369,280 @@ pub fn Hive(comptime T: type) type {
             std.debug.assert(self.total_size != 0);
             std.debug.assert(cursor.element != self.tail.element);
             self.total_size -= 1;
-
             const group = cursor.group;
-            const if_start_node_0_else_1: u1 = if (cursor.skip == group.skipfieldStart()) 0 else 1;
+            group.size -= 1;
 
-            const has_left_skipblock = cursor.skip.left(if_start_node_0_else_1).value != 0;
-            const has_right_skipblock = cursor.skip.right(1).value != 0;
+            if (group.size > 0) {
+                const if_start_node_0_else_1: u1 = if (cursor.skip == group.skipfieldStart()) 0 else 1;
 
-            // No consecutive erased elements, create a skipblock of len 1
-            // and fix up free list.
-            if (!has_left_skipblock and !has_right_skipblock) { 
-                cursor.skip.value = 1;
+                const has_left_skipblock = cursor.skip.left(if_start_node_0_else_1).value != 0;
+                const has_right_skipblock = cursor.skip.right(1).value != 0;
 
-                const index = cursor.group.indexOf(cursor.element);
+                var head_skiplen: Size = 1;
 
-                if (group.free_list_head.unwrap()) |head| {
-                    group.elements[head].free_node.prev = index;
-                } else {
-                    group.next_group_with_vacancy = self.groups_with_vacancy;
-                    if (self.groups_with_vacancy) |vacant_group| {
-                        vacant_group.prev_group_with_vacancy = group;
+                // No consecutive erased elements, create a skipblock of len 1
+                // and fix up free list.
+                if (!has_left_skipblock and !has_right_skipblock) { 
+                    cursor.skip.value = 1;
+
+                    const index = cursor.group.indexOf(cursor.element);
+
+                    if (group.free_list_head.unwrap()) |head| {
+                        group.elements[head].free_node.prev = index;
+                    } 
+
+                    else {
+                        group.next_group_with_vacancy = self.groups_with_vacancy;
+
+                        if (self.groups_with_vacancy) |vacant_group| {
+                            vacant_group.prev_group_with_vacancy = group;
+                        }
+
+                        self.groups_with_vacancy = group;
                     }
-                    self.groups_with_vacancy = group.next_group_with_vacancy;
-                }
 
-                cursor.element.* = .{ .free_node = .{
-                    .prev= .none,
-                    .next= group.free_list_head,
-                }};
+                    cursor.element.* = .{ .free_node = .{
+                        .prev= .none,
+                        .next= group.free_list_head,
+                    }};
 
-                group.free_list_head = index;
-            } 
-            
-            // A skipblock on the left.
-            // Increase skiplen by 1 and set current node's value and value of 
-            // the start node and current to the new value.
-            else if (has_left_skipblock and !has_right_skipblock) {
-                const prev = cursor.skip.left(1);
-                const start = cursor.skip.left(prev.value);
-                const skiplen = prev.value + 1;
-
-                start.value = skiplen;
-                cursor.skip.value = skiplen;
-                // cursor.element.* = .{ .free_node = .{ .next = .none, .prev = .none }};
-            } 
-
-            // A skipblock on the right.
-            // Increase skiplen by 1 and make this the start of the
-            // skipblock (move free list information)
-            else if (!has_left_skipblock and has_right_skipblock) {
-                const next_skipfield = cursor.skip.right(1);
-                const skiplen = next_skipfield.value + 1;
-                const end_skipfield = cursor.skip.right(skiplen - 1);
-                end_skipfield.value = skiplen;
-                cursor.skip.value = skiplen;
+                    group.free_list_head = index;
+                } 
                 
-                // Edit free list - The free list information is stored at the start of every skipblock.
+                // A skipblock on the left.
+                // Increase skiplen by 1 and set current node's value and value of 
+                // the start node and current to the new value.
+                else if (has_left_skipblock and !has_right_skipblock) {
+                    const prev = cursor.skip.left(1);
+                    const start = cursor.skip.left(prev.value);
+                    const skiplen = prev.value + 1;
 
-                // Move the skipfield information into the new start
-                cursor.element.* = .{ .free_node =  cursor.element.right(1).free_node }; 
+                    start.value = skiplen;
+                    cursor.skip.value = skiplen;
+                } 
 
-                const index = cursor.group.indexOf(cursor.element);
-                const node_prev= cursor.element.free_node.prev.unwrap();
-                const node_next= cursor.element.free_node.next.unwrap();
+                // A skipblock on the right.
+                // Increase skiplen by 1 and make this the start of the
+                // skipblock (move free list information)
+                else if (!has_left_skipblock and has_right_skipblock) {
+                    const next_skipfield = cursor.skip.right(1);
+                    const skiplen = next_skipfield.value + 1;
+                    const end_skipfield = cursor.skip.right(skiplen - 1);
+                    end_skipfield.value = skiplen;
+                    cursor.skip.value = skiplen;
+                    
+                    // Edit free list - The free list information is stored at the start of every skipblock.
 
-                if (node_next) |next| {
-                    cursor.group.elements[next].free_node.prev = index;
+                    // Move the skipfield information into the new start
+                    cursor.element.* = .{ .free_node =  cursor.element.right(1).free_node }; 
+
+                    const index = cursor.group.indexOf(cursor.element);
+                    const node_prev= cursor.element.free_node.prev.unwrap();
+                    const node_next= cursor.element.free_node.next.unwrap();
+
+                    if (node_next) |next| {
+                        cursor.group.elements[next].free_node.prev = index;
+                    }
+
+                    if (node_prev) |prev| {
+                        cursor.group.elements[prev].free_node.next = index;
+                    } else { // Migrated node is head
+                        cursor.group.free_list_head = index;
+                    }
+
+                    head_skiplen = skiplen;
+                } 
+
+                // Between two skipblocks.
+                // Set skiplen to (left skipblock count) + (right skipblock count) + 1
+                // and delete the right block from free list. (merge with left skipblock)
+                else { 
+                    cursor.skip.value = 1;
+                    const prev = cursor.skip.left(1).value;
+                    const next = cursor.skip.right(1).value;
+                    const skiplen = prev + next + 1;
+                    const start = cursor.skip.left(prev);
+                    const end = cursor.skip.right(next);
+                    start.value = skiplen;
+                    end.value = skiplen;
+
+                    const free_node = cursor.element.right(1).free_node;
+                    if (free_node.next.unwrap()) |next_free| {
+                        cursor.group.elements[next_free].free_node.prev = free_node.prev;
+                    }
+
+                    if (free_node.prev.unwrap()) |prev_free| {
+                        cursor.group.elements[prev_free].free_node.next = free_node.next;
+                    } else { // Removed node was head
+                        cursor.group.free_list_head = @enumFromInt(free_node.next.unwrap().?);
+                    }
+
+                    head_skiplen = next + 1;
                 }
 
-                if (node_prev) |prev| {
-                    cursor.group.elements[prev].free_node.next = index;
-                } else { // Migrated node is head
-                    cursor.group.free_list_head = index;
+                std.debug.assert(group.free_list_head == .none or group.elements[group.free_list_head.unwrap().?].free_node.prev == .none);
+
+                if (cursor.element == self.head.?.element) {
+                    self.head.?.skip = cursor.skip.right(head_skiplen);
+                    self.head.?.element = cursor.element.right(head_skiplen);
                 }
-            } 
+            } else {
+                const has_next = group.next_group != null;
+                const has_prev = group.previous_group != null;
 
-            // Between two skipblocks.
-            // Set skiplen to (left skipblock count) + (right skipblock count) + 1
-            // and delete the right block from free list. (merge with left skipblock)
-            else { 
-                cursor.skip.value = 1;
-                const prev = cursor.skip.left(1).value;
-                const next = cursor.skip.right(1).value;
-                const skiplen = prev + next + 1;
-                const start = cursor.skip.left(prev);
-                const end = cursor.skip.right(next);
-                start.value = skiplen;
-                end.value = skiplen;
+                // Only group left
+                if (!has_next and !has_prev) {
+                    self.groups_with_vacancy = null;
+                    self.tail.group = group;
+                    self.tail.element = group.elementsStart();
+                    self.tail.skip = group.skipfieldStart();
 
-                const free_node = cursor.element.right(1).free_node;
-                if (free_node.next.unwrap()) |next_free| {
-                    cursor.group.elements[next_free].free_node.prev = free_node.prev;
+                    self.head = self.tail;
+
+                    @memset(group.skipfield[0..group.capacity], .{ .value = 0 });
+                    group.free_list_head = .none;
+                    group.size = 0;
+                    group.previous_group = null;
+                    group.next_group = null;
+                    group.next_group_with_vacancy = null;
+                    group.prev_group_with_vacancy = null;
+                    group.group_no = 0;
                 }
 
-                if (free_node.prev.unwrap()) |prev_free| {
-                    cursor.group.elements[prev_free].free_node.next = free_node.next;
-                } else { // Removed node was head
-                    cursor.group.free_list_head = @enumFromInt(free_node.next.unwrap().?);
+                else if (!has_prev and has_next) {
+                    group.next_group.?.previous_group = null;
+                    self.head.?.group = group.next_group.?;
+
+                    // Remove from vacancies
+                    if (group.free_list_head != .none) {
+                        self.fixVacancyList(group);
+                    }
+                    
+                    const skiplen = self.head.?.group.skipfieldStart().value;
+                    self.head.?.element = self.head.?.group.elementsStart().right(skiplen);
+                    self.head.?.skip = self.head.?.group.skipfieldStart().right(skiplen);
+
+                    self.total_capacity -= group.capacity;
+                    group.deinit(self.allocator);
+                }
+                
+                else if (has_prev and has_next) {
+                    group.next_group.?.previous_group = group.previous_group;
+                    group.previous_group.?.next_group = group.next_group;
+
+
+                    if (group.free_list_head != .none) {
+                        self.fixVacancyList(group);
+                    }
+
+                    self.total_capacity -= group.capacity;
+                    group.deinit(self.allocator);
+                }
+
+                else { // has_prev and !has_next
+                    group.previous_group.?.next_group = group.next_group;
+
+                    if (group.free_list_head != .none) {
+                        self.fixVacancyList(group);
+                    }
+
+                    group.previous_group.?.next_group = null;
+                    self.tail.group = group.previous_group.?;
+                    self.tail.element = self.tail.group.elementsEnd();
+                    self.tail.skip = self.tail.group.skipfieldStart().right(self.tail.group.capacity);
+
+                    self.total_capacity -= group.capacity;
+                    group.deinit(self.allocator);
                 }
             }
+        }
 
-            std.debug.assert(group.free_list_head == .none or group.elements[group.free_list_head.unwrap().?].free_node.prev == .none);
+        pub fn dump(self: *Self) void {
+            if (self.head) |head| {
+                var q_group: ?*Group = head.group;
+                while (q_group) |group| {
+                    std.debug.print("grp: {}\n", .{group.group_no});
+                    var last = false;
+                    std.debug.print("i:\t", .{});
+                    for (0..group.capacity) |i| {
+                        if (group.skipfieldStart().right(i) == self.tail.skip) {
+                            std.debug.print("END\t", .{});
+                            last = true;
+                            break;
+                        }
+
+                        std.debug.print("{}\t", .{i});
+                    }
+                    std.debug.print("\ns:\t", .{});
+                    for (group.skipfield[0..group.capacity]) |*skip| {
+                        if (skip == self.tail.skip) {
+                            last = true;
+                            std.debug.print("END\t", .{});
+                            break;
+                        }
+
+                        const v = skip.value;
+                        std.debug.print("{}\t", .{v});
+                    }
+                    std.debug.print("\ne:\t", .{});
+                    for (group.elements[0..group.capacity], 0..) |e, i| {
+                        if (group.skipfieldStart().right(i) == self.tail.skip) {
+                            std.debug.print("END\t", .{});
+                            last = true;
+                            break;
+                        }
+
+                        if (group.skipfieldStart().right(i).value == 0) {
+                            std.debug.print("{}\t", .{e.data});
+                        } else {
+                            std.debug.print("_\t", .{});
+                        }
+
+                    }
+
+                    std.debug.print("\nfree:\t", .{});
+                    var q_node = group.free_list_head.unwrap();
+                    while (q_node) |node| {
+                        std.debug.print("{}->", .{node});
+                        q_node = group.elements[node].free_node.next.unwrap();
+                    }
+
+                    q_group = group.next_group;
+                    std.debug.print("\n", .{});
+
+
+                }
+
+
+                q_group = head.group;
+                std.debug.print("\ngr:", .{});
+                while (q_group) |group| {
+                    std.debug.print("{}->", .{group.group_no});
+                    q_group = group.next_group;
+                }
+                q_group = self.groups_with_vacancy;
+                std.debug.print("\nva:", .{});
+                while (q_group) |group| {
+                    std.debug.print("{}->", .{group.group_no});
+                    q_group = group.next_group_with_vacancy;
+                }
+                std.debug.print("\nhead at: {}\n", .{head.group.indexOf(head.element)});
+
+                std.debug.print("\n", .{});
+                std.debug.print("\n", .{});
+            }
+        }
+
+        fn fixVacancyList(self: *Self, group: *Group) void {
+            if (group == self.groups_with_vacancy) {
+                self.groups_with_vacancy = group.next_group_with_vacancy;
+            } else {
+                group.prev_group_with_vacancy.?.next_group_with_vacancy = group.next_group_with_vacancy;
+
+                if (group.next_group_with_vacancy != null) {
+                    group.next_group_with_vacancy.?.prev_group_with_vacancy = group.prev_group_with_vacancy;
+                }
+            } 
         }
 
         fn createGroup(self: *Self, next_group: ?*Group, capacity: Size) !*Group {
