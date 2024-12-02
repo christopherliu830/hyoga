@@ -146,8 +146,8 @@ pub fn Hive(comptime T: type) type {
             free_list_head: SlotIndex, // Index of last erased element in the group.
             capacity: Size, // Element capacity
             size: Size = 0, // Number of active elements
-            prev_group_with_vacancy: ?*Group = null, // Next and previous groups that contain a non-empty free list.
-            next_group_with_vacancy: ?*Group = null,
+            prev_open_group: ?*Group = null, // Next and previous groups that contain a non-empty free list.
+            next_open_group: ?*Group = null,
             group_no: u8 = 0,
 
             inline fn skipfieldStart(self: *Group) *Skip {
@@ -164,6 +164,12 @@ pub fn Hive(comptime T: type) type {
 
             inline fn indexOf(self: *Group, slot: *Slot) SlotIndex {
                 return @enumFromInt((@intFromPtr(slot) - @intFromPtr(self.elements)) / @sizeOf(Slot));
+            }
+
+            inline fn getFree(self: *Group, node: SlotIndex) ?Size {
+                if (node.unwrap()) |index| {
+                    return self.elements[index].free_node;
+                } else return null;
             }
 
             fn alignedSize(num_elements: Size) usize {
@@ -206,9 +212,98 @@ pub fn Hive(comptime T: type) type {
             }
         };
 
-        head: ?Cursor = null,
-        tail: Cursor,
-        groups_with_vacancy: ?*Group = null,
+        // Doubly doubly linked list
+        pub const GroupList = struct {
+            head: ?Cursor = null,
+            tail: ?Cursor = null,
+            open_head: ?*Group = null,  
+            total_capacity: usize = 0,
+            size: usize = 0, // Number of groups in the collection.
+
+            pub fn prepend(self: *GroupList, node: *Group) void {
+                if (self.head) |*head| {
+                    std.debug.assert(head.group.previous_group == null);
+                    node.next_group = head.group;
+                    head.group.previous_group = node;
+                    head.group = node;
+                    head.element = node.elementsStart();
+                    head.skip = node.skipfieldStart();
+                    self.total_capacity += node.capacity;
+                    self.size += 1;
+                } else {
+                    self.head = Cursor {
+                        .group = node,
+                        .element = node.elementsStart(),
+                        .skip = node.skipfieldStart(),
+                    };
+                    self.tail = self.head;
+                    self.size += 1;
+                }
+            }
+
+            pub fn append(self: *GroupList, node: *Group) void {
+                if (self.tail) |*tail| {
+                    std.debug.assert(tail.element == tail.group.elementsEnd());
+                    std.debug.assert(tail.group.next_group == null);
+
+                    node.previous_group = tail.group;
+                    tail.group.next_group = node;
+                    self.tail = .{
+                        .group = node,
+                        .element = node.elementsStart(),
+                        .skip = node.skipfieldStart(),
+                    };
+                    self.total_capacity += node.capacity;
+                    self.size += 1;
+                } else self.prepend(node);
+            }
+
+            pub fn remove(self: *GroupList, node: *Group) void {
+                if (self.size == 1) {
+                    unreachable;
+                }
+                
+                self.size -= 1;
+
+                if (node.previous_group) |prev| {
+                    prev.next_group = node.next_group;
+                } 
+                // Head node
+                else {
+                    std.debug.assert(self.head.?.group == node);
+
+                    const skiplen = node.skipfieldStart().value;
+                    self.head = .{
+                        .group = node,
+                        .element = node.elementsStart().right(skiplen),
+                        .skip = node.skipfieldStart().right(skiplen),
+                    };
+
+                    self.total_capacity -= node.capacity;
+                }
+                
+                if (node.next_group) |next| {
+                    next.previous_group = node.previous_group;
+                } 
+                // Tail node
+                else {
+                    std.debug.assert(self.tail.?.group == node);
+                    std.debug.assert(node.previous_group != null);
+
+                    const prev = node.previous_group.?;
+                    self.tail = .{
+                        .group = prev ,
+                        .element = prev.elementsEnd(),
+                        .skip = prev.skipfieldStart().right(prev.capacity),
+                    };
+                }
+
+                self.total_capacity -= node.capacity; 
+            }
+        };
+        
+        groups: GroupList,
+        open_groups_head: ?*Group = null,
         total_capacity: usize = 0,
         total_size: usize = 0,
         block_capacity: Size = 8,
@@ -216,158 +311,156 @@ pub fn Hive(comptime T: type) type {
         allocator: std.mem.Allocator,
 
         pub const CreateOptions = struct {
-            initial_block_capacity: Size = 8,
+            initial_block_capacity: Size = 32,
         };
 
         pub fn create(allocator: std.mem.Allocator, options: CreateOptions) !Hive(T) {
             const hive = Hive(T) {
+                .groups = .{},
                 .allocator = allocator,
                 .block_capacity = options.initial_block_capacity,
-                .head = undefined,
-                .tail = undefined,
             };
             return hive;
         }
 
         pub fn deinit(self: *Self) void {
-            var q_group = self.head.?.group;
-            while (q_group) |group| {
-                group.deinit(self.allocator);
-                q_group = group.next_group;
+            while (self.groups.head) |*head| {
+                const g = head;
+                self.groups.remove(head);
+                g.deinit(self.allocator);
             }
         }
 
         pub fn iterator(self: *Self) Iterator {
-
-            // const cursor = Cursor {
-            //     .group = self.groups.?,
-            //     .element = self.groups.?.elementsStart(),
-            //     .skip = self.groups.?.skipfieldStart(),
-            // };
-
-            // const end = if (self.total_size == 0 and self.groups != null) self.groups.?.skipfieldStart() else self.tail.skip;
+            std.debug.assert(self.groups.size > 0);
 
             return Iterator {
-                .end = self.tail.skip,
-                .cursor = self.head.?,
+                .end = self.groups.tail.?.skip,
+                .cursor = self.groups.head.?,
             };
         }
 
         pub fn insert(self: *Self, value: T) !Cursor {
-            // Init
-            if (self.head == null) {
+            // First element
+            if (self.groups.head == null) {
                 var group: *Group = undefined;
                 const capacity = @min(self.block_capacity, self.max_block_capacity);
                 group = try self.createGroup(null, capacity);
-                group.size = 1;
-                group.elements[0] = .{ .data = value };
-                self.total_capacity = 1;
-                self.total_size += 1;
+                
+                self.groups.prepend(group);
 
-                self.head = .{
-                    .group = group,
-                    .element = group.elementsStart(),
-                    .skip = group.skipfieldStart()
-                };
-
-                self.tail = self.head.?;
-                self.tail.element = self.tail.element.right(1);
-                self.tail.skip = self.tail.skip.right(1);
-                return self.head.?;
-            } 
-
-            if (self.groups_with_vacancy) |group| {
+                var tail = &self.groups.tail.?;
+                tail.element.* = .{ .data = value };
+                tail.element = tail.element.right(1);
+                tail.skip = tail.skip.right(1);
                 group.size += 1;
                 self.total_size += 1;
 
-                const slot = &group.elements[group.free_list_head.unwrap().?];
-                const skip = &group.skipfield[group.free_list_head.unwrap().?];
-                const free_node = slot.free_node;
+                return self.groups.head.?;
+            } 
+
+            // Insert into an open group
+            else if (self.open_groups_head) |group| {
+                group.size += 1;
+                self.total_size += 1;
+
+                const idx = group.getFree().?; // Must have a free slot
+                const slot = &group.elements[idx];
+                const skip = &group.skipfield[idx];
+
+                const old_free_node = slot.free_node;
 
                 // Fix up skipblock and vacancy groups
                 const skiplen = skip.value - 1; 
 
-                if (skiplen != 0) {
+                // This is the start of a skipbock
+                if (skiplen != 0) { 
                     skip.right(1).value = skiplen;
                     skip.right(skiplen).value = skiplen;
+                    slot.right(1).* = .{ .free_node = old_free_node };
 
-                    if (free_node.next.unwrap()) |node| {
-                        group.elements[node].free_node.prev = group.indexOf(slot.right(1));
+                    if (old_free_node.next.unwrap()) |idx_next| {
+                        group.elements[idx_next].free_node.prev = @enumFromInt(idx + 1);
                     }
 
                     // Point free list head to new skipblock start
-                    group.free_list_head = @enumFromInt(@intFromEnum(group.free_list_head) + 1);
-                    slot.right(1).* = .{ .free_node = free_node };
+                    group.free_list_head = @enumFromInt(idx + 1);
                 } 
+
                 // Remove free list
                 else { 
-                    group.free_list_head = free_node.next;
+                    group.free_list_head = old_free_node.next;
                     if (group.free_list_head.unwrap()) |head| {
                         group.elements[head].free_node.prev = .none;
                     } 
                     // No elements free, remove from vacancy list
                     else {
-                        self.groups_with_vacancy = self.groups_with_vacancy.?.next_group_with_vacancy;
+                        self.open_groups_head = self.open_groups_head.?.next_open_group;
                     }
                 }
 
                 slot.* = .{ .data = value };
                 skip.value = 0;
 
-                if (group == self.head.?.group and group.indexOf(slot).unwrap().? < group.indexOf(self.head.?.element).unwrap().?) {
-                    self.head = .{
-                        .element = slot,
-                        .skip= skip,
-                        .group = group,
-                    };
-                }
+                // If this group is the same as the head, we need to move
+                // the head left to include the inserted element.
+                if (self.groups.head) |*head| if (group == head.group) {
+                    const idx_slot = group.indexOf(slot).unwrap().?;
+                    const idx_head = group.indexOf(head.element).unwrap().?;
+                    if (group == head.group and idx_slot < idx_head) {
+                        head.* = .{
+                            .element = slot,
+                            .skip= skip,
+                            .group = group,
+                        };
+                    }
+                };
 
                 return .{
                     .group = group,
                     .element = slot,
                     .skip = skip,
                 };
-            } else {
-                // Not at end of group yet.
-                if (self.tail.element != self.tail.group.elementsEnd()) {
-                    self.total_size += 1;
-                    self.tail.group.size += 1;
+            } 
 
-                    self.tail.element.* = .{ .data = value };
-                    const cursor = self.tail;
-                    self.tail.element = self.tail.element.right(1);
-                    self.tail.skip = self.tail.skip.right(1);
-                    return cursor;
-                }
+            else if (self.groups.tail != null and self.groups.tail.?.element != self.groups.tail.?.group.elementsEnd()) {
+                const tail = &(self.groups.tail.?);
+                const cursor = tail.*;
+                tail.element.* = .{ .data = value };
+                tail.element = tail.element.right(1);
+                tail.skip = tail.skip.right(1);
+                self.total_size += 1;
+                tail.group.size += 1;
+                return cursor;
+            }
 
-                // End of group, allocate new.
-                else { 
-                    self.block_capacity *= 2;
-                    const capacity = @min(self.block_capacity, self.max_block_capacity);
-                    var group = try self.createGroup(self.tail.group, capacity);
-                    group.elements[0] = .{ .data = value };
-                    group.size = 1;
-                    self.total_capacity += group.capacity;
-                    self.total_size += 1;
+            // ELSE: End of group, allocate new.
+            else {
+                self.block_capacity *= 2;
+                const capacity = @min(self.block_capacity, self.max_block_capacity);
 
-                    const cursor = Cursor {
-                        .group = group,
-                        .element = group.elementsStart(),
-                        .skip = group.skipfieldStart(),
-                    };
+                const group = try self.createGroup(self.groups.tail.?.group, capacity);
+                self.groups.append(group);
 
-                    self.tail = cursor;
-                    self.tail.element = self.tail.element.right(1);
-                    self.tail.skip = self.tail.skip.right(1);
+                var tail = &self.groups.tail.?;
+                tail.element.* = .{ .data = value };
+                tail.group.size += 1;
+                self.total_capacity += group.capacity;
+                self.total_size += 1;
 
-                    return cursor;
-                }
+                const cursor = tail.*;
+
+                tail.element = tail.element.right(1);
+                tail.skip = tail.skip.right(1);
+
+                return cursor;
             }
         }
 
         pub fn remove(self: *Self, cursor: Cursor) void {
             std.debug.assert(self.total_size != 0);
-            std.debug.assert(cursor.element != self.tail.element);
+            std.debug.assert(cursor.element != self.groups.tail.?.element);
+
             self.total_size -= 1;
             const group = cursor.group;
             group.size -= 1;
@@ -392,13 +485,13 @@ pub fn Hive(comptime T: type) type {
                     } 
 
                     else {
-                        group.next_group_with_vacancy = self.groups_with_vacancy;
+                        group.next_open_group = self.open_groups_head;
 
-                        if (self.groups_with_vacancy) |vacant_group| {
-                            vacant_group.prev_group_with_vacancy = group;
+                        if (self.open_groups_head) |vacant_group| {
+                            vacant_group.prev_open_group = group;
                         }
 
-                        self.groups_with_vacancy = group;
+                        self.open_groups_head = group;
                     }
 
                     cursor.element.* = .{ .free_node = .{
@@ -482,75 +575,44 @@ pub fn Hive(comptime T: type) type {
 
                 std.debug.assert(group.free_list_head == .none or group.elements[group.free_list_head.unwrap().?].free_node.prev == .none);
 
-                if (cursor.element == self.head.?.element) {
-                    self.head.?.skip = cursor.skip.right(head_skiplen);
-                    self.head.?.element = cursor.element.right(head_skiplen);
+                // If head was removed, move head forward until a valid element.
+                if (cursor.element == self.groups.head.?.element) {
+                    self.groups.head.?.skip = cursor.skip.right(head_skiplen);
+                    self.groups.head.?.element = cursor.element.right(head_skiplen);
                 }
-            } else {
-                const has_next = group.next_group != null;
-                const has_prev = group.previous_group != null;
+            } 
 
-                // Only group left
-                if (!has_next and !has_prev) {
-                    self.groups_with_vacancy = null;
-                    self.tail.group = group;
-                    self.tail.element = group.elementsStart();
-                    self.tail.skip = group.skipfieldStart();
+            // The removed element is the last in the group.
+            // The group is empty, so can be deallocated.
+            else { 
 
-                    self.head = self.tail;
+                // Only group left, reuse
+                if (self.groups.size == 1) {
+                    self.open_groups_head = null;
+                    self.groups.tail.?.group = group;
+                    self.groups.tail.?.element = group.elementsStart();
+                    self.groups.tail.?.skip = group.skipfieldStart();
+
+                    self.groups.head = self.groups.tail.?;
 
                     @memset(group.skipfield[0..group.capacity], .{ .value = 0 });
                     group.free_list_head = .none;
                     group.size = 0;
                     group.previous_group = null;
                     group.next_group = null;
-                    group.next_group_with_vacancy = null;
-                    group.prev_group_with_vacancy = null;
+                    group.next_open_group = null;
+                    group.prev_open_group = null;
                     group.group_no = 0;
                 }
-
-                else if (!has_prev and has_next) {
-                    group.next_group.?.previous_group = null;
-                    self.head.?.group = group.next_group.?;
+                else {
+                    self.groups.remove(group);
 
                     // Remove from vacancies
+                    // Needs check here in case of new group -> one element added -> removed
                     if (group.free_list_head != .none) {
-                        self.fixVacancyList(group);
+                        self.closeGroup(group);
                     }
                     
-                    const skiplen = self.head.?.group.skipfieldStart().value;
-                    self.head.?.element = self.head.?.group.elementsStart().right(skiplen);
-                    self.head.?.skip = self.head.?.group.skipfieldStart().right(skiplen);
-
-                    self.total_capacity -= group.capacity;
-                    group.deinit(self.allocator);
-                }
-                
-                else if (has_prev and has_next) {
-                    group.next_group.?.previous_group = group.previous_group;
-                    group.previous_group.?.next_group = group.next_group;
-
-
-                    if (group.free_list_head != .none) {
-                        self.fixVacancyList(group);
-                    }
-
-                    self.total_capacity -= group.capacity;
-                    group.deinit(self.allocator);
-                }
-
-                else { // has_prev and !has_next
-                    group.previous_group.?.next_group = group.next_group;
-
-                    if (group.free_list_head != .none) {
-                        self.fixVacancyList(group);
-                    }
-
-                    group.previous_group.?.next_group = null;
-                    self.tail.group = group.previous_group.?;
-                    self.tail.element = self.tail.group.elementsEnd();
-                    self.tail.skip = self.tail.group.skipfieldStart().right(self.tail.group.capacity);
-
                     self.total_capacity -= group.capacity;
                     group.deinit(self.allocator);
                 }
@@ -558,14 +620,14 @@ pub fn Hive(comptime T: type) type {
         }
 
         pub fn dump(self: *Self) void {
-            if (self.head) |head| {
+            if (self.groups.head) |head| {
                 var q_group: ?*Group = head.group;
                 while (q_group) |group| {
                     std.debug.print("grp: {}\n", .{group.group_no});
                     var last = false;
                     std.debug.print("i:\t", .{});
                     for (0..group.capacity) |i| {
-                        if (group.skipfieldStart().right(i) == self.tail.skip) {
+                        if (group.skipfieldStart().right(i) == self.groups.tail.?.skip) {
                             std.debug.print("END\t", .{});
                             last = true;
                             break;
@@ -575,7 +637,7 @@ pub fn Hive(comptime T: type) type {
                     }
                     std.debug.print("\ns:\t", .{});
                     for (group.skipfield[0..group.capacity]) |*skip| {
-                        if (skip == self.tail.skip) {
+                        if (skip == self.groups.tail.?.skip) {
                             last = true;
                             std.debug.print("END\t", .{});
                             break;
@@ -586,7 +648,7 @@ pub fn Hive(comptime T: type) type {
                     }
                     std.debug.print("\ne:\t", .{});
                     for (group.elements[0..group.capacity], 0..) |e, i| {
-                        if (group.skipfieldStart().right(i) == self.tail.skip) {
+                        if (group.skipfieldStart().right(i) == self.groups.tail.?.skip) {
                             std.debug.print("END\t", .{});
                             last = true;
                             break;
@@ -620,11 +682,11 @@ pub fn Hive(comptime T: type) type {
                     std.debug.print("{}->", .{group.group_no});
                     q_group = group.next_group;
                 }
-                q_group = self.groups_with_vacancy;
+                q_group = self.open_groups_head;
                 std.debug.print("\nva:", .{});
                 while (q_group) |group| {
                     std.debug.print("{}->", .{group.group_no});
-                    q_group = group.next_group_with_vacancy;
+                    q_group = group.next_open_group;
                 }
                 std.debug.print("\nhead at: {}\n", .{head.group.indexOf(head.element)});
 
@@ -633,24 +695,32 @@ pub fn Hive(comptime T: type) type {
             }
         }
 
-        fn fixVacancyList(self: *Self, group: *Group) void {
-            if (group == self.groups_with_vacancy) {
-                self.groups_with_vacancy = group.next_group_with_vacancy;
-            } else {
-                group.prev_group_with_vacancy.?.next_group_with_vacancy = group.next_group_with_vacancy;
+        // pub fn resetWithCapacity(self: *Self, capacity: usize) void {
 
-                if (group.next_group_with_vacancy != null) {
-                    group.next_group_with_vacancy.?.prev_group_with_vacancy = group.prev_group_with_vacancy;
-                }
-            } 
+        // }
+
+        fn closeGroup(self: *Self, group: *Group) void {
+            if (group.prev_open_group) |prev| {
+                prev.next_open_group = group.next_open_group;
+            } else {
+                self.open_groups_head = group.next_open_group;
+            }
+
+            if (group.next_open_group) |next| {
+                next.prev_open_group = group.prev_open_group;
+            }
         }
 
-        fn createGroup(self: *Self, next_group: ?*Group, capacity: Size) !*Group {
+        // Group operations
+
+        fn createGroup(self: *Self, prev_group: ?*Group, capacity: Size) !*Group {
+            _ = prev_group;
             var group = try self.allocator.create(Group);
             errdefer self.allocator.destroy(group);
-            try group.init(capacity, next_group, self.allocator);
+            try group.init(capacity, null, self.allocator);
             return group;
         }
+
     };
 }
 
