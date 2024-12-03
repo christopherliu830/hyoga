@@ -158,7 +158,18 @@ pub fn loadShaderMetal(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, info
     const sampler_count = if (program_info.samplers) |s| s.map.count() else 0;
     const uniform_count = if (program_info.uniforms) |u| u.map.count() else 0;
     const full_path = try std.mem.concat(arena, u8, &.{path, ".metal"});
-    const file = try std.fs.cwd().openFile(full_path, .{});
+    const file = blk: { 
+        if (std.fs.cwd().openFile(full_path, .{})) |fd| { break :blk fd; } else |err| {
+            // Try separate file extensions for metal
+            if (err == error.FileNotFound) {
+                break :blk try std.fs.cwd().openFile(switch(stage) {
+                    .vertex => try std.mem.concat(arena, u8, &.{path, ".vert.metal"}),
+                    .fragment => try std.mem.concat(arena, u8, &.{path, ".frag.metal"}),
+                }, .{});
+            } else return err;
+        }
+    };
+    // const file = try std.fs.cwd().openFile(full_path, .{});
     defer file.close();
     const code = try file.readToEndAlloc(arena, 1024 * 16);
     return device.createShader(&.{
@@ -166,7 +177,7 @@ pub fn loadShaderMetal(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, info
         .code = code.ptr,
         .code_size = @intCast(code.len),
         .entrypoint = if (stage == .vertex) "vertexMain" else "fragmentMain",
-        .format = .{ .metallib = true },
+        .format = .{ .msl = true },
         .num_samplers = @intCast(sampler_count),
         .num_storage_textures = 0,
         .num_storage_buffers = 0,

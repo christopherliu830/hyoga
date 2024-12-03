@@ -13,9 +13,9 @@ shaders = [x for x in shaders_path.glob("*.slang")]
 
 # spirv
 for shader in shaders:
-    vert_spv_path = shader.with_suffix(".vert.spv")
-    frag_spv_path = shader.with_suffix(".frag.spv")
-    resources_path = shader.with_suffix(".rsl.json")
+    vert_spv_path = str(shader).split('.')[0] + (".vert.spv")
+    frag_spv_path = str(shader).split('.')[0] + (".frag.spv")
+    resources_path = str(shader).split('.')[0] + (".rsl.json")
     vert_resources = {}
     frag_resources = {}
 
@@ -30,19 +30,32 @@ for shader in shaders:
 
     print(shader)
 
-    sp.run(["slangc", shader, 
-            "-target", "metallib",
-            "-o", shader.with_suffix(".metal")])
 
-    sp.run(["slangc", shader, 
+    # metal entry
+    metal_vert_shader = str(shader).split(".")[0] + ".metal.vert.slang"
+    is_metal = str(shader).split(".")[1] == "metal"
+    if Path(metal_vert_shader).exists() and is_metal:
+        sp.run(["slangc", metal_vert_shader, 
+                "-target", "metal",
+                "-entry", "vertexMain",
+                "-o", str(shader).split(".")[0] + (".vert.metal")])
+
+        metal_frag_shader = str(shader).split(".")[0] + ".metal.frag.slang"
+        if Path(metal_frag_shader).exists() and is_metal:
+            sp.run(["slangc", metal_frag_shader, 
+                    "-target", "metal",
+                    "-entry", "fragmentMain",
+                    "-o", str(shader).split(".")[0] + (".frag.metal")])
+    else:
+        sp.run(["slangc", shader, 
+                "-profile", "spirv_1_3",
+                "-target", "spirv",
+                "-entry", "vertexMain",
+                "-o", shader.with_suffix(".vert.spv")])
+
+        sp.run(["slangc", shader, 
             "-profile", "spirv_1_3",
             "-target", "spirv",
-            "-entry", "vertexMain",
-            "-o", shader.with_suffix(".vert.spv")])
-
-    sp.run(["slangc", shader, 
-        "-profile", "spirv_1_3",
-        "-target", "spirv",
-        "-entry", "fragmentMain",
-        "-o", shader.with_suffix(".frag.spv")])
+            "-entry", "fragmentMain",
+            "-o", shader.with_suffix(".frag.spv")])
     
