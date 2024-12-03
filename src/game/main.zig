@@ -54,7 +54,6 @@ pub fn update(game: *hy.Game) void {
     imgui.end();
 }
 
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}) {};
     const allocator = gpa.allocator();

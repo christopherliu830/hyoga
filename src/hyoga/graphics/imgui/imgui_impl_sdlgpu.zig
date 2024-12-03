@@ -3,6 +3,7 @@ const sdl = @import("sdl");
 const gpu = @import("../gpu.zig");
 const imgui = @import("imgui.zig");
 const spirv = @import("spirv.zig");
+const mt = @import("../material.zig");
 const shader_code = @import("../shaders/imgui_shader.zig");
 
 const ShaderType = enum { vertex, fragment };
@@ -74,10 +75,13 @@ pub fn newFrame() !void {
 pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
     const bd = getBackendData().?;
 
-    const vert_shader = bd.device.createShader(&shader_code.vert_info).?;
+    var arena = std.heap.ArenaAllocator.init(bd.allocator);
+    defer arena.deinit();
+    const info = try mt.loadMaterialInfo("shaders/imgui", arena.allocator());
+    const vert_shader = try mt.loadShader(bd.device, .vertex, info, "shaders/imgui", arena.allocator()); 
     defer bd.device.releaseShader(vert_shader);
 
-    const frag_shader = bd.device.createShader(&shader_code.frag_info).?;
+    const frag_shader = try mt.loadShader(bd.device, .fragment, info, "shaders/imgui", arena.allocator()); 
     defer bd.device.releaseShader(frag_shader);
 
     const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
@@ -189,62 +193,8 @@ pub fn createFontsTexture() !*sdl.gpu.Texture {
         .num_levels = 1,
     }).?;
 
-    // const buf_transfer = try bd.device.createTransferBuffer(.{
-    //     .size = @intCast(out_width * out_height * 4),
-    //     .usage = .upload
-    // });
-
     try gpu.uploadToTexture(texture, w, h, pixels[0..@intCast(out_width * out_height * 4)]);
-    // defer bd.device.releaseTransferBuffer(buf_transfer);
-    // const ptr_transfer = bd.device.mapTransferBuffer(buf_transfer, false);
-    // @memcpy(ptr_transfer, pixels[0..@intCast(out_width * out_height * 4)]);
-    // bd.device.unmapTransferBuffer(buf_transfer);
-
-    // // copy to transfer buffer
-    // const cmd = try bd.device.acquireCommandBuffer();
-    // const copy_pass = try cmd.beginCopyPass();
-
-    // const buf_src = gpu.TextureTransferInfo {
-    //     .transfer_buffer = buf_transfer,
-    //     .offset = 0,
-    //     .pixels_per_row = @intCast(out_width),
-    //     .rows_per_layer = @intCast(out_height),
-    // };
-
-    // const buf_dst = gpu.TextureRegion {
-    //     .texture = texture,
-    //     .w = @intCast(out_width),
-    //     .h = @intCast(out_height),
-    //     .d = 1,
-    // };
-
-    // gpu.uploadToTexture(copy_pass, &buf_src, &buf_dst, false);
-
     return texture;
-
-    // bd.font_texture = texture;
-
-    // const sampler_info = gpu.SamplerCreateInfo {
-    //     .mag_filter = .linear,
-    //     .min_filter = .linear,
-    //     .mipmap_mode = .linear,
-    //     .address_mode_u = .repeat,
-    //     .address_mode_v = .repeat,
-    //     .address_mode_w = .repeat,
-    //     .min_lod = -1000,
-    //     .max_lod = 1000,
-    //     .max_anisotropy = 1,
-    //     .mip_lod_bias = 0,
-    //     .enable_anisotropy = false,
-    //     .enable_compare = false,
-    //     .compare_op = .never,
-    // };
-
-    // const sampler = gpu.createSampler(bd.device, &sampler_info).?;
-    // bd.sampler = sampler;
-
-    // copy_pass.end();
-    // cmd.submit();
 }
 
 pub fn createSampler() *sdl.gpu.Sampler {
@@ -265,6 +215,7 @@ pub fn createSampler() *sdl.gpu.Sampler {
         .compare_op = .never,
     }).?;
 }
+
 pub fn renderDrawData(draw_data: *imgui.ImDrawData, cmd: *sdl.gpu.CommandBuffer) !void {
     const bd = getBackendData().?;
 

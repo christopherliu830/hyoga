@@ -15,7 +15,7 @@ shaders = [x for x in shaders_path.glob("*.slang")]
 for shader in shaders:
     vert_spv_path = shader.with_suffix(".vert.spv")
     frag_spv_path = shader.with_suffix(".frag.spv")
-    resources_path = shader.with_suffix(".json")
+    resources_path = shader.with_suffix(".rsl.json")
     vert_resources = {}
     frag_resources = {}
 
@@ -29,14 +29,20 @@ for shader in shaders:
         resources_path.exists() and resources_path.stat().st_mtime <= vert_spv_path.stat().st_mtime: continue
 
     sp.run(["slangc", shader, 
-            "-profile", "glsl_450",
+            "-target", "metallib",
+            "-o", shader.with_suffix(".metal")])
+
+    sp.run(["slangc", shader, 
+            "-profile", "spirv_1_0",
             "-target", "spirv",
             "-entry", "vertexMain",
+            "-emit-spirv-via-glsl",
             "-o", shader.with_suffix(".vert.spv")])
 
     sp.run(["slangc", shader, 
-        "-profile", "glsl_450",
+        "-profile", "spirv_1_0",
         "-target", "spirv",
         "-entry", "fragmentMain",
-        "-o", shader.with_suffix(".vert.spv")])
+        "-emit-spirv-via-glsl",
+        "-o", shader.with_suffix(".frag.spv")])
     

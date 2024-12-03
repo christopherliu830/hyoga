@@ -1,0 +1,9 @@
+{
+    "pass": 2,
+    "vert": { },
+    "frag": {
+        "samplers": {
+            "diffuse": 0
+        }
+    }
+}

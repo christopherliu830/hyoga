@@ -127,8 +127,13 @@ pub var speed: f32 = 1;
 
 pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
     window_state.hdl_window = hdl_window;
-    const d = sdl.gpu.createDevice(.{ .spirv = true }, true, null).?;
+    const d = sdl.gpu.createDevice(.{ 
+        .spirv = true,
+        .metallib = true,
+    }, true, null).?;
     _ = d.claimWindow(hdl_window);
+    std.log.info("[GPU] Selected backend: {s}", .{d.getDeviceDriver()});
+    std.log.info("[GPU] Selected backend: {}", .{@as(u32, @bitCast(d.getShaderFormats()))});
 
     ctx = .{
         .allocator = gpa,
@@ -175,11 +180,7 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
         .usage = .{ .vertex = true, .index = true },
     }).?;
     
-    const quad_mat_template = mt.MaterialTemplate {
-        .pipeline = createPostProcessShader(),
-        .vert_program_def = .{},
-        .frag_program_def = .{ .textures = .{ .diffuse, null, null, null }},
-    };
+    const quad_mat_template = try mt.readFromPath(ctx.device, "shaders/post_process", ctx.arena.allocator());
 
     try uploadToBuffer(quad_buffer, 0, &std.mem.toBytes(verts));
 
@@ -187,7 +188,8 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
         .objs = try hya.Arena(RenderItem).create(ctx.allocator, 1),
         .default_material = material,
         .post_material = quad_mat_template,
-        .outline_pipeline = createOutlineShader(),
+        // .outline_pipeline = createOutlineShader(),
+        .outline_pipeline = undefined,
         .quad_buffer = quad_buffer,
         .sampler = ctx.device.createSampler(&sampler_info).?,
         .textures = textures,
@@ -220,7 +222,7 @@ pub fn shutdown() void {
     ctx.device.releaseBuffer(render_state.quad_buffer);
     ctx.device.releaseTexture(window_state.tex_depth);
     ctx.device.releaseSampler(render_state.sampler);
-    ctx.device.releaseGraphicsPipeline(render_state.outline_pipeline);
+    // ctx.device.releaseGraphicsPipeline(render_state.outline_pipeline);
     ctx.device.releaseGraphicsPipeline(render_state.post_material.pipeline);
     ctx.device.releaseGraphicsPipeline(render_state.default_material.pipeline);
     ctx.device.destroy();
@@ -586,7 +588,18 @@ pub fn createTextureFromImageMemory(name: [:0] const u8, data: []const u8) !tx.H
 pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
     const sample_count = .@"1";
 
-    const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ ctx.swapchain_target_desc };
+    const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ .{
+        .format = ctx.swapchain_target_desc.format,
+        .blend_state = .{
+            .enable_blend = true,
+            .src_color_blendfactor = .src_alpha,
+            .dst_color_blendfactor = .one_minus_src_alpha,
+            .color_blend_op = .add,
+            .src_alpha_blendfactor = .one,
+            .dst_alpha_blendfactor = .one_minus_src_alpha,
+            .alpha_blend_op = .add,
+        },
+    }};
 
     const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{
         switch(params.pass) {
@@ -606,7 +619,7 @@ pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
                 .slot = 0,
                 .input_rate = .vertex,
                 .instance_step_rate = 0,
-                .pitch = unreachable,
+                .pitch = @sizeOf(f32) * 8, // from IMGUI: vec2 pos, vec2 uv, vec4 col
             }
         }
     };
@@ -623,13 +636,13 @@ pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
                 .buffer_slot = 0,
                 .format = .float3,
                 .location = 1,
-                .offset = @offsetOf(@TypeOf(cube.vertices[0]), "normal"),
+                .offset = @offsetOf(Vertex, "normal"),
             },
             .{
                 .buffer_slot = 0,
                 .format = .float2,
                 .location = 2,
-                .offset = @offsetOf(@TypeOf(cube.vertices[0]), "uv"),
+                .offset = @offsetOf(Vertex, "uv"),
             }
         },
         .post_process => &.{
@@ -646,24 +659,53 @@ pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
                 .offset = 8,
             },
         },
-        else => unreachable,
+        .ui => &.{
+            .{
+                .buffer_slot = 0,
+                .format = .float2,
+                .location = 0,
+                .offset = 0,
+            },
+            .{
+                .buffer_slot = 0,
+                .format = .float2,
+                .location = 1,
+                .offset = 8,
+            },
+            .{
+                .buffer_slot = 0,
+                .format = .ubyte4_norm,
+                .location = 2,
+                .offset = 16,
+            },
+
+        },
     };
 
     const stencil_state = sdl.gpu.StencilOpState {
-        .compare_op = .always,
+        .compare_op = .never,
         .depth_fail_op = .keep,
         .fail_op = .keep,
         .pass_op = .replace,
     };
 
-    const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
-        .target_info = .{
-            .num_color_targets = 1,
+    const target_info: sdl.gpu.GraphicsPipelineTargetInfo = switch(params.pass) {
+        .default => .{
+            .num_color_targets = @intCast(color_target_desc.len),
             .color_target_descriptions = color_target_desc.ptr,
             .depth_stencil_format = .d32_float_s8_uint,
             .has_depth_stencil_target = true,
         },
-        .depth_stencil_state = .{
+        .ui,
+        .post_process => .{
+            .num_color_targets = @intCast(color_target_desc.len),
+            .color_target_descriptions = color_target_desc.ptr,
+            .has_depth_stencil_target = false,
+        },
+    };
+
+    const depth_stencil_state: sdl.gpu.DepthStencilState = switch (params.pass) {
+        .default => .{
             .enable_depth_test = params.enable_depth,
             .enable_depth_write = params.enable_depth,
             .enable_stencil_test = params.enable_stencil,
@@ -673,6 +715,13 @@ pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
             .front_stencil_state = stencil_state,
             .back_stencil_state = stencil_state,
         },
+        .ui => .{},
+        .post_process => .{},
+    };
+
+    const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
+        .target_info = target_info,
+        .depth_stencil_state = depth_stencil_state,
         .multisample_state = .{ .sample_count = sample_count },
         .primitive_type = .trianglelist,
         .vertex_shader = params.vert,

@@ -14,7 +14,6 @@ pub fn drawMainUI(state: *State) void {
         ui.endMainMenuBar();
     }
 
-    std.debug.print("{}\n", state.*);
     if (state.window_timing_open) {
         if (ui.begin("Timings", &state.window_timing_open, 0)) {
 

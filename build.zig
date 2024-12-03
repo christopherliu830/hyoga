@@ -63,22 +63,39 @@ pub fn build(b: *std.Build) void {
 
     // ---------- imgui -----------
 
-    lib.addCSourceFile(.{ .file = b.path("thirdparty/cimgui/cimgui.cpp") });
-    lib.addCSourceFiles(.{
-        .root = b.path("thirdparty/cimgui/imgui"),
+    const imgui = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    imgui.addIncludePath(b.path("thirdparty/cimgui/imgui"));
+
+    imgui.addCSourceFiles(.{
+        .root = b.path("thirdparty/cimgui"),
         .files = &.{
-            "imgui_demo.cpp",
-            "imgui_draw.cpp",
-            "imgui_tables.cpp",
-            "imgui_widgets.cpp",
-            "imgui.cpp",
+            "cimgui.cpp",
+            "imgui/imgui_demo.cpp",
+            "imgui/imgui_draw.cpp",
+            "imgui/imgui_tables.cpp",
+            "imgui/imgui_widgets.cpp",
+            "imgui/imgui.cpp",
+            "implot/implot_demo.cpp",
+            "implot/implot_items.cpp",
+            "implot/implot.cpp",
         },
     });
 
+    lib.root_module.addImport("imgui", imgui);
+
     // ---------- assimp -----------
-    b.installBinFile("thirdparty/assimp/assimp-vc143-mt.dll", "assimp-vc143-mt.dll");
-    lib.addLibraryPath(b.path("thirdparty/assimp"));
-    lib.linkSystemLibrary("assimp-vc143-mt");
+    if (os == .windows) {
+        b.installBinFile("thirdparty/assimp/assimp-vc143-mt.dll", "assimp-vc143-mt.dll");
+        lib.addLibraryPath(b.path("thirdparty/assimp"));
+    } else {
+        b.installLibFile("thirdparty/assimp/libassimp.a", "libassimp.a");
+        lib.addLibraryPath(b.path("thirdparty/assimp"));
+        lib.linkSystemLibrary("assimp");
+    }
 
     lib.linkLibCpp();
 
