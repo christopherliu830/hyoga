@@ -26,6 +26,7 @@ pub const Game = struct {
     },
     user_data: ?*anyopaque = null,
     fn_update: *const fn (*Game) void,
+    frame_time: u64 = 0,
 };
 
 pub fn init(allocator: std.mem.Allocator) void {
@@ -50,6 +51,7 @@ pub fn run(game: *Game) !void {
     _ = &open;
     var last_render_result: ?gpu.RenderSubmitResult = null;
     _ = &last_render_result;
+    var time = try std.time.Timer.start();
     while (!game.quit) {
         var event: sdl.events.Event = undefined;
         while (sdl.events.poll(&event)) {
@@ -67,33 +69,10 @@ pub fn run(game: *Game) !void {
 
         game.fn_update(game);
 
-        // if (ui.imgui.begin("Debug Window", &open, 0)) {
-        //     const pos = game.scene.camera.position;
-
-        //     var light_dir: [3]f32 = game.scene.light_dir.v;
-        //     _ = ui.imgui.inputFloat3("Light Direction", &light_dir, null, 0);
-        //     game.scene.light_dir.v = light_dir;
-
-        //     ui.imgui.text("Camera Position: %f %f %f", pos.x(), pos.y(), pos.z());
-        //     ui.imgui.text("Num Keys Down: %d", input.num_keys_down);
-
-        //     if (ui.imgui.collapsingHeader_TreeNodeFlags("Rendering", 0)) {
-        //         if (last_render_result) |render_result| {
-        //             ui.imgui.text("Draw Calls: %d", render_result.num_draw_calls);
-        //             ui.imgui.text("Drawn Vert Count: %d", render_result.num_drawn_verts);
-        //         }
-        //     }
-
-        //     if (ui.imgui.button("Quit", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
-        //         quit = true;
-        //     }
-        // }
-
-        // ui.imgui.end();
-
         const cmd = try gpu.begin();
         gpu.render(cmd, &game.scene) catch {};
         ui.render(cmd) catch {};
         last_render_result = gpu.submit(cmd);
+        game.frame_time = time.lap();
     }
 }

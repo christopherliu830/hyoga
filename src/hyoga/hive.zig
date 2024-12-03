@@ -6,29 +6,40 @@ const EntryType = enum {
 };
 
 
+// A hive retains the memory addresses of members as it grows 
+// while maintaining a O(n) iteration time. A hive consists of
+// a doubly-linked list of blocks that contain an array of
+// members an associated metadata. Each new allocated block is
+// double the size of the previous block. 
+// Insertions make use of a free list, both per-block as well 
+// as a second the hive maintains of 
 pub fn Hive(comptime T: type) type {
     return struct {
         pub const Cursor = struct {
             group: *Group,
             element: *Slot,
             skip: *Skip,
+
+            pub inline fn unpack(self: Cursor) *T { return &self.element.data; }
         };
         
         pub const Iterator = struct {
             cursor: Cursor,
             end: *Skip,
 
-            pub fn next(self: *Iterator) ?*T {
+            pub fn next(self: *Iterator) ?Cursor {
                 const cursor = &self.cursor;
+
+                if (cursor.skip == self.end) return null;
 
                 std.debug.assert(@intFromPtr(cursor.group.skipfieldStart()) <= @intFromPtr(cursor.skip));
                 std.debug.assert(@intFromPtr(cursor.skip) <= @intFromPtr(cursor.group.skipfield + cursor.group.capacity + 1));
                 std.debug.assert(@intFromPtr(cursor.group.elementsStart()) <= @intFromPtr(cursor.element));
                 std.debug.assert(@intFromPtr(cursor.element) <= @intFromPtr(cursor.group.elementsEnd()));
 
-                if (cursor.skip == self.end) return null;
+                const ret = cursor.*;
 
-                const ret = &cursor.element.data;
+                std.debug.assert(&cursor.element.data == &cursor.element.data);
 
                 cursor.skip = cursor.skip.right(1);
                 var skiplen = cursor.skip.value;
@@ -93,12 +104,12 @@ pub fn Hive(comptime T: type) type {
             }
         };
         
-        const FreeListNode = packed struct {
+        const FreeListNode = struct {
             next: SlotIndex,
             prev: SlotIndex,
         };
 
-        const Slot = packed union {
+        const Slot = union {
             data: T,
             free_node: FreeListNode,
 
@@ -316,7 +327,17 @@ pub fn Hive(comptime T: type) type {
         }
 
         pub fn iterator(self: *Self) Iterator {
-            std.debug.assert(self.groups.size > 0);
+            // Not initialized, return a dummy iterator
+            if (self.total_size == 0) { 
+                return Iterator {
+                    .end = @ptrCast(@alignCast(self)),
+                    .cursor = .{
+                        .group = undefined,
+                        .element = undefined,
+                        .skip = @ptrCast(@alignCast(self)),
+                    }
+                };
+            }
 
             return Iterator {
                 .end = self.groups.tail.?.skip,
@@ -602,6 +623,31 @@ pub fn Hive(comptime T: type) type {
                 }
             }
         }
+
+        pub fn find(self: *Self, element: *T) ?Cursor {
+            // Not initialized
+            if (self.groups.tail == null) return null;
+
+            // Iterate backwards since the tail groups are the biggest in size
+            var node: ?*Group = self.groups.tail.?.group;
+            while (node) |group| {
+                if (@intFromPtr(group.elementsStart()) <= @intFromPtr(element) and
+                    @intFromPtr(group.elementsEnd()) > @intFromPtr(element)) {
+
+                    const found_element: *Slot = @ptrCast(element);
+
+                    return Cursor {
+                        .element = found_element,
+                        .group = group,
+                        .skip = group.skipfieldStart().right(group.indexOf(found_element).unwrap().?)
+                    };
+
+                }
+                node = group.previous_group;
+            } 
+            return null;
+
+        } 
 
         pub fn dump(self: *Self) void {
             if (self.groups.head) |head| {
