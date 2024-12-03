@@ -386,7 +386,7 @@ pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     const screen_target: []const sdl.gpu.ColorTargetInfo = &.{
         .{
             .texture = render_state.active_target,
-            .load_op = .dont_care,
+            .load_op = .clear,
             .store_op = .store,
             .cycle = true,
         }
@@ -401,7 +401,7 @@ pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     const render_object = RenderItem {
         .buf = render_state.quad_buffer,
         .idx_count = 6,
-        .idx_offset = @sizeOf(f32) * 4 * 4,
+        .idx_offset = @sizeOf(f32) * 16,
         .material = hdl_material
     };
 
@@ -613,7 +613,7 @@ pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
                 .slot = 0,
                 .input_rate = .vertex,
                 .instance_step_rate = 0,
-                .pitch = @sizeOf(f32) * 4,
+                .pitch = @sizeOf(f32) * 4, // vec2 pos, vec2 uv
             },
             .ui => .{
                 .slot = 0,
@@ -683,7 +683,7 @@ pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
     };
 
     const stencil_state = sdl.gpu.StencilOpState {
-        .compare_op = .never,
+        .compare_op = .always,
         .depth_fail_op = .keep,
         .fail_op = .keep,
         .pass_op = .replace,
@@ -855,136 +855,136 @@ pub fn addMaterial(material: mt.Material) !mt.Handle {
 }
 
 pub fn createOutlineShader() *sdl.gpu.GraphicsPipeline {
-    const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ ctx.swapchain_target_desc };
+    // const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ ctx.swapchain_target_desc };
 
-    const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
-        .slot = 0,
-        .input_rate = .vertex,
-        .instance_step_rate = 0,
-        .pitch = @sizeOf(Vertex),
-    }};
+    // const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
+    //     .slot = 0,
+    //     .input_rate = .vertex,
+    //     .instance_step_rate = 0,
+    //     .pitch = @sizeOf(Vertex),
+    // }};
 
-    const vertex_attributes: []const sdl.gpu.VertexAttribute = &.{
-        .{
-            .buffer_slot = 0,
-            .format = .float3,
-            .location = 0,
-            .offset = 0,
-        },
-        .{
-            .buffer_slot = 0,
-            .format = .float3,
-            .location = 1,
-            .offset = @offsetOf(Vertex, "normal"),
-        },
-        .{
-            .buffer_slot = 0,
-            .format = .float2,
-            .location = 2,
-            .offset = @offsetOf(Vertex, "uv"),
-        }
-    };
+    // const vertex_attributes: []const sdl.gpu.VertexAttribute = &.{
+    //     .{
+    //         .buffer_slot = 0,
+    //         .format = .float3,
+    //         .location = 0,
+    //         .offset = 0,
+    //     },
+    //     .{
+    //         .buffer_slot = 0,
+    //         .format = .float3,
+    //         .location = 1,
+    //         .offset = @offsetOf(Vertex, "normal"),
+    //     },
+    //     .{
+    //         .buffer_slot = 0,
+    //         .format = .float2,
+    //         .location = 2,
+    //         .offset = @offsetOf(Vertex, "uv"),
+    //     }
+    // };
 
-    const stencil_state = sdl.gpu.StencilOpState {
-        .compare_op = .not_equal,
-        .depth_fail_op = .keep,
-        .fail_op = .keep,
-        .pass_op = .keep,
-    };
+    // const stencil_state = sdl.gpu.StencilOpState {
+    //     .compare_op = .not_equal,
+    //     .depth_fail_op = .keep,
+    //     .fail_op = .keep,
+    //     .pass_op = .keep,
+    // };
 
-    const vert_shader = ctx.device.createShader(&@import("shaders/single_color.zig").vert_info).?;
-    defer ctx.device.releaseShader(vert_shader);
-    const frag_shader = ctx.device.createShader(&@import("shaders/single_color.zig").frag_info).?;
-    defer ctx.device.releaseShader(frag_shader);
+    // const vert_shader = ctx.device.createShader(&@import("shaders/single_color.zig").vert_info).?;
+    // defer ctx.device.releaseShader(vert_shader);
+    // const frag_shader = ctx.device.createShader(&@import("shaders/single_color.zig").frag_info).?;
+    // defer ctx.device.releaseShader(frag_shader);
 
-    const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
-        .target_info = .{
-            .num_color_targets = @intCast(color_target_desc.len),
-            .color_target_descriptions = color_target_desc.ptr,
-            .depth_stencil_format = .d32_float_s8_uint,
-            .has_depth_stencil_target = true,
-        },
-        .depth_stencil_state = .{
-            .enable_depth_test = false,
-            .enable_stencil_test = true,
-            .compare_mask = 0xff,
-            .write_mask = 0,
-            .front_stencil_state = stencil_state,
-            .back_stencil_state = stencil_state,
-        },
-        .multisample_state = .{ .sample_count = .@"1" },
-        .primitive_type = .trianglelist,
-        .vertex_shader = vert_shader,
-        .fragment_shader = frag_shader,
-        .vertex_input_state = .{
-            .num_vertex_buffers = @intCast(vertex_buffer_desc.len),
-            .vertex_buffer_descriptions = vertex_buffer_desc.ptr,
-            .num_vertex_attributes = @intCast(vertex_attributes.len),
-            .vertex_attributes = vertex_attributes.ptr,
-        },
-        .rasterizer_state = .{
-            .cull_mode = .front,
-        },
-        .props = 0,
-    };
+    // const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
+    //     .target_info = .{
+    //         .num_color_targets = @intCast(color_target_desc.len),
+    //         .color_target_descriptions = color_target_desc.ptr,
+    //         .depth_stencil_format = .d32_float_s8_uint,
+    //         .has_depth_stencil_target = true,
+    //     },
+    //     .depth_stencil_state = .{
+    //         .enable_depth_test = false,
+    //         .enable_stencil_test = true,
+    //         .compare_mask = 0xff,
+    //         .write_mask = 0,
+    //         .front_stencil_state = stencil_state,
+    //         .back_stencil_state = stencil_state,
+    //     },
+    //     .multisample_state = .{ .sample_count = .@"1" },
+    //     .primitive_type = .trianglelist,
+    //     .vertex_shader = vert_shader,
+    //     .fragment_shader = frag_shader,
+    //     .vertex_input_state = .{
+    //         .num_vertex_buffers = @intCast(vertex_buffer_desc.len),
+    //         .vertex_buffer_descriptions = vertex_buffer_desc.ptr,
+    //         .num_vertex_attributes = @intCast(vertex_attributes.len),
+    //         .vertex_attributes = vertex_attributes.ptr,
+    //     },
+    //     .rasterizer_state = .{
+    //         .cull_mode = .front,
+    //     },
+    //     .props = 0,
+    // };
 
-    return ctx.device.createGraphicsPipeline(&pipeline_desc).?;
+    // return ctx.device.createGraphicsPipeline(&pipeline_desc).?;
 }
 
 pub fn createPostProcessShader() *sdl.gpu.GraphicsPipeline {
-    const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ ctx.swapchain_target_desc };
+    // const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ ctx.swapchain_target_desc };
 
-    // vec2 pos
-    // vec2 uv
+    // // vec2 pos
+    // // vec2 uv
 
-    const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
-        .slot = 0,
-        .input_rate = .vertex,
-        .instance_step_rate = 0,
-        .pitch = @sizeOf(f32) * 4,
-    }};
+    // const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
+    //     .slot = 0,
+    //     .input_rate = .vertex,
+    //     .instance_step_rate = 0,
+    //     .pitch = @sizeOf(f32) * 4,
+    // }};
 
-    const vertex_attributes: []const sdl.gpu.VertexAttribute = &.{
-        .{
-            .buffer_slot = 0,
-            .format = .float2,
-            .location = 0,
-            .offset = 0,
-        },
-        .{
-            .buffer_slot = 0,
-            .format = .float2,
-            .location = 1,
-            .offset = 8,
-        },
-    };
+    // const vertex_attributes: []const sdl.gpu.VertexAttribute = &.{
+    //     .{
+    //         .buffer_slot = 0,
+    //         .format = .float2,
+    //         .location = 0,
+    //         .offset = 0,
+    //     },
+    //     .{
+    //         .buffer_slot = 0,
+    //         .format = .float2,
+    //         .location = 1,
+    //         .offset = 8,
+    //     },
+    // };
 
-    const vert_shader = ctx.device.createShader(&@import("shaders/post_process.zig").vert_info).?;
-    defer ctx.device.releaseShader(vert_shader);
-    const frag_shader = ctx.device.createShader(&@import("shaders/post_process.zig").frag_info).?;
-    defer ctx.device.releaseShader(frag_shader);
+    // const vert_shader = ctx.device.createShader(&@import("shaders/post_process.zig").vert_info).?;
+    // defer ctx.device.releaseShader(vert_shader);
+    // const frag_shader = ctx.device.createShader(&@import("shaders/post_process.zig").frag_info).?;
+    // defer ctx.device.releaseShader(frag_shader);
 
-    const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
-        .target_info = .{
-            .num_color_targets = @intCast(color_target_desc.len),
-            .color_target_descriptions = color_target_desc.ptr,
-            .has_depth_stencil_target = false,
-        },
-        .multisample_state = .{ .sample_count = .@"1" },
-        .primitive_type = .trianglelist,
-        .vertex_shader = vert_shader,
-        .fragment_shader = frag_shader,
-        .vertex_input_state = .{
-            .num_vertex_buffers = @intCast(vertex_buffer_desc.len),
-            .vertex_buffer_descriptions = vertex_buffer_desc.ptr,
-            .num_vertex_attributes = @intCast(vertex_attributes.len),
-            .vertex_attributes = vertex_attributes.ptr,
-        },
-        .rasterizer_state = .{
-            .cull_mode = .back,
-        },
-        .props = 0,
-    };
+    // const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
+    //     .target_info = .{
+    //         .num_color_targets = @intCast(color_target_desc.len),
+    //         .color_target_descriptions = color_target_desc.ptr,
+    //         .has_depth_stencil_target = false,
+    //     },
+    //     .multisample_state = .{ .sample_count = .@"1" },
+    //     .primitive_type = .trianglelist,
+    //     .vertex_shader = vert_shader,
+    //     .fragment_shader = frag_shader,
+    //     .vertex_input_state = .{
+    //         .num_vertex_buffers = @intCast(vertex_buffer_desc.len),
+    //         .vertex_buffer_descriptions = vertex_buffer_desc.ptr,
+    //         .num_vertex_attributes = @intCast(vertex_attributes.len),
+    //         .vertex_attributes = vertex_attributes.ptr,
+    //     },
+    //     .rasterizer_state = .{
+    //         .cull_mode = .back,
+    //     },
+    //     .props = 0,
+    // };
 
-    return ctx.device.createGraphicsPipeline(&pipeline_desc).?;
+    // return ctx.device.createGraphicsPipeline(&pipeline_desc).?;
 }

@@ -61,6 +61,7 @@ pub const MaterialInfo = struct {
 };
 
 pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, arena: std.mem.Allocator) !MaterialTemplate {
+    std.debug.print("Path: {s}\n", .{path});
     const info = try loadMaterialInfo(path, arena);
 
     const vert_shader = try loadShader(device, .vertex, info, path, arena);

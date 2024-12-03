@@ -4,4 +4,7 @@ zig-out
 .idea
 .vs
 assets
+
+# Built shader files
 shaders/*.spv
+shaders/*.metal

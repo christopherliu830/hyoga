@@ -41,19 +41,16 @@ VOut vertexMain(Vertex input)
 }
 
 [vk::binding(0, 2)]
-Texture2D tex_diffuse;
+Sampler2D tex_diffuse;
 [vk::binding(1, 2)]
-Texture2D tex_specular;
+Sampler2D tex_specular;
 
 [vk::binding(0, 3)]
 ConstantBuffer<Lighting> lighting;
 
-
-SamplerState sampler_state;
-
 [shader("fragment")]
 float4 fragmentMain(VOut input): SV_Target {
-    vec4 ambient = vec4(0.1, 0.1, 0.1, 0.1);
+    vec4 ambient = vec4(0.1, 0.1, 0.1, 1);
     vec3 ld = -normalize(lighting.light_dir);
     vec3 n = normalize(input.normal);
     float diffuse = max(0, dot(n, ld));
@@ -62,6 +59,6 @@ float4 fragmentMain(VOut input): SV_Target {
     vec3 reflected = reflect(-ld, input.normal);
     float spec = pow(max(dot(eye_direction, reflected), 0), 32) * 0.5;
 
-    return tex_diffuse.Sample(sampler_state, input.uv) * (ambient + diffuse) * vec4(input.color, 1) +
-        tex_specular.Sample(sampler_state, input.uv).x * spec;
+    return tex_diffuse.Sample(input.uv) * (ambient + diffuse) * vec4(input.color, 1) +
+        tex_specular.Sample(input.uv).x * spec;
 }

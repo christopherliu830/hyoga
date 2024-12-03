@@ -89,8 +89,10 @@ pub fn build(b: *std.Build) void {
 
     // ---------- assimp -----------
     if (os == .windows) {
+
         b.installBinFile("thirdparty/assimp/assimp-vc143-mt.dll", "assimp-vc143-mt.dll");
         lib.addLibraryPath(b.path("thirdparty/assimp"));
+        lib.linkSystemLibrary("assimp-vc143-mt");
     } else {
         b.installLibFile("thirdparty/assimp/libassimp.a", "libassimp.a");
         lib.addLibraryPath(b.path("thirdparty/assimp"));

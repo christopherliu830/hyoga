@@ -28,11 +28,9 @@ VOut vertexMain(Vertex in)
 }
 
 [vk::binding(0, 2)]
-Texture2D tex_diffuse;
-
-SamplerState sampler_state;
+Sampler2D tex_diffuse;
 
 [shader("fragment")]
 float4 fragmentMain(VOut input): SV_Target {
-    return input.color  * tex_diffuse.Sample(sampler_state, input.uv);
+    return input.color  * tex_diffuse.Sample(input.uv);
 }

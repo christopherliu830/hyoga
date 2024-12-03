@@ -32,7 +32,7 @@ pub const Game = struct {
 pub fn init(allocator: std.mem.Allocator) void {
     input.init(allocator);
     window.init() catch std.debug.panic("Init window failed", .{});
-    gpu.init(window.instance, allocator) catch std.debug.panic("Init GPU failed", .{});
+    gpu.init(window.instance, allocator) catch |e| std.debug.panic("[GPU] Init failure: {}", .{e});
     ui.init(.{
         .device = gpu.device(),
         .window = window.instance,
@@ -70,8 +70,8 @@ pub fn run(game: *Game) !void {
         game.fn_update(game);
 
         const cmd = try gpu.begin();
-        gpu.render(cmd, &game.scene) catch {};
-        ui.render(cmd) catch {};
+        try gpu.render(cmd, &game.scene);
+        try ui.render(cmd);
         last_render_result = gpu.submit(cmd);
         game.frame_time = time.lap();
     }

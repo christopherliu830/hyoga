@@ -4,7 +4,7 @@ const gpu = @import("../gpu.zig");
 const imgui = @import("imgui.zig");
 const spirv = @import("spirv.zig");
 const mt = @import("../material.zig");
-const shader_code = @import("../shaders/imgui_shader.zig");
+// const shader_code = @import("../shaders/imgui_shader.zig");
 
 const ShaderType = enum { vertex, fragment };
 
@@ -410,11 +410,17 @@ pub fn setupRenderState(cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.Rende
         const r = draw_data.DisplayPos.x + draw_data.DisplaySize.x;
         const t = draw_data.DisplayPos.y;
         const b = draw_data.DisplayPos.y + draw_data.DisplaySize.y;
+        // const proj = [4][4]f32 {
+        //     .{     2/(r-l),           0,  0,  0 },
+        //     .{           0,     2/(t-b),  0,  0 },
+        //     .{           0,           0, -1,  0 },
+        //     .{ (r+l)/(l-r), (t+b)/(b-t),  0,  1 },
+        // };
         const proj = [4][4]f32 {
-            .{     2/(r-l),           0,  0,  0 },
-            .{           0,     2/(t-b),  0,  0 },
-            .{           0,           0, -1,  0 },
-            .{ (r+l)/(l-r), (t+b)/(b-t),  0,  1 },
+            .{     2/(r-l),           0,  0,  (r+l)/(l-r) },
+            .{           0,     2/(t-b),  0,  (t+b)/(b-t) },
+            .{           0,           0, -1,            0 },
+            .{           0,           0,  0,            1 },
         };
 
         const viewport= sdl.gpu.Viewport {
@@ -431,27 +437,27 @@ pub fn setupRenderState(cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.Rende
     }
 }
 
-fn loadShader(device: *sdl.gpu.Device, shader_type: ShaderType) !*sdl.gpu.Shader {
-    const format: sdl.gpu.ShaderFormat = sdl.gpu.getShaderFormats(device);
+// fn loadShader(device: *sdl.gpu.Device, shader_type: ShaderType) !*sdl.gpu.Shader {
+//     const format: sdl.gpu.ShaderFormat = sdl.gpu.getShaderFormats(device);
 
-    var create_info: sdl.gpu.ShaderCreateInfo = undefined;
-    if (format.dxbc) {
-        unreachable;
-    } else if (format.dxil) {
-        unreachable;
-    } else if (format.metallib) {
-        unreachable; //TODO: - add metal support
-    } else {
-        if (shader_type == .fragment) {
-            create_info = shader_code.getFragmentCreateInfo();
-        }
-        else {
-            create_info = shader_code.getVertexCreateInfo();
-        }
-    }
+//     var create_info: sdl.gpu.ShaderCreateInfo = undefined;
+//     if (format.dxbc) {
+//         unreachable;
+//     } else if (format.dxil) {
+//         unreachable;
+//     } else if (format.metallib) {
+//         unreachable; //TODO: - add metal support
+//     } else {
+//         if (shader_type == .fragment) {
+//             create_info = shader_code.getFragmentCreateInfo();
+//         }
+//         else {
+//             create_info = shader_code.getVertexCreateInfo();
+//         }
+//     }
 
-    return sdl.gpu.createShader(device, &create_info) orelse {
-        std.log.debug("Failed to load shader: {s}", .{sdl.getError()});
-        return error.LoadShaderFailed;
-    };
-}
+//     return sdl.gpu.createShader(device, &create_info) orelse {
+//         std.log.debug("Failed to load shader: {s}", .{sdl.getError()});
+//         return error.LoadShaderFailed;
+//     };
+// }

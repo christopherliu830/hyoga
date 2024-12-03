@@ -24,25 +24,25 @@ for shader in shaders:
         vert_resources = resources["vert"]
         frag_resources = resources["frag"]
 
-    if vert_spv_path.exists() and \
-        shader.stat().st_mtime <= vert_spv_path.stat().st_mtime and \
-        resources_path.exists() and resources_path.stat().st_mtime <= vert_spv_path.stat().st_mtime: continue
+    # if vert_spv_path.exists() and \
+    #     shader.stat().st_mtime <= vert_spv_path.stat().st_mtime and \
+    #     resources_path.exists() and resources_path.stat().st_mtime <= vert_spv_path.stat().st_mtime: continue
+
+    print(shader)
 
     sp.run(["slangc", shader, 
             "-target", "metallib",
             "-o", shader.with_suffix(".metal")])
 
     sp.run(["slangc", shader, 
-            "-profile", "spirv_1_0",
+            "-profile", "spirv_1_3",
             "-target", "spirv",
             "-entry", "vertexMain",
-            "-emit-spirv-via-glsl",
             "-o", shader.with_suffix(".vert.spv")])
 
     sp.run(["slangc", shader, 
-        "-profile", "spirv_1_0",
+        "-profile", "spirv_1_3",
         "-target", "spirv",
         "-entry", "fragmentMain",
-        "-emit-spirv-via-glsl",
         "-o", shader.with_suffix(".frag.spv")])
     
