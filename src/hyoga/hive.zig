@@ -20,17 +20,11 @@ pub fn Hive(comptime T: type) type {
 
             pub fn next(self: *Iterator) ?*T {
                 const cursor = &self.cursor;
+
                 std.debug.assert(@intFromPtr(cursor.group.skipfieldStart()) <= @intFromPtr(cursor.skip));
                 std.debug.assert(@intFromPtr(cursor.skip) <= @intFromPtr(cursor.group.skipfield + cursor.group.capacity + 1));
                 std.debug.assert(@intFromPtr(cursor.group.elementsStart()) <= @intFromPtr(cursor.element));
                 std.debug.assert(@intFromPtr(cursor.element) <= @intFromPtr(cursor.group.elementsEnd()));
-
-                if (cursor.skip == self.end) return null;
-
-                if (cursor.skip.value != 0) {
-                    cursor.element = cursor.element.right(cursor.skip.value);
-                    cursor.skip = cursor.skip.right(cursor.skip.value);
-                }
 
                 if (cursor.skip == self.end) return null;
 
@@ -54,21 +48,6 @@ pub fn Hive(comptime T: type) type {
                 cursor.skip = cursor.skip.right(skiplen);
 
                 return ret;
-            }
-
-            pub fn skip(self: *Iterator) void {
-                const cursor = &self.cursor;
-                const group_end: [*]align(1)Slot = @ptrCast(cursor.group.skipfield);
-                const end = @as([*]Skip, @ptrCast(self.end));
-
-                // TODO: implement skipfields
-                // loop until the next non-null element
-                while (cursor.element != group_end) {
-                    if (cursor.skip[0] == 0) break;
-                    if (cursor.skip == end) break;
-                    cursor.element = cursor.element.right(1);
-                    cursor.skip = cursor.skip.right(1);
-                }
             }
         };
 
@@ -114,12 +93,12 @@ pub fn Hive(comptime T: type) type {
             }
         };
         
-        const FreeListNode = struct {
+        const FreeListNode = packed struct {
             next: SlotIndex,
             prev: SlotIndex,
         };
 
-        const Slot = union {
+        const Slot = packed union {
             data: T,
             free_node: FreeListNode,
 
@@ -166,9 +145,9 @@ pub fn Hive(comptime T: type) type {
                 return @enumFromInt((@intFromPtr(slot) - @intFromPtr(self.elements)) / @sizeOf(Slot));
             }
 
-            inline fn getFree(self: *Group, node: SlotIndex) ?Size {
+            inline fn getFree(self: *Group, node: SlotIndex) ?*FreeListNode {
                 if (node.unwrap()) |index| {
-                    return self.elements[index].free_node;
+                    return &self.elements[index].free_node;
                 } else return null;
             }
 
@@ -255,6 +234,7 @@ pub fn Hive(comptime T: type) type {
                     };
                     self.total_capacity += node.capacity;
                     self.size += 1;
+                    node.group_no = tail.group.group_no + 1;
                 } else self.prepend(node);
             }
 
@@ -272,11 +252,12 @@ pub fn Hive(comptime T: type) type {
                 else {
                     std.debug.assert(self.head.?.group == node);
 
-                    const skiplen = node.skipfieldStart().value;
+                    const next = node.next_group.?;
+                    const skiplen = next.skipfieldStart().value;
                     self.head = .{
-                        .group = node,
-                        .element = node.elementsStart().right(skiplen),
-                        .skip = node.skipfieldStart().right(skiplen),
+                        .group = next,
+                        .element = next.elementsStart().right(skiplen),
+                        .skip = next.skipfieldStart().right(skiplen),
                     };
 
                     self.total_capacity -= node.capacity;
@@ -285,6 +266,7 @@ pub fn Hive(comptime T: type) type {
                 if (node.next_group) |next| {
                     next.previous_group = node.previous_group;
                 } 
+
                 // Tail node
                 else {
                     std.debug.assert(self.tail.?.group == node);
@@ -299,6 +281,8 @@ pub fn Hive(comptime T: type) type {
                 }
 
                 self.total_capacity -= node.capacity; 
+                std.debug.assert(self.head.?.group != node);
+                std.debug.assert(self.tail.?.group != node);
             }
         };
         
@@ -307,7 +291,7 @@ pub fn Hive(comptime T: type) type {
         total_capacity: usize = 0,
         total_size: usize = 0,
         block_capacity: Size = 8,
-        max_block_capacity: Size = @min(std.math.maxInt(Size), 8192), 
+        max_block_capacity: Size = @min(std.math.maxInt(Size) - 1, 8192), 
         allocator: std.mem.Allocator,
 
         pub const CreateOptions = struct {
@@ -364,7 +348,7 @@ pub fn Hive(comptime T: type) type {
                 group.size += 1;
                 self.total_size += 1;
 
-                const idx = group.getFree().?; // Must have a free slot
+                const idx = group.free_list_head.unwrap().?;
                 const slot = &group.elements[idx];
                 const skip = &group.skipfield[idx];
 
@@ -436,10 +420,9 @@ pub fn Hive(comptime T: type) type {
 
             // ELSE: End of group, allocate new.
             else {
-                self.block_capacity *= 2;
-                const capacity = @min(self.block_capacity, self.max_block_capacity);
+                self.block_capacity = @min(@as(usize, @intCast(self.block_capacity)) * 2, self.max_block_capacity);
 
-                const group = try self.createGroup(self.groups.tail.?.group, capacity);
+                const group = try self.createGroup(self.groups.tail.?.group, self.block_capacity);
                 self.groups.append(group);
 
                 var tail = &self.groups.tail.?;
@@ -460,6 +443,7 @@ pub fn Hive(comptime T: type) type {
         pub fn remove(self: *Self, cursor: Cursor) void {
             std.debug.assert(self.total_size != 0);
             std.debug.assert(cursor.element != self.groups.tail.?.element);
+            std.debug.assert(cursor.skip.value == 0);
 
             self.total_size -= 1;
             const group = cursor.group;

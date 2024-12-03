@@ -1,68 +1,68 @@
 const std = @import("std");
 const hy = @import("hyoga");
 
+pub const BenchmarkOptions = struct {
+    inserts: u32 = 1024 * 4,
+    deletes: u32 = 1024,
+    initial_block_capacity: u32 = 8,
+    seed: ?u64 = 0,
+    loops: u32 = 100,
+    edits_per_loop: u32 = 32, 
+    pregenerate: bool = true,
+};
 
-pub const Benchmark = struct {
-    seed: *u64,
-    iters: u32 = 1024,
-    hive: ?hy.Hive(u128) = null,
+pub fn HiveBenchmark (comptime T: type, options: BenchmarkOptions) type {
+    return struct {
+        hive: ?*hy.Hive(T) = null,
+        loops: usize = 0,
 
-    pub fn run(self: Benchmark, allocator: std.mem.Allocator) void {
-        if (self.hive) |_| {
-            self.iter(allocator);
-        } else {
-            doBenchHive(self, allocator) catch std.debug.panic("Error running benchmark!", .{});
+        pub fn run(self: @This(), allocator: std.mem.Allocator) void {
+            self.runWithError(allocator) catch {
+                std.log.err("Error running hive benchmark", .{});
+            };
         }
-    }
 
-    pub fn generate(self: Benchmark, allocator: std.mem.Allocator) !Benchmark {
-        const count = 1024 * 8;
-        var hive = try hy.Hive(u128).create(allocator, .{});
-        const values = try allocator.alloc(hy.Hive(u128).Cursor, count);
-        var num_values: usize = 0;
+        pub fn create(allocator: std.mem.Allocator) !@This() {
+            var self = @This() {
+                .loops = options.loops
+            };
+            self.hive = try allocator.create(hy.Hive(T));
 
-        var prng = std.Random.DefaultPrng.init(self.seed.*);
-        const rand = prng.random();
-        self.seed.* += 1;
+            var hive = self.hive.?;
 
-        for(0..self.iters) |n| {
-            const branch = rand.intRangeLessThan(usize, 0, 100);
-            if (num_values == 0 or (branch < 90 and num_values < count)) { // Add
-                // std.debug.print("add {}\n", .{n});
-                values[num_values] = try hive.insert(n * 1) ;
-                num_values += 1;
-            } else { // Remove
-                const index = rand.intRangeLessThan(usize, 0, num_values);
-                // std.debug.print("rem {}\n", .{values[index].element.data});
-                hive.remove(values[index]);
-                num_values -= 1;
-                values[index] = values[num_values];
+            hive.* = try hy.Hive(T).create(allocator, .{ 
+                .initial_block_capacity = options.initial_block_capacity,
+            });
+
+            var prng = std.Random.DefaultPrng.init(options.seed orelse 0);
+            var rand = prng.random();
+
+            const values = try allocator.alloc(hy.Hive(T).Cursor, options.inserts); 
+
+            // Seed with values
+            for (0..options.inserts)  |i| {
+                const rem = @min(std.math.maxInt(T), std.math.maxInt(usize));
+                values[i] = try hive.insert(@intCast(i % rem));
             }
 
-            // hive.dump();
+            // Deletes
+            for (0..options.deletes) |i| {
+                const max = options.inserts - i;
+                const random_idx= rand.intRangeLessThan(usize, 0, max);
+                hive.remove(values[random_idx]);
+                values[random_idx] = values[max - 1];
+            }
 
-            var it = hive.iterator();
-            while (it.next()) |_| {}
+            return self;
         }
 
-        return Benchmark {
-            .seed = self.seed,
-            .iters = self.iters,
-            .hive = hive,
-        };
-    }
-
-    pub fn doBenchHive(self: Benchmark, allocator: std.mem.Allocator) !void {
-        _ = try self.generate(allocator);
-    }
-
-    pub fn iter(self: Benchmark, allocator: std.mem.Allocator) void {
-        _ = allocator;
-        var hive = self.hive.?;
-        for(0..self.iters) |_| {
-            var it = hive.iterator();
-            while (it.next()) |_| {}
+        pub fn runWithError(self: @This(), allocator: std.mem.Allocator) !void {
+            _ = allocator;
+            var hive = self.hive.?;
+            for(0..self.loops) |_| {
+                var it = hive.iterator();
+                while (it.next()) |_| {}
+            }
         }
-    } 
-
-};
+    };
+}

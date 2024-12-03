@@ -1,6 +1,7 @@
-benchmark              runs     total time     time/run (avg ± σ)     (min ... max)                p75        p99        p995      
+benchmark              runs     total time     time/run (avg ± σ)     (min ... max)                p75        p99        p995
 -----------------------------------------------------------------------------------------------------------------------------
-Hive - Random          [36m1024     5.191s         [32m5.069ms ± 361.782us    [34m(4.533ms ... 11.28ms)        [36m5.155ms    5.863ms    6.206ms   [0m
-Hive - One loop time   [36m65535    659.993ms      [32m10.07us ± 2.856us      [34m(8.6us ... 209.8us)          [36m10us       14.2us     18.3us    [0m
-
-
+Hive - Normal          1023     1.239s         1.211ms ± 53.091us     (1.139ms ... 1.838ms)        1.216ms    1.417ms    1.443ms   
+Hive - u8 Size         1023     1.108s         1.083ms ± 58.483us     (1.019ms ... 1.798ms)        1.081ms    1.328ms    1.451ms   
+Hive - u1024 Size      1023     1.233s         1.206ms ± 49.628us     (1.14ms ... 1.848ms)         1.214ms    1.393ms    1.474ms   
+Hive - block size 8    1023     1.233s         1.205ms ± 40.019us     (1.142ms ... 1.695ms)        1.212ms    1.368ms    1.414ms   
+Hive - sparse array    65535    78.235ms       1.193us ± 943ns        (1.1us ... 93us)             1.2us      1.2us      1.6us
