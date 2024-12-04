@@ -109,6 +109,7 @@ pub const ImportSettings = struct {
 };
 
 pub fn load(path: [:0]const u8, import: ImportSettings, mats: []mt.Handle, allocator: std.mem.Allocator) !Model {
+    std.log.info("[GPU] Loading Model {s}", .{path});
     var scene = ai.importFile(path, import.post_process);
     defer scene.release();
 

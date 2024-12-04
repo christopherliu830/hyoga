@@ -61,7 +61,6 @@ pub const MaterialInfo = struct {
 };
 
 pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, arena: std.mem.Allocator) !MaterialTemplate {
-    std.debug.print("Path: {s}\n", .{path});
     const info = try loadMaterialInfo(path, arena);
 
     const vert_shader = try loadShader(device, .vertex, info, path, arena);
@@ -149,7 +148,6 @@ pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, info: Mat
 }
 
 pub fn loadShaderMetal(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, info: MaterialInfo, path: []const u8, arena: std.mem.Allocator) !*sdl.gpu.Shader {
-    std.debug.print("read mh\n", .{});
     const program_info = switch(stage) {
         .vertex => info.vert,
         .fragment => info.frag,
@@ -187,7 +185,6 @@ pub fn loadShaderMetal(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, info
 }
 
 pub fn loadShaderSpirv(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, info: MaterialInfo, path: []const u8, arena: std.mem.Allocator) !*sdl.gpu.Shader {
-    std.debug.print("read spirv\n", .{});
     const program_info = switch(stage) {
         .vertex => info.vert,
         .fragment => info.frag,

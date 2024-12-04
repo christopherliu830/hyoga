@@ -27,7 +27,7 @@ pub fn build(b: *std.Build) void {
     const imgui = b.dependency("imgui", opt);
     const sdl = b.dependency("sdl", opt);
     const assimp = b.dependency("assimp", opt);
-    const stb_image = b.dependency("stb_image", opt);
+    const stb_image = b.dependency("stb_image", .{ .target = target });
 
     // Modules
 
@@ -37,6 +37,8 @@ pub fn build(b: *std.Build) void {
     hyoga_lib.root_module.addImport("imgui", imgui.module("imgui"));
     hyoga_lib.root_module.addImport("assimp", assimp.module("assimp"));
     hyoga_lib.root_module.addImport("stb_image", stb_image.module("stb_image"));
+
+    hyoga_lib.linkLibCpp();
 
     b.installArtifact(hyoga_lib);
 
@@ -70,8 +72,6 @@ pub fn build(b: *std.Build) void {
     benchmark.root_module.addImport("hyoga", &hyoga_lib.root_module);
     benchmark.root_module.addImport("zbench", zbench.module("zbench"));
     b.installArtifact(benchmark);
-
-
 
     // POST BUILD 
     const shader_compile= b.addSystemCommand(&.{"python"});

@@ -32,7 +32,6 @@ pub fn update(game: *hy.Game) void {
             const hdl = ctx.objects.insert(.{ .transform = mat, .render = undefined }) catch unreachable;
             const obj = hdl.unpack();
             obj.render = hy.gpu.addModel(ctx.backpack, &obj.transform) catch std.debug.panic("Out of Memory", .{});
-            std.debug.print("Added {}\n", .{obj.render});
         }
 
         var it = ctx.objects.iterator();

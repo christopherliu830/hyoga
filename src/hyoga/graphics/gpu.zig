@@ -103,8 +103,6 @@ const WindowState = struct {
     prev_drawable_h: u32 = 0,
 };
 
-
-
 const RenderTarget = struct {
     target: []sdl.gpu.ColorTargetInfo,
     scene: *Scene,
@@ -131,7 +129,6 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
     }, true, null).?;
     _ = d.claimWindow(hdl_window);
     std.log.info("[GPU] Selected backend: {s}", .{d.getDeviceDriver()});
-    std.log.info("[GPU] Selected backend: {}", .{@as(u32, @bitCast(d.getShaderFormats()))});
 
     ctx = .{
         .allocator = gpa,
@@ -141,6 +138,8 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
             .format = d.getSwapchainTextureFormat(hdl_window)
         }
     };
+
+    stb.init(ctx.allocator);
 
     const material = mt.readFromPath(ctx.device, "shaders/standard", ctx.arena.allocator()) catch unreachable;
 
@@ -538,8 +537,8 @@ pub fn createTextureFromMemory(name: [:0] const u8, data: tx.TextureMemory) !tx.
     const path_copy = try ctx.allocator.dupe(u8, name);
     const handle = try render_state.textures.insert(tex);
     try render_state.texture_cache.put(path_copy, handle);
-    return handle;
 
+    return handle;
 }
 
 pub fn createTextureFromFile(path: [:0]const u8) !tx.Handle {
@@ -750,6 +749,7 @@ pub fn importModel(path: [:0]const u8, settings: mdl.ImportSettings)  !mdl.Handl
 
     for (import.materials[1..import.num_materials], 1..) |ai_material, mat_index| {
         var texture_set = tx.TextureSet.init(.{});
+
         inline for (std.meta.fields(ai.TextureType)) |field| {
             const tex_type: ai.TextureType = @enumFromInt(field.value);
             const count = ai_material.getTextureCount(tex_type);
@@ -780,6 +780,7 @@ pub fn importModel(path: [:0]const u8, settings: mdl.ImportSettings)  !mdl.Handl
                     }
                 } else { // Texture is a relative path
                     const tex_path: [:0]u8 = try std.fs.path.joinZ(allocator, &[_][]const u8 { std.fs.path.dirname(path).?, ai_tex_id});
+                    std.log.info("[GPU] C Loading Tex {s} Done", .{path});
                     handle = try createTextureFromFile(tex_path);
                 }
 
@@ -800,6 +801,7 @@ pub fn importModel(path: [:0]const u8, settings: mdl.ImportSettings)  !mdl.Handl
     }
 
     const model = try mdl.load(path, settings, materials_array, ctx.allocator);
+    stb.resetArena(.retain_capacity);
     return try render_state.models.insert(model);
 }
 
