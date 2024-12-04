@@ -17,9 +17,6 @@ struct Camera {
     float4x4 vp;
 }
 
-// [vk::binding(0, 1)]
-// ConstantBuffer<Camera> camera;
-
 struct VOut {
     float4 position: SV_Position;
     float3 vert_world_pos;
@@ -28,11 +25,11 @@ struct VOut {
     float2 uv;
 }
 
+[vk::binding(0, 1)]
+ConstantBuffer<Camera> camera;
+
 [shader("vertex")]
-VOut vertexMain(
-    Vertex input,
-    [vk::binding(0, 1)]ConstantBuffer<Camera> camera,
-) {
+VOut vertexMain(Vertex input) {
     VOut output;
     output.position = mul(float4(input.position, 1), mul(camera.model, camera.vp));
     output.vert_world_pos = vec3(camera.model * vec4(input.position, 1));
@@ -42,13 +39,12 @@ VOut vertexMain(
     return output;
 }
 
+[vk::binding(0, 2)] Sampler2D tex_diffuse;
+[vk::binding(1, 2)] Sampler2D tex_specular;
+[vk::binding(0, 3)] ConstantBuffer<Lighting> lighting;
+
 [shader("fragment")]
-float4 fragmentMain(
-    VOut input,
-    [vk::binding(0, 2)] Sampler2D tex_diffuse,
-    [vk::binding(1, 2)] Sampler2D tex_specular,
-    [vk::binding(0, 3)] ConstantBuffer<Lighting> lighting,
-): SV_Target {
+float4 fragmentMain(VOut input): SV_Target {
     vec4 ambient = vec4(0.1, 0.1, 0.1, 1);
     vec3 ld = -normalize(lighting.light_dir);
     vec3 n = normalize(input.normal);

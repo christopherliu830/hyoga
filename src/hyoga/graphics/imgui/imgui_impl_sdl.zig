@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const imgui = @import("imgui.zig");
+const imgui = @import("imgui");
 const sdl = @import("sdl");
 
 pub const GamepadMode = enum(c_int) { auto_first, auto_all, manual };
@@ -9,7 +9,6 @@ pub const ImplData = struct {
     allocator: std.mem.Allocator,
     window: ?*sdl.Window = null,
     window_id: sdl.video.WindowID = 0,
-    renderer: ?*sdl.c.SDL_Renderer = null,
     time: u64 = 0,
     clipboard_text_data: []const u8 = undefined,
     use_vulkan: bool = false,

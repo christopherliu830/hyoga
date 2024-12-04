@@ -1,10 +1,8 @@
 const std = @import("std");
 const sdl = @import("sdl");
 const gpu = @import("../gpu.zig");
-const imgui = @import("imgui.zig");
-const spirv = @import("spirv.zig");
+const imgui = @import("imgui");
 const mt = @import("../material.zig");
-// const shader_code = @import("../shaders/imgui_shader.zig");
 
 const ShaderType = enum { vertex, fragment };
 

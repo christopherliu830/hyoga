@@ -15,12 +15,12 @@
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
     .dependencies = .{
-        .hyoga_math = .{
-            .path = "../hyoga-math",
-        },
-        .hyoga_arena = .{
-            .path = "../hyoga-arena",
-        },
+        .imgui = .{ .path = "modules/imgui" },
+        .sdl = .{ .path = "modules/sdl" },
+        .assimp = .{ .path = "modules/assimp" },
+        .stb_image = .{ .path = "modules/stb_image" },
+        .hyoga_math = .{ .path = "../hyoga-math", },
+        .hyoga_arena = .{ .path = "../hyoga-arena", },
         .zbench = .{
             .url = "https://github.com/hendriknielaender/zbench/archive/fb3ecae.tar.gz",
             .hash = "122095b73930ff5d627429295c669905d85bb9b54394ddc185ad2d61295cc65819e5",

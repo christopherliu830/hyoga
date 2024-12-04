@@ -1,6 +1,6 @@
 const std = @import("std");
 const hya = @import("hyoga-arena");
-const ai = @import("assimp/assimp.zig");
+const ai = @import("assimp");
 const gpu = @import("gpu.zig");
 const mt = @import("material.zig");
 const tx = @import("texture.zig");

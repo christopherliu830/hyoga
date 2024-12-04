@@ -1,7 +1,7 @@
 const std = @import("std");
 const window = @import("window.zig");
 const sdl = @import("sdl");
-const imgui = @import("graphics/imgui/imgui.zig");
+const imgui = @import("imgui");
 const hya = @import("hyoga-arena");
 
 pub const keycode = @import("sdl").keycode;

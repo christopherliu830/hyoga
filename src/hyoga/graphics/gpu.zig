@@ -1,6 +1,6 @@
 const std = @import("std");
 const sdl = @import("sdl");
-const ai = @import("assimp/assimp.zig");
+const ai = @import("assimp");
 
 const hya = @import("hyoga-arena");
 const hym = @import("hyoga-math");
@@ -8,10 +8,8 @@ const vec3 = hym.vec3;
 const mat4 = hym.mat4;
 const hym_cam = hym.cam;
 
-const dxil = @import("cube_dxil.zig");
-const dxbc = @import("cube_dxbc.zig");
 const camera = @import("../camera.zig");
-const c = @import("../c.zig");
+const stb = @import("stb_image");
 const window = @import("../window.zig");
 
 const cube = @import("primitives.zig").createCube();
@@ -552,11 +550,11 @@ pub fn createTextureFromFile(path: [:0]const u8) !tx.Handle {
     var c_w: c_int = 0;
     var c_h: c_int = 0;
     var c_d: c_int = 0;
-    const tex_pixels = c.stbi_load(path.ptr, &c_w, &c_h, &c_d, 4);
+    const tex_pixels = stb.stbi_load(path.ptr, &c_w, &c_h, &c_d, 4);
     const w: u32 = @intCast(c_w);
     const h: u32 = @intCast(c_h);
     const d: u32 = 4;
-    defer c.stbi_image_free(tex_pixels);
+    defer stb.stbi_image_free(tex_pixels);
 
     return try createTextureFromMemory(path, .{ 
         .w = w, .h = h, 
@@ -572,8 +570,8 @@ pub fn createTextureFromImageMemory(name: [:0] const u8, data: []const u8) !tx.H
     var c_w: c_int = 0;
     var c_h: c_int = 0;
     var c_d: c_int = 0;
-    const tex_pixels = c.stbi_load_from_memory(data.ptr, @intCast(data.len), &c_w, &c_h, &c_d, 4);
-    defer c.stbi_image_free(tex_pixels);
+    const tex_pixels = stb.stbi_load_from_memory(data.ptr, @intCast(data.len), &c_w, &c_h, &c_d, 4);
+    defer stb.stbi_image_free(tex_pixels);
     const w: u32 = @intCast(c_w);
     const h: u32 = @intCast(c_h);
     const d: u32 = 4;
@@ -787,7 +785,7 @@ pub fn importModel(path: [:0]const u8, settings: mdl.ImportSettings)  !mdl.Handl
 
                 std.debug.assert(handle.is_valid());
 
-                const hy_tex_type: ?tx.TextureType = ai.tex_to_hyoga_type.get(tex_type);
+                const hy_tex_type: ?tx.TextureType = tx.tex_to_hyoga_type.get(tex_type);
                 if (hy_tex_type) |htt| {
                     texture_set.put(htt, handle);
                 } else {

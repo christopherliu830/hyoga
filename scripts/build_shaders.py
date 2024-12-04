@@ -1,5 +1,6 @@
 import subprocess as sp
 import os
+import sys
 import json
 import binascii
 from textwrap import fill
@@ -10,6 +11,8 @@ shaders_path = cwd.joinpath("shaders")
 
 vert_files = shaders_path.glob("*.slang")
 shaders = [x for x in shaders_path.glob("*.slang")]
+
+sys.stderr.write(str(sys.argv))
 
 # spirv
 for shader in shaders:
@@ -28,34 +31,14 @@ for shader in shaders:
     #     shader.stat().st_mtime <= vert_spv_path.stat().st_mtime and \
     #     resources_path.exists() and resources_path.stat().st_mtime <= vert_spv_path.stat().st_mtime: continue
 
-    print(shader)
 
-
-    # metal entry
-    metal_vert_shader = str(shader).split(".")[0] + ".metal.vert.slang"
-    is_metal = str(shader).split(".")[1] == "metal"
-    if Path(metal_vert_shader).exists() and is_metal:
-        sp.run(["slangc", metal_vert_shader, 
-                "-target", "metal",
-                "-entry", "vertexMain",
-                "-o", str(shader).split(".")[0] + (".vert.metal")])
-
-        metal_frag_shader = str(shader).split(".")[0] + ".metal.frag.slang"
-        if Path(metal_frag_shader).exists() and is_metal:
-            sp.run(["slangc", metal_frag_shader, 
-                    "-target", "metal",
-                    "-entry", "fragmentMain",
-                    "-o", str(shader).split(".")[0] + (".frag.metal")])
-    else:
-        sp.run(["slangc", shader, 
-                "-profile", "spirv_1_3",
-                "-target", "spirv",
-                "-entry", "vertexMain",
-                "-o", shader.with_suffix(".vert.spv")])
-
-        sp.run(["slangc", shader, 
-            "-profile", "spirv_1_3",
+    sp.run(["slangc", shader, 
             "-target", "spirv",
-            "-entry", "fragmentMain",
-            "-o", shader.with_suffix(".frag.spv")])
+            "-entry", "vertexMain",
+            "-o", str(Path(sys.argv[1]).joinpath(shader.with_suffix(".vert.spv").name))])
+
+    sp.run(["slangc", shader, 
+        "-target", "spirv",
+        "-entry", "fragmentMain",
+        "-o", str(Path(sys.argv[1]).joinpath(shader.with_suffix(".frag.spv").name))])
     

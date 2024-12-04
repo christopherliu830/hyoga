@@ -1,1 +1,0 @@
-pub usingnamespace @cImport({ @cInclude("SDL3/sdl.h"); });

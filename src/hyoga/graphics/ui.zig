@@ -3,7 +3,7 @@ const platform = @import("imgui/imgui_impl_sdl.zig");
 const backend = @import("imgui/imgui_impl_sdlgpu.zig");
 const sdl = @import("sdl");
 
-pub const imgui = @import("imgui/imgui.zig");
+pub const imgui = @import("imgui");
 
 var context: *imgui.Context = undefined;
 
