@@ -55,6 +55,7 @@ pub fn update(game: *hy.Game) void {
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}) {};
+    defer _ = gpa.detectLeaks();
     const allocator = gpa.allocator();
     hy.init(allocator);
     defer hy.shutdown();
@@ -74,6 +75,8 @@ pub fn main() !void {
         .objects = try hy.Hive(Object).create(gpa.allocator(), .{}),
     };
 
+    defer objects.objects.deinit();
+
     var game = hy.Game {
         .fn_update = update,
         .user_data = &objects,
@@ -81,4 +84,5 @@ pub fn main() !void {
 
     try game.scene.camera.registerInputs();
     try hy.run(&game);
+
 }

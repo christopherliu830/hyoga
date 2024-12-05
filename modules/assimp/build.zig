@@ -18,6 +18,10 @@ pub fn build(b: *std.Build) void {
         b.installBinFile("bin/assimp-vc143-mt.dll", "assimp-vc143-mt.dll");
         module.addLibraryPath(b.path("bin"));
         module.linkSystemLibrary("assimp-vc143-mt", .{});
-    } 
+    } else {
+        module.addLibraryPath(b.path("bin"));
+        module.linkSystemLibrary("assimp", .{});
+    }
+
 }
 

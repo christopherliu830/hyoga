@@ -86,6 +86,24 @@ pub fn init(allocator_: std.mem.Allocator) void {
     }
 }
 
+pub fn shutdown() void {
+    {
+        var it = keybinds.valueIterator();
+        while (it.next()) |binds| {
+            binds.deinit();
+        }
+    }
+    {
+        var it = mousebinds.valueIterator();
+        while (it.next()) |binds| {
+            binds.deinit();
+        }
+    }
+
+    keybinds.deinit();
+    mousebinds.deinit();
+}
+
 pub fn bind(key: keycode.Keycode, handler: InputHandler) !KeybindList.Handle {
     const entry = try keybinds.getOrPut(key);
     if (!entry.found_existing) {

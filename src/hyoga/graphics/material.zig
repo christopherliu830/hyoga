@@ -62,12 +62,12 @@ pub const MaterialInfo = struct {
 
 pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, arena: std.mem.Allocator) !MaterialTemplate {
     const info = try loadMaterialInfo(path, arena);
-
     const vert_shader = try loadShader(device, .vertex, info, path, arena);
     defer device.releaseShader(vert_shader);
 
     const frag_shader = try loadShader(device, .fragment, info, path, arena);
     defer device.releaseShader(frag_shader);
+
 
     const pipeline = gpu.buildPipeline(.{
         .enable_depth = true,
@@ -134,8 +134,8 @@ pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, arena: std.mem.Al
 pub fn loadMaterialInfo(path: []const u8, arena: std.mem.Allocator) !MaterialInfo {
     const info_path = try std.mem.concat(arena, u8, &.{path, ".rsl.json"});
     const info_file = try std.fs.cwd().openFile(info_path, .{});
-    defer info_file.close();
     const info_bytes = try info_file.readToEndAlloc(arena, 1024 * 16);
+    info_file.close();
     return try std.json.parseFromSliceLeaky(MaterialInfo, arena, info_bytes, .{});
 }
 

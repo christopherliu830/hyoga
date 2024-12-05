@@ -40,7 +40,6 @@ pub fn build(b: *std.Build) void {
 
     hyoga_lib.linkLibCpp();
 
-    b.installArtifact(hyoga_lib);
 
     const exe = b.addExecutable(.{
         .name = "game",
@@ -50,7 +49,7 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addImport("hyoga", &hyoga_lib.root_module);
-    b.installArtifact(exe);
+
 
     const exe_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/game/main.zig"),
@@ -71,7 +70,10 @@ pub fn build(b: *std.Build) void {
 
     benchmark.root_module.addImport("hyoga", &hyoga_lib.root_module);
     benchmark.root_module.addImport("zbench", zbench.module("zbench"));
+
+    b.installArtifact(hyoga_lib);
     b.installArtifact(benchmark);
+    b.installArtifact(exe);
 
     // POST BUILD 
     const shader_compile= b.addSystemCommand(&.{"python"});
@@ -89,10 +91,7 @@ pub fn build(b: *std.Build) void {
     const run_cmd = b.addRunArtifact(exe);
 
     run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
+    if (b.args) |args| run_cmd.addArgs(args);
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
@@ -107,6 +106,4 @@ pub fn build(b: *std.Build) void {
     // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_exe_unit_tests.step);
-
-
 }

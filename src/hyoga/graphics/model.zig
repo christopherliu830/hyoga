@@ -22,6 +22,11 @@ pub const Mesh = struct {
             .material = material,
         };
     }
+
+    pub fn deinit(self: *Mesh) void {
+        self.vertices.deinit();
+        self.indices.deinit();
+    }
 };
 
 pub const Model = struct {
@@ -30,10 +35,11 @@ pub const Model = struct {
     meshes: std.ArrayList(Mesh),
     transform: mat4.Mat4,
 
-    pub fn release(self: Model) void {
-        self.vertices.deinit();
-        self.indices.deinit();
-        self.textures.deinit();
+    pub fn deinit(self: Model) void {
+        for (self.meshes.items) |*mesh| { 
+            mesh.deinit();
+        }
+        self.meshes.deinit();
     }
 
     pub const ProcessModelParams = struct {

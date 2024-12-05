@@ -15,9 +15,9 @@ pub fn build(b: *std.Build) void {
 
     if (os == .windows) {
         module.addLibraryPath(b.path("bin"));
-        module.linkSystemLibrary("SDL3", .{});
         b.installBinFile("bin/SDL3.dll", "SDL3.dll");
     } 
 
+    module.linkSystemLibrary("SDL3", .{});
     module.addIncludePath(b.path("include"));
 }

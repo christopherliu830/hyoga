@@ -320,10 +320,12 @@ pub fn Hive(comptime T: type) type {
 
         pub fn deinit(self: *Self) void {
             while (self.groups.head) |*head| {
-                const g = head;
-                self.groups.remove(head);
+                if (self.groups.size == 1) break;
+                const g = head.group;
+                self.groups.remove(head.group);
                 g.deinit(self.allocator);
             }
+            self.groups.head.?.group.deinit(self.allocator);
         }
 
         pub fn iterator(self: *Self) Iterator {

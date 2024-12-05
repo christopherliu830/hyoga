@@ -41,6 +41,7 @@ pub fn init(allocator: std.mem.Allocator) void {
 }
 
 pub fn shutdown() void {
+    input.shutdown();
     ui.shutdown();
     gpu.shutdown();
     window.destroy();

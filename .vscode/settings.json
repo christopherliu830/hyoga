@@ -1,5 +1,8 @@
 {
     "files.associations": {
         "stb_image.h": "c"
+    },
+    "[zig]": {
+        "editor.formatOnSave": false
     }
 }
