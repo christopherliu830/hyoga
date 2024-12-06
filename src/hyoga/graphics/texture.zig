@@ -4,9 +4,12 @@ const stbi = @import("stb_image");
 const ai = @import("assimp");
 const ld = @import("loader.zig");
 const hya = @import("hyoga-arena");
+const sym = @import("../symbol.zig");
+
+pub const Handle = sym.Symbol;
 
 const TextureId = struct {
-    handle: ?[]const u8 = null,
+    handle: ?sym.Symbol = null,
     target: ?*sdl.gpu.Texture = null,
 };
 
@@ -19,50 +22,47 @@ pub const TextureType = enum {
     normal,
 };
 
-pub const Textures = struct {
-    device: *sdl.gpu.Device,
-    queue: ld.Queue(TextureId),
-    allocator: std.mem.Allocator,
-    textures: std.StringHashMap(*sdl.gpu.Texture),
+pub const tex_to_hyoga_type = std.EnumMap(ai.TextureType, TextureType).init(.{
+    .diffuse = .diffuse,
+    .specular = .specular,
+    .height = .height,
+    .normals = .normal,
+});
 
-    pub fn init(self: *@This(), device: *sdl.gpu.Device, allocator: std.mem.Allocator) void {
-        self.device = device;
-        self.queue = .{};
-        self.allocator = allocator;
-        self.textures = std.StringHashMap(*sdl.gpu.Texture).init(allocator);
-    }
+pub const Textures = struct {
+    allocator: std.mem.Allocator,
+    device: *sdl.gpu.Device,
+    queue: ld.Queue(TextureId) = .{},
+    textures: std.AutoHashMapUnmanaged(sym.Symbol, *sdl.gpu.Texture) = .{},
 
     pub fn deinit(self: *@This()) void {
         self.flushQueue() catch std.debug.panic("Could not flush queue", .{});
-        var it = self.textures.iterator();
+        var it = self.textures.valueIterator();
         while (it.next()) |entry| {
-            const key = entry.key_ptr;
-            const val = entry.value_ptr;
-            self.allocator.free(key.*);
-            self.device.releaseTexture(val.*);
+            self.device.releaseTexture(entry.*);
         }
-        self.textures.deinit();
+        self.textures.deinit(self.allocator);
     }
 
-    pub fn getTexture(self: *@This(), id: []const u8) !?*sdl.gpu.Texture {
+    pub fn get(self: *@This(), id: sym.Symbol) !?*sdl.gpu.Texture {
         try self.flushQueue();
         return self.textures.get(id);
     }
 
-    pub fn read(self: *@This(), path: []const u8) !void {
-        const owned_path = try self.allocator.dupe(u8, path);
-        try ld.run(&self.queue, readTexture, .{ self.device, owned_path });
+    pub fn read(self: *@This(), path: sym.Symbol) !Handle {
+        try ld.run(&self.queue, readTexture, .{ self.device, path });
+        return path;
     }
 
     pub fn flushQueue(self: *@This()) !void {
         while (self.queue.pop()) |entry| {
-            try self.textures.put(entry.handle.?, entry.target.?);
+            try self.textures.put(self.allocator, entry.handle.?, entry.target.?);
         }
     }
 
-    fn readTexture(queue: *ld.Queue(TextureId), device: *sdl.gpu.Device, path: []const u8, allocator: std.mem.Allocator) void {
-        const pathZ = allocator.dupeZ(u8, path) catch "out of memory";
-        defer allocator.free(pathZ);
+    fn readTexture(queue: *ld.Queue(TextureId), device: *sdl.gpu.Device, path: sym.Symbol, allocator: std.mem.Allocator) void {
+        _ = allocator;
+        const pathZ = path.asStringZ();
 
         var c_w: c_int = 0;
         var c_h: c_int = 0;
@@ -123,11 +123,3 @@ pub const Textures = struct {
     }
 };
 
-pub const TextureMemory = struct { w: u32, h: u32, d: u32 = 1, data: []const u8, format: sdl.gpu.TextureFormat = .r8g8b8a8_unorm };
-
-pub const tex_to_hyoga_type = std.EnumMap(ai.TextureType, TextureType).init(.{
-    .diffuse = .diffuse,
-    .specular = .specular,
-    .height = .height,
-    .normals = .normal,
-});

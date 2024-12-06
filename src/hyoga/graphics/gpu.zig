@@ -18,6 +18,7 @@ const tx = @import("texture.zig");
 const mdl = @import("model.zig");
 const mt = @import("material.zig");
 const ld = @import("loader.zig");
+const sym = @import("../symbol.zig");
 
 const Vertex = @import("vertex.zig").Vertex;
 
@@ -68,8 +69,8 @@ const RenderState = struct {
     sampler: *sdl.gpu.Sampler = undefined,
 
     textures: tx.Textures,
+    models: mdl.Models,
 
-    models: mdl.Arena,
     materials: hya.Arena(mt.Material),
     objs: hya.Arena(RenderItem),
     robjs: PassInfo,
@@ -208,14 +209,12 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
         .outline_pipeline = undefined,
         .quad_buffer = quad_buffer,
         .sampler = ctx.device.createSampler(&sampler_info).?,
-        .textures = undefined,
+        .textures = .{ .allocator = ctx.allocator, .device = ctx.device },
+        .models = .{ .allocator = ctx.allocator, .device = ctx.device },
         .materials = try hya.Arena(mt.Material).create(ctx.allocator, 1),
-        .models = try mdl.Arena.create(ctx.allocator, 8),
         .active_target = null,
         .robjs = undefined,
     };
-
-    render_state.textures.init(ctx.device, ctx.allocator);
 }
 
 pub fn shutdown() void {
@@ -230,14 +229,9 @@ pub fn shutdown() void {
             ctx.device.releaseBuffer(obj.buf);
         }
     }
-    {
-        var it = render_state.models.iterator();
-        while (it.next()) |*model| {
-            model.deinit();
-        }
-    }
 
     render_state.textures.deinit();
+    render_state.models.deinit();
     render_state.materials.deinit();
     render_state.models.deinit();
     render_state.objs.deinit();
@@ -476,7 +470,7 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
                 const tex_id = material.textures.get(needed_tex_type.?).?;
                 const texture: *sdl.gpu.Texture = blk: {
                     if (tex_id.target) |target| break :blk target;
-                    if (tex_id.handle) |handle| break :blk render_state.textures.getTexture(handle) 
+                    if (tex_id.handle) |handle| break :blk render_state.textures.get(handle) 
                         catch render_state.default_texture
                         orelse render_state.default_texture;
                     std.debug.panic("[GPU] Textures must have a handle or direct target defined", .{});
@@ -674,12 +668,13 @@ pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
     return pipeline;
 }
 
-pub fn importModel(path: [:0]const u8, settings: mdl.ImportSettings) !mdl.Handle {
-    var import = ai.importFile(path, settings.post_process);
+pub fn importModel(path: sym.Symbol, settings: mdl.ImportSettings) !mdl.Handle {
+    var import = ai.importFile(path.asStringZ(), settings.post_process);
     defer import.release();
     const allocator = ctx.arena.allocator();
 
     var materials_array = try allocator.alloc(mt.Handle, import.num_materials);
+    materials_array[0] = mt.Handle.invalid;
 
     for (import.materials[1..import.num_materials], 1..) |ai_material, mat_index| {
         var texture_set = tx.TextureSet.init(.{});
@@ -697,7 +692,7 @@ pub fn importModel(path: [:0]const u8, settings: mdl.ImportSettings) !mdl.Handle
 
                 const ai_tex_id: [:0]u8 = str.data[0..str.len :0];
                 var tex_id: []u8 = ai_tex_id;
-                // var handle: = undefined;
+                var handle: ?tx.Handle = null;
 
                 if (import.getEmbeddedTexture(ai_tex_id.ptr)) |tex| {
                     _ = tex;
@@ -711,20 +706,18 @@ pub fn importModel(path: [:0]const u8, settings: mdl.ImportSettings) !mdl.Handle
                     //     handle = try createTextureFromMemory(tex_id, .{ .w = tex.width, .h = tex.height, .d = 4, .data = data, .format = .b8g8r8a8_unorm });
                     // }
                 } else { // Texture is a relative path
-                    tex_id = try std.fs.path.join(ctx.allocator, &[_][]const u8{ std.fs.path.dirname(path).?, ai_tex_id });
+                    tex_id = try std.fs.path.join(ctx.allocator, &[_][]const u8{ std.fs.path.dirname(path.asString()).?, ai_tex_id });
                     defer ctx.allocator.free(tex_id);
-                    try render_state.textures.read(tex_id);
-                    // const my_handle = try render_state.textures.insert(undefined);
-                    // handle = try createTextureFromFile(tex_path);
+                    handle = try render_state.textures.read(try sym.from(tex_id));
                 }
 
-                // std.debug.assert(handle.is_valid());
+                std.debug.assert(handle != null);
 
                 const hy_tex_type: ?tx.TextureType = tx.tex_to_hyoga_type.get(tex_type);
                 if (hy_tex_type) |htt| {
-                    texture_set.put(htt, .{ .handle = tex_id });
+                    texture_set.put(htt, .{ .handle = handle });
                 } else {
-                    std.log.warn("[GPU]: Unconsumed texture type {s} for object {s}", .{ field.name, path });
+                    std.log.warn("[GPU]: Unconsumed texture type {s} for object {s}", .{ field.name, path.asString() });
                 }
             }
         }
@@ -733,36 +726,38 @@ pub fn importModel(path: [:0]const u8, settings: mdl.ImportSettings) !mdl.Handle
         materials_array[mat_index] = hdl;
     }
 
-    const model = try mdl.load(path, settings, materials_array, ctx.allocator);
-    return try render_state.models.insert(model);
+    const model = try render_state.models.read(path, materials_array, settings);
+    return model;
 }
 
 pub fn addModel(hdl: mdl.Handle, owner: *mat4.Mat4) !RenderItemHandle {
-    const model = try render_state.models.get(hdl);
-    var last_handle: ?RenderItemHandle = null;
+    const q_model = try render_state.models.get(hdl);
+    if (q_model) |model| {
+        var last_handle: ?RenderItemHandle = null;
 
-    for (model.meshes.items) |mesh| {
-        const vertex_buffer_size: u32 = @intCast(mesh.vertices.items.len * @sizeOf(@TypeOf(mesh.vertices.items[0])));
-        const buffer_size: u32 = @intCast(vertex_buffer_size + mesh.indices.items.len * @sizeOf(@TypeOf(mesh.indices.items[0])));
-        const buffer = ctx.device.createBuffer(&.{ .size = buffer_size, .usage = .{ .index = true, .vertex = true } }).?;
+        for (model.meshes.items) |mesh| {
+            const vertex_buffer_size: u32 = @intCast(mesh.vertices.items.len * @sizeOf(@TypeOf(mesh.vertices.items[0])));
+            const buffer_size: u32 = @intCast(vertex_buffer_size + mesh.indices.items.len * @sizeOf(@TypeOf(mesh.indices.items[0])));
+            const buffer = ctx.device.createBuffer(&.{ .size = buffer_size, .usage = .{ .index = true, .vertex = true } }).?;
 
-        try uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
-        try uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
+            try uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
+            try uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
 
-        const render_obj = RenderItem{
-            .buf = buffer,
-            .next = last_handle,
-            .transform = model.transform,
-            .parent_transform = owner,
-            .idx_offset = vertex_buffer_size,
-            .idx_count = @intCast(mesh.indices.items.len),
-            .material = mesh.material,
-        };
+            const render_obj = RenderItem{
+                .buf = buffer,
+                .next = last_handle,
+                .transform = model.transform,
+                .parent_transform = owner,
+                .idx_offset = vertex_buffer_size,
+                .idx_count = @intCast(mesh.indices.items.len),
+                .material = mesh.material,
+            };
 
-        last_handle = try render_state.objs.insert(render_obj);
-    }
+            last_handle = try render_state.objs.insert(render_obj);
+        }
 
-    return last_handle.?;
+        return last_handle.?;
+    } else return error.NotFound;
 }
 
 pub fn removeModel(handle: RenderItemHandle) void {

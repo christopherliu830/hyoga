@@ -60,5 +60,10 @@ pub fn allocator() std.mem.Allocator {
 // Start a function that will eventually add a node to 
 // the queue that is passed in.
 pub fn run(queue: anytype, comptime func: anytype, args: anytype) !void {
+    // Verify type
+    if (@typeInfo(@TypeOf(queue)) != .Pointer) {
+        @compileError("Must be a pointer to a queue");
+    }
+
     try pool.spawn(func, .{queue} ++ args ++ .{allocator()});
 }

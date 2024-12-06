@@ -4,6 +4,7 @@ const sdl = @import("sdl");
 pub const math = @import("hyoga-math");
 pub const arena = @import("hyoga-arena");
 pub const Hive = @import("hive.zig").Hive;
+pub const symbol = @import("symbol.zig");
 
 pub const window = @import("window.zig");
 pub const input = @import("input.zig");
@@ -30,6 +31,7 @@ pub const Game = struct {
 };
 
 pub fn init(allocator: std.mem.Allocator) void {
+    symbol.init(allocator);
     input.init(allocator);
     window.init() catch std.debug.panic("Init window failed", .{});
     gpu.init(window.instance, allocator) catch |e| std.debug.panic("[GPU] Init failure: {}", .{e});
@@ -41,6 +43,7 @@ pub fn init(allocator: std.mem.Allocator) void {
 }
 
 pub fn shutdown() void {
+    symbol.shutdown();
     input.shutdown();
     ui.shutdown();
     gpu.shutdown();

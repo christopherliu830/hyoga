@@ -31,7 +31,15 @@ pub fn update(game: *hy.Game) void {
         if (imgui.button("Add Backpack", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
             const hdl = ctx.objects.insert(.{ .transform = mat, .render = undefined }) catch unreachable;
             const obj = hdl.unpack();
-            obj.render = hy.gpu.addModel(ctx.backpack, &obj.transform) catch std.debug.panic("Out of Memory", .{});
+            if (hy.gpu.addModel(ctx.backpack, &obj.transform)) |model| {
+                obj.render = model;
+            } else |err| switch(err) {
+                error.NotFound => {
+                    // The model is not done loading yet
+                    ctx.objects.remove(hdl);
+                },
+                else => |other_err| std.debug.panic("Error: {}", .{other_err}),
+            }
         }
 
         var it = ctx.objects.iterator();
@@ -60,7 +68,9 @@ pub fn main() !void {
     hy.init(allocator);
     defer hy.shutdown();
 
-    const hdl_backpack = try hy.gpu.importModel("assets/backpack/backpack.obj", .{
+    const backpack = try hy.symbol.from("assets/backpack/backpack.obj");
+
+    const hdl_backpack = try hy.gpu.importModel(backpack, .{
         .transform = math.mat4.identity,
         .post_process = .{
             .triangulate = true,
@@ -83,6 +93,6 @@ pub fn main() !void {
     };
 
     try game.scene.camera.registerInputs();
-    try hy.run(&game);
 
+    try hy.run(&game);
 }

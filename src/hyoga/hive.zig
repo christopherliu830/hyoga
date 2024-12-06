@@ -727,10 +727,6 @@ pub fn Hive(comptime T: type) type {
             }
         }
 
-        // pub fn resetWithCapacity(self: *Self, capacity: usize) void {
-
-        // }
-
         fn closeGroup(self: *Self, group: *Group) void {
             if (group.prev_open_group) |prev| {
                 prev.next_open_group = group.next_open_group;
