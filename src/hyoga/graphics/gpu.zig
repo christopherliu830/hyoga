@@ -233,7 +233,6 @@ pub fn shutdown() void {
     render_state.textures.deinit();
     render_state.models.deinit();
     render_state.materials.deinit();
-    render_state.models.deinit();
     render_state.objs.deinit();
 
     ctx.device.releaseBuffer(render_state.quad_buffer);

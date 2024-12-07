@@ -20,6 +20,7 @@ const ModelLoadJob = struct {
 };
 
 const ModelLoadResult = struct {
+    allocator: std.mem.Allocator,
     model: Model,
     id: sym.Symbol,
     mats: []mt.Handle,
@@ -35,11 +36,13 @@ pub const Models = struct {
 
     pub fn deinit(self: *@This()) void {
         self.flushQueue() catch std.debug.panic("Could not flush queue", .{});
-        var it = self.models.valueIterator();
-        while (it.next()) |entry| {
-            entry.deinit();
+        if (self.models.count() > 0) {
+            var it = self.models.valueIterator();
+            while (it.next()) |entry| {
+                entry.deinit(self.allocator);
+            }
+            self.models.deinit(self.allocator);
         }
-        self.models.deinit(self.allocator);
     }
 
     pub fn get(self: *@This(), id: sym.Symbol) !?*Model {
@@ -56,24 +59,28 @@ pub const Models = struct {
             .settings = import,
         };
 
-        try ld.run(&self.queue, readModel, .{job});
+        try ld.run(&self.queue, readJob, .{job});
         return path;
     }
 
     fn flushQueue(self: *@This()) !void {
-        while (self.queue.pop()) |val| {
-            self.allocator.free(val.mats);
-            try self.models.put(self.allocator, val.id, val.model);
+        while (self.queue.pop()) |job| {
+            if (job.allocator.ptr != self.allocator.ptr) {
+                try self.moveModelToSelf(job.id, job.model);
+                job.model.deinit(job.allocator);
+            } else {
+                try self.models.put(self.allocator, job.id, job.model);
+            }
+            self.allocator.free(job.mats);
         }
     }
 
-    fn readModel(queue: *Queue, job: ModelLoadJob, allocator: std.mem.Allocator) void {
+    fn readJob(queue: *Queue, job: ModelLoadJob, allocator: std.mem.Allocator) void {
         const pathz = job.id.asStringZ();
         var scene = ai.importFile(pathz, job.settings.post_process);
         defer scene.release();
 
-        var model = Model {
-            .allocator = allocator,
+        var model: Model = .{
             .total_index_count = 0,
             .total_vertex_count = 0,
             .meshes = .{},
@@ -81,6 +88,7 @@ pub const Models = struct {
         };
 
         model.processNode(.{
+            .allocator = allocator,
             .path = pathz,
             .scene = scene,
             .node = scene.root_node,
@@ -92,10 +100,37 @@ pub const Models = struct {
         errdefer model.deinit();
 
         queue.push(ModelLoadResult {
+            .allocator = allocator,
             .model = model,
             .id = job.id,
             .mats = job.mats,
         }) catch |err| std.log.err("[GPU] model load failure: {}", .{err});
+    }
+
+    fn moveModelToSelf(self: *@This(), id: sym.Symbol, old: Model) !void {
+        const entry = try self.models.getOrPut(self.allocator, id);
+        const copy = entry.value_ptr;
+        copy.* = .{
+            .total_vertex_count = old.total_vertex_count,
+            .total_index_count = old.total_index_count,
+        };
+        try copy.meshes.ensureTotalCapacity(self.allocator, old.meshes.items.len);
+        errdefer self.allocator.destroy(copy);
+        for (old.meshes.items) |mesh| {
+            const v = try self.allocator.dupe(Vertex, mesh.vertices.items);
+            var vertices = std.ArrayListUnmanaged(Vertex).fromOwnedSlice(v);
+            errdefer vertices.deinit(self.allocator);
+            const i = try self.allocator.dupe(u32, mesh.indices.items);
+            var indices = std.ArrayListUnmanaged(u32).fromOwnedSlice(i);
+            errdefer indices.deinit(self.allocator);
+
+            copy.meshes.appendAssumeCapacity(.{
+                .vertices = vertices,
+                .indices = indices,
+                .material = mesh.material,
+            });
+        }
+        errdefer copy.deinit(self.allocator);
     }
 };
 
@@ -111,20 +146,20 @@ pub const Mesh = struct {
 };
 
 pub const Model = struct {
-    allocator: std.mem.Allocator,
-    total_vertex_count: u32,
-    total_index_count: u32,
+    total_vertex_count: u32 = 0,
+    total_index_count: u32 = 0,
     meshes: std.ArrayListUnmanaged(Mesh) = .{},
-    transform: mat4.Mat4,
+    transform: mat4.Mat4 = mat4.identity,
 
-    pub fn deinit(self: *Model) void {
+    pub fn deinit(self: Model, allocator: std.mem.Allocator) void {
         for (self.meshes.items) |*mesh| { 
-            mesh.deinit(self.allocator);
+            mesh.deinit(allocator);
         }
-        self.meshes.deinit(self.allocator);
+        allocator.free(self.meshes.allocatedSlice());
     }
 
     pub const ProcessModelParams = struct {
+        allocator: std.mem.Allocator,
         path: [:0]const u8,
         scene: *ai.Scene,
         node: *ai.Node,
@@ -134,12 +169,12 @@ pub const Model = struct {
 
     fn processNode(self: *Model, params: ProcessModelParams) !void {
         const node = params.node;
-        try self.meshes.ensureTotalCapacity(self.allocator, node.num_meshes);
+        try self.meshes.ensureTotalCapacity(params.allocator, node.num_meshes);
         for (node.meshes[0..node.num_meshes]) |idx_mesh| {
             const mesh = params.scene.meshes[idx_mesh];
             var sub = params;
             sub.mesh = mesh;
-            try self.meshes.append(self.allocator, try self.processMesh(sub));
+            try self.meshes.append(params.allocator, try self.processMesh(sub));
             errdefer self.deinit();
         }
 
@@ -156,7 +191,7 @@ pub const Model = struct {
         const in_mesh = params.mesh.?;
 
         var out_mesh = Mesh { .material = params.materials[in_mesh.material_index], };
-        try out_mesh.vertices.ensureTotalCapacity(model.allocator, in_mesh.num_vertices);
+        try out_mesh.vertices.ensureTotalCapacity(params.allocator, in_mesh.num_vertices);
         model.total_vertex_count += in_mesh.num_vertices;
 
         for (0..in_mesh.num_vertices) |i| {
@@ -167,7 +202,7 @@ pub const Model = struct {
             const ny: f32 = @floatCast(in_mesh.normals[i].y);
             const nz: f32 = @floatCast(in_mesh.normals[i].z);
 
-            out_mesh.vertices.append(model.allocator, .{
+            out_mesh.vertices.append(params.allocator, .{
                 .pos = .{ x, y, z },
                 .normal = .{ nx, ny, nz },
                 .uv = .{ 0, 0 },
@@ -182,10 +217,10 @@ pub const Model = struct {
 
         for (in_mesh.faces[0..in_mesh.num_faces]) |face| {
             const start = out_mesh.indices.items.len;
-            try out_mesh.indices.ensureTotalCapacity(model.allocator, start + face.num_indices);
+            try out_mesh.indices.ensureTotalCapacity(params.allocator, start + face.num_indices);
             model.total_index_count += face.num_indices;
             for (face.indices[0..face.num_indices]) |idx| {
-                out_mesh.indices.append(model.allocator, @intCast(idx)) catch unreachable;
+                out_mesh.indices.append(params.allocator, @intCast(idx)) catch unreachable;
             }
         }
 

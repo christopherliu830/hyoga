@@ -7,6 +7,9 @@ const mt = @import("material.zig");
 const sdl = @import("sdl");
 const hya = @import("hyoga-arena");
 
+var pool: std.Thread.Pool = undefined;
+var tsa: std.heap.ThreadSafeAllocator = undefined;
+
 pub fn Queue(comptime T: type) type {
     return struct {
         pub const Node = std.SinglyLinkedList(T).Node;
@@ -40,9 +43,6 @@ pub fn Queue(comptime T: type) type {
         }
     };
 }
-
-var pool: std.Thread.Pool = undefined;
-var tsa: std.heap.ThreadSafeAllocator = undefined;
 
 pub fn init(parent_allocator: std.mem.Allocator) !void {
     tsa = .{ .child_allocator = parent_allocator };

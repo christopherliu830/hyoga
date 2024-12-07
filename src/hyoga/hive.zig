@@ -251,7 +251,12 @@ pub fn Hive(comptime T: type) type {
 
             pub fn remove(self: *GroupList, node: *Group) void {
                 if (self.size == 1) {
-                    unreachable;
+                    self.head = null;
+                    self.tail = null;
+                    self.open_head = null;
+                    self.total_capacity =0;
+                    self.size = 0;
+                    return;
                 }
                 
                 self.size -= 1;
@@ -319,13 +324,13 @@ pub fn Hive(comptime T: type) type {
         }
 
         pub fn deinit(self: *Self) void {
-            while (self.groups.head) |*head| {
-                if (self.groups.size == 1) break;
-                const g = head.group;
-                self.groups.remove(head.group);
-                g.deinit(self.allocator);
+            if (self.groups.size > 0) {
+                while (self.groups.head) |*head| {
+                    const g = head.group;
+                    self.groups.remove(head.group);
+                    g.deinit(self.allocator);
+                }
             }
-            self.groups.head.?.group.deinit(self.allocator);
         }
 
         pub fn iterator(self: *Self) Iterator {
