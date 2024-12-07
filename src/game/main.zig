@@ -20,11 +20,13 @@ const Context = struct {
 pub fn update(game: *hy.Game) void {
     var ctx: *Context = @ptrCast(@alignCast(game.user_data.?));
 
+    ctx.ui_state.frame_time = game.frame_time;
+    ui.drawMainUI(&ctx.ui_state);
+
     var mat = math.mat4.identity;
     mat.translate(game.scene.camera.position);
     mat.translate(math.vec3.mul(game.scene.camera.look_direction, 3));
 
-    ui.drawMainUI(&ctx.ui_state);
 
     const imgui = hy.ui.imgui;
     if (imgui.begin("Main Menu", null, 0)) {
@@ -79,7 +81,7 @@ pub fn main() !void {
     }); 
 
     var objects: Context = .{
-        .ui_state = .{},
+        .ui_state = try ui.State.create(),
         .allocator = gpa.allocator(),
         .backpack = hdl_backpack,
         .objects = try hy.Hive(Object).create(gpa.allocator(), .{}),

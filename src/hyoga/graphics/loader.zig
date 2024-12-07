@@ -14,19 +14,21 @@ pub fn Queue(comptime T: type) type {
     return struct {
         pub const Node = std.SinglyLinkedList(T).Node;
 
+        tsa: std.heap.ThreadSafeAllocator,
         mutex: std.Thread.Mutex = .{},
         items: std.SinglyLinkedList(T) = .{},
 
-        pub fn init(self: *@This()) void {
+        pub fn init(self: *@This(), in_allocator: std.mem.Allocator) void {
             self.items = .{};
             self.mutex = .{};
+            self.tsa = .{ .child_allocator = in_allocator, .mutex = self.mutex };
         }
 
         pub fn push(self: *@This(), value: T) !void {
             self.mutex.lock();
             defer self.mutex.unlock();
 
-            const node = try allocator().create(Node);
+            const node = try self.allocator().create(Node);
             node.data = value;
             self.items.prepend(node);
         }
@@ -36,10 +38,14 @@ pub fn Queue(comptime T: type) type {
             defer self.mutex.unlock();
             if (self.items.popFirst()) |node| {
                 const data = node.data;
-                allocator().destroy(node);
+                self.allocator().destroy(node);
                 return data;
             } 
             return null;
+        }
+
+        pub fn allocator(self: *@This()) std.mem.Allocator {
+            return self.tsa.allocator();
         }
     };
 }
@@ -65,5 +71,5 @@ pub fn run(queue: anytype, comptime func: anytype, args: anytype) !void {
         @compileError("Must be a pointer to a queue");
     }
 
-    try pool.spawn(func, .{queue} ++ args ++ .{allocator()});
+    try pool.spawn(func, .{queue} ++ args);
 }

@@ -35,6 +35,15 @@ pub const Textures = struct {
     queue: ld.Queue(TextureId) = .{},
     textures: std.AutoHashMapUnmanaged(sym.Symbol, *sdl.gpu.Texture) = .{},
 
+    pub fn create(device: *sdl.gpu.Device, allocator: std.mem.Allocator) Textures {
+        var t: Textures = undefined;
+        t.allocator = allocator;
+        t.queue.init(allocator);
+        t.device = device;
+        t.textures = .{};
+        return t;
+    }
+
     pub fn deinit(self: *@This()) void {
         self.flushQueue() catch std.debug.panic("Could not flush queue", .{});
         var it = self.textures.valueIterator();
@@ -60,8 +69,7 @@ pub const Textures = struct {
         }
     }
 
-    fn readTexture(queue: *ld.Queue(TextureId), device: *sdl.gpu.Device, path: sym.Symbol, allocator: std.mem.Allocator) void {
-        _ = allocator;
+    fn readTexture(queue: *ld.Queue(TextureId), device: *sdl.gpu.Device, path: sym.Symbol) void {
         const pathZ = path.asStringZ();
 
         var c_w: c_int = 0;

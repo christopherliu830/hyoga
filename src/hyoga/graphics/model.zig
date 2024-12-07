@@ -14,16 +14,20 @@ pub const Arena = hya.Arena(Model);
 pub const Handle = sym.Symbol;
 
 const ModelLoadJob = struct {
-    id: sym.Symbol,
+    allocator: std.mem.Allocator,
+    path: [:0]const u8,
     mats: []mt.Handle,
     settings: ImportSettings,
+
+    pub fn deinit(self: @This()) void {
+        self.allocator.free(self.path);
+        self.allocator.free(self.mats);
+    }
 };
 
 const ModelLoadResult = struct {
-    allocator: std.mem.Allocator,
+    job: ModelLoadJob,
     model: Model,
-    id: sym.Symbol,
-    mats: []mt.Handle,
 };
 
 const Queue = ld.Queue(ModelLoadResult);
@@ -31,8 +35,24 @@ const Queue = ld.Queue(ModelLoadResult);
 pub const Models = struct {
     allocator: std.mem.Allocator,
     device: *sdl.gpu.Device,
-    queue: Queue = .{},
+    queue: Queue,
     models: std.AutoHashMapUnmanaged(sym.Symbol, Model) = .{},
+
+    pub fn init(self: *@This(), device: *sdl.gpu.Device, allocator: std.mem.Allocator) void {
+        self.allocator = allocator;
+        self.queue.init(allocator);
+        self.device = device;
+        self.models = .{};
+    }
+
+    pub fn create(device: *sdl.gpu.Device, allocator: std.mem.Allocator) Models {
+        var m: Models = undefined;
+        m.allocator = allocator;
+        m.queue.init(allocator);
+        m.device = device;
+        m.models = .{};
+        return m;
+    }
 
     pub fn deinit(self: *@This()) void {
         self.flushQueue() catch std.debug.panic("Could not flush queue", .{});
@@ -51,32 +71,27 @@ pub const Models = struct {
     }
 
     pub fn read(self: *@This(), path: sym.Symbol, mats: []mt.Handle, import: ImportSettings) !sym.Symbol {
-        const own_mats = try self.allocator.dupe(mt.Handle, mats);
-
         const job = ModelLoadJob {
-            .mats = own_mats,
-            .id = path,
+            .allocator = self.allocator,
+            .mats = try self.allocator.dupe(mt.Handle, mats),
+            .path = try self.allocator.dupeZ(u8, path.asStringZ()),
             .settings = import,
         };
 
-        try ld.run(&self.queue, readJob, .{job});
+        try ld.run(&self.queue, doRead, .{job});
         return path;
     }
 
     fn flushQueue(self: *@This()) !void {
-        while (self.queue.pop()) |job| {
-            if (job.allocator.ptr != self.allocator.ptr) {
-                try self.moveModelToSelf(job.id, job.model);
-                job.model.deinit(job.allocator);
-            } else {
-                try self.models.put(self.allocator, job.id, job.model);
-            }
-            self.allocator.free(job.mats);
+        while (self.queue.pop()) |result| {
+            try self.models.put(self.allocator, try sym.from(result.job.path), result.model);
+            result.job.deinit();
         }
     }
 
-    fn readJob(queue: *Queue, job: ModelLoadJob, allocator: std.mem.Allocator) void {
-        const pathz = job.id.asStringZ();
+    fn doRead(queue: *Queue, job: ModelLoadJob) void {
+        const allocator = queue.tsa.allocator();
+        const pathz = job.path;
         var scene = ai.importFile(pathz, job.settings.post_process);
         defer scene.release();
 
@@ -100,37 +115,9 @@ pub const Models = struct {
         errdefer model.deinit();
 
         queue.push(ModelLoadResult {
-            .allocator = allocator,
+            .job = job,
             .model = model,
-            .id = job.id,
-            .mats = job.mats,
         }) catch |err| std.log.err("[GPU] model load failure: {}", .{err});
-    }
-
-    fn moveModelToSelf(self: *@This(), id: sym.Symbol, old: Model) !void {
-        const entry = try self.models.getOrPut(self.allocator, id);
-        const copy = entry.value_ptr;
-        copy.* = .{
-            .total_vertex_count = old.total_vertex_count,
-            .total_index_count = old.total_index_count,
-        };
-        try copy.meshes.ensureTotalCapacity(self.allocator, old.meshes.items.len);
-        errdefer self.allocator.destroy(copy);
-        for (old.meshes.items) |mesh| {
-            const v = try self.allocator.dupe(Vertex, mesh.vertices.items);
-            var vertices = std.ArrayListUnmanaged(Vertex).fromOwnedSlice(v);
-            errdefer vertices.deinit(self.allocator);
-            const i = try self.allocator.dupe(u32, mesh.indices.items);
-            var indices = std.ArrayListUnmanaged(u32).fromOwnedSlice(i);
-            errdefer indices.deinit(self.allocator);
-
-            copy.meshes.appendAssumeCapacity(.{
-                .vertices = vertices,
-                .indices = indices,
-                .material = mesh.material,
-            });
-        }
-        errdefer copy.deinit(self.allocator);
     }
 };
 
@@ -166,6 +153,33 @@ pub const Model = struct {
         mesh: ?*ai.Mesh = null,
         materials: []mt.Handle,
     };
+
+    pub fn deepCopy(old: Model, allocator: std.mem.Allocator) !Model {
+        var copy: Model = .{
+            .total_index_count = old.total_index_count,
+            .total_vertex_count = old.total_vertex_count,
+        };
+
+        try copy.meshes.ensureTotalCapacity(allocator, old.meshes.items.len);
+        errdefer allocator.destroy(copy);
+
+        for (old.meshes.items) |mesh| {
+            const v = try allocator.dupe(Vertex, mesh.vertices.items);
+            var vertices = std.ArrayListUnmanaged(Vertex).fromOwnedSlice(v);
+            errdefer vertices.deinit(allocator);
+            const i = try allocator.dupe(u32, mesh.indices.items);
+            var indices = std.ArrayListUnmanaged(u32).fromOwnedSlice(i);
+            errdefer indices.deinit(allocator);
+
+            copy.meshes.appendAssumeCapacity(.{
+                .vertices = vertices,
+                .indices = indices,
+                .material = mesh.material,
+            });
+        }
+
+        return copy;
+    }
 
     fn processNode(self: *Model, params: ProcessModelParams) !void {
         const node = params.node;
