@@ -171,7 +171,7 @@ pub fn postMouse(mouse: MouseButton, action: InputFlags, event: MouseEvent) void
 }
 
 pub fn update(event: sdl.events.Event) void {
-    if (!imgui.getIO().WantCaptureKeyboard) switch (event.type) {
+    if (!imgui.GetIO().?.WantCaptureKeyboard) switch (event.type) {
         sdl.events.type.key_down => {
             const key = event.key.key;
             if (!event.key.repeat) {
@@ -202,7 +202,7 @@ pub fn update(event: sdl.events.Event) void {
         else => {},
     };
 
-    if (!imgui.getIO().WantCaptureMouse) switch(event.type) {
+    if (!imgui.GetIO().?.WantCaptureMouse) switch(event.type) {
         sdl.events.type.mouse_button_down => {
             switch(event.button.button) {
                 1 => {

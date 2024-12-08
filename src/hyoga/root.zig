@@ -13,7 +13,6 @@ pub const ui = @import("graphics/ui.zig");
 
 pub const gpu = @import("graphics/gpu.zig");
 
-
 const vec3 = math.vec3;
 
 pub const Game = struct {
@@ -27,6 +26,7 @@ pub const Game = struct {
     },
     user_data: ?*anyopaque = null,
     fn_update: *const fn (*Game) void,
+    fn_render: *const fn (*Game) void,
     frame_time: u64 = 0,
 };
 
@@ -43,21 +43,26 @@ pub fn init(allocator: std.mem.Allocator) void {
 }
 
 pub fn shutdown() void {
-    symbol.shutdown();
     input.shutdown();
     ui.shutdown();
     gpu.shutdown();
     window.destroy();
+    symbol.shutdown();
 }
 
 pub fn run(game: *Game) !void {
+
     var open: bool = false;
     _ = &open;
     var last_render_result: ?gpu.RenderSubmitResult = null;
     _ = &last_render_result;
     var time = try std.time.Timer.start();
     while (!game.quit) {
+        const zone = @import("ztracy").Zone(@src());
+        defer zone.End();
+
         var event: sdl.events.Event = undefined;
+
         while (sdl.events.poll(&event)) {
             try ui.processEvent(event);
             input.update(event);
@@ -68,15 +73,18 @@ pub fn run(game: *Game) !void {
             }
         }
 
-
-        try ui.beginFrame();
-
         game.fn_update(game);
 
-        const cmd = try gpu.begin();
-        try gpu.render(cmd, &game.scene);
-        try ui.render(cmd);
-        last_render_result = gpu.submit(cmd);
+        if (try gpu.begin()) |cmd| {
+            try ui.beginFrame();
+            game.fn_render(game);
+
+            try gpu.render(cmd, &game.scene);
+            try ui.render(cmd);
+            last_render_result = gpu.submit(cmd);
+        } 
+
         game.frame_time = time.lap();
+        @import("ztracy").FrameMark();
     }
 }

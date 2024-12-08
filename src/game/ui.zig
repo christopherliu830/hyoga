@@ -21,20 +21,20 @@ pub fn drawMainUI(state: *State) void {
     }
 
     const ui = hy.ui.imgui;
-    if (ui.beginMainMenuBar()) {
-        if (ui.menuItem_Bool("Timings", null, false, true)) {
+    if (ui.BeginMainMenuBar()) {
+        if (ui.MenuItem("Timings")) {
             state.window_timing_open = !state.window_timing_open;
         }
-        ui.endMainMenuBar();
+        ui.EndMainMenuBar();
     }
 
     if (state.window_timing_open) {
-        if (ui.begin("Timings", &state.window_timing_open, 0)) {
+        if (ui.Begin("Timings", &state.window_timing_open, 0)) {
             const fps: f32 = 1 / (@as(f32, @floatFromInt(state.drawn_frame_time)) / std.time.ns_per_s);
-            ui.text("Frame time: %.2fms (%.1f)fps", 
+            ui.Text("Frame time: %.2fms (%.1f)fps", 
                 @as(f32, @floatFromInt(state.drawn_frame_time)) / std.time.ns_per_ms,
                 fps);
         }
-        ui.end();
+        ui.End();
     }
 }

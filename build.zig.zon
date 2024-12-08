@@ -19,16 +19,9 @@
         .sdl = .{ .path = "modules/sdl" },
         .assimp = .{ .path = "modules/assimp" },
         .stb_image = .{ .path = "modules/stb_image" },
-        .hyoga_math = .{
-            .path = "../hyoga-math",
-        },
-        .hyoga_arena = .{
-            .path = "../hyoga-arena",
-        },
-        .zbench = .{
-            .url = "https://github.com/hendriknielaender/zbench/archive/fb3ecae.tar.gz",
-            .hash = "122095b73930ff5d627429295c669905d85bb9b54394ddc185ad2d61295cc65819e5",
-        },
+        .ztracy = .{ .path = "modules/ztracy", },
+        .hyoga_math = .{ .path = "../hyoga-math", },
+        .hyoga_arena = .{ .path = "../hyoga-arena", },
     },
     .paths = .{
         // This makes *all* files, recursively, included in this package. It is generally

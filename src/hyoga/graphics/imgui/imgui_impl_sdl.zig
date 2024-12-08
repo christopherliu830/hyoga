@@ -16,7 +16,7 @@ pub const ImplData = struct {
     ime_window: ?*sdl.video.Window,
     mouse_window_id: u32 = 0,
     mouse_buttons_down: i32 = 0,
-    mouse_cursors: [imgui.mouse_cursor_count]?*sdl.mouse.Cursor = undefined,
+    mouse_cursors: [@intFromEnum(imgui.MouseCursor.count)]?*sdl.mouse.Cursor = undefined,
     mouse_last_cursor: ?*sdl.mouse.Cursor = null,
     mouse_pending_leave_frame: i32 = 0,
     mouse_can_use_global_state: bool = false,
@@ -36,7 +36,7 @@ pub fn initForD3d(window: *sdl.Window) void {
 }
 
 pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) !void {
-    const io = imgui.getIO();
+    const io = imgui.GetIO().?;
     var mouse_can_use_global_state = false;
     const sdl_backend = sdl.video.getCurrentVideoDriver();
     const global_mouse_whitelist: [5][*c]const u8 = .{ "windows", "cocoa", "x11", "DIVE", "VMAN" };
@@ -53,10 +53,10 @@ pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) !void {
 
     io.BackendPlatformUserData = bd;
     io.BackendPlatformName = "imgui_impl_sdl3";
-    io.BackendFlags |= imgui.backend_flags_has_mouse_cursors;
-    io.BackendFlags |= imgui.backend_flags_has_set_mouse_pos;
+    io.BackendFlags |= imgui.BackendFlag.has_mouse_cursors;
+    io.BackendFlags |= imgui.BackendFlag.has_set_mouse_pos;
     if (mouse_can_use_global_state) {
-        io.BackendFlags |= imgui.backend_flags_platform_has_viewports;
+        io.BackendFlags |= imgui.BackendFlag.platform_has_viewports;
     }
     bd.window = window;
     bd.window_id = sdl.video.getWindowID(window);
@@ -64,7 +64,7 @@ pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) !void {
     bd.mouse_can_report_hovered_viewport = if (builtin.os.tag != .macos) mouse_can_use_global_state else false;
     bd.want_update_monitors = true;
 
-    const platform_io = imgui.getPlatformIO();
+    const platform_io = imgui.GetPlatformIO().?;
     platform_io.Platform_SetClipboardTextFn = undefined;
     platform_io.Platform_SetClipboardTextFn = undefined;
     platform_io.Platform_SetImeDataFn = platformSetImeData;
@@ -72,16 +72,16 @@ pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) !void {
     bd.gamepad_mode = .auto_first;
     bd.want_update_gamepads_list = true;
 
-    bd.mouse_cursors[imgui.mouse_cursor_arrow] = sdl.mouse.createSystemCursor(.default);
-    bd.mouse_cursors[imgui.mouse_cursor_text_input] = sdl.mouse.createSystemCursor(.text);
-    bd.mouse_cursors[imgui.mouse_cursor_resize_all] = sdl.mouse.createSystemCursor(.move);
-    bd.mouse_cursors[imgui.mouse_cursor_resize_ns] = sdl.mouse.createSystemCursor(.ns_resize);
-    bd.mouse_cursors[imgui.mouse_cursor_resize_ew] = sdl.mouse.createSystemCursor(.ew_resize);
-    bd.mouse_cursors[imgui.mouse_cursor_resize_nesw] = sdl.mouse.createSystemCursor(.nesw_resize);
-    bd.mouse_cursors[imgui.mouse_cursor_resize_nwse] = sdl.mouse.createSystemCursor(.nwse_resize);
-    bd.mouse_cursors[imgui.mouse_cursor_not_allowed] = sdl.mouse.createSystemCursor(.not_allowed);
+    bd.mouse_cursors[@intFromEnum(imgui.MouseCursor.arrow)] = sdl.mouse.createSystemCursor(.default);
+    bd.mouse_cursors[@intFromEnum(imgui.MouseCursor.text_input)] = sdl.mouse.createSystemCursor(.text);
+    bd.mouse_cursors[@intFromEnum(imgui.MouseCursor.resize_all)] = sdl.mouse.createSystemCursor(.move);
+    bd.mouse_cursors[@intFromEnum(imgui.MouseCursor.resize_ns)] = sdl.mouse.createSystemCursor(.ns_resize);
+    bd.mouse_cursors[@intFromEnum(imgui.MouseCursor.resize_ew)] = sdl.mouse.createSystemCursor(.ew_resize);
+    bd.mouse_cursors[@intFromEnum(imgui.MouseCursor.resize_nesw)] = sdl.mouse.createSystemCursor(.nesw_resize);
+    bd.mouse_cursors[@intFromEnum(imgui.MouseCursor.resize_nwse)] = sdl.mouse.createSystemCursor(.nwse_resize);
+    bd.mouse_cursors[@intFromEnum(imgui.MouseCursor.not_allowed)] = sdl.mouse.createSystemCursor(.not_allowed);
 
-    const main_viewport = imgui.getMainViewport();
+    const main_viewport = imgui.GetMainViewport().?;
     setupPlatformHandles(main_viewport, window);
 
     // From 2.0.5: Set SDL hint to receive mouse click events on window focus, otherwise SDL doesn't emit the event.
@@ -100,11 +100,11 @@ pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) !void {
 
 pub fn shutdown() void {
     const bd = getBackendData().?;
-    const io = imgui.getIO();
+    const io = imgui.GetIO().?;
 
     //TODO: free clipboard
 
-    imgui.destroyPlatformWindows();
+    imgui.DestroyPlatformWindows();
     for(bd.mouse_cursors) |cursor| {
         sdl.mouse.destroyCursor(cursor);
     }
@@ -112,30 +112,32 @@ pub fn shutdown() void {
 
     io.BackendPlatformName = null;
     io.BackendPlatformUserData = null;
-    io.BackendFlags &= ~(imgui.backend_flags_has_mouse_cursors | imgui.backend_flags_has_set_mouse_pos | imgui.backend_flags_platform_has_viewports);
+    io.BackendFlags &= ~(@as(c_int, imgui.BackendFlag.has_mouse_cursors) | 
+                         @as(c_int, imgui.BackendFlag.has_set_mouse_pos) | 
+                         @as(c_int, imgui.BackendFlag.platform_has_viewports));
 
     bd.allocator.destroy(bd);
 }
 
 fn getBackendData() ?*ImplData {
-    if (imgui.igGetCurrentContext() != null) {
-        return @ptrCast(@alignCast(imgui.getIO().BackendPlatformUserData));
+    if (imgui.GetCurrentContext() != null) {
+        return @ptrCast(@alignCast(imgui.GetIO().?.BackendPlatformUserData));
     } else return null;
 }
 
-fn platformSetImeData(_: ?*imgui.Context, viewport: *imgui.Viewport, data: *imgui.PlatformImeData) callconv(.C) void {
+fn platformSetImeData(_: *imgui.Context, viewport: ?*imgui.Viewport, data: ?*imgui.PlatformImeData) callconv(.C) void {
     const bd = getBackendData().?;
-    const window_id = @intFromPtr(viewport.PlatformHandle);
+    const window_id = @intFromPtr(viewport.?.PlatformHandle);
     const window = sdl.video.getWindowFromID(@intCast(window_id));
-    if ((data.WantVisible == false or bd.ime_window != window) and bd.ime_window != null) {
+    if ((data.?.WantVisible == false or bd.ime_window != window) and bd.ime_window != null) {
         _ = sdl.keyboard.stopTextInput(bd.ime_window);
     }
-    if (data.WantVisible) {
+    if (data.?.WantVisible) {
         const r = sdl.rect.Rect {
-            .x = @intFromFloat(data.InputPos.x - viewport.Pos.x),
-            .y = @intFromFloat(data.InputPos.y - viewport.Pos.y),
+            .x = @intFromFloat(data.?.InputPos.x - viewport.?.Pos.x),
+            .y = @intFromFloat(data.?.InputPos.y - viewport.?.Pos.y),
             .w = 1,
-            .h = @intFromFloat(data.InputLineHeight),
+            .h = @intFromFloat(data.?.InputLineHeight),
         };
         _ = sdl.keyboard.setTextInputArea(window, &r, 0);
         _ = sdl.keyboard.startTextInput(window);
@@ -154,7 +156,7 @@ fn setupPlatformHandles(viewport: *imgui.Viewport, window: *sdl.video.Window) vo
 
 pub fn processEvent(event: *const sdl.events.Event) !bool {
     const bd = getBackendData() orelse return error.NotInitialized;
-    const io = imgui.getIO();
+    const io = imgui.GetIO().?;
 
     switch (event.type) {
         sdl.events.type.mouse_motion => {
@@ -163,17 +165,17 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             }
 
             var mouse_pos = imgui.Vec2 { .x = event.motion.x, .y = event.motion.y };
-            if (io.ConfigFlags & imgui.ImGuiConfigFlags_ViewportsEnable != 0) {
+            if (io.ConfigFlags & imgui.ConfigFlag.viewports_enable != 0) {
                 var window_x: c_int = undefined;
                 var window_y: c_int = undefined;
                 _ = sdl.video.getWindowPosition(sdl.video.getWindowFromID(event.motion.windowID), &window_x, &window_y);
                 mouse_pos.x += @floatFromInt(window_x);
                 mouse_pos.y += @floatFromInt(window_y);
             }
-            const source = if (event.motion.which == sdl.c.SDL_TOUCH_MOUSEID) imgui.ImGuiMouseSource_TouchScreen else imgui.ImGuiMouseSource_Mouse;
-            if (source < 0) unreachable; // suppress cast error
-            imgui.ImGuiIO_AddMouseSourceEvent(io, @intCast(source));
-            imgui.ImGuiIO_AddMousePosEvent(io, mouse_pos.x, mouse_pos.y);
+            const source = if (event.motion.which == sdl.c.SDL_TOUCH_MOUSEID) imgui.MouseSource.touch_screen else imgui.MouseSource.mouse;
+            // if (source < 0) unreachable; // suppress cast error
+            io.AddMouseSourceEvent(source);
+            io.AddMousePosEvent(mouse_pos.x, mouse_pos.y);
             return true;
         },
         sdl.events.type.mouse_wheel => {
@@ -183,10 +185,9 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
 
             const wheel_x = event.wheel.x;
             const wheel_y = event.wheel.y;
-            const source = if (event.motion.which == sdl.c.SDL_TOUCH_MOUSEID) imgui.ImGuiMouseSource_TouchScreen else imgui.ImGuiMouseSource_Mouse;
-            if (source < 0) unreachable; // suppress cast error
-            imgui.ImGuiIO_AddMouseSourceEvent(io, @intCast(source));
-            imgui.ImGuiIO_AddMouseWheelEvent(io, wheel_x, wheel_y);
+            const source = if (event.motion.which == sdl.c.SDL_TOUCH_MOUSEID) imgui.MouseSource.touch_screen else imgui.MouseSource.mouse;
+            io.AddMouseSourceEvent(source);
+            io.AddMouseWheelEvent(wheel_x, wheel_y);
             return true;
         },
         sdl.events.type.mouse_button_down, sdl.events.type.mouse_button_up => {
@@ -204,10 +205,9 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
                 return false;
             }
 
-            const source = if (event.motion.which == sdl.c.SDL_TOUCH_MOUSEID) imgui.ImGuiMouseSource_TouchScreen else imgui.ImGuiMouseSource_Mouse;
-            if (source < 0) unreachable; // suppress error
-            imgui.ImGuiIO_AddMouseSourceEvent(io, @intCast(source));
-            imgui.ImGuiIO_AddMouseButtonEvent(io, mouse_button, (event.type == sdl.events.type.mouse_button_down));
+            const source = if (event.motion.which == sdl.c.SDL_TOUCH_MOUSEID) imgui.MouseSource.touch_screen else imgui.MouseSource.mouse;
+            io.AddMouseSourceEvent(source);
+            io.AddMouseButtonEvent(mouse_button, (event.type == sdl.events.type.mouse_button_down));
             const mask = @as(i32, 1) << @intCast(mouse_button);
             bd.mouse_buttons_down = if (event.type == sdl.events.type.mouse_button_down) bd.mouse_buttons_down | mask else bd.mouse_buttons_down & ~mask;
             return true;
@@ -248,7 +248,7 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             if (getViewportForWindowID(event.window.windowID) == null) {
                 return false;
             }
-            bd.mouse_pending_leave_frame = imgui.igGetFrameCount() + 1;
+            bd.mouse_pending_leave_frame = imgui.GetFrameCount() + 1;
             return true;
         },
         sdl.events.type.window_focus_gained,
@@ -286,7 +286,7 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
 
 pub fn newFrame() !void {
     const bd = getBackendData() orelse return error.NotInitialized;
-    const io = imgui.getIO();
+    const io = imgui.GetIO().?;
 
     var w: i32 = undefined;
     var h: i32 = undefined;
@@ -323,16 +323,17 @@ pub fn newFrame() !void {
         io.DeltaTime = @as(f32, 1) / 60;
     }
 
-    if (bd.mouse_pending_leave_frame != 0 and bd.mouse_pending_leave_frame > imgui.igGetFrameCount() and bd.mouse_buttons_down == 0) {
+    if (bd.mouse_pending_leave_frame != 0 and bd.mouse_pending_leave_frame > imgui.GetFrameCount() and bd.mouse_buttons_down == 0) {
         bd.mouse_window_id = 0;
         bd.mouse_pending_leave_frame = 0;
-        imgui.ImGuiIO_AddMousePosEvent(io, -std.math.floatMax(f32), -std.math.floatMax(f32));
+
+        io.AddMousePosEvent(-std.math.floatMax(f32), -std.math.floatMax(f32));
     }
 
-    if (bd.mouse_can_report_hovered_viewport and imgui.igGetDragDropPayload() == null) {
-        io.BackendFlags |= imgui.backend_flags_has_mouse_hovered_viewport;
+    if (bd.mouse_can_report_hovered_viewport and imgui.GetDragDropPayload() == null) {
+        io.BackendFlags |= imgui.BackendFlag.has_mouse_hovered_viewport;
     } else {
-        io.BackendFlags &= ~imgui.backend_flags_has_mouse_hovered_viewport;
+        io.BackendFlags &= ~@as(c_int, imgui.BackendFlag.has_mouse_hovered_viewport);
     }
 
     try updateMouseData();
@@ -343,7 +344,7 @@ pub fn newFrame() !void {
 
 fn updateMonitors() void {
     const bd = getBackendData().?;
-    const io = imgui.getPlatformIO();
+    const io = imgui.GetPlatformIO().?;
     io.Monitors.Size = 0;
     bd.want_update_monitors = false;
 
@@ -354,10 +355,10 @@ fn updateMonitors() void {
 
     // resize array
     if (io.Monitors.Capacity < display_count) {
-        const new_data: [*]imgui.ImGuiPlatformMonitor = @alignCast(@ptrCast(imgui.memAlloc(len * @sizeOf(imgui.ImGuiPlatformMonitor))));
+        const new_data: [*]imgui.PlatformMonitor = @alignCast(@ptrCast(imgui.MemAlloc(len * @sizeOf(imgui.PlatformMonitor))));
         if (io.Monitors.Data != null) {
             @memcpy(new_data, io.Monitors.Data[0..len]);
-            imgui.memFree(io.Monitors.Data);
+            imgui.MemFree(io.Monitors.Data);
         }
         io.Monitors.Data = new_data;
         io.Monitors.Capacity = display_count;
@@ -371,7 +372,7 @@ fn updateMonitors() void {
         var w: f32 = @floatFromInt(rect.w);
         var h: f32 = @floatFromInt(rect.h);
 
-        var monitor = imgui.ImGuiPlatformMonitor {
+        var monitor = imgui.PlatformMonitor {
             .MainPos = .{ .x = x, .y = y },
             .MainSize = .{ .x = w, .y = h },
             .WorkPos = .{ .x = x, .y = y },
@@ -397,14 +398,14 @@ fn updateMonitors() void {
 
 fn updateMouseData() !void {
     const bd = getBackendData() orelse return error.NotInitialized;
-    const io = imgui.getIO();
+    const io = imgui.GetIO().?;
 
     _ = sdl.mouse.captureMouse(if (bd.mouse_buttons_down != 0) true else false);
     const window: ?*sdl.video.Window = @ptrCast(sdl.c.SDL_GetKeyboardFocus());
     const is_app_focused = window != null and (window == bd.window or getViewportForWindowID(sdl.video.getWindowID(window.?)) != null);
     if (is_app_focused) {
         if (io.WantSetMousePos) {
-            if (io.ConfigFlags & imgui.ImGuiConfigFlags_ViewportsEnable != 0) {
+            if (io.ConfigFlags & imgui.ConfigFlag.viewports_enable != 0) {
                 _ = sdl.mouse.warpMouseGlobal(io.MousePos.x, io.MousePos.y);
             } else {
                 _ = sdl.mouse.warpMouseInWindow(bd.window, io.MousePos.x, io.MousePos.y);
@@ -414,17 +415,18 @@ fn updateMouseData() !void {
 }
 
 fn updateMouseCursor() !void {
-    const io = imgui.getIO();
-    if (io.ConfigFlags & imgui.ImGuiConfigFlags_NoMouseCursorChange != 0) {
+    const io = imgui.GetIO().?;
+    if (io.ConfigFlags & imgui.ConfigFlag.no_mouse_cursor_change != 0) {
         return;
     }
 
     const bd = getBackendData() orelse return error.NotInitialized;
-    const imgui_cursor: usize = @intCast(imgui.igGetMouseCursor());
-    if (io.MouseDrawCursor or imgui_cursor == imgui.mouse_cursor_none) {
+    const imgui_cursor = imgui.GetMouseCursor();
+    const cursor_val: usize = @intCast(@intFromEnum(imgui_cursor));
+    if (io.MouseDrawCursor or imgui_cursor == .none) {
         _ = sdl.mouse.hideCursor();
     } else {
-        const expected_cursor = bd.mouse_cursors[imgui_cursor];
+        const expected_cursor = bd.mouse_cursors[cursor_val];
         if (bd.mouse_last_cursor != expected_cursor) {
             _ = sdl.mouse.setCursor(expected_cursor);
             bd.mouse_last_cursor = expected_cursor;
@@ -438,141 +440,141 @@ fn updateGamepads() void {
 }
 
 fn updateKeyModifiers(sdl_key_mods: sdl.keycode.Keymod) void {
-    const io = imgui.getIO();
-    imgui.ImGuiIO_AddKeyEvent(io, imgui.ImGuiMod_Ctrl, (sdl_key_mods & sdl.keycode.mod_ctrl) != 0);
-    imgui.ImGuiIO_AddKeyEvent(io, imgui.ImGuiMod_Shift, (sdl_key_mods & sdl.keycode.mod_shift) != 0);
-    imgui.ImGuiIO_AddKeyEvent(io, imgui.ImGuiMod_Alt, (sdl_key_mods & sdl.keycode.mod_alt) != 0);
-    imgui.ImGuiIO_AddKeyEvent(io, imgui.ImGuiMod_Super, (sdl_key_mods & sdl.keycode.mod_gui) != 0);
+    const io = imgui.GetIO().?;
+    imgui.ImGuiIO_AddKeyEvent(io, .mod_ctrl, (sdl_key_mods & sdl.keycode.mod_ctrl) != 0);
+    imgui.ImGuiIO_AddKeyEvent(io, .mod_shift, (sdl_key_mods & sdl.keycode.mod_shift) != 0);
+    imgui.ImGuiIO_AddKeyEvent(io, .mod_alt, (sdl_key_mods & sdl.keycode.mod_alt) != 0);
+    imgui.ImGuiIO_AddKeyEvent(io, .mod_super, (sdl_key_mods & sdl.keycode.mod_gui) != 0);
 }
 
-inline fn keyEventToImGuiKey(keycode: sdl.keycode.Keycode, scancode: sdl.scancode.Scancode) imgui.ImGuiKey {
-    const code: ?imgui.ImGuiKey = switch(scancode) {
-        sdl.scancode.kp_0 => imgui.ImGuiKey_Keypad0,
-        sdl.scancode.kp_1 => imgui.ImGuiKey_Keypad1,
-        sdl.scancode.kp_2 => imgui.ImGuiKey_Keypad2,
-        sdl.scancode.kp_3 => imgui.ImGuiKey_Keypad3,
-        sdl.scancode.kp_4 => imgui.ImGuiKey_Keypad4,
-        sdl.scancode.kp_5 => imgui.ImGuiKey_Keypad5,
-        sdl.scancode.kp_6 => imgui.ImGuiKey_Keypad6,
-        sdl.scancode.kp_7 => imgui.ImGuiKey_Keypad7,
-        sdl.scancode.kp_8 => imgui.ImGuiKey_Keypad8,
-        sdl.scancode.kp_9 => imgui.ImGuiKey_Keypad9,
-        sdl.scancode.kp_period => imgui.ImGuiKey_KeypadDecimal,
-        sdl.scancode.kp_divide => imgui.ImGuiKey_KeypadDivide,
-        sdl.scancode.kp_multiply => imgui.ImGuiKey_KeypadMultiply,
-        sdl.scancode.kp_minus => imgui.ImGuiKey_KeypadSubtract,
-        sdl.scancode.kp_plus => imgui.ImGuiKey_KeypadAdd,
-        sdl.scancode.kp_enter  => imgui.ImGuiKey_KeypadEnter,
-        sdl.scancode.kp_equals  => imgui.ImGuiKey_KeypadEqual,
+inline fn keyEventToImGuiKey(keycode: sdl.keycode.Keycode, scancode: sdl.scancode.Scancode) imgui.Key {
+    const code: ?imgui.Key = switch(scancode) {
+        sdl.scancode.kp_0 => .keypad0,
+        sdl.scancode.kp_1 => .keypad1,
+        sdl.scancode.kp_2 => .keypad2,
+        sdl.scancode.kp_3 => .keypad3,
+        sdl.scancode.kp_4 => .keypad4,
+        sdl.scancode.kp_5 => .keypad5,
+        sdl.scancode.kp_6 => .keypad6,
+        sdl.scancode.kp_7 => .keypad7,
+        sdl.scancode.kp_8 => .keypad8,
+        sdl.scancode.kp_9 => .keypad9,
+        sdl.scancode.kp_period => .keypad_decimal,
+        sdl.scancode.kp_divide => .keypad_divide,
+        sdl.scancode.kp_multiply => .keypad_multiply,
+        sdl.scancode.kp_minus => .keypad_subtract,
+        sdl.scancode.kp_plus => .keypad_add,
+        sdl.scancode.kp_enter  => .keypad_enter,
+        sdl.scancode.kp_equals  => .keypad_equal,
         else => null,
     };
     return code orelse switch (keycode) {
-        sdl.keycode.tab => imgui.ImGuiKey_Tab,
-        sdl.keycode.left => imgui.ImGuiKey_LeftArrow,
-        sdl.keycode.right => imgui.ImGuiKey_RightArrow,
-        sdl.keycode.up => imgui.ImGuiKey_UpArrow,
-        sdl.keycode.down => imgui.ImGuiKey_DownArrow,
-        sdl.keycode.pageup => imgui.ImGuiKey_PageUp,
-        sdl.keycode.pagedown => imgui.ImGuiKey_PageDown,
-        sdl.keycode.home => imgui.ImGuiKey_Home,
-        sdl.keycode.end => imgui.ImGuiKey_End,
-        sdl.keycode.insert => imgui.ImGuiKey_Insert,
-        sdl.keycode.delete => imgui.ImGuiKey_Delete,
-        sdl.keycode.backspace => imgui.ImGuiKey_Backspace,
-        sdl.keycode.space => imgui.ImGuiKey_Space,
-        sdl.keycode.@"return" => imgui.ImGuiKey_Enter,
-        sdl.keycode.escape => imgui.ImGuiKey_Escape,
-        sdl.keycode.apostrophe => imgui.ImGuiKey_Apostrophe,
-        sdl.keycode.comma => imgui.ImGuiKey_Comma,
-        sdl.keycode.minus => imgui.ImGuiKey_Minus,
-        sdl.keycode.period => imgui.ImGuiKey_Period,
-        sdl.keycode.slash => imgui.ImGuiKey_Slash,
-        sdl.keycode.semicolon => imgui.ImGuiKey_Semicolon,
-        sdl.keycode.equals => imgui.ImGuiKey_Equal,
-        sdl.keycode.leftbracket => imgui.ImGuiKey_LeftBracket,
-        sdl.keycode.backslash => imgui.ImGuiKey_Backslash,
-        sdl.keycode.rightbracket => imgui.ImGuiKey_RightBracket,
-        sdl.keycode.grave => imgui.ImGuiKey_GraveAccent,
-        sdl.keycode.capslock => imgui.ImGuiKey_CapsLock,
-        sdl.keycode.scrolllock => imgui.ImGuiKey_ScrollLock,
-        sdl.keycode.numlockclear => imgui.ImGuiKey_NumLock,
-        sdl.keycode.printscreen => imgui.ImGuiKey_PrintScreen,
-        sdl.keycode.pause => imgui.ImGuiKey_Pause,
-        sdl.keycode.lctrl => imgui.ImGuiKey_LeftCtrl,
-        sdl.keycode.lshift => imgui.ImGuiKey_LeftShift,
-        sdl.keycode.lalt => imgui.ImGuiKey_LeftAlt,
-        sdl.keycode.lgui => imgui.ImGuiKey_LeftSuper,
-        sdl.keycode.rctrl => imgui.ImGuiKey_RightCtrl,
-        sdl.keycode.rshift => imgui.ImGuiKey_RightShift,
-        sdl.keycode.ralt => imgui.ImGuiKey_RightAlt,
-        sdl.keycode.rgui => imgui.ImGuiKey_RightSuper,
-        sdl.keycode.application => imgui.ImGuiKey_Menu,
-        sdl.keycode.@"0" => imgui.ImGuiKey_0,
-        sdl.keycode.@"1" => imgui.ImGuiKey_1,
-        sdl.keycode.@"2" => imgui.ImGuiKey_2,
-        sdl.keycode.@"3" => imgui.ImGuiKey_3,
-        sdl.keycode.@"4" => imgui.ImGuiKey_4,
-        sdl.keycode.@"5" => imgui.ImGuiKey_5,
-        sdl.keycode.@"6" => imgui.ImGuiKey_6,
-        sdl.keycode.@"7" => imgui.ImGuiKey_7,
-        sdl.keycode.@"8" => imgui.ImGuiKey_8,
-        sdl.keycode.@"9" => imgui.ImGuiKey_9,
-        sdl.keycode.a => imgui.ImGuiKey_A,
-        sdl.keycode.b => imgui.ImGuiKey_B,
-        sdl.keycode.c => imgui.ImGuiKey_C,
-        sdl.keycode.d => imgui.ImGuiKey_D,
-        sdl.keycode.e => imgui.ImGuiKey_E,
-        sdl.keycode.f => imgui.ImGuiKey_F,
-        sdl.keycode.g => imgui.ImGuiKey_G,
-        sdl.keycode.h => imgui.ImGuiKey_H,
-        sdl.keycode.i => imgui.ImGuiKey_I,
-        sdl.keycode.j => imgui.ImGuiKey_J,
-        sdl.keycode.k => imgui.ImGuiKey_K,
-        sdl.keycode.l => imgui.ImGuiKey_L,
-        sdl.keycode.m => imgui.ImGuiKey_M,
-        sdl.keycode.n => imgui.ImGuiKey_N,
-        sdl.keycode.o => imgui.ImGuiKey_O,
-        sdl.keycode.p => imgui.ImGuiKey_P,
-        sdl.keycode.q => imgui.ImGuiKey_Q,
-        sdl.keycode.r => imgui.ImGuiKey_R,
-        sdl.keycode.s => imgui.ImGuiKey_S,
-        sdl.keycode.t => imgui.ImGuiKey_T,
-        sdl.keycode.u => imgui.ImGuiKey_U,
-        sdl.keycode.v => imgui.ImGuiKey_V,
-        sdl.keycode.w => imgui.ImGuiKey_W,
-        sdl.keycode.x => imgui.ImGuiKey_X,
-        sdl.keycode.y => imgui.ImGuiKey_Y,
-        sdl.keycode.z => imgui.ImGuiKey_Z,
-        sdl.keycode.f1 => imgui.ImGuiKey_F1,
-        sdl.keycode.f2 => imgui.ImGuiKey_F2,
-        sdl.keycode.f3 => imgui.ImGuiKey_F3,
-        sdl.keycode.f4 => imgui.ImGuiKey_F4,
-        sdl.keycode.f5 => imgui.ImGuiKey_F5,
-        sdl.keycode.f6 => imgui.ImGuiKey_F6,
-        sdl.keycode.f7 => imgui.ImGuiKey_F7,
-        sdl.keycode.f8 => imgui.ImGuiKey_F8,
-        sdl.keycode.f9 => imgui.ImGuiKey_F9,
-        sdl.keycode.f10 => imgui.ImGuiKey_F10,
-        sdl.keycode.f11 => imgui.ImGuiKey_F11,
-        sdl.keycode.f12 => imgui.ImGuiKey_F12,
-        sdl.keycode.f13 => imgui.ImGuiKey_F13,
-        sdl.keycode.f14 => imgui.ImGuiKey_F14,
-        sdl.keycode.f15 => imgui.ImGuiKey_F15,
-        sdl.keycode.f16 => imgui.ImGuiKey_F16,
-        sdl.keycode.f17 => imgui.ImGuiKey_F17,
-        sdl.keycode.f18 => imgui.ImGuiKey_F18,
-        sdl.keycode.f19 => imgui.ImGuiKey_F19,
-        sdl.keycode.f20 => imgui.ImGuiKey_F20,
-        sdl.keycode.f21 => imgui.ImGuiKey_F21,
-        sdl.keycode.f22 => imgui.ImGuiKey_F22,
-        sdl.keycode.f23 => imgui.ImGuiKey_F23,
-        sdl.keycode.f24 => imgui.ImGuiKey_F24,
-        sdl.keycode.ac_back => imgui.ImGuiKey_AppBack,
-        sdl.keycode.ac_forward => imgui.ImGuiKey_AppForward,
-        else => imgui.ImGuiKey_None,
+        sdl.keycode.tab => .tab,
+        sdl.keycode.left => .left_arrow,
+        sdl.keycode.right => .right_arrow,
+        sdl.keycode.up => .up_arrow,
+        sdl.keycode.down => .down_arrow,
+        sdl.keycode.pageup => .page_up,
+        sdl.keycode.pagedown => .page_down,
+        sdl.keycode.home => .home,
+        sdl.keycode.end => .end,
+        sdl.keycode.insert => .insert,
+        sdl.keycode.delete => .delete,
+        sdl.keycode.backspace => .backspace,
+        sdl.keycode.space => .space,
+        sdl.keycode.@"return" => .enter,
+        sdl.keycode.escape => .escape,
+        sdl.keycode.apostrophe => .apostrophe,
+        sdl.keycode.comma => .comma,
+        sdl.keycode.minus => .minus,
+        sdl.keycode.period => .period,
+        sdl.keycode.slash => .slash,
+        sdl.keycode.semicolon => .semicolon,
+        sdl.keycode.equals => .equal,
+        sdl.keycode.leftbracket => .left_bracket,
+        sdl.keycode.backslash => .backslash,
+        sdl.keycode.rightbracket => .right_bracket,
+        sdl.keycode.grave => .grave_accent,
+        sdl.keycode.capslock => .caps_lock,
+        sdl.keycode.scrolllock => .scroll_lock,
+        sdl.keycode.numlockclear => .num_lock,
+        sdl.keycode.printscreen => .print_screen,
+        sdl.keycode.pause => .pause,
+        sdl.keycode.lctrl => .left_ctrl,
+        sdl.keycode.lshift => .left_shift,
+        sdl.keycode.lalt => .left_alt,
+        sdl.keycode.lgui => .left_super,
+        sdl.keycode.rctrl => .right_ctrl,
+        sdl.keycode.rshift => .right_shift,
+        sdl.keycode.ralt => .right_alt,
+        sdl.keycode.rgui => .right_super,
+        sdl.keycode.application => .menu,
+        sdl.keycode.@"0" => .@"0",
+        sdl.keycode.@"1" => .@"1",
+        sdl.keycode.@"2" => .@"2",
+        sdl.keycode.@"3" => .@"3",
+        sdl.keycode.@"4" => .@"4",
+        sdl.keycode.@"5" => .@"5",
+        sdl.keycode.@"6" => .@"6",
+        sdl.keycode.@"7" => .@"7",
+        sdl.keycode.@"8" => .@"8",
+        sdl.keycode.@"9" => .@"9",
+        sdl.keycode.a => .a,
+        sdl.keycode.b => .b,
+        sdl.keycode.c => .c,
+        sdl.keycode.d => .d,
+        sdl.keycode.e => .e,
+        sdl.keycode.f => .f,
+        sdl.keycode.g => .g,
+        sdl.keycode.h => .h,
+        sdl.keycode.i => .i,
+        sdl.keycode.j => .j,
+        sdl.keycode.k => .k,
+        sdl.keycode.l => .l,
+        sdl.keycode.m => .m,
+        sdl.keycode.n => .n,
+        sdl.keycode.o => .o,
+        sdl.keycode.p => .p,
+        sdl.keycode.q => .q,
+        sdl.keycode.r => .r,
+        sdl.keycode.s => .s,
+        sdl.keycode.t => .t,
+        sdl.keycode.u => .u,
+        sdl.keycode.v => .v,
+        sdl.keycode.w => .w,
+        sdl.keycode.x => .x,
+        sdl.keycode.y => .y,
+        sdl.keycode.z => .z,
+        sdl.keycode.f1 => .f1,
+        sdl.keycode.f2 => .f2,
+        sdl.keycode.f3 => .f3,
+        sdl.keycode.f4 => .f4,
+        sdl.keycode.f5 => .f5,
+        sdl.keycode.f6 => .f6,
+        sdl.keycode.f7 => .f7,
+        sdl.keycode.f8 => .f8,
+        sdl.keycode.f9 => .f9,
+        sdl.keycode.f10 => .f10,
+        sdl.keycode.f11 => .f11,
+        sdl.keycode.f12 => .f12,
+        sdl.keycode.f13 => .f13,
+        sdl.keycode.f14 => .f14,
+        sdl.keycode.f15 => .f15,
+        sdl.keycode.f16 => .f16,
+        sdl.keycode.f17 => .f17,
+        sdl.keycode.f18 => .f18,
+        sdl.keycode.f19 => .f19,
+        sdl.keycode.f20 => .f20,
+        sdl.keycode.f21 => .f21,
+        sdl.keycode.f22 => .f22,
+        sdl.keycode.f23 => .f23,
+        sdl.keycode.f24 => .f24,
+        sdl.keycode.ac_back => .app_back,
+        sdl.keycode.ac_forward => .app_forward,
+        else => .none,
     };
 }
 
 fn getViewportForWindowID(windowid: sdl.video.WindowID) ?*imgui.Viewport {
-    return imgui.igFindViewportByPlatformHandle(@ptrFromInt(windowid));
+    return imgui.FindViewportByPlatformHandle(@ptrFromInt(windowid));
 }

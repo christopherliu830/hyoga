@@ -14,7 +14,7 @@ pub const UIInitInfo = struct {
 };
 
 pub fn init(info: UIInitInfo) !void {
-    context = imgui.createContext(null).?;
+    context = imgui.CreateContext(null);
     try platform.init(info.window, info.allocator);
     try backend.init(&.{
         .device = info.device,
@@ -27,18 +27,24 @@ pub fn processEvent(event: sdl.events.Event) !void {
 }
 
 pub fn beginFrame() !void {
+    const zone = @import("ztracy").Zone(@src());
+    defer zone.End();
     try backend.newFrame();
     try platform.newFrame();
-    imgui.newFrame();
+    imgui.NewFrame();
+}
+
+pub fn endFrame() void {
+    imgui.EndFrame();
 }
 
 pub fn render(cmd: *sdl.gpu.CommandBuffer) !void {
-    imgui.render();
-    try backend.renderDrawData(imgui.getDrawData(), cmd);
+    imgui.Render();
+    try backend.renderDrawData(imgui.GetDrawData().?, cmd);
 }
 
 pub fn shutdown() void {
     backend.shutdown();
     platform.shutdown();
-    context.destroy();
+    imgui.DestroyContext(context);
 }

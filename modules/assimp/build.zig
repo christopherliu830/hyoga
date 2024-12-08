@@ -15,7 +15,6 @@ pub fn build(b: *std.Build) void {
     });
 
     if (os == .windows) {
-        b.installBinFile("bin/assimp-vc143-mt.dll", "assimp-vc143-mt.dll");
         module.addLibraryPath(b.path("bin"));
         module.linkSystemLibrary("assimp-vc143-mt", .{});
     } else {
@@ -25,3 +24,9 @@ pub fn build(b: *std.Build) void {
 
 }
 
+pub fn install(self: *std.Build, b: *std.Build) ?*std.Build.Step.InstallFile {
+    if (os == .windows) {
+        return b.addInstallBinFile(self.path("bin/assimp-vc143-mt.dll"), "assimp-vc143-mt.dll");
+    }
+    return null;
+}

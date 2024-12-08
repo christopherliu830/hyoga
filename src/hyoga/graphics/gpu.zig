@@ -129,6 +129,11 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
         .spirv = true,
     }, true, null).?;
     _ = d.claimWindow(hdl_window);
+
+    if (!d.setSwapchainParameters(hdl_window, .sdr, .mailbox)) {
+        std.log.warn("[GPU] Swapchain parameters could not be set:" ++
+            "{s}", .{sdl.getError()});
+    }
     std.log.info("[GPU] Selected backend: {s}", .{d.getDeviceDriver()});
 
     ctx = .{ 
@@ -177,19 +182,15 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
         v: [16]f32,
         i: [6]u32,
     };
-    const verts = Verts{ .v = .{
-        -1, -1, 0, 1,
-        -1, 1,  0, 0,
-        1,  -1, 1, 1,
-        1,  1,  1, 0,
-    }, .i = .{
-        0,
-        3,
-        1,
-        0,
-        2,
-        3,
-    } };
+    const verts = Verts{ 
+        .v = .{
+            -1, -1, 0, 1,
+            -1, 1,  0, 0,
+            1,  -1, 1, 1,
+            1,  1,  1, 0,
+        }, 
+        .i = .{ 0, 3, 1, 0, 2, 3, }
+    };
 
     const quad_buffer = ctx.device.createBuffer(&.{
         .size = @sizeOf(Verts),
@@ -316,17 +317,24 @@ pub fn uploadToTexture(tex: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) 
     _ = cmd.submit();
 }
 
-pub fn begin() !*sdl.gpu.CommandBuffer {
+pub fn begin() !?*sdl.gpu.CommandBuffer {
+    const zone = @import("ztracy").Zone(@src());
+    defer zone.End();
+
     render_state.pending_submit_result = .{};
 
     var drawable_w: u32 = undefined;
     var drawable_h: u32 = undefined;
 
+    const acquire= @import("ztracy").ZoneN(@src(), "acquireCommandBuffer");
     const cmd = ctx.device.acquireCommandBuffer() orelse {
         std.log.err("could not acquire command buffer", .{});
         return error.SDLError;
     };
+    acquire.End();
 
+    const acquireSwapchainTexture= @import("ztracy").ZoneN(@src(), "acquireSwapchainTexture");
+    defer acquireSwapchainTexture.End();
     var swapchain: ?*sdl.gpu.Texture = null;
     if (!cmd.acquireSwapchainTexture(window_state.hdl_window, &swapchain, &drawable_w, &drawable_h)) {
         std.log.err("Could not acquire swapchain texture", .{});
@@ -345,12 +353,13 @@ pub fn begin() !*sdl.gpu.CommandBuffer {
     } else {
         // No swapchain was acquired, probably too many frames in flight.
         _ = cmd.cancel();
-        return error.NoSwapchain;
+        return null;
     }
 }
 
 pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
-
+    const zone = @import("ztracy").Zone(@src());
+    defer zone.End();
     // First render to texture target
 
     const tex = ctx.device.createTexture(&.{
@@ -421,6 +430,9 @@ pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
 }
 
 pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void {
+    const zone = @import("ztracy").Zone(@src());
+    defer zone.End();
+
     const color_targets = job.targets;
     const pass = cmd.beginRenderPass(color_targets.ptr, @intCast(color_targets.len), job.depth_target).?;
 
@@ -436,6 +448,9 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
     var it = job.items.iterator();
     var last_pipeline: ?*sdl.gpu.GraphicsPipeline = null;
     while (it.next()) |item| {
+        const render_one= @import("ztracy").ZoneN(@src(), "RenderOne");
+        defer render_one.End();
+
         const material = try render_state.materials.get(item.material);
 
         if (material.pipeline != last_pipeline) {
@@ -489,6 +504,9 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
 }
 
 pub fn submit(cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
+    const zone = @import("ztracy").Zone(@src());
+    defer zone.End();
+
     _ = cmd.submit();
     _ = ctx.arena.reset(.retain_capacity);
     const result = render_state.pending_submit_result.?;

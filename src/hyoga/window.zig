@@ -19,9 +19,10 @@ pub fn init() !void {
         return error.SDLInitializationFailed;
     }
 
-    instance = sdl.video.createWindow("My Game Window", 640, 480, .{ .resizeable = true, }) orelse {
+    instance = sdl.video.createWindow("My Game Window", 640, 480, .{ 
+        .resizeable = true, 
+    }) orelse {
         sdl.log("Unable to create window: %s", sdl.getError());
-    
         return error.SDLInitializationFailed;
     };
 }

@@ -32,7 +32,7 @@ pub const tex_to_hyoga_type = std.EnumMap(ai.TextureType, TextureType).init(.{
 pub const Textures = struct {
     allocator: std.mem.Allocator,
     device: *sdl.gpu.Device,
-    queue: ld.Queue(TextureId) = .{},
+    queue: ld.Queue(TextureId),
     textures: std.AutoHashMapUnmanaged(sym.Symbol, *sdl.gpu.Texture) = .{},
 
     pub fn create(device: *sdl.gpu.Device, allocator: std.mem.Allocator) Textures {

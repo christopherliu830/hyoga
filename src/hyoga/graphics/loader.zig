@@ -67,7 +67,7 @@ pub fn allocator() std.mem.Allocator {
 // the queue that is passed in.
 pub fn run(queue: anytype, comptime func: anytype, args: anytype) !void {
     // Verify type
-    if (@typeInfo(@TypeOf(queue)) != .Pointer) {
+    if (@typeInfo(@TypeOf(queue)) != .pointer) {
         @compileError("Must be a pointer to a queue");
     }
 

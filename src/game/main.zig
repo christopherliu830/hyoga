@@ -17,9 +17,14 @@ const Context = struct {
     objects: hy.Hive(Object),
 };
 
+// Called every loop iteration
 pub fn update(game: *hy.Game) void {
-    var ctx: *Context = @ptrCast(@alignCast(game.user_data.?));
+    _ = game;
+}
 
+// Only called on new frames
+pub fn render(game: *hy.Game) void {
+    var ctx: *Context = @ptrCast(@alignCast(game.user_data.?));
     ctx.ui_state.frame_time = game.frame_time;
     ui.drawMainUI(&ctx.ui_state);
 
@@ -27,10 +32,9 @@ pub fn update(game: *hy.Game) void {
     mat.translate(game.scene.camera.position);
     mat.translate(math.vec3.mul(game.scene.camera.look_direction, 3));
 
-
     const imgui = hy.ui.imgui;
-    if (imgui.begin("Main Menu", null, 0)) {
-        if (imgui.button("Add Backpack", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
+    if (imgui.Begin("Main Menu", null, 0)) {
+        if (imgui.ButtonEx("Add Backpack", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
             const hdl = ctx.objects.insert(.{ .transform = mat, .render = undefined }) catch unreachable;
             const obj = hdl.unpack();
             if (hy.gpu.addModel(ctx.backpack, &obj.transform)) |model| {
@@ -48,19 +52,20 @@ pub fn update(game: *hy.Game) void {
         while (it.next()) |val| {
             const obj = val.unpack();
 
-            imgui.pushID_Ptr(obj);
-            if (imgui.button("Delete Item", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
+            imgui.PushIDPtr(obj);
+            if (imgui.ButtonEx("Delete Item", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
                 hy.gpu.removeModel(obj.render);
                 ctx.objects.remove(val);
             }
-            imgui.popID();
+            imgui.PopID();
         }
 
-        if (imgui.button("Quit", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
+        if (imgui.ButtonEx("Quit", .{ .x = -std.math.floatMin(f32), .y = 0 })) {
             game.quit = true;
         }
     }
-    imgui.end();
+    imgui.End();
+
 }
 
 pub fn main() !void {
@@ -77,6 +82,9 @@ pub fn main() !void {
         .post_process = .{
             .triangulate = true,
             .split_large_meshes = true,
+            .pre_transform_vertices = true,
+            .optimize_graph = true,
+            .optimize_meshes = true,
         }
     }); 
 
@@ -91,6 +99,7 @@ pub fn main() !void {
 
     var game = hy.Game {
         .fn_update = update,
+        .fn_render = render,
         .user_data = &objects,
     };
 
