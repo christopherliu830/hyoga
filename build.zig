@@ -37,7 +37,7 @@ pub fn build(b: *std.Build) void {
     hyoga_lib.root_module.addImport("hyoga-arena", hya.module("hyoga-arena"));
     hyoga_lib.root_module.addImport("sdl", sdl.module("sdl"));
     hyoga_lib.root_module.addImport("imgui", imgui.module("imgui"));
-    // hyoga_lib.root_module.addImport("implot", imgui.module("implot"));
+    hyoga_lib.root_module.addImport("implot", imgui.module("implot"));
     hyoga_lib.root_module.addImport("assimp", assimp.module("assimp"));
     hyoga_lib.root_module.addImport("stb_image", stb_image.module("stb_image"));
     hyoga_lib.root_module.addImport("ztracy", ztracy.module("root"));

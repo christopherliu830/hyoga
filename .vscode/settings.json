@@ -1,6 +1,11 @@
 {
     "files.associations": {
-        "stb_image.h": "c"
+        "stb_image.h": "c",
+        "algorithm": "cpp",
+        "iterator": "cpp",
+        "xhash": "cpp",
+        "xmemory": "cpp",
+        "xutility": "cpp"
     },
     "[zig]": {
         "editor.formatOnSave": false

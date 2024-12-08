@@ -30,22 +30,24 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    // const implot = b.addModule("implot", .{
-    //     .target = target,
-    //     .optimize = optimize,
-    //     .root_source_file = b.path("src/implot.zig"),
-    //     .link_libc = true,
-    //     .link_libcpp = true,
-    // });
+    const implot = b.addModule("implot", .{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("src/implot.zig"),
+        .link_libc = true,
+        .link_libcpp = true,
+    });
 
-    // implot.addIncludePath(b.path("imgui"));
-    // implot.addCSourceFiles(.{
-    //     .files = &.{
-    //         "implot/cimplot.cpp",
-    //         "implot/implot_demo.cpp",
-    //         "implot/implot_items.cpp",
-    //         "implot/implot.cpp",
-    //     },
-    // });
+    implot.addIncludePath(b.path("imgui"));
+    implot.addCSourceFiles(.{
+        .files = &.{
+            "cimplot.cpp",
+            "implot/implot_demo.cpp",
+            "implot/implot_items.cpp",
+            "implot/implot.cpp",
+        },
+    });
+
+    implot.addImport("imgui", imgui);
 
 }

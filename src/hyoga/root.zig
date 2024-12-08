@@ -82,9 +82,9 @@ pub fn run(game: *Game) !void {
             try gpu.render(cmd, &game.scene);
             try ui.render(cmd);
             last_render_result = gpu.submit(cmd);
+            game.frame_time = time.lap();
         } 
 
-        game.frame_time = time.lap();
         @import("ztracy").FrameMark();
     }
 }

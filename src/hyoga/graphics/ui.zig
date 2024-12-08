@@ -4,6 +4,7 @@ const backend = @import("imgui/imgui_impl_sdlgpu.zig");
 const sdl = @import("sdl");
 
 pub const imgui = @import("imgui");
+pub const implot = @import("implot");
 
 var context: *imgui.Context = undefined;
 
@@ -15,6 +16,7 @@ pub const UIInitInfo = struct {
 
 pub fn init(info: UIInitInfo) !void {
     context = imgui.CreateContext(null);
+    _ = implot.createContext();
     try platform.init(info.window, info.allocator);
     try backend.init(&.{
         .device = info.device,
@@ -46,5 +48,6 @@ pub fn render(cmd: *sdl.gpu.CommandBuffer) !void {
 pub fn shutdown() void {
     backend.shutdown();
     platform.shutdown();
+    implot.destroyContext(null);
     imgui.DestroyContext(context);
 }

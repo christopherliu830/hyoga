@@ -130,7 +130,7 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
     }, true, null).?;
     _ = d.claimWindow(hdl_window);
 
-    if (!d.setSwapchainParameters(hdl_window, .sdr, .mailbox)) {
+    if (!d.setSwapchainParameters(hdl_window, .sdr, .immediate)) {
         std.log.warn("[GPU] Swapchain parameters could not be set:" ++
             "{s}", .{sdl.getError()});
     }
