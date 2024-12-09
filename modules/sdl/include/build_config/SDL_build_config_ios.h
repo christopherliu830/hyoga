@@ -51,6 +51,7 @@
 #define HAVE_REALLOC    1
 #define HAVE_FREE   1
 #define HAVE_GETENV 1
+#define HAVE_GETHOSTNAME 1
 #define HAVE_PUTENV 1
 #define HAVE_SETENV 1
 #define HAVE_UNSETENV   1
@@ -190,21 +191,18 @@
    Also supported in simulator from iOS 13.0 and tvOS 13.0
  */
 #if (TARGET_OS_SIMULATOR && ((__IPHONE_OS_VERSION_MIN_REQUIRED >= 130000) || (__TV_OS_VERSION_MIN_REQUIRED >= 130000))) || (!TARGET_CPU_ARM && ((__IPHONE_OS_VERSION_MIN_REQUIRED >= 80000) || (__TV_OS_VERSION_MIN_REQUIRED >= 90000)))
-#define SDL_PLATFORM_SUPPORTS_METAL	1
+#define SDL_PLATFORM_SUPPORTS_METAL 1
 #else
-#define SDL_PLATFORM_SUPPORTS_METAL	0
-#endif
-
-#if SDL_PLATFORM_SUPPORTS_METAL
-#define SDL_VIDEO_RENDER_METAL  1
-#endif
-
-#if SDL_PLATFORM_SUPPORTS_METAL
-#define SDL_VIDEO_VULKAN 1
+#define SDL_PLATFORM_SUPPORTS_METAL 0
 #endif
 
 #if SDL_PLATFORM_SUPPORTS_METAL
 #define SDL_VIDEO_METAL 1
+#define SDL_VIDEO_VULKAN 1
+#define SDL_GPU_METAL 1
+#define SDL_GPU_VULKAN 1
+#define SDL_VIDEO_RENDER_METAL 1
+#define SDL_VIDEO_RENDER_GPU 1
 #endif
 
 /* Enable system power support */
@@ -226,5 +224,8 @@
 #endif
 
 #define SDL_CAMERA_DRIVER_DUMMY 1
+
+/* Enable dialog subsystem */
+#define SDL_DIALOG_DUMMY 1
 
 #endif /* SDL_build_config_ios_h_ */

@@ -17,6 +17,7 @@
     .dependencies = .{
         .imgui = .{ .path = "modules/imgui" },
         .sdl = .{ .path = "modules/sdl" },
+        .sdl_shadercross = .{ .path = "modules/sdl_shadercross" },
         .assimp = .{ .path = "modules/assimp" },
         .stb_image = .{ .path = "modules/stb_image" },
         .ztracy = .{ .path = "modules/ztracy", },

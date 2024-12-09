@@ -54,9 +54,9 @@ extern int FONT_CHARACTER_SIZE;
  *  \param y The Y coordinate of the upper left corner of the character.
  *  \param c The character to draw.
  *
- *  \returns SDL_TRUE on success, SDL_FALSE on failure.
+ *  \returns true on success, false on failure.
  */
-SDL_bool SDLCALL SDLTest_DrawCharacter(SDL_Renderer *renderer, float x, float y, Uint32 c);
+bool SDLCALL SDLTest_DrawCharacter(SDL_Renderer *renderer, float x, float y, Uint32 c);
 
 /*
  *  Draw a UTF-8 string in the currently set font.
@@ -68,9 +68,9 @@ SDL_bool SDLCALL SDLTest_DrawCharacter(SDL_Renderer *renderer, float x, float y,
  *  \param y The Y coordinate of the upper left corner of the string.
  *  \param s The string to draw.
  *
- *  \returns SDL_TRUE on success, SDL_FALSE on failure.
+ *  \returns true on success, false on failure.
  */
-SDL_bool SDLCALL SDLTest_DrawString(SDL_Renderer *renderer, float x, float y, const char *s);
+bool SDLCALL SDLTest_DrawString(SDL_Renderer *renderer, float x, float y, const char *s);
 
 /*
  *  Data used for multi-line text output
@@ -93,7 +93,7 @@ typedef struct SDLTest_TextWindow
  *
  *  \returns the new window, or NULL on failure.
  *
- *  \since This function is available since SDL 3.0.0.
+ *  \since This function is available since SDL 3.1.3.
  */
 SDLTest_TextWindow * SDLCALL SDLTest_TextWindowCreate(float x, float y, float w, float h);
 
@@ -105,7 +105,7 @@ SDLTest_TextWindow * SDLCALL SDLTest_TextWindowCreate(float x, float y, float w,
  *  \param textwin The text output window
  *  \param renderer The renderer to use for display
  *
- *  \since This function is available since SDL 3.0.0.
+ *  \since This function is available since SDL 3.1.3.
  */
 void SDLCALL SDLTest_TextWindowDisplay(SDLTest_TextWindow *textwin, SDL_Renderer *renderer);
 
@@ -120,7 +120,7 @@ void SDLCALL SDLTest_TextWindowDisplay(SDLTest_TextWindow *textwin, SDL_Renderer
  *  \param fmt A printf() style format string
  *  \param ...  additional parameters matching % tokens in the `fmt` string, if any
  *
- *  \since This function is available since SDL 3.0.0.
+ *  \since This function is available since SDL 3.1.3.
  */
 void SDLCALL SDLTest_TextWindowAddText(SDLTest_TextWindow *textwin, SDL_PRINTF_FORMAT_STRING const char *fmt, ...) SDL_PRINTF_VARARG_FUNC(2);
 
@@ -135,7 +135,7 @@ void SDLCALL SDLTest_TextWindowAddText(SDLTest_TextWindow *textwin, SDL_PRINTF_F
  *  \param text The text to add to the window
  *  \param len The length, in bytes, of the text to add to the window
  *
- *  \since This function is available since SDL 3.0.0.
+ *  \since This function is available since SDL 3.1.3.
  */
 void SDLCALL SDLTest_TextWindowAddTextWithLength(SDLTest_TextWindow *textwin, const char *text, size_t len);
 
@@ -144,7 +144,7 @@ void SDLCALL SDLTest_TextWindowAddTextWithLength(SDLTest_TextWindow *textwin, co
  *
  *  \param textwin The text output window
  *
- *  \since This function is available since SDL 3.0.0.
+ *  \since This function is available since SDL 3.1.3.
  */
 void SDLCALL SDLTest_TextWindowClear(SDLTest_TextWindow *textwin);
 
@@ -153,7 +153,7 @@ void SDLCALL SDLTest_TextWindowClear(SDLTest_TextWindow *textwin);
  *
  *  \param textwin The text output window
  *
- *  \since This function is available since SDL 3.0.0.
+ *  \since This function is available since SDL 3.1.3.
  */
 void SDLCALL SDLTest_TextWindowDestroy(SDLTest_TextWindow *textwin);
 

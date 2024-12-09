@@ -73,7 +73,7 @@ extern "C" {
  *          doesn't implement this functionality, call SDL_GetError() for more
  *          information.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_GetPrefPath
  */
@@ -128,7 +128,7 @@ extern SDL_DECLSPEC const char * SDLCALL SDL_GetBasePath(void);
  *          etc.). This should be freed with SDL_free() when it is no longer
  *          needed.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_GetBasePath
  */
@@ -159,7 +159,7 @@ extern SDL_DECLSPEC char * SDLCALL SDL_GetPrefPath(const char *org, const char *
  *
  * Note that on macOS/iOS, the Videos folder is called "Movies".
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  *
  * \sa SDL_GetUserFolder
  */
@@ -212,7 +212,7 @@ typedef enum SDL_Folder
  * \returns either a null-terminated C string containing the full path to the
  *          folder, or NULL if an error happened.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  */
 extern SDL_DECLSPEC const char * SDLCALL SDL_GetUserFolder(SDL_Folder folder);
 
@@ -239,7 +239,7 @@ typedef struct SDL_PathInfo
 /**
  * Flags for path matching
  *
- * \since This datatype is available since SDL 3.0.0.
+ * \since This datatype is available since SDL 3.1.3.
  *
  * \sa SDL_GlobDirectory
  * \sa SDL_GlobStorageDirectory
@@ -249,73 +249,157 @@ typedef Uint32 SDL_GlobFlags;
 #define SDL_GLOB_CASEINSENSITIVE (1u << 0)
 
 /**
- * Create a directory.
+ * Create a directory, and any missing parent directories.
+ *
+ * This reports success if `path` already exists as a directory.
+ *
+ * If parent directories are missing, it will also create them. Note that if
+ * this fails, it will not remove any parent directories it already made.
  *
  * \param path the path of the directory to create.
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_CreateDirectory(const char *path);
+extern SDL_DECLSPEC bool SDLCALL SDL_CreateDirectory(const char *path);
 
-/* Callback for directory enumeration. Return 1 to keep enumerating,
-   0 to stop enumerating (no error), -1 to stop enumerating and
-   report an error. `dirname` is the directory being enumerated,
-   `fname` is the enumerated entry. */
-typedef int (SDLCALL *SDL_EnumerateDirectoryCallback)(void *userdata, const char *dirname, const char *fname);
+/**
+ * Possible results from an enumeration callback.
+ *
+ * \since This enum is available since SDL 3.1.3.
+ *
+ * \sa SDL_EnumerateDirectoryCallback
+ */
+typedef enum SDL_EnumerationResult
+{
+    SDL_ENUM_CONTINUE,   /**< Value that requests that enumeration continue. */
+    SDL_ENUM_SUCCESS,    /**< Value that requests that enumeration stop, successfully. */
+    SDL_ENUM_FAILURE     /**< Value that requests that enumeration stop, as a failure. */
+} SDL_EnumerationResult;
+
+/**
+ * Callback for directory enumeration.
+ *
+ * Enumeration of directory entries will continue until either all entries
+ * have been provided to the callback, or the callback has requested a stop
+ * through its return value.
+ *
+ * Returning SDL_ENUM_CONTINUE will let enumeration proceed, calling the
+ * callback with further entries. SDL_ENUM_SUCCESS and SDL_ENUM_FAILURE will
+ * terminate the enumeration early, and dictate the return value of the
+ * enumeration function itself.
+ *
+ * \param userdata an app-controlled pointer that is passed to the callback.
+ * \param dirname the directory that is being enumerated.
+ * \param fname the next entry in the enumeration.
+ * \returns how the enumeration should proceed.
+ *
+ * \since This datatype is available since SDL 3.1.3.
+ *
+ * \sa SDL_EnumerateDirectory
+ */
+typedef SDL_EnumerationResult (SDLCALL *SDL_EnumerateDirectoryCallback)(void *userdata, const char *dirname, const char *fname);
 
 /**
  * Enumerate a directory through a callback function.
  *
  * This function provides every directory entry through an app-provided
  * callback, called once for each directory entry, until all results have been
- * provided or the callback returns <= 0.
+ * provided or the callback returns either SDL_ENUM_SUCCESS or
+ * SDL_ENUM_FAILURE.
+ *
+ * This will return false if there was a system problem in general, or if a
+ * callback returns SDL_ENUM_FAILURE. A successful return means a callback
+ * returned SDL_ENUM_SUCCESS to halt enumeration, or all directory entries
+ * were enumerated.
  *
  * \param path the path of the directory to enumerate.
  * \param callback a function that is called for each entry in the directory.
  * \param userdata a pointer that is passed to `callback`.
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_EnumerateDirectory(const char *path, SDL_EnumerateDirectoryCallback callback, void *userdata);
+extern SDL_DECLSPEC bool SDLCALL SDL_EnumerateDirectory(const char *path, SDL_EnumerateDirectoryCallback callback, void *userdata);
 
 /**
  * Remove a file or an empty directory.
  *
- * \param path the path of the directory to enumerate.
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * Directories that are not empty will fail; this function will not recursely
+ * delete directory trees.
  *
- * \since This function is available since SDL 3.0.0.
+ * \param path the path to remove from the filesystem.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
+ *
+ * \since This function is available since SDL 3.1.3.
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_RemovePath(const char *path);
+extern SDL_DECLSPEC bool SDLCALL SDL_RemovePath(const char *path);
 
 /**
  * Rename a file or directory.
  *
+ * If the file at `newpath` already exists, it will replaced.
+ *
+ * Note that this will not copy files across filesystems/drives/volumes, as
+ * that is a much more complicated (and possibly time-consuming) operation.
+ *
+ * Which is to say, if this function fails, SDL_CopyFile() to a temporary file
+ * in the same directory as `newpath`, then SDL_RenamePath() from the
+ * temporary file to `newpath` and SDL_RemovePath() on `oldpath` might work
+ * for files. Renaming a non-empty directory across filesystems is
+ * dramatically more complex, however.
+ *
  * \param oldpath the old path.
  * \param newpath the new path.
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_RenamePath(const char *oldpath, const char *newpath);
+extern SDL_DECLSPEC bool SDLCALL SDL_RenamePath(const char *oldpath, const char *newpath);
 
 /**
  * Copy a file.
  *
+ * If the file at `newpath` already exists, it will be overwritten with the
+ * contents of the file at `oldpath`.
+ *
+ * This function will block until the copy is complete, which might be a
+ * significant time for large files on slow disks. On some platforms, the copy
+ * can be handed off to the OS itself, but on others SDL might just open both
+ * paths, and read from one and write to the other.
+ *
+ * Note that this is not an atomic operation! If something tries to read from
+ * `newpath` while the copy is in progress, it will see an incomplete copy of
+ * the data, and if the calling thread terminates (or the power goes out)
+ * during the copy, `newpath`'s previous contents will be gone, replaced with
+ * an incomplete copy of the data. To avoid this risk, it is recommended that
+ * the app copy to a temporary file in the same directory as `newpath`, and if
+ * the copy is successful, use SDL_RenamePath() to replace `newpath` with the
+ * temporary file. This will ensure that reads of `newpath` will either see a
+ * complete copy of the data, or it will see the pre-copy state of `newpath`.
+ *
+ * This function attempts to synchronize the newly-copied data to disk before
+ * returning, if the platform allows it, so that the renaming trick will not
+ * have a problem in a system crash or power failure, where the file could be
+ * renamed but the contents never made it from the system file cache to the
+ * physical disk.
+ *
+ * If the copy fails for any reason, the state of `newpath` is undefined. It
+ * might be half a copy, it might be the untouched data of what was already
+ * there, or it might be a zero-byte file, etc.
+ *
  * \param oldpath the old path.
  * \param newpath the new path.
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_CopyFile(const char *oldpath, const char *newpath);
+extern SDL_DECLSPEC bool SDLCALL SDL_CopyFile(const char *oldpath, const char *newpath);
 
 /**
  * Get information about a filesystem path.
@@ -323,12 +407,12 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_CopyFile(const char *oldpath, const cha
  * \param path the path to query.
  * \param info a pointer filled in with information about the path, or NULL to
  *             check for the existence of a file.
- * \returns SDL_TRUE on success or SDL_FALSE if the file doesn't exist, or
- *          another failure; call SDL_GetError() for more information.
+ * \returns true on success or false if the file doesn't exist, or another
+ *          failure; call SDL_GetError() for more information.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_GetPathInfo(const char *path, SDL_PathInfo *info);
+extern SDL_DECLSPEC bool SDLCALL SDL_GetPathInfo(const char *path, SDL_PathInfo *info);
 
 /**
  * Enumerate a directory tree, filtered by pattern, and return a list.
@@ -359,9 +443,27 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_GetPathInfo(const char *path, SDL_PathI
  *
  * \threadsafety It is safe to call this function from any thread.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  */
 extern SDL_DECLSPEC char ** SDLCALL SDL_GlobDirectory(const char *path, const char *pattern, SDL_GlobFlags flags, int *count);
+
+/**
+ * Get what the system believes is the "current working directory."
+ *
+ * For systems without a concept of a current working directory, this will
+ * still attempt to provide something reasonable.
+ *
+ * SDL does not provide a means to _change_ the current working directory; for
+ * platforms without this concept, this would cause surprises with file access
+ * outside of SDL.
+ *
+ * \returns a UTF-8 string of the current working directory in
+ *          platform-dependent notation. NULL if there's a problem. This
+ *          should be freed with SDL_free() when it is no longer needed.
+ *
+ * \since This function is available since SDL 3.2.0.
+ */
+extern SDL_DECLSPEC char * SDLCALL SDL_GetCurrentDirectory(void);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

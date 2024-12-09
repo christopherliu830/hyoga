@@ -5,7 +5,8 @@
         "iterator": "cpp",
         "xhash": "cpp",
         "xmemory": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "spirv_cross_c.h": "c"
     },
     "[zig]": {
         "editor.formatOnSave": false

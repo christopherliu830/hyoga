@@ -41,7 +41,7 @@ extern "C" {
 /**
  * A fully opaque 8-bit alpha value.
  *
- * \since This macro is available since SDL 3.0.0.
+ * \since This macro is available since SDL 3.1.3.
  *
  * \sa SDL_ALPHA_TRANSPARENT
  */
@@ -50,7 +50,7 @@ extern "C" {
 /**
  * A fully opaque floating point alpha value.
  *
- * \since This macro is available since SDL 3.0.0.
+ * \since This macro is available since SDL 3.1.3.
  *
  * \sa SDL_ALPHA_TRANSPARENT_FLOAT
  */
@@ -59,7 +59,7 @@ extern "C" {
 /**
  * A fully transparent 8-bit alpha value.
  *
- * \since This macro is available since SDL 3.0.0.
+ * \since This macro is available since SDL 3.1.3.
  *
  * \sa SDL_ALPHA_OPAQUE
  */
@@ -68,7 +68,7 @@ extern "C" {
 /**
  * A fully transparent floating point alpha value.
  *
- * \since This macro is available since SDL 3.0.0.
+ * \since This macro is available since SDL 3.1.3.
  *
  * \sa SDL_ALPHA_OPAQUE_FLOAT
  */
@@ -77,7 +77,7 @@ extern "C" {
 /**
  * Pixel type.
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  */
 typedef enum SDL_PixelType
 {
@@ -100,7 +100,7 @@ typedef enum SDL_PixelType
 /**
  * Bitmap pixel order, high bit -> low bit.
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  */
 typedef enum SDL_BitmapOrder
 {
@@ -112,7 +112,7 @@ typedef enum SDL_BitmapOrder
 /**
  * Packed component order, high bit -> low bit.
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  */
 typedef enum SDL_PackedOrder
 {
@@ -130,7 +130,7 @@ typedef enum SDL_PackedOrder
 /**
  * Array component order, low byte -> high byte.
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  */
 typedef enum SDL_ArrayOrder
 {
@@ -146,7 +146,7 @@ typedef enum SDL_ArrayOrder
 /**
  * Packed component layout.
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  */
 typedef enum SDL_PackedLayout
 {
@@ -201,13 +201,6 @@ typedef enum SDL_PackedLayout
       (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYF16) || \
       (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYF32)))
 
-#define SDL_ISPIXELFORMAT_ALPHA(format)   \
-    ((SDL_ISPIXELFORMAT_PACKED(format) && \
-     ((SDL_PIXELORDER(format) == SDL_PACKEDORDER_ARGB) || \
-      (SDL_PIXELORDER(format) == SDL_PACKEDORDER_RGBA) || \
-      (SDL_PIXELORDER(format) == SDL_PACKEDORDER_ABGR) || \
-      (SDL_PIXELORDER(format) == SDL_PACKEDORDER_BGRA))))
-
 #define SDL_ISPIXELFORMAT_10BIT(format)    \
       (!SDL_ISPIXELFORMAT_FOURCC(format) && \
        ((SDL_PIXELTYPE(format) == SDL_PIXELTYPE_PACKED32) && \
@@ -217,6 +210,18 @@ typedef enum SDL_PackedLayout
       (!SDL_ISPIXELFORMAT_FOURCC(format) && \
        ((SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYF16) || \
         (SDL_PIXELTYPE(format) == SDL_PIXELTYPE_ARRAYF32)))
+
+#define SDL_ISPIXELFORMAT_ALPHA(format)   \
+    ((SDL_ISPIXELFORMAT_PACKED(format) && \
+      ((SDL_PIXELORDER(format) == SDL_PACKEDORDER_ARGB) || \
+       (SDL_PIXELORDER(format) == SDL_PACKEDORDER_RGBA) || \
+       (SDL_PIXELORDER(format) == SDL_PACKEDORDER_ABGR) || \
+       (SDL_PIXELORDER(format) == SDL_PACKEDORDER_BGRA))) || \
+     (SDL_ISPIXELFORMAT_ARRAY(format) && \
+      ((SDL_PIXELORDER(format) == SDL_ARRAYORDER_ARGB) || \
+       (SDL_PIXELORDER(format) == SDL_ARRAYORDER_RGBA) || \
+       (SDL_PIXELORDER(format) == SDL_ARRAYORDER_ABGR) || \
+       (SDL_PIXELORDER(format) == SDL_ARRAYORDER_BGRA))))
 
 /* The flag is set to 1 because 0x1? is not in the printable ASCII range */
 #define SDL_ISPIXELFORMAT_FOURCC(format)    \
@@ -259,7 +264,7 @@ typedef enum SDL_PackedLayout
  * an alias for ABGR8888 on little-endian CPUs like x86, or an alias for
  * RGBA8888 on big-endian CPUs.
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  */
 typedef enum SDL_PixelFormat
 {
@@ -389,30 +394,30 @@ typedef enum SDL_PixelFormat
         /* SDL_DEFINE_PIXELFOURCC('N', 'V', '2', '1'), */
     SDL_PIXELFORMAT_P010 = 0x30313050u,      /**< Planar mode: Y + U/V interleaved  (2 planes) */
         /* SDL_DEFINE_PIXELFOURCC('P', '0', '1', '0'), */
-    SDL_PIXELFORMAT_EXTERNAL_OES = 0x2053454fu      /**< Android video texture format */
+    SDL_PIXELFORMAT_EXTERNAL_OES = 0x2053454fu,     /**< Android video texture format */
         /* SDL_DEFINE_PIXELFOURCC('O', 'E', 'S', ' ') */
-} SDL_PixelFormat;
 
-/* Aliases for RGBA byte arrays of color data, for the current platform */
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-#define SDL_PIXELFORMAT_RGBA32 SDL_PIXELFORMAT_RGBA8888
-#define SDL_PIXELFORMAT_ARGB32 SDL_PIXELFORMAT_ARGB8888
-#define SDL_PIXELFORMAT_BGRA32 SDL_PIXELFORMAT_BGRA8888
-#define SDL_PIXELFORMAT_ABGR32 SDL_PIXELFORMAT_ABGR8888
-#define SDL_PIXELFORMAT_RGBX32 SDL_PIXELFORMAT_RGBX8888
-#define SDL_PIXELFORMAT_XRGB32 SDL_PIXELFORMAT_XRGB8888
-#define SDL_PIXELFORMAT_BGRX32 SDL_PIXELFORMAT_BGRX8888
-#define SDL_PIXELFORMAT_XBGR32 SDL_PIXELFORMAT_XBGR8888
-#else
-#define SDL_PIXELFORMAT_RGBA32 SDL_PIXELFORMAT_ABGR8888
-#define SDL_PIXELFORMAT_ARGB32 SDL_PIXELFORMAT_BGRA8888
-#define SDL_PIXELFORMAT_BGRA32 SDL_PIXELFORMAT_ARGB8888
-#define SDL_PIXELFORMAT_ABGR32 SDL_PIXELFORMAT_RGBA8888
-#define SDL_PIXELFORMAT_RGBX32 SDL_PIXELFORMAT_XBGR8888
-#define SDL_PIXELFORMAT_XRGB32 SDL_PIXELFORMAT_BGRX8888
-#define SDL_PIXELFORMAT_BGRX32 SDL_PIXELFORMAT_XRGB8888
-#define SDL_PIXELFORMAT_XBGR32 SDL_PIXELFORMAT_RGBX8888
-#endif
+    /* Aliases for RGBA byte arrays of color data, for the current platform */
+    #if SDL_BYTEORDER == SDL_BIG_ENDIAN
+    SDL_PIXELFORMAT_RGBA32 = SDL_PIXELFORMAT_RGBA8888,
+    SDL_PIXELFORMAT_ARGB32 = SDL_PIXELFORMAT_ARGB8888,
+    SDL_PIXELFORMAT_BGRA32 = SDL_PIXELFORMAT_BGRA8888,
+    SDL_PIXELFORMAT_ABGR32 = SDL_PIXELFORMAT_ABGR8888,
+    SDL_PIXELFORMAT_RGBX32 = SDL_PIXELFORMAT_RGBX8888,
+    SDL_PIXELFORMAT_XRGB32 = SDL_PIXELFORMAT_XRGB8888,
+    SDL_PIXELFORMAT_BGRX32 = SDL_PIXELFORMAT_BGRX8888,
+    SDL_PIXELFORMAT_XBGR32 = SDL_PIXELFORMAT_XBGR8888
+    #else
+    SDL_PIXELFORMAT_RGBA32 = SDL_PIXELFORMAT_ABGR8888,
+    SDL_PIXELFORMAT_ARGB32 = SDL_PIXELFORMAT_BGRA8888,
+    SDL_PIXELFORMAT_BGRA32 = SDL_PIXELFORMAT_ARGB8888,
+    SDL_PIXELFORMAT_ABGR32 = SDL_PIXELFORMAT_RGBA8888,
+    SDL_PIXELFORMAT_RGBX32 = SDL_PIXELFORMAT_XBGR8888,
+    SDL_PIXELFORMAT_XRGB32 = SDL_PIXELFORMAT_BGRX8888,
+    SDL_PIXELFORMAT_BGRX32 = SDL_PIXELFORMAT_XRGB8888,
+    SDL_PIXELFORMAT_XBGR32 = SDL_PIXELFORMAT_RGBX8888
+    #endif
+} SDL_PixelFormat;
 
 /**
  * Pixels are a representation of a color in a particular color space.
@@ -441,7 +446,7 @@ typedef enum SDL_PixelFormat
 /**
  * Colorspace color type.
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  */
 typedef enum SDL_ColorType
 {
@@ -454,7 +459,7 @@ typedef enum SDL_ColorType
  * Colorspace color range, as described by
  * https://www.itu.int/rec/R-REC-BT.2100-2-201807-I/en
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  */
 typedef enum SDL_ColorRange
 {
@@ -467,7 +472,7 @@ typedef enum SDL_ColorRange
  * Colorspace color primaries, as described by
  * https://www.itu.int/rec/T-REC-H.273-201612-S/en
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  */
 typedef enum SDL_ColorPrimaries
 {
@@ -492,7 +497,7 @@ typedef enum SDL_ColorPrimaries
  *
  * These are as described by https://www.itu.int/rec/T-REC-H.273-201612-S/en
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  */
 typedef enum SDL_TransferCharacteristics
 {
@@ -522,7 +527,7 @@ typedef enum SDL_TransferCharacteristics
  *
  * These are as described by https://www.itu.int/rec/T-REC-H.273-201612-S/en
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  */
 typedef enum SDL_MatrixCoefficients
 {
@@ -546,7 +551,7 @@ typedef enum SDL_MatrixCoefficients
 /**
  * Colorspace chroma sample location.
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  */
 typedef enum SDL_ChromaLocation
 {
@@ -582,7 +587,7 @@ typedef enum SDL_ChromaLocation
  * function, etc.), this is not an exhaustive list, but rather a
  * representative sample of the kinds of colorspaces supported in SDL.
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  *
  * \sa SDL_ColorPrimaries
  * \sa SDL_ColorRange
@@ -669,7 +674,7 @@ typedef enum SDL_Colorspace
                                  SDL_MATRIX_COEFFICIENTS_BT2020_NCL,
                                  SDL_CHROMA_LOCATION_LEFT), */
 
-    SDL_COLORSPACE_BT2020_FULL = 0x22102609u /**< Equivalent to DXGI_COLOR_SPACE_YCBCR_FULL_G22_LEFT_P2020 */
+    SDL_COLORSPACE_BT2020_FULL = 0x22102609u, /**< Equivalent to DXGI_COLOR_SPACE_YCBCR_FULL_G22_LEFT_P2020 */
         /* SDL_DEFINE_COLORSPACE(SDL_COLOR_TYPE_YCBCR,
                                  SDL_COLOR_RANGE_FULL,
                                  SDL_COLOR_PRIMARIES_BT2020,
@@ -677,14 +682,9 @@ typedef enum SDL_Colorspace
                                  SDL_MATRIX_COEFFICIENTS_BT2020_NCL,
                                  SDL_CHROMA_LOCATION_LEFT), */
 
+    SDL_COLORSPACE_RGB_DEFAULT = SDL_COLORSPACE_SRGB, /**< The default colorspace for RGB surfaces if no colorspace is specified */
+    SDL_COLORSPACE_YUV_DEFAULT = SDL_COLORSPACE_JPEG  /**< The default colorspace for YUV surfaces if no colorspace is specified */
 } SDL_Colorspace;
-
-
-/* The default colorspace for RGB surfaces if no colorspace is specified */
-#define SDL_COLORSPACE_RGB_DEFAULT  SDL_COLORSPACE_SRGB
-
-/* The default colorspace for YUV surfaces if no colorspace is specified */
-#define SDL_COLORSPACE_YUV_DEFAULT  SDL_COLORSPACE_JPEG
 
 /**
  * A structure that represents a color as RGBA components.
@@ -694,7 +694,7 @@ typedef enum SDL_Colorspace
  * (SDL_PIXELFORMAT_ABGR8888 on little-endian systems and
  * SDL_PIXELFORMAT_RGBA8888 on big-endian systems).
  *
- * \since This struct is available since SDL 3.0.0.
+ * \since This struct is available since SDL 3.1.3.
  */
 typedef struct SDL_Color
 {
@@ -708,7 +708,7 @@ typedef struct SDL_Color
  * The bits of this structure can be directly reinterpreted as a float-packed
  * color which uses the SDL_PIXELFORMAT_RGBA128_FLOAT format
  *
- * \since This struct is available since SDL 3.0.0.
+ * \since This struct is available since SDL 3.1.3.
  */
 typedef struct SDL_FColor
 {
@@ -721,7 +721,7 @@ typedef struct SDL_FColor
 /**
  * A set of indexed colors representing a palette.
  *
- * \since This struct is available since SDL 3.0.0.
+ * \since This struct is available since SDL 3.1.3.
  *
  * \sa SDL_SetPaletteColors
  */
@@ -736,7 +736,7 @@ typedef struct SDL_Palette
 /**
  * Details about the format of a pixel.
  *
- * \since This struct is available since SDL 3.0.0.
+ * \since This struct is available since SDL 3.1.3.
  */
 typedef struct SDL_PixelFormatDetails
 {
@@ -767,7 +767,7 @@ typedef struct SDL_PixelFormatDetails
  *
  * \threadsafety It is safe to call this function from any thread.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  */
 extern SDL_DECLSPEC const char * SDLCALL SDL_GetPixelFormatName(SDL_PixelFormat format);
 
@@ -780,16 +780,16 @@ extern SDL_DECLSPEC const char * SDLCALL SDL_GetPixelFormatName(SDL_PixelFormat 
  * \param Gmask a pointer filled in with the green mask for the format.
  * \param Bmask a pointer filled in with the blue mask for the format.
  * \param Amask a pointer filled in with the alpha mask for the format.
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
  * \threadsafety It is safe to call this function from any thread.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_GetPixelFormatForMasks
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_GetMasksForPixelFormat(SDL_PixelFormat format, int *bpp, Uint32 *Rmask, Uint32 *Gmask, Uint32 *Bmask, Uint32 *Amask);
+extern SDL_DECLSPEC bool SDLCALL SDL_GetMasksForPixelFormat(SDL_PixelFormat format, int *bpp, Uint32 *Rmask, Uint32 *Gmask, Uint32 *Bmask, Uint32 *Amask);
 
 /**
  * Convert a bpp value and RGBA masks to an enumerated pixel format.
@@ -807,7 +807,7 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_GetMasksForPixelFormat(SDL_PixelFormat 
  *
  * \threadsafety It is safe to call this function from any thread.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_GetMasksForPixelFormat
  */
@@ -826,7 +826,7 @@ extern SDL_DECLSPEC SDL_PixelFormat SDLCALL SDL_GetPixelFormatForMasks(int bpp, 
  *
  * \threadsafety It is safe to call this function from any thread.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  */
 extern SDL_DECLSPEC const SDL_PixelFormatDetails * SDLCALL SDL_GetPixelFormatDetails(SDL_PixelFormat format);
 
@@ -842,7 +842,7 @@ extern SDL_DECLSPEC const SDL_PixelFormatDetails * SDLCALL SDL_GetPixelFormatDet
  *
  * \threadsafety It is safe to call this function from any thread.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_DestroyPalette
  * \sa SDL_SetPaletteColors
@@ -857,15 +857,15 @@ extern SDL_DECLSPEC SDL_Palette * SDLCALL SDL_CreatePalette(int ncolors);
  * \param colors an array of SDL_Color structures to copy into the palette.
  * \param firstcolor the index of the first palette entry to modify.
  * \param ncolors the number of entries to modify.
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
  * \threadsafety It is safe to call this function from any thread, as long as
  *               the palette is not modified or destroyed in another thread.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_SetPaletteColors(SDL_Palette *palette, const SDL_Color *colors, int firstcolor, int ncolors);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetPaletteColors(SDL_Palette *palette, const SDL_Color *colors, int firstcolor, int ncolors);
 
 /**
  * Free a palette created with SDL_CreatePalette().
@@ -875,7 +875,7 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_SetPaletteColors(SDL_Palette *palette, 
  * \threadsafety It is safe to call this function from any thread, as long as
  *               the palette is not modified or destroyed in another thread.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_CreatePalette
  */
@@ -910,7 +910,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_DestroyPalette(SDL_Palette *palette);
  * \threadsafety It is safe to call this function from any thread, as long as
  *               the palette is not modified.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_GetPixelFormatDetails
  * \sa SDL_GetRGB
@@ -949,7 +949,7 @@ extern SDL_DECLSPEC Uint32 SDLCALL SDL_MapRGB(const SDL_PixelFormatDetails *form
  * \threadsafety It is safe to call this function from any thread, as long as
  *               the palette is not modified.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_GetPixelFormatDetails
  * \sa SDL_GetRGBA
@@ -977,7 +977,7 @@ extern SDL_DECLSPEC Uint32 SDLCALL SDL_MapRGBA(const SDL_PixelFormatDetails *for
  * \threadsafety It is safe to call this function from any thread, as long as
  *               the palette is not modified.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_GetPixelFormatDetails
  * \sa SDL_GetRGBA
@@ -1009,7 +1009,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_GetRGB(Uint32 pixel, const SDL_PixelFormatD
  * \threadsafety It is safe to call this function from any thread, as long as
  *               the palette is not modified.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_GetPixelFormatDetails
  * \sa SDL_GetRGB

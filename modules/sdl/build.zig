@@ -14,15 +14,16 @@ pub fn build(b: *std.Build) void {
     });
 
     if (os == .windows) {
-        module.addLibraryPath(b.path("bin"));
+        module.addLibraryPath(b.path("lib"));
     } 
+
     module.linkSystemLibrary("SDL3", .{});
     module.addIncludePath(b.path("include"));
 }
 
 pub fn install(self: *std.Build, b: *std.Build) ?*std.Build.Step.InstallFile {
     if (os == .windows) {
-        const bin_path = self.path("bin/SDL3.dll");
+        const bin_path = self.path("lib/SDL3.dll");
         return b.addInstallBinFile(bin_path, "SDL3.dll");
     } 
     return null;

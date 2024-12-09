@@ -22,9 +22,29 @@
 /**
  * # CategoryInit
  *
- * SDL subsystem init and quit functions.
+ * All SDL programs need to initialize the library before starting to work
+ * with it.
+ *
+ * Almost everything can simply call SDL_Init() near startup, with a handful
+ * of flags to specify subsystems to touch. These are here to make sure SDL
+ * does not even attempt to touch low-level pieces of the operating system
+ * that you don't intend to use. For example, you might be using SDL for video
+ * and input but chose an external library for audio, and in this case you
+ * would just need to leave off the `SDL_INIT_AUDIO` flag to make sure that
+ * external library has complete control.
+ *
+ * Most apps, when terminating, should call SDL_Quit(). This will clean up
+ * (nearly) everything that SDL might have allocated, and crucially, it'll
+ * make sure that the display's resolution is back to what the user expects if
+ * you had previously changed it for your game.
+ *
+ * SDL3 apps are strongly encouraged to call SDL_SetAppMetadata() at startup
+ * to fill in details about the program. This is completely optional, but it
+ * helps in small ways (we can provide an About dialog box for the macOS menu,
+ * we can name the app in the system's audio mixer, etc). Those that want to
+ * provide a _lot_ of information should look at the more-detailed
+ * SDL_SetAppMetadataProperty().
  */
-
 
 #ifndef SDL_init_h_
 #define SDL_init_h_
@@ -47,7 +67,7 @@ extern "C" {
  * These are the flags which may be passed to SDL_Init(). You should specify
  * the subsystems which you will be using in your application.
  *
- * \since This datatype is available since SDL 3.0.0.
+ * \since This datatype is available since SDL 3.1.3.
  *
  * \sa SDL_Init
  * \sa SDL_Quit
@@ -57,9 +77,8 @@ extern "C" {
  */
 typedef Uint32 SDL_InitFlags;
 
-#define SDL_INIT_TIMER      0x00000001u
 #define SDL_INIT_AUDIO      0x00000010u /**< `SDL_INIT_AUDIO` implies `SDL_INIT_EVENTS` */
-#define SDL_INIT_VIDEO      0x00000020u /**< `SDL_INIT_VIDEO` implies `SDL_INIT_EVENTS` */
+#define SDL_INIT_VIDEO      0x00000020u /**< `SDL_INIT_VIDEO` implies `SDL_INIT_EVENTS`, should be initialized on the main thread */
 #define SDL_INIT_JOYSTICK   0x00000200u /**< `SDL_INIT_JOYSTICK` implies `SDL_INIT_EVENTS`, should be initialized on the same thread as SDL_INIT_VIDEO on Windows if you don't set SDL_HINT_JOYSTICK_THREAD */
 #define SDL_INIT_HAPTIC     0x00001000u
 #define SDL_INIT_GAMEPAD    0x00002000u /**< `SDL_INIT_GAMEPAD` implies `SDL_INIT_JOYSTICK` */
@@ -85,7 +104,7 @@ typedef Uint32 SDL_InitFlags;
  * [Main callbacks in SDL3](https://wiki.libsdl.org/SDL3/README/main-functions#main-callbacks-in-sdl3)
  * for complete details.
  *
- * \since This enum is available since SDL 3.0.0.
+ * \since This enum is available since SDL 3.1.3.
  */
 typedef enum SDL_AppResult
 {
@@ -97,7 +116,7 @@ typedef enum SDL_AppResult
 typedef SDL_AppResult (SDLCALL *SDL_AppInit_func)(void **appstate, int argc, char *argv[]);
 typedef SDL_AppResult (SDLCALL *SDL_AppIterate_func)(void *appstate);
 typedef SDL_AppResult (SDLCALL *SDL_AppEvent_func)(void *appstate, SDL_Event *event);
-typedef void (SDLCALL *SDL_AppQuit_func)(void *appstate);
+typedef void (SDLCALL *SDL_AppQuit_func)(void *appstate, SDL_AppResult result);
 
 /**
  * Initialize the SDL library.
@@ -117,11 +136,10 @@ typedef void (SDLCALL *SDL_AppQuit_func)(void *appstate);
  *
  * `flags` may be any of the following OR'd together:
  *
- * - `SDL_INIT_TIMER`: timer subsystem
  * - `SDL_INIT_AUDIO`: audio subsystem; automatically initializes the events
  *   subsystem
  * - `SDL_INIT_VIDEO`: video subsystem; automatically initializes the events
- *   subsystem
+ *   subsystem, should be initialized on the main thread.
  * - `SDL_INIT_JOYSTICK`: joystick subsystem; automatically initializes the
  *   events subsystem
  * - `SDL_INIT_HAPTIC`: haptic (force feedback) subsystem
@@ -143,10 +161,10 @@ typedef void (SDLCALL *SDL_AppQuit_func)(void *appstate);
  * SDL_SetAppMetadataProperty().
  *
  * \param flags subsystem initialization flags.
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_SetAppMetadata
  * \sa SDL_SetAppMetadataProperty
@@ -155,7 +173,7 @@ typedef void (SDLCALL *SDL_AppQuit_func)(void *appstate);
  * \sa SDL_SetMainReady
  * \sa SDL_WasInit
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_Init(SDL_InitFlags flags);
+extern SDL_DECLSPEC bool SDLCALL SDL_Init(SDL_InitFlags flags);
 
 /**
  * Compatibility function to initialize the SDL library.
@@ -163,16 +181,16 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_Init(SDL_InitFlags flags);
  * This function and SDL_Init() are interchangeable.
  *
  * \param flags any of the flags used by SDL_Init(); see SDL_Init for details.
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_Init
  * \sa SDL_Quit
  * \sa SDL_QuitSubSystem
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_InitSubSystem(SDL_InitFlags flags);
+extern SDL_DECLSPEC bool SDLCALL SDL_InitSubSystem(SDL_InitFlags flags);
 
 /**
  * Shut down specific SDL subsystems.
@@ -182,7 +200,7 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_InitSubSystem(SDL_InitFlags flags);
  *
  * \param flags any of the flags used by SDL_Init(); see SDL_Init for details.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_InitSubSystem
  * \sa SDL_Quit
@@ -196,7 +214,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_QuitSubSystem(SDL_InitFlags flags);
  * \returns a mask of all initialized subsystems if `flags` is 0, otherwise it
  *          returns the initialization status of the specified subsystems.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_Init
  * \sa SDL_InitSubSystem
@@ -214,12 +232,69 @@ extern SDL_DECLSPEC SDL_InitFlags SDLCALL SDL_WasInit(SDL_InitFlags flags);
  * application is shutdown, but it is not wise to do this from a library or
  * other dynamically loaded code.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_Init
  * \sa SDL_QuitSubSystem
  */
 extern SDL_DECLSPEC void SDLCALL SDL_Quit(void);
+
+/**
+ * Return whether this is the main thread.
+ *
+ * On Apple platforms, the main thread is the thread that runs your program's
+ * main() entry point. On other platforms, the main thread is the one that
+ * calls SDL_Init(SDL_INIT_VIDEO), which should usually be the one that runs
+ * your program's main() entry point. If you are using the main callbacks,
+ * SDL_AppInit(), SDL_AppIterate(), and SDL_AppQuit() are all called on the
+ * main thread.
+ *
+ * \returns true if this thread is the main thread, or false otherwise.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ *
+ * \sa SDL_RunOnMainThread
+ */
+extern SDL_DECLSPEC bool SDLCALL SDL_IsMainThread(void);
+
+/**
+ * Callback run on the main thread.
+ *
+ * \param userdata an app-controlled pointer that is passed to the callback.
+ *
+ * \since This datatype is available since SDL 3.1.8.
+ *
+ * \sa SDL_RunOnMainThread
+ */
+typedef void (SDLCALL *SDL_MainThreadCallback)(void *userdata);
+
+/**
+ * Call a function on the main thread during event processing.
+ *
+ * If this is called on the main thread, the callback is executed immediately.
+ * If this is called on another thread, this callback is queued for execution
+ * on the main thread during event processing.
+ *
+ * Be careful of deadlocks when using this functionality. You should not have
+ * the main thread wait for the current thread while this function is being
+ * called with `wait_complete` true.
+ *
+ * \param callback the callback to call on the main thread.
+ * \param userdata a pointer that is passed to `callback`.
+ * \param wait_complete true to wait for the callback to complete, false to
+ *                      return immediately.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
+ *
+ * \threadsafety It is safe to call this function from any thread.
+ *
+ * \since This function is available since SDL 3.2.0.
+ *
+ * \sa SDL_IsMainThread
+ */
+extern SDL_DECLSPEC bool SDLCALL SDL_RunOnMainThread(SDL_MainThreadCallback callback, void *userdata, bool wait_complete);
 
 /**
  * Specify basic metadata about your app.
@@ -248,16 +323,16 @@ extern SDL_DECLSPEC void SDLCALL SDL_Quit(void);
  *                   hash, or whatever makes sense).
  * \param appidentifier A unique string in reverse-domain format that
  *                      identifies this app ("com.example.mygame2").
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
  * \threadsafety It is safe to call this function from any thread.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_SetAppMetadataProperty
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_SetAppMetadata(const char *appname, const char *appversion, const char *appidentifier);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetAppMetadata(const char *appname, const char *appversion, const char *appidentifier);
 
 /**
  * Specify metadata about your app through a set of properties.
@@ -274,7 +349,7 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_SetAppMetadata(const char *appname, con
  * Multiple calls to this function are allowed, but various state might not
  * change once it has been set up with a previous call to this function.
  *
- * Once set, this metadata can be read using SDL_GetMetadataProperty().
+ * Once set, this metadata can be read using SDL_GetAppMetadataProperty().
  *
  * These are the supported properties:
  *
@@ -310,17 +385,17 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_SetAppMetadata(const char *appname, con
  *
  * \param name the name of the metadata property to set.
  * \param value the value of the property, or NULL to remove that property.
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
  * \threadsafety It is safe to call this function from any thread.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_GetAppMetadataProperty
  * \sa SDL_SetAppMetadata
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_SetAppMetadataProperty(const char *name, const char *value);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetAppMetadataProperty(const char *name, const char *value);
 
 #define SDL_PROP_APP_METADATA_NAME_STRING         "SDL.app.metadata.name"
 #define SDL_PROP_APP_METADATA_VERSION_STRING      "SDL.app.metadata.version"
@@ -346,7 +421,7 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_SetAppMetadataProperty(const char *name
  *               freed if you call SDL_SetAppMetadataProperty() to set that
  *               property from another thread.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_SetAppMetadata
  * \sa SDL_SetAppMetadataProperty

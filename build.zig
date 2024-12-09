@@ -24,6 +24,7 @@ pub fn build(b: *std.Build) void {
     const hya = b.dependency("hyoga_arena", opt);
     const imgui = b.dependency("imgui", opt);
     const sdl = b.dependency("sdl", opt);
+    const sdl_shadercross = b.dependency("sdl_shadercross", opt);
     const assimp = b.dependency("assimp", opt);
     const stb_image = b.dependency("stb_image", .{ .target = target });
     const ztracy = b.dependency("ztracy", .{
@@ -43,8 +44,11 @@ pub fn build(b: *std.Build) void {
     hyoga_lib.root_module.addImport("ztracy", ztracy.module("root"));
 
     hyoga_lib.root_module.linkLibrary(ztracy.artifact("tracy"));
+    hyoga_lib.root_module.linkLibrary(sdl_shadercross.artifact("sdl_shadercross"));
     hyoga_lib.linkLibC();
     hyoga_lib.linkLibCpp();
+
+    @import("sdl_shadercross").link(sdl_shadercross.builder, hyoga_lib);
 
     if (@import("sdl").install(sdl.builder, b)) |install_file| {
         b.getInstallStep().dependOn(&install_file.step);

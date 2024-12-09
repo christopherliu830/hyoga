@@ -46,27 +46,31 @@ extern "C" {
  * Put UTF-8 text into the clipboard.
  *
  * \param text the text to store in the clipboard.
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
- * \since This function is available since SDL 3.0.0.
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_GetClipboardText
  * \sa SDL_HasClipboardText
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_SetClipboardText(const char *text);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetClipboardText(const char *text);
 
 /**
  * Get UTF-8 text from the clipboard.
  *
- * This functions returns empty string if there was not enough memory left for
- * a copy of the clipboard's content.
+ * This functions returns an empty string if there was not enough memory left
+ * for a copy of the clipboard's content.
  *
  * \returns the clipboard text on success or an empty string on failure; call
  *          SDL_GetError() for more information. This should be freed with
  *          SDL_free() when it is no longer needed.
  *
- * \since This function is available since SDL 3.0.0.
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_HasClipboardText
  * \sa SDL_SetClipboardText
@@ -76,40 +80,46 @@ extern SDL_DECLSPEC char * SDLCALL SDL_GetClipboardText(void);
 /**
  * Query whether the clipboard exists and contains a non-empty text string.
  *
- * \returns SDL_TRUE if the clipboard has text, or SDL_FALSE if it does not.
+ * \returns true if the clipboard has text, or false if it does not.
  *
- * \since This function is available since SDL 3.0.0.
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_GetClipboardText
  * \sa SDL_SetClipboardText
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_HasClipboardText(void);
+extern SDL_DECLSPEC bool SDLCALL SDL_HasClipboardText(void);
 
 /**
  * Put UTF-8 text into the primary selection.
  *
  * \param text the text to store in the primary selection.
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
- * \since This function is available since SDL 3.0.0.
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_GetPrimarySelectionText
  * \sa SDL_HasPrimarySelectionText
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_SetPrimarySelectionText(const char *text);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetPrimarySelectionText(const char *text);
 
 /**
  * Get UTF-8 text from the primary selection.
  *
- * This functions returns empty string if there was not enough memory left for
- * a copy of the primary selection's content.
+ * This functions returns an empty string if there was not enough memory left
+ * for a copy of the primary selection's content.
  *
  * \returns the primary selection text on success or an empty string on
  *          failure; call SDL_GetError() for more information. This should be
  *          freed with SDL_free() when it is no longer needed.
  *
- * \since This function is available since SDL 3.0.0.
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_HasPrimarySelectionText
  * \sa SDL_SetPrimarySelectionText
@@ -120,15 +130,16 @@ extern SDL_DECLSPEC char * SDLCALL SDL_GetPrimarySelectionText(void);
  * Query whether the primary selection exists and contains a non-empty text
  * string.
  *
- * \returns SDL_TRUE if the primary selection has text, or SDL_FALSE if it
- *          does not.
+ * \returns true if the primary selection has text, or false if it does not.
  *
- * \since This function is available since SDL 3.0.0.
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_GetPrimarySelectionText
  * \sa SDL_SetPrimarySelectionText
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_HasPrimarySelectionText(void);
+extern SDL_DECLSPEC bool SDLCALL SDL_HasPrimarySelectionText(void);
 
 /**
  * Callback function that will be called when data for the specified mime-type
@@ -148,7 +159,7 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_HasPrimarySelectionText(void);
  *          breakage in receiving applications. The returned data will not be
  *          freed so it needs to be retained and dealt with internally.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_SetClipboardData
  */
@@ -160,7 +171,7 @@ typedef const void *(SDLCALL *SDL_ClipboardDataCallback)(void *userdata, const c
  *
  * \param userdata a pointer to provided user data.
  *
- * \since This function is available since SDL 3.0.0.
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_SetClipboardData
  */
@@ -185,28 +196,32 @@ typedef void (SDLCALL *SDL_ClipboardCleanupCallback)(void *userdata);
  * \param userdata an opaque pointer that will be forwarded to the callbacks.
  * \param mime_types a list of mime-types that are being offered.
  * \param num_mime_types the number of mime-types in the mime_types list.
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
- * \since This function is available since SDL 3.0.0.
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_ClearClipboardData
  * \sa SDL_GetClipboardData
  * \sa SDL_HasClipboardData
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_SetClipboardData(SDL_ClipboardDataCallback callback, SDL_ClipboardCleanupCallback cleanup, void *userdata, const char **mime_types, size_t num_mime_types);
+extern SDL_DECLSPEC bool SDLCALL SDL_SetClipboardData(SDL_ClipboardDataCallback callback, SDL_ClipboardCleanupCallback cleanup, void *userdata, const char **mime_types, size_t num_mime_types);
 
 /**
  * Clear the clipboard data.
  *
- * \returns SDL_TRUE on success or SDL_FALSE on failure; call SDL_GetError()
- *          for more information.
+ * \returns true on success or false on failure; call SDL_GetError() for more
+ *          information.
  *
- * \since This function is available since SDL 3.0.0.
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_SetClipboardData
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_ClearClipboardData(void);
+extern SDL_DECLSPEC bool SDLCALL SDL_ClearClipboardData(void);
 
 /**
  * Get the data from clipboard for a given mime type.
@@ -220,7 +235,9 @@ extern SDL_DECLSPEC SDL_bool SDLCALL SDL_ClearClipboardData(void);
  *          for more information. This should be freed with SDL_free() when it
  *          is no longer needed.
  *
- * \since This function is available since SDL 3.0.0.
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_HasClipboardData
  * \sa SDL_SetClipboardData
@@ -231,15 +248,34 @@ extern SDL_DECLSPEC void * SDLCALL SDL_GetClipboardData(const char *mime_type, s
  * Query whether there is data in the clipboard for the provided mime type.
  *
  * \param mime_type the mime type to check for data for.
- * \returns SDL_TRUE if there exists data in clipboard for the provided mime
- *          type, SDL_FALSE if it does not.
+ * \returns true if there exists data in clipboard for the provided mime type,
+ *          false if it does not.
  *
- * \since This function is available since SDL 3.0.0.
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.1.3.
  *
  * \sa SDL_SetClipboardData
  * \sa SDL_GetClipboardData
  */
-extern SDL_DECLSPEC SDL_bool SDLCALL SDL_HasClipboardData(const char *mime_type);
+extern SDL_DECLSPEC bool SDLCALL SDL_HasClipboardData(const char *mime_type);
+
+/**
+ * Retrieve the list of mime types available in the clipboard.
+ *
+ * \param num_mime_types a pointer filled with the number of mime types, may
+ *                       be NULL.
+ * \returns a null terminated array of strings with mime types, or NULL on
+ *          failure; call SDL_GetError() for more information. This should be
+ *          freed with SDL_free() when it is no longer needed.
+ *
+ * \threadsafety This function should only be called on the main thread.
+ *
+ * \since This function is available since SDL 3.1.3.
+ *
+ * \sa SDL_SetClipboardData
+ */
+extern SDL_DECLSPEC char ** SDLCALL SDL_GetClipboardMimeTypes(size_t *num_mime_types);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus
