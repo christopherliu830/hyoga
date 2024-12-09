@@ -1,6 +1,8 @@
 const std = @import("std");
 const sdl = @import("sdl");
+const sdlsc = @import("sdl_shadercross");
 const ai = @import("assimp");
+const build_options = @import("build_options");
 
 const hya = @import("hyoga-arena");
 const hym = @import("hyoga-math");
@@ -125,9 +127,8 @@ pub var speed: f32 = 1;
 
 pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
     window_state.hdl_window = hdl_window;
-    const d = sdl.gpu.createDevice(.{
-        .spirv = true,
-    }, true, null).?;
+    if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
+    const d = sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, null).?;
     _ = d.claimWindow(hdl_window);
 
     if (!d.setSwapchainParameters(hdl_window, .sdr, .immediate)) {
@@ -144,6 +145,7 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
     };
 
     try ld.init(gpa);
+    try sdlsc.init();
 
     stb.init(ctx.allocator);
     std.time.sleep(1 * std.time.ns_per_s);
@@ -220,6 +222,7 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
 
 pub fn shutdown() void {
     ld.deinit();
+    sdlsc.quit();
     stb.deinit();
 
     ctx.device.releaseWindow(window_state.hdl_window);

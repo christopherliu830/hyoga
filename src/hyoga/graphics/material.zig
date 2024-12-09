@@ -63,17 +63,13 @@ pub const MaterialInfo = struct {
 
 pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, arena: std.mem.Allocator) !MaterialTemplate {
     const info = try loadMaterialInfo(path, arena);
-    // const vert_shader = try loadShader(device, .vertex, info, path, arena);
-    // defer device.releaseShader(vert_shader);
 
-    // const frag_shader = try loadShader(device, .fragment, info, path, arena);
-    // defer device.releaseShader(frag_shader);
-    const vert_shader = try loadShader2(device, .vertex, path, arena);
+
+    const vert_shader = try loadShader(device, .vertex, path, arena);
     defer device.releaseShader(vert_shader);
 
-    const frag_shader = try loadShader2(device, .fragment, path, arena);
+    const frag_shader = try loadShader(device, .fragment, path, arena);
     defer device.releaseShader(frag_shader);
-
 
     const pipeline = gpu.buildPipeline(.{
         .enable_depth = true,
@@ -145,7 +141,7 @@ pub fn loadMaterialInfo(path: []const u8, arena: std.mem.Allocator) !MaterialInf
     return try std.json.parseFromSliceLeaky(MaterialInfo, arena, info_bytes, .{});
 }
 
-pub fn loadShader2(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []const u8, arena: std.mem.Allocator) !*sdl.gpu.Shader {
+pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []const u8, arena: std.mem.Allocator) !*sdl.gpu.Shader {
     const full_path = switch(stage) {
         .vertex => try std.mem.concat(arena, u8, &.{path, ".vert.spv"}),
         .fragment => try std.mem.concat(arena, u8, &.{path, ".frag.spv"}),
@@ -154,84 +150,11 @@ pub fn loadShader2(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []
     const file = try std.fs.cwd().openFile(full_path, .{});
     defer file.close();
     const code = try file.readToEndAlloc(arena, 1024 * 16);
+
     var shader_info = try sdlsc.reflectGraphicsSpirv(code);
+
     return try sdlsc.compileGraphicsShaderFromSpirv(device, stage, .{
         .bytecode = code,
         .entrypoint = "main",
     }, &shader_info);
-}
-
-pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, info: MaterialInfo, path: []const u8, arena: std.mem.Allocator) !*sdl.gpu.Shader {
-    if (device.getShaderFormats().metallib) {
-        return try loadShaderMetal(device, stage, info, path, arena);
-    } else {
-        return try loadShaderSpirv(device, stage, info, path, arena);
-    }
-}
-
-pub fn loadShaderMetal(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, info: MaterialInfo, path: []const u8, arena: std.mem.Allocator) !*sdl.gpu.Shader {
-    const program_info = switch(stage) {
-        .vertex => info.vert,
-        .fragment => info.frag,
-    };
-
-    const sampler_count = if (program_info.samplers) |s| s.map.count() else 0;
-    const uniform_count = if (program_info.uniforms) |u| u.map.count() else 0;
-    const full_path = try std.mem.concat(arena, u8, &.{path, ".metal"});
-    const file = blk: { 
-        if (std.fs.cwd().openFile(full_path, .{})) |fd| { break :blk fd; } else |err| {
-            // Try separate file extensions for metal
-            if (err == error.FileNotFound) {
-                break :blk try std.fs.cwd().openFile(switch(stage) {
-                    .vertex => try std.mem.concat(arena, u8, &.{path, ".vert.metal"}),
-                    .fragment => try std.mem.concat(arena, u8, &.{path, ".frag.metal"}),
-                }, .{});
-            } else return err;
-        }
-    };
-    // const file = try std.fs.cwd().openFile(full_path, .{});
-    defer file.close();
-    const code = try file.readToEndAlloc(arena, 1024 * 16);
-    return device.createShader(&.{
-        .stage = stage,
-        .code = code.ptr,
-        .code_size = @intCast(code.len),
-        .entrypoint = if (stage == .vertex) "vertexMain" else "fragmentMain",
-        .format = .{ .msl = true },
-        .num_samplers = @intCast(sampler_count),
-        .num_storage_textures = 0,
-        .num_storage_buffers = 0,
-        .num_uniform_buffers = @intCast(uniform_count),
-        .props = 0
-    }).?;
-}
-
-pub fn loadShaderSpirv(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, info: MaterialInfo, path: []const u8, arena: std.mem.Allocator) !*sdl.gpu.Shader {
-    const program_info = switch(stage) {
-        .vertex => info.vert,
-        .fragment => info.frag,
-    };
-
-    const full_path = switch(stage) {
-        .vertex => try std.mem.concat(arena, u8, &.{path, ".vert.spv"}),
-        .fragment => try std.mem.concat(arena, u8, &.{path, ".frag.spv"}),
-    };
-
-    const sampler_count = if (program_info.samplers) |s| s.map.count() else 0;
-    const uniform_count = if (program_info.uniforms) |u| u.map.count() else 0;
-    const file = try std.fs.cwd().openFile(full_path, .{});
-    defer file.close();
-    const code = try file.readToEndAlloc(arena, 1024 * 16);
-    return device.createShader(&.{
-        .stage = stage,
-        .code = code.ptr,
-        .code_size = @intCast(code.len),
-        .entrypoint = "main",
-        .format = .{ .spirv = true },
-        .num_samplers = @intCast(sampler_count),
-        .num_storage_textures = 0,
-        .num_storage_buffers = 0,
-        .num_uniform_buffers = @intCast(uniform_count),
-        .props = 0
-    }).?;
 }

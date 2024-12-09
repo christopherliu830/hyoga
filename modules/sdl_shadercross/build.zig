@@ -1,12 +1,17 @@
 const std = @import("std");
 const os = @import("builtin").target.os.tag;
+const Sdl = @import("sdl");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{ });
+    const optimize = b.standardOptimizeOption(.{});
 
-    // const sdl = b.dependency("sdl", .{ .target = target, .optimize = optimize });
-    const sdl = @import("sdl").dependency(b, "sdl", .{ .target = target, .optimize = optimize });
+    const dxc = b.option(bool, "dxc", "Enable HLSL compilation via DXC") orelse true;
+
+    const sdl = Sdl.dependency(b, "sdl", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const lib = b.addStaticLibrary(.{
         .name = "sdl_shadercross",
@@ -22,20 +27,21 @@ pub fn build(b: *std.Build) void {
     });
 
     lib.addIncludePath(b.path("SDL_shadercross/include/"));
-    lib.addCSourceFile(.{ .file = b.path("SDL_shadercross/src/SDL_shadercross.c"), });
+    lib.addCSourceFile(.{
+        .file = b.path("SDL_shadercross/src/SDL_shadercross.c"),
+        .flags = &[_][]const u8 {
+            if (dxc) "-DSDL_SHADERCROSS_DXC" else "",
+        },
+    });
+    const bt = BuildTool { .builder = b, .dep = b };
+    bt.link(lib);
 
     // Link to sibling module SDL
     sdl.linkLibrary(lib);
-
-    // lib.addLibraryPath(b.path("SDL_shadercross/lib"));
-    // if (os == .windows) { lib.linkSystemLibrary("dxil"); }
-    // lib.linkSystemLibrary("spirv-cross-c-shared");
-
     sdl.exportModule(root);
+
     root.linkLibrary(lib);
 
-    const bt = BuildTool { .builder = b, .dep = b };
-    bt.link(lib);
 }
 
 pub fn dependency(b: *std.Build, dep_name: []const u8, options: anytype) BuildTool {
@@ -49,7 +55,8 @@ pub const BuildTool = struct {
 
     pub fn link(self: @This(), target: *std.Build.Step.Compile) void {
         target.addLibraryPath(self.dep.path("SDL_shadercross/lib"));
-        if (os == .windows) { target.linkSystemLibrary("dxil"); }
+        target.linkSystemLibrary("dxil");
+        target.linkSystemLibrary("dxcompiler");
         target.linkSystemLibrary("spirv-cross-c-shared");
         target.linkLibC();
     }

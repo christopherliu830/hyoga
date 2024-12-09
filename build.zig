@@ -5,9 +5,21 @@ const Assimp = @import("assimp");
 
 const os = @import("builtin").target.os.tag;
 
+pub const GpuDriver = enum {
+    none,
+    vulkan,
+    direct3d12,
+    metal,
+}; 
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    const backend = b.option(GpuDriver, "GpuDriver", "force backend graphics driver") orelse .none;
+    const options_step = b.addOptions();
+    options_step.addOption(?[:0]const u8, "backend", if (backend == .none) null else @tagName(backend));
+    const options_module = options_step.createModule();
 
     // Library
     const hyoga_lib = b.addStaticLibrary(.{
@@ -24,25 +36,46 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    // Dependencies
-    const opt = .{
+    const hym = b.dependency("hyoga_math", .{
         .target = target,
-        .optimize = optimize
-    };
+        .optimize = optimize,
+    });
 
-    const hym = b.dependency("hyoga_math", opt);
-    const hya = b.dependency("hyoga_arena", opt);
-    const imgui = b.dependency("imgui", opt);
+    const hya = b.dependency("hyoga_arena", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const imgui = b.dependency("imgui", .{
+        .target = target,
+        .optimize = optimize,
+    });
     // const assimp = b.dependency("assimp", opt);
-    const stb_image = b.dependency("stb_image", .{ .target = target });
+    const stb_image = b.dependency("stb_image", .{ 
+        .target = target
+    });
+
     const ztracy = b.dependency("ztracy", .{
+        .target = target,
+        .optimize = optimize,
         .enable_ztracy = true,
         .enable_fibers = true,
     });
 
-    const sdl = @import("sdl").dependency(b, "sdl", opt);
-    const sdlsc = @import("sdl_shadercross").dependency(b, "sdl_shadercross", opt);
-    const assimp = @import("assimp").dependency(b, "assimp", opt);
+    const sdl = @import("sdl").dependency(b, "sdl", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const sdlsc = @import("sdl_shadercross").dependency(b, "sdl_shadercross", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const assimp = @import("assimp").dependency(b, "assimp", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     // Modules
 
@@ -52,6 +85,8 @@ pub fn build(b: *std.Build) void {
     hyoga_lib.root_module.addImport("implot", imgui.module("implot"));
     hyoga_lib.root_module.addImport("stb_image", stb_image.module("stb_image"));
     hyoga_lib.root_module.addImport("ztracy", ztracy.module("root"));
+    hyoga_lib.root_module.addImport("build_options", options_module);
+
     sdl.exportModule(&hyoga_lib.root_module);
     sdlsc.exportModule(&hyoga_lib.root_module);
     assimp.exportModule(&hyoga_lib.root_module);
@@ -61,11 +96,9 @@ pub fn build(b: *std.Build) void {
     hyoga_lib.linkLibCpp();
     sdlsc.link(hyoga_lib);
 
-
-
-
     exe.root_module.addImport("hyoga", &hyoga_lib.root_module);
     exe.root_module.addImport("ztracy", ztracy.module("root"));
+    exe.linkLibC();
     exe.linkLibrary(ztracy.artifact("tracy"));
     sdl.install(exe);
     sdlsc.install(exe);
@@ -81,17 +114,6 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(hyoga_lib);
     b.installArtifact(exe);
-
-    // POST BUILD 
-    // const shader_compile= b.addSystemCommand(&.{"python"});
-    // shader_compile.addFileArg(b.path("scripts/build_shaders.py"));
-    // const shader_out = shader_compile.addOutputDirectoryArg("shaders");
-
-    // b.installDirectory(.{
-    //     .source_dir = shader_out,
-    //     .install_dir = .bin,
-    //     .install_subdir = "shaders",
-    // });
 
     b.installDirectory(.{
         .install_dir = .bin,

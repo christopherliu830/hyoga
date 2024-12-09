@@ -2,9 +2,22 @@ const std = @import("std");
 
 const os = @import("builtin").target.os.tag;
 
+pub const GpuBackend = enum {
+    none,
+    direct3d12,
+    vulkan,
+    metal
+};
+
+pub const Options = struct {
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    backend: GpuBackend,
+};
+
 pub fn build(b: *std.Build) void {
+    const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{ });
 
     const root = b.addModule("root", .{
         .root_source_file = b.path("src/sdl.zig"),

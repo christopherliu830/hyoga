@@ -75,11 +75,10 @@ pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
 
     var arena = std.heap.ArenaAllocator.init(bd.allocator);
     defer arena.deinit();
-    const info = try mt.loadMaterialInfo("shaders/imgui", arena.allocator());
-    const vert_shader = try mt.loadShader(bd.device, .vertex, info, "shaders/imgui", arena.allocator()); 
+    const vert_shader = try mt.loadShader(bd.device, .vertex, "shaders/imgui", arena.allocator()); 
     defer bd.device.releaseShader(vert_shader);
 
-    const frag_shader = try mt.loadShader(bd.device, .fragment, info, "shaders/imgui", arena.allocator()); 
+    const frag_shader = try mt.loadShader(bd.device, .fragment, "shaders/imgui", arena.allocator()); 
     defer bd.device.releaseShader(frag_shader);
 
     const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{

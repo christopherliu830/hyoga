@@ -807,7 +807,7 @@ extern fn SDL_CreateGPUDeviceWithProperties(props: PropertiesID) ?*Device;
 extern fn SDL_DestroyGPUDevice(device: *Device) void;
 extern fn SDL_GetNumGPUDrivers() i32;
 extern fn SDL_GetGPUDriver(index: i32) [*c]const u8;
-extern fn SDL_GetGPUDeviceDriver(device: *Device) [*c]const u8;
+extern fn SDL_GetGPUDeviceDriver(device: *Device) [*:0]const u8;
 extern fn SDL_GetGPUShaderFormats(device: *Device) ShaderFormat;
 extern fn SDL_CreateGPUComputePipeline(device: *Device, createinfo: [*c]const ComputePipelineCreateInfo) ?*ComputePipeline;
 extern fn SDL_CreateGPUGraphicsPipeline(device: *Device, createinfo: [*c]const GraphicsPipelineCreateInfo) ?*GraphicsPipeline;
