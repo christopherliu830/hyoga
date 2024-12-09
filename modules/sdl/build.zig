@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{ });
 
-    const module = b.addModule("sdl", .{
+    const root = b.addModule("root", .{
         .root_source_file = b.path("src/sdl.zig"),
         .target = target,
         .optimize = optimize,
@@ -14,17 +14,37 @@ pub fn build(b: *std.Build) void {
     });
 
     if (os == .windows) {
-        module.addLibraryPath(b.path("lib"));
+        root.addLibraryPath(b.path("lib"));
     } 
 
-    module.linkSystemLibrary("SDL3", .{});
-    module.addIncludePath(b.path("include"));
+    root.linkSystemLibrary("SDL3", .{});
+    root.addIncludePath(b.path("include"));
 }
 
-pub fn install(self: *std.Build, b: *std.Build) ?*std.Build.Step.InstallFile {
-    if (os == .windows) {
-        const bin_path = self.path("lib/SDL3.dll");
-        return b.addInstallBinFile(bin_path, "SDL3.dll");
-    } 
-    return null;
+pub fn dependency(b: *std.Build, dep_name: []const u8, options: anytype) BuildTool {
+    const dep = b.dependency(dep_name, options);
+    return .{ .builder = b, .dep = dep.builder };
 }
+
+pub const BuildTool = struct {
+    builder: *std.Build,
+    dep: *std.Build,
+
+    pub fn install(self: @This(), exe: *std.Build.Step.Compile) void {
+        if (os == .windows) {
+            const install_file = self.builder.addInstallBinFile(self.dep.path("lib/SDL3.dll"), "SDL3.dll");
+            exe.step.dependOn(&install_file.step);
+        } 
+    }
+
+    pub fn exportModule(self: @This(), module: *std.Build.Module) void {
+        module.addImport("sdl", self.dep.modules.get("root").?);
+    }
+
+    pub fn linkLibrary(self: @This(), lib: *std.Build.Step.Compile) void {
+        lib.addLibraryPath(self.dep.path("lib"));
+        lib.addIncludePath(self.dep.path("include"));
+        lib.linkSystemLibrary("SDL3");
+    }
+};
+
