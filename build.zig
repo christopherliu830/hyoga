@@ -1,4 +1,7 @@
 const std = @import("std");
+const Sdl = @import("sdl");
+const SdlShadercross = @import("sdl_shadercross");
+const Assimp = @import("assimp");
 
 const os = @import("builtin").target.os.tag;
 
@@ -37,6 +40,7 @@ pub fn build(b: *std.Build) void {
     hyoga_lib.root_module.addImport("hyoga-math", hym.module("hyoga-math"));
     hyoga_lib.root_module.addImport("hyoga-arena", hya.module("hyoga-arena"));
     hyoga_lib.root_module.addImport("sdl", sdl.module("sdl"));
+    hyoga_lib.root_module.addImport("sdl_shadercross", sdl_shadercross.module("root"));
     hyoga_lib.root_module.addImport("imgui", imgui.module("imgui"));
     hyoga_lib.root_module.addImport("implot", imgui.module("implot"));
     hyoga_lib.root_module.addImport("assimp", assimp.module("assimp"));
@@ -44,19 +48,13 @@ pub fn build(b: *std.Build) void {
     hyoga_lib.root_module.addImport("ztracy", ztracy.module("root"));
 
     hyoga_lib.root_module.linkLibrary(ztracy.artifact("tracy"));
-    hyoga_lib.root_module.linkLibrary(sdl_shadercross.artifact("sdl_shadercross"));
     hyoga_lib.linkLibC();
     hyoga_lib.linkLibCpp();
+    SdlShadercross.linkLibraries(sdl_shadercross.builder, hyoga_lib);
 
-    @import("sdl_shadercross").link(sdl_shadercross.builder, hyoga_lib);
-
-    if (@import("sdl").install(sdl.builder, b)) |install_file| {
-        b.getInstallStep().dependOn(&install_file.step);
-    }
-
-    if (@import("assimp").install(assimp.builder, b)) |install_file| {
-        b.getInstallStep().dependOn(&install_file.step);
-    }
+    if (Sdl.install(sdl.builder, b)) |install| b.getInstallStep().dependOn(&install.step);
+    b.getInstallStep().dependOn(&SdlShadercross.installSpirv(sdl_shadercross.builder, b).step);
+    if (Assimp.install(assimp.builder, b)) |install| b.getInstallStep().dependOn(&install.step);
 
     const exe = b.addExecutable(.{
         .name = "game",

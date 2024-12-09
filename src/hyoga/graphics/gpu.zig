@@ -240,7 +240,6 @@ pub fn shutdown() void {
     ctx.device.releaseTexture(render_state.default_texture);
     ctx.device.releaseTexture(window_state.tex_depth);
     ctx.device.releaseSampler(render_state.sampler);
-    // ctx.device.releaseGraphicsPipeline(render_state.outline_pipeline);
     ctx.device.releaseGraphicsPipeline(render_state.post_material.pipeline);
     ctx.device.releaseGraphicsPipeline(render_state.default_material.pipeline);
     ctx.device.destroy();

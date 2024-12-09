@@ -1,5 +1,6 @@
 const std = @import("std");
 const sdl = @import("sdl");
+const sdlsc = @import("sdl_shadercross");
 const hya = @import("hyoga-arena");
 const gpu = @import("gpu.zig");
 const tx = @import("texture.zig");
@@ -62,10 +63,15 @@ pub const MaterialInfo = struct {
 
 pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, arena: std.mem.Allocator) !MaterialTemplate {
     const info = try loadMaterialInfo(path, arena);
-    const vert_shader = try loadShader(device, .vertex, info, path, arena);
+    // const vert_shader = try loadShader(device, .vertex, info, path, arena);
+    // defer device.releaseShader(vert_shader);
+
+    // const frag_shader = try loadShader(device, .fragment, info, path, arena);
+    // defer device.releaseShader(frag_shader);
+    const vert_shader = try loadShader2(device, .vertex, path, arena);
     defer device.releaseShader(vert_shader);
 
-    const frag_shader = try loadShader(device, .fragment, info, path, arena);
+    const frag_shader = try loadShader2(device, .fragment, path, arena);
     defer device.releaseShader(frag_shader);
 
 
@@ -137,6 +143,22 @@ pub fn loadMaterialInfo(path: []const u8, arena: std.mem.Allocator) !MaterialInf
     const info_bytes = try info_file.readToEndAlloc(arena, 1024 * 16);
     info_file.close();
     return try std.json.parseFromSliceLeaky(MaterialInfo, arena, info_bytes, .{});
+}
+
+pub fn loadShader2(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []const u8, arena: std.mem.Allocator) !*sdl.gpu.Shader {
+    const full_path = switch(stage) {
+        .vertex => try std.mem.concat(arena, u8, &.{path, ".vert.spv"}),
+        .fragment => try std.mem.concat(arena, u8, &.{path, ".frag.spv"}),
+    };
+
+    const file = try std.fs.cwd().openFile(full_path, .{});
+    defer file.close();
+    const code = try file.readToEndAlloc(arena, 1024 * 16);
+    var shader_info = try sdlsc.reflectGraphicsSpirv(code);
+    return try sdlsc.compileGraphicsShaderFromSpirv(device, stage, .{
+        .bytecode = code,
+        .entrypoint = "main",
+    }, &shader_info);
 }
 
 pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, info: MaterialInfo, path: []const u8, arena: std.mem.Allocator) !*sdl.gpu.Shader {

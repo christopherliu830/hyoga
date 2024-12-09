@@ -1,18 +1,12 @@
 const std = @import("std");
-
 const os = @import("builtin").target.os.tag;
+const Root = @This();
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{ });
 
-
-    _ = b.addModule("sdl_shadercross", .{
-        .root_source_file = b.path("src/sdl_shadercross.zig"),
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-    });
+    const sdl = b.dependency("sdl", .{ .target = target, .optimize = optimize });
 
     const lib = b.addStaticLibrary(.{
         .name = "sdl_shadercross",
@@ -20,45 +14,69 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    lib.addIncludePath(b.path("."));
-    lib.addCSourceFile(.{ .file = b.path("SDL3_shadercross/SDL_shadercross.c"), });
+    lib.addIncludePath(b.path("SDL_shadercross/include/"));
+    lib.addCSourceFile(.{ .file = b.path("SDL_shadercross/src/SDL_shadercross.c"), });
 
-    lib.addLibraryPath(b.dependency("sdl", .{}).path("lib"));
-    lib.addIncludePath(b.dependency("sdl", .{}).path("include"));
+    // Link to sibling module SDL
+    lib.addLibraryPath(sdl.path("lib"));
+    lib.addIncludePath(sdl.path("include"));
     lib.linkSystemLibrary("SDL3");
 
-    lib.addLibraryPath(b.path("SDL3_shadercross/external/DirectXShaderCompiler/lib"));
-    lib.addLibraryPath(b.path("SDL3_shadercross/external/SPIRV-Cross/lib"));
-    lib.addIncludePath(b.path("SDL3_shadercross/external/SPIRV-Cross"));
-    lib.linkSystemLibrary("dxil");
-    lib.linkSystemLibrary("spirv-cross-c-shared");
+    linkLibraries(b, lib);
 
     lib.linkLibC();
 
-    b.installArtifact(lib);
+    const module = b.addModule("root", .{
+        .root_source_file = b.path("src/sdl_shadercross.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+
+    module.addImport("sdl", sdl.module("sdl"));
+    module.linkLibrary(lib);
 }
 
-pub fn link(self: *std.Build, lib: *std.Build.Step.Compile) void {
-    lib.addLibraryPath(self.path("SDL3_shadercross/external/DirectXShaderCompiler/lib"));
-    lib.addLibraryPath(self.path("SDL3_shadercross/external/SPIRV-Cross/lib"));
-    lib.linkSystemLibrary("dxil");
-    lib.linkSystemLibrary("spirv-cross-c-shared");
-}
+pub const BuildTool = struct {
+    builder: *std.Build,
 
-pub fn installDX(self: *std.Build, b: *std.Build) ?*std.Build.Step.InstallFile {
-    if (os == .windows) {
-        const bin_path = self.path("SDL3_shadercross/external/DirectXShaderCompiler/lib/dxcompiler.dll");
-        const dxcompiler = b.addInstallBinFile(bin_path, "dxcompiler.dll");
-        const dxil_bin_path = self.path("SDL3_shadercross/external/DirectXShaderCompiler/lib/dxil.dll");
-        const dxil = b.addInstallBinFile(dxil_bin_path, "dxil.dll");
-        dxil.step.dependOn(&dxcompiler.step);
-        return dxil;
-    } 
-    return null;
-}
+    pub fn init(self: *@This(), b: *std.Build) void {
+        self.builder = b.dependency("sdl_shadercross").builder;
+    }
 
-pub fn installSpirv(self: *std.Build, b: *std.Build) *std.Build.Step.InstallFile {
-    const bin_path = self.path("SDL3_shadercross/external/SPIRV-Cross/lib/spirv-cross-c-shared.dll");
-    return b.addInstallBinFile(bin_path, "spirv-cross-c-shared.dll");
-}
+    pub fn linkLibraries(self: *@This(), lib: *std.Build.Step.Compile) void {
+        lib.addLibraryPath(self.builder.path("SDL_shadercross/lib"));
+        if (os == .windows) { lib.linkSystemLibrary("dxil"); }
+        lib.linkSystemLibrary("spirv-cross-c-shared");
+    }
+
+    pub fn install(self: *@This(), exe: *std.Build.Step.Compile) void {
+        const dxcompiler = self.builder.addInstallBinFile(self.builder.path("SDL_shadercross/lib/dxcompiler.dll"), "dxcompiler.dll");
+        const dxil = self.builder.addInstallBinFile(self.builder.path("SDL_shadercross/lib/dxil.dll"), "dxil.dll");
+        const spirv = self.builder.addInstallBinFile(self.builder.path("SDL_shadercross/lib/spirv-cross-c-shared.dll"), "spirv-cross-c-shared.dll");
+        exe.step.dependOn(&dxcompiler.step);
+        exe.step.dependOn(&dxil.step);
+        exe.step.dependOn(&spirv.step);
+    }
+};
+
+
+
+
+// pub fn installDX(self: *std.Build, b: *std.Build) ?*std.Build.Step.InstallFile {
+//     if (os == .windows) {
+//         const bin_path = self.path("SDL_shadercross/lib/dxcompiler.dll");
+//         const dxcompiler = b.addInstallBinFile(bin_path, "dxcompiler.dll");
+//         const dxil_bin_path = self.path("SDL_shadercross/lib/dxil.dll");
+//         const dxil = b.addInstallBinFile(dxil_bin_path, "dxil.dll");
+//         dxil.step.dependOn(&dxcompiler.step);
+//         return dxil;
+//     } 
+//     return null;
+// }
+
+// pub fn installSpirv(self: *std.Build, b: *std.Build) *std.Build.Step.InstallFile {
+//     const bin_path = self.path("SDL_shadercross/lib/spirv-cross-c-shared.dll");
+//     return b.addInstallBinFile(bin_path, "spirv-cross-c-shared.dll");
+// }
 
