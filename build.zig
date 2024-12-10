@@ -128,7 +128,13 @@ pub fn build(b: *std.Build) !void {
         .install_subdir = "",
     });
 
-    // RUN
+    const install_shaders = try @import("src/build/InstallShadersStep.zig").init(b, .{ 
+        .install_dir = .bin,
+        .source_path = b.path("shaders"),
+        .dest_path = "shaders",
+    });
+
+    b.getInstallStep().dependOn(&install_shaders.step);
 
     const run_cmd = b.addRunArtifact(exe);
 
