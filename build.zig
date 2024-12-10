@@ -12,11 +12,19 @@ pub const GpuDriver = enum {
     metal,
 }; 
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const backend = b.option(GpuDriver, "GpuDriver", "force backend graphics driver") orelse .none;
+    const dxc = b.option(bool, "dxc", "enable HLSL support") orelse false;
+    const backend = b.option(GpuDriver, "gpu_driver", "force backend graphics driver") orelse .none;
+    const enable_tracy= b.option(bool, "enable_tracy", "enable profiling with tracy") orelse false;
+
+    if (backend == .direct3d12 and !dxc) {
+        std.log.err("{} requires -Ddxc", .{backend});
+        return error.InvalidConfiguration;
+    }
+
     const options_step = b.addOptions();
     options_step.addOption(?[:0]const u8, "backend", if (backend == .none) null else @tagName(backend));
     const options_module = options_step.createModule();
@@ -50,59 +58,46 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    // const assimp = b.dependency("assimp", opt);
+
     const stb_image = b.dependency("stb_image", .{ 
         .target = target
+    });
+
+    const sdl = b.dependency("sdl", .{
+        .target = target,
+        .optimize = optimize,
+        .dxc = dxc,
+    });
+
+    const assimp = b.dependency("assimp", .{
+        .target = target,
+        .optimize = optimize
     });
 
     const ztracy = b.dependency("ztracy", .{
         .target = target,
         .optimize = optimize,
-        .enable_ztracy = true,
+        .enable_ztracy = enable_tracy,
         .enable_fibers = true,
-    });
-
-    const sdl = @import("sdl").dependency(b, "sdl", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const sdlsc = @import("sdl_shadercross").dependency(b, "sdl_shadercross", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const assimp = @import("assimp").dependency(b, "assimp", .{
-        .target = target,
-        .optimize = optimize,
     });
 
     // Modules
 
+    hyoga_lib.root_module.addImport("assimp", assimp.module("root"));
     hyoga_lib.root_module.addImport("hyoga-math", hym.module("hyoga-math"));
     hyoga_lib.root_module.addImport("hyoga-arena", hya.module("hyoga-arena"));
+    hyoga_lib.root_module.addImport("sdl", sdl.module("sdl"));
+    hyoga_lib.root_module.addImport("sdl_shadercross", sdl.module("sdl_shadercross"));
     hyoga_lib.root_module.addImport("imgui", imgui.module("imgui"));
     hyoga_lib.root_module.addImport("implot", imgui.module("implot"));
     hyoga_lib.root_module.addImport("stb_image", stb_image.module("stb_image"));
     hyoga_lib.root_module.addImport("ztracy", ztracy.module("root"));
     hyoga_lib.root_module.addImport("build_options", options_module);
 
-    sdl.exportModule(&hyoga_lib.root_module);
-    sdlsc.exportModule(&hyoga_lib.root_module);
-    assimp.exportModule(&hyoga_lib.root_module);
-
-    hyoga_lib.root_module.linkLibrary(ztracy.artifact("tracy"));
-    hyoga_lib.linkLibC();
-    hyoga_lib.linkLibCpp();
-    sdlsc.link(hyoga_lib);
+    if (enable_tracy) { hyoga_lib.root_module.linkLibrary(ztracy.artifact("tracy")); }
 
     exe.root_module.addImport("hyoga", &hyoga_lib.root_module);
     exe.root_module.addImport("ztracy", ztracy.module("root"));
-    exe.linkLibC();
-    exe.linkLibrary(ztracy.artifact("tracy"));
-    sdl.install(exe);
-    sdlsc.install(exe);
-    assimp.install(exe);
 
     const exe_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/game/main.zig"),
@@ -121,6 +116,18 @@ pub fn build(b: *std.Build) void {
         .install_subdir = "assets",
     });
 
+    b.installDirectory(.{
+        .install_dir = .bin,
+        .source_dir = assimp.namedWriteFiles("dlls").getDirectory(),
+        .install_subdir = "",
+    });
+
+    b.installDirectory(.{
+        .install_dir = .bin,
+        .source_dir = sdl.namedWriteFiles("dlls").getDirectory(),
+        .install_subdir = "",
+    });
+
     // RUN
 
     const run_cmd = b.addRunArtifact(exe);
@@ -136,4 +143,12 @@ pub fn build(b: *std.Build) void {
     // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_exe_unit_tests.step);
+}
+
+fn copyDlls(b: *std.Build, dlls: *std.Build.Step.WriteFile) !void {
+    for (dlls.files.items) |dll| {
+        const src = try dlls.getDirectory().join(b.allocator, dll.sub_path);
+        const install_file = b.addInstallFileWithDir(src, .bin, dll.sub_path);
+        b.getInstallStep().dependOn(&install_file.step);
+    }
 }

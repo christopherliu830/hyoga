@@ -128,7 +128,10 @@ pub var speed: f32 = 1;
 pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
     window_state.hdl_window = hdl_window;
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
-    const d = sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, null).?;
+    const d = sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, null) orelse {
+        std.log.err("[GPU] create device failure: {s}", .{sdl.getError()});
+        return error.CreateDeviceFailure;
+    };
     _ = d.claimWindow(hdl_window);
 
     if (!d.setSwapchainParameters(hdl_window, .sdr, .immediate)) {

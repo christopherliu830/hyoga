@@ -75,8 +75,8 @@ pub const Textures = struct {
         var c_w: c_int = 0;
         var c_h: c_int = 0;
         var c_d: c_int = 0;
-        const tex_pixels = stbi.stbi_load(pathZ.ptr, &c_w, &c_h, &c_d, 4);
-        defer stbi.stbi_image_free(tex_pixels);
+        const tex_pixels = stbi.c.stbi_load(pathZ.ptr, &c_w, &c_h, &c_d, 4);
+        defer stbi.c.stbi_image_free(tex_pixels);
         const w: u32 = @intCast(c_w);
         const h: u32 = @intCast(c_h);
         const d: u32 = 4;

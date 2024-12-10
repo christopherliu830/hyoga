@@ -28,6 +28,17 @@
             "console": "externalTerminal"
         },
         {
+            "name": "(Windows) Debug Build Runner",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "zig",
+            "args": ["build"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
             "name" : "Debug Test",
             "type": "cppvsdbg",
             "request": "launch",

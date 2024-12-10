@@ -15,49 +15,50 @@ pub const Options = struct {
     backend: GpuBackend,
 };
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
 
-    const root = b.addModule("root", .{
-        .root_source_file = b.path("src/sdl.zig"),
+    const dxc_enabled = b.option(bool, "dxc", "compile with dxc enabled") orelse false;
+
+    const sdl = b.addModule("sdl", .{
+        .root_source_file = b.path("src/sdl/sdl.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
 
-    if (os == .windows) {
-        root.addLibraryPath(b.path("lib"));
-    } 
+    const sdl_shadercross = b.addModule("sdl_shadercross", .{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("src/sdl_shadercross/sdl_shadercross.zig"),
+        .link_libc = true,
+    });
 
-    root.linkSystemLibrary("SDL3", .{});
-    root.addIncludePath(b.path("include"));
+
+    const dll_wf = b.addNamedWriteFiles("dlls");
+
+    sdl.addIncludePath(b.path("include"));
+    sdl.addLibraryPath(b.path("lib"));
+    sdl.linkSystemLibrary("SDL3", .{});
+
+    _ = dll_wf.addCopyFile(b.path("lib/SDL3.dll"), "SDL3.dll");
+
+    sdl_shadercross.addImport("sdl", sdl);
+
+    sdl_shadercross.addIncludePath(b.path("include"));
+    sdl_shadercross.addCSourceFile(.{
+        .file = b.path("src/sdl_shadercross/SDL_shadercross.c"),
+        .flags = &.{ if (dxc_enabled) "-DSDL_SHADERCROSS_DXC" else "" },
+    });
+
+    sdl_shadercross.linkSystemLibrary("spirv-cross-c-shared", .{});
+    _ = dll_wf.addCopyFile(b.path("lib/spirv-cross-c-shared.dll"), "spirv-cross-c-shared.dll");
+
+    if (dxc_enabled) {
+        sdl_shadercross.linkSystemLibrary("dxil", .{});
+        sdl_shadercross.linkSystemLibrary("dxcompiler", .{});
+        _ = dll_wf.addCopyFile(b.path("lib/dxil.dll"), "dxil.dll");
+        _ = dll_wf.addCopyFile(b.path("lib/dxcompiler.dll"), "dxcompiler.dll");
+    }
 }
-
-pub fn dependency(b: *std.Build, dep_name: []const u8, options: anytype) BuildTool {
-    const dep = b.dependency(dep_name, options);
-    return .{ .builder = b, .dep = dep.builder };
-}
-
-pub const BuildTool = struct {
-    builder: *std.Build,
-    dep: *std.Build,
-
-    pub fn install(self: @This(), exe: *std.Build.Step.Compile) void {
-        if (os == .windows) {
-            const install_file = self.builder.addInstallBinFile(self.dep.path("lib/SDL3.dll"), "SDL3.dll");
-            exe.step.dependOn(&install_file.step);
-        } 
-    }
-
-    pub fn exportModule(self: @This(), module: *std.Build.Module) void {
-        module.addImport("sdl", self.dep.modules.get("root").?);
-    }
-
-    pub fn linkLibrary(self: @This(), lib: *std.Build.Step.Compile) void {
-        lib.addLibraryPath(self.dep.path("lib"));
-        lib.addIncludePath(self.dep.path("include"));
-        lib.linkSystemLibrary("SDL3");
-    }
-};
-

@@ -2,7 +2,7 @@ const std = @import("std");
 
 const alignment = 16;
 
-pub usingnamespace @cImport({ @cInclude("stb_image.h"); });
+pub const c = @import("c");
 
 var tsa: std.heap.ThreadSafeAllocator = undefined;
 var alloc_size_by_ptr: std.AutoHashMap(usize, usize) = undefined;
