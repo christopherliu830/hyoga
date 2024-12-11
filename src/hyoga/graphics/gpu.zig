@@ -10,7 +10,6 @@ const vec3 = hym.vec3;
 const mat4 = hym.mat4;
 const hym_cam = hym.cam;
 
-const camera = @import("../camera.zig");
 const stb = @import("stb_image");
 const window = @import("../window.zig");
 
@@ -24,12 +23,17 @@ const sym = @import("../symbol.zig");
 
 const Vertex = @import("vertex.zig").Vertex;
 
+pub const Camera = extern struct {
+    position: vec3.Vec3,
+    look_direction: vec3.Vec3,
+};
+
 // Exports
 pub const RenderItemHandle = hya.Handle(RenderItem);
 pub const ModelHandle = mdl.Handle;
 
-pub const Scene = struct {
-    camera: camera.Camera,
+pub const Scene = extern struct {
+    camera: Camera,
     light_dir: vec3.Vec3,
 };
 

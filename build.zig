@@ -37,9 +37,16 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize
     });
 
-    const exe = b.addExecutable(.{
+    const exe = b.addSharedLibrary(.{
         .name = "game",
         .root_source_file = b.path("src/game/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const runner = b.addExecutable(.{
+        .name = "game",
+        .root_source_file = b.path("src/runner/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -99,6 +106,8 @@ pub fn build(b: *std.Build) !void {
     exe.root_module.addImport("hyoga", &hyoga_lib.root_module);
     exe.root_module.addImport("ztracy", ztracy.module("root"));
 
+    runner.root_module.addImport("hyoga", &hyoga_lib.root_module);
+
     const exe_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/game/main.zig"),
         .target = target,
@@ -109,6 +118,7 @@ pub fn build(b: *std.Build) !void {
 
     b.installArtifact(hyoga_lib);
     b.installArtifact(exe);
+    b.installArtifact(runner);
 
     b.installDirectory(.{
         .install_dir = .bin,
@@ -136,7 +146,7 @@ pub fn build(b: *std.Build) !void {
 
     b.getInstallStep().dependOn(&install_shaders.step);
 
-    const run_cmd = b.addRunArtifact(exe);
+    const run_cmd = b.addRunArtifact(runner);
 
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| run_cmd.addArgs(args);
