@@ -142,11 +142,21 @@ pub fn build(b: *std.Build) !void {
         .install_dir = .bin,
         .source_path = b.path("shaders"),
         .dest_path = "shaders",
+        .target = "spirv",
+        .profile = "",
     });
 
     b.getInstallStep().dependOn(&install_shaders.step);
 
+    b.installDirectory(.{
+        .source_dir = b.path("shaders"),
+        .install_dir = .bin,
+        .include_extensions = &.{ ".rsl.json" },
+        .install_subdir = "shaders"
+    });
+
     const run_cmd = b.addRunArtifact(runner);
+    run_cmd.setCwd(b.path("zig-out/bin/"));
 
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| run_cmd.addArgs(args);

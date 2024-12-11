@@ -19,9 +19,19 @@ const hy = @import("hyoga");
 
 var memory: *anyopaque = undefined;
 
-fn init() callconv(.C) void {
+fn init() callconv(.C) hy.Game {
     const ptr = std.heap.page_allocator.create(u32) catch @panic("out of memory");
+    ptr.* = 0;
     memory = ptr;
+    return .{
+        .scene = .{
+            .camera = .{
+                .position = hy.math.vec3.create(0, 0, 2.5),
+                .look_direction = hy.math.vec3.create(0, 0, -1),
+            },
+            .light_dir = hy.math.vec3.create(0, -1, 0),
+        }
+    };
 }
 
 fn shutdown() callconv(.C) void {
@@ -100,11 +110,5 @@ export fn interface() hy.GameInterface {
         .render = render,
         .data = data,
         .reload = reload,
-        // init: *const fn() void,
-        // shutdown: *const fn() void,
-        // update: *const fn (Game) Game,
-        // render: *const fn (Game) void,
-        // data: *const fn() *anyopaque,
-        // reload: *const fn(*anyopaque) void,
     };
 }

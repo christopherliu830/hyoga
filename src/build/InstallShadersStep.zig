@@ -7,13 +7,19 @@ const Options = struct {
     source_path: Build.LazyPath,
     install_dir: Build.InstallDir = .bin,
     dest_path: []const u8 = &.{},
+    target: []const u8,
+    profile: []const u8,
+    always_generate: bool = false,
 };
 
 builder: *Build,
 source_path: Build.LazyPath,
 install_dir: Build.InstallDir,
+target: []const u8,
+profile: []const u8,
 dest_path: []const u8,
 step: Step,
+always_generate: bool,
 
 pub fn init(b: *Build, options: Options) !*InstallShadersStep {
     const self = try b.allocator.create(InstallShadersStep);
@@ -22,6 +28,9 @@ pub fn init(b: *Build, options: Options) !*InstallShadersStep {
         .source_path = options.source_path,
         .install_dir = options.install_dir,
         .dest_path = options.dest_path,
+        .target = options.target,
+        .profile = options.profile,
+        .always_generate = options.always_generate,
         .step = Step.init(.{
             .id = .custom,
             .name = "compile shaders",
@@ -38,6 +47,7 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
 
     const dest_prefix = b.getInstallPath(self.install_dir, self.dest_path);
     const src_dir_path = self.source_path.getPath3(b, step);
+
     var src_dir = src_dir_path.root_dir.handle.openDir(src_dir_path.subPathOrDot(), .{ .iterate = true }) catch |err| {
         return step.fail("unable to open source directory '{}': {s}", .{
             src_dir_path, @errorName(err),
@@ -67,12 +77,13 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
                     const src_stat = try src_dir.statFile(entry.path);
                     const dst_stat = cwd.statFile(out_name) catch null; 
 
-                    if (dst_stat == null or dst_stat.?.mtime < src_stat.mtime) {
+                    if (self.always_generate or dst_stat == null or dst_stat.?.mtime < src_stat.mtime) {
                         const argv_list: []const []const u8 = &.{
                             "slangc",
-                            src_sub_path.sub_path, // Input file
+                            try src_sub_path.toString(b.allocator), // Input file
                             "-entry", opts.entry,
-                            "-target", "spirv",
+                            "-target", self.target,
+                            "-profile", "spirv_1_3",
                             "-o", out_name,
                         };
 
@@ -86,4 +97,6 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
             else => {},
         }
     }
+
+
 }
