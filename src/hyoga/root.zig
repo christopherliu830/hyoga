@@ -36,37 +36,53 @@ pub fn shutdown() void {
     symbol.shutdown();
 }
 
-pub fn run(options: Game.CreateOptions) !void {
-    var time = try std.time.Timer.start();
+pub fn update(old_game: Game, gi: GameInterface) Game {
+    var game = old_game;
 
-    var game = Game.create(options);
+    var time = std.time.Timer.start() catch unreachable;
 
-    while (!game.quit) {
-        const zone = @import("ztracy").Zone(@src());
-        defer zone.End();
+    const zone = @import("ztracy").Zone(@src());
+    defer zone.End();
 
-        var event: sdl.events.Event = undefined;
-        while (sdl.events.poll(&event)) {
-            try ui.processEvent(event);
-            input.update(event);
+    var event: sdl.events.Event = undefined;
 
-            switch (event.type) {
-                sdl.events.type.quit => game.quit = true,
-                else => {},
-            }
+    while (sdl.events.poll(&event)) {
+        ui.processEvent(event) catch |err| 
+            std.log.err("[UI] processEvent failure: {}", .{err});
+
+        input.update(event);
+
+        switch (event.type) {
+            sdl.events.type.quit => {
+                game.quit = true;
+                return game;
+            },
+            else => {},
         }
-
-        game = game.fn_update(game);
-
-        if (try gpu.begin()) |cmd| {
-            try ui.beginFrame();
-            game.fn_render(game);
-
-            try gpu.render(cmd, &game.scene);
-            try ui.render(cmd);
-            game.frame_time = time.lap();
-        } 
-
-        @import("ztracy").FrameMark();
     }
+
+    game = gi.update(game);
+
+    const q_cmd = blk: {
+        if (gpu.begin()) |cmd| {
+            break :blk cmd;
+        } else |err| {
+            std.log.err("[GPU] Failed to begin frame for render: {}", .{err});
+            return game;
+        }
+    };
+
+    if (q_cmd) |cmd| {
+        ui.beginFrame() catch |err| std.log.err("[UI] Failed to begin frame for render: {}", .{err});
+
+        gi.render(game);
+
+        gpu.render(cmd, &game.scene) catch |err| std.log.err("[GPU] failed to finish render: {}", .{err});
+        ui.render(cmd) catch |err| std.log.err("[UI] failed to finish render: {}", .{err});
+        _ = gpu.submit(cmd);
+    } else return game; // Too many frames in flight, skip rendering.
+    game.frame_time = time.lap();
+
+    @import("ztracy").FrameMark();
+    return game;
 }

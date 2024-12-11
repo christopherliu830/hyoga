@@ -334,44 +334,46 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
     var global_vtx_offset: c_uint = 0;
     var global_idx_offset: c_uint = 0;
 
-    for(draw_data.CmdLists.Data[0..@intCast(draw_data.CmdLists.Size)]) |cmd_list| {
-        for(cmd_list.cmd_buffer.Data[0..@intCast(cmd_list.cmd_buffer.Size)]) |pcmd| {
-            var clip_min = imgui.Vec2 {
-                .x = (pcmd.clip_rect.x - clip_off.x) * clip_scale.x,
-                .y = (pcmd.clip_rect.y - clip_off.y) * clip_scale.y,
-            };
-            var clip_max = imgui.Vec2 {
-                .x = (pcmd.clip_rect.z - clip_off.x) * clip_scale.x,
-                .y = (pcmd.clip_rect.w - clip_off.y) * clip_scale.y,
-            };
+    if (draw_data.CmdListsCount > 0) {
+        for(draw_data.CmdLists.Data[0..@intCast(draw_data.CmdLists.Size)]) |cmd_list| {
+            for(cmd_list.cmd_buffer.Data[0..@intCast(cmd_list.cmd_buffer.Size)]) |pcmd| {
+                var clip_min = imgui.Vec2 {
+                    .x = (pcmd.clip_rect.x - clip_off.x) * clip_scale.x,
+                    .y = (pcmd.clip_rect.y - clip_off.y) * clip_scale.y,
+                };
+                var clip_max = imgui.Vec2 {
+                    .x = (pcmd.clip_rect.z - clip_off.x) * clip_scale.x,
+                    .y = (pcmd.clip_rect.w - clip_off.y) * clip_scale.y,
+                };
 
-            clip_min.x = @max(clip_min.x, 0);
-            clip_min.y = @max(clip_min.y, 0);
-            clip_max.x = @min(clip_max.x, fb_width);
-            clip_max.y = @min(clip_max.y, fb_height);
-            if (clip_max.x <= clip_min.x or clip_max.y <= clip_min.y) continue;
+                clip_min.x = @max(clip_min.x, 0);
+                clip_min.y = @max(clip_min.y, 0);
+                clip_max.x = @min(clip_max.x, fb_width);
+                clip_max.y = @min(clip_max.y, fb_height);
+                if (clip_max.x <= clip_min.x or clip_max.y <= clip_min.y) continue;
 
-            const scissor = sdl.gpu.Rect {
-                .x = @intFromFloat(clip_min.x),
-                .y = @intFromFloat(clip_min.y),
-                .w = @intFromFloat(clip_max.x - clip_min.x),
-                .h = @intFromFloat(clip_max.y - clip_min.y),
-            };
-            pass.setScissor(&scissor);
-            const binding = [_]sdl.gpu.TextureSamplerBinding {.{
-                .sampler = bd.sampler,
-                .texture = bd.font_texture,
-            }};
-            pass.bindFragmentSamplers(0, &binding, 1);
-            pass.drawIndexedPrimitives(
-                pcmd.elem_count,
-                1,
-                @intCast(pcmd.idx_offset + global_idx_offset),
-                @intCast(pcmd.vtx_offset + global_vtx_offset),
-                0);
+                const scissor = sdl.gpu.Rect {
+                    .x = @intFromFloat(clip_min.x),
+                    .y = @intFromFloat(clip_min.y),
+                    .w = @intFromFloat(clip_max.x - clip_min.x),
+                    .h = @intFromFloat(clip_max.y - clip_min.y),
+                };
+                pass.setScissor(&scissor);
+                const binding = [_]sdl.gpu.TextureSamplerBinding {.{
+                    .sampler = bd.sampler,
+                    .texture = bd.font_texture,
+                }};
+                pass.bindFragmentSamplers(0, &binding, 1);
+                pass.drawIndexedPrimitives(
+                    pcmd.elem_count,
+                    1,
+                    @intCast(pcmd.idx_offset + global_idx_offset),
+                    @intCast(pcmd.vtx_offset + global_vtx_offset),
+                    0);
+            }
+            global_vtx_offset += if (cmd_list.*.vtx_buffer.Size > 0) @intCast(cmd_list.*.vtx_buffer.Size) else unreachable;
+            global_idx_offset += if (cmd_list.*.idx_buffer.Size > 0) @intCast(cmd_list.*.idx_buffer.Size) else unreachable;
         }
-        global_vtx_offset += if (cmd_list.*.vtx_buffer.Size > 0) @intCast(cmd_list.*.vtx_buffer.Size) else unreachable;
-        global_idx_offset += if (cmd_list.*.idx_buffer.Size > 0) @intCast(cmd_list.*.idx_buffer.Size) else unreachable;
     }
 
     const scissor = sdl.gpu.Rect {

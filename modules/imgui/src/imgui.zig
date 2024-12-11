@@ -1772,9 +1772,9 @@ pub const PlatformImeData = extern struct {
 };
 
 pub extern fn ImGui_CreateContext(shared_font_atlas: ?*FontAtlas) *Context;
-pub extern fn ImGui_DestroyContext(ctx: *Context) void;
+pub extern fn ImGui_DestroyContext(ctx: ?*Context) void;
 pub extern fn ImGui_GetCurrentContext() ?*Context;
-pub extern fn ImGui_SetCurrentContext(ctx: *Context) void;
+pub extern fn ImGui_SetCurrentContext(ctx: ?*Context) void;
 pub extern fn ImGui_GetIO() ?*IO;
 pub extern fn ImGui_GetPlatformIO() ?*PlatformIO;
 pub extern fn ImGui_GetStyle() ?*Style;

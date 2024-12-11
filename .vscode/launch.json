@@ -20,10 +20,10 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/zig-out/bin/game.exe",
+            "program": "${workspaceFolder}/zig-out/bin/run.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceRoot}",
+            "cwd": "${workspaceRoot}/zig-out/bin",
             "environment": [],
             "console": "externalTerminal"
         },

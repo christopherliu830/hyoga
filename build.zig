@@ -45,7 +45,7 @@ pub fn build(b: *std.Build) !void {
     });
 
     const runner = b.addExecutable(.{
-        .name = "game",
+        .name = "run",
         .root_source_file = b.path("src/runner/main.zig"),
         .target = target,
         .optimize = optimize,
@@ -105,7 +105,6 @@ pub fn build(b: *std.Build) !void {
 
     exe.root_module.addImport("hyoga", &hyoga_lib.root_module);
     exe.root_module.addImport("ztracy", ztracy.module("root"));
-
     runner.root_module.addImport("hyoga", &hyoga_lib.root_module);
 
     const exe_unit_tests = b.addTest(.{
@@ -117,7 +116,8 @@ pub fn build(b: *std.Build) !void {
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
     b.installArtifact(hyoga_lib);
-    b.installArtifact(exe);
+    const game_dll = b.addInstallArtifact(exe, .{});
+    b.getInstallStep().dependOn(&game_dll.step);
     b.installArtifact(runner);
 
     b.installDirectory(.{
@@ -164,11 +164,11 @@ pub fn build(b: *std.Build) !void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    // Similar to creating the run step earlier, this exposes a `test` step to
-    // the `zig build --help` menu, providing a way for the user to request
-    // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_exe_unit_tests.step);
+
+    const hot_reload_step = b.step("reload", "build game.dll only");
+    hot_reload_step.dependOn(&game_dll.step);
 }
 
 fn copyDlls(b: *std.Build, dlls: *std.Build.Step.WriteFile) !void {

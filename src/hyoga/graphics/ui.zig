@@ -6,7 +6,12 @@ const sdl = @import("sdl");
 pub const imgui = @import("imgui");
 pub const implot = @import("implot");
 
-var context: *imgui.Context = undefined;
+pub const ImguiState = extern struct {
+    context: ?*imgui.Context,
+    free_fn: imgui.MemFreeFunc,
+    alloc_fn: imgui.MemAllocFunc,
+    user_data: *anyopaque,
+};
 
 pub const UIInitInfo = struct {
     window: *sdl.Window,
@@ -15,7 +20,7 @@ pub const UIInitInfo = struct {
 };
 
 pub fn init(info: UIInitInfo) !void {
-    context = imgui.CreateContext(null);
+    _ = imgui.CreateContext(null);
     _ = implot.createContext();
     try platform.init(info.window, info.allocator);
     try backend.init(&.{
@@ -49,5 +54,17 @@ pub fn shutdown() void {
     backend.shutdown();
     platform.shutdown();
     implot.destroyContext(null);
-    imgui.DestroyContext(context);
+    imgui.DestroyContext(null);
+}
+
+pub fn getState() ImguiState {
+    var st: ImguiState = undefined;
+    st.context = imgui.GetCurrentContext();
+    imgui.GetAllocatorFunctions(&st.alloc_fn, &st.free_fn, &st.user_data);
+    return st;
+}
+
+pub fn setState(state: ImguiState) void {
+    imgui.SetCurrentContext(state.context);
+    imgui.SetAllocatorFunctions(state.alloc_fn, state.free_fn, state.user_data);
 }
