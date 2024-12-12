@@ -13,7 +13,9 @@ pub const Gpu = @import("graphics/gpu.zig");
 pub const Hive = @import("hive.zig").Hive;
 pub const Game = @import("Game.zig").Game;
 pub const GameInterface = @import("Game.zig").GameInterface;
-const Self = @This();
+pub const Loader = @import("graphics/loader.zig");
+
+const Engine = @This();
 
 gpa: std.heap.GeneralPurposeAllocator(.{}),
 arena: std.heap.ArenaAllocator,
@@ -21,15 +23,12 @@ symbol: Symbol,
 input: Input,
 gpu: Gpu,
 ui: UI,
+loader: Loader,
 
-pub fn init() *Self {
-    return tryInit() catch |err| std.debug.panic("error during init: {}", .{err});
-}
-
-fn tryInit() !*Self {
+pub fn init() !*Engine {
 
     var self_gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
-    var self = self_gpa.allocator().create(Self)
+    var self = self_gpa.allocator().create(Engine)
         catch std.debug.panic("out of memory", .{});
 
     window.init() catch |e| std.debug.panic("|e| Window init failure: {}", .{e});
@@ -39,14 +38,20 @@ fn tryInit() !*Self {
         .arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
         .symbol = Symbol.init(self.arena.allocator()),
         .input = Input.init(self.gpa.allocator()),
-        .gpu = try Gpu.init(window.instance, &self.symbol, self.gpa.allocator()),
+        .gpu = try Gpu.init(window.instance, &self.loader, &self.symbol, self.gpa.allocator()),
         .ui = try UI.init(.{.gpu = &self.gpu, .window = window.instance, .allocator = self.gpa.allocator()}),
+        .loader = undefined,
     };
+
+    try self.loader.init(self.gpa.allocator());
+
+    self.setGlobalState();
 
     return self;
 }
 
-pub fn shutdown(self: *Self) void {
+pub fn shutdown(self: *Engine) void {
+    self.loader.deinit();
     self.ui.shutdown();
     self.gpu.shutdown();
     window.destroy();
@@ -60,7 +65,7 @@ pub fn shutdown(self: *Self) void {
     _ = gpa.deinit();
 }
 
-pub fn update(self: *Self, old_game: Game, gi: GameInterface) Game {
+pub fn update(self: *Engine, old_game: Game, gi: GameInterface) Game {
     var game = old_game;
 
     var time = std.time.Timer.start() catch unreachable;
@@ -109,4 +114,13 @@ pub fn update(self: *Self, old_game: Game, gi: GameInterface) Game {
 
     @import("ztracy").FrameMark();
     return game;
+
+}
+
+/// Global variables don't get loaded across DLL boundaries, meaning
+/// any libraries and modules that use global variables must be set here
+/// on DLL load.
+pub fn setGlobalState(self: *Engine) void {
+    self.ui.useState(); // Uses IMGUI
+    self.gpu.render_state.textures.image_loader.use(); // Uses STBI
 }

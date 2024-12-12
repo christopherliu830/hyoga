@@ -20,7 +20,6 @@ pub fn init() !void {
     }
 
     instance = sdl.video.createWindow("My Game Window", 640, 480, .{ 
-        .always_on_top = true,
         .resizeable = true, 
     }) orelse {
         sdl.log("Unable to create window: %s", sdl.getError());

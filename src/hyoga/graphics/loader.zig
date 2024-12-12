@@ -7,8 +7,10 @@ const mt = @import("material.zig");
 const sdl = @import("sdl");
 const hya = @import("hyoga-arena");
 
-var pool: std.Thread.Pool = undefined;
-var tsa: std.heap.ThreadSafeAllocator = undefined;
+const Loader = @This();
+
+pool: std.Thread.Pool,
+tsa: std.heap.ThreadSafeAllocator,
 
 pub fn Queue(comptime T: type) type {
     return struct {
@@ -50,26 +52,29 @@ pub fn Queue(comptime T: type) type {
     };
 }
 
-pub fn init(parent_allocator: std.mem.Allocator) !void {
-    tsa = .{ .child_allocator = parent_allocator };
-    try pool.init(.{ .allocator = parent_allocator });
+pub fn init(self: *Loader, parent_allocator: std.mem.Allocator) !void {
+    self.* = .{
+        .tsa = .{ .child_allocator = parent_allocator },
+        .pool = undefined,
+    };
+    try self.pool.init(.{ .allocator = parent_allocator });
 }
 
-pub fn deinit() void {
-    pool.deinit();
+pub fn deinit(self: *Loader) void {
+    self.pool.deinit();
 }
 
-pub fn allocator() std.mem.Allocator {
-    return tsa.allocator();
+pub fn allocator(self: *Loader) std.mem.Allocator {
+    return self.tsa.allocator();
 }
 
 // Start a function that will eventually add a node to 
 // the queue that is passed in.
-pub fn run(queue: anytype, comptime func: anytype, args: anytype) !void {
+pub fn run(self: *Loader, queue: anytype, comptime func: anytype, args: anytype) !void {
     // Verify type
     if (@typeInfo(@TypeOf(queue)) != .pointer) {
         @compileError("Must be a pointer to a queue");
     }
 
-    try pool.spawn(func, .{queue} ++ args);
+    try self.pool.spawn(func, .{queue} ++ args);
 }

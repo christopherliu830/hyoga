@@ -1,7 +1,7 @@
 const std = @import("std");
 const gpu = @import("graphics/gpu.zig");
 const ui = @import("graphics/ui.zig");
-const Hy = @import("Hyoga.zig");
+const Engine= @import("Engine.zig");
 
 pub const Game = extern struct {
     quit: bool = false,
@@ -11,8 +11,9 @@ pub const Game = extern struct {
 };
 
 pub const GameInterface = extern struct {
-    init: *const fn(*Hy) callconv(.C) Game,
-    shutdown: *const fn(*Hy, Game) callconv(.C) void,
-    update: *const fn (*Hy, Game) callconv(.C) Game,
-    render: *const fn (*Hy, Game) callconv(.C) void,
+    init: *const fn(*Engine) callconv(.C) Game,
+    shutdown: *const fn(*Engine, Game) callconv(.C) void,
+    update: *const fn (*Engine, Game) callconv(.C) Game,
+    render: *const fn (*Engine, Game) callconv(.C) void,
+    reload: *const fn (*Engine, Game) callconv (.C) void,
 };

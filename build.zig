@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) !void {
     const options_module = options_step.createModule();
 
     const hyoga_lib = b.addModule("hyoga", .{
-        .root_source_file = b.path("src/hyoga/Hyoga.zig"),
+        .root_source_file = b.path("src/hyoga/root.zig"),
         .target = target,
         .optimize = optimize
     });

@@ -18,7 +18,7 @@ const cube = @import("primitives.zig").createCube();
 const tx = @import("texture.zig");
 const mdl = @import("model.zig");
 const mt = @import("material.zig");
-const ld = @import("loader.zig");
+const Loader = @import("loader.zig");
 const Symbol = @import("../Symbol.zig");
 const Vertex = @import("vertex.zig").Vertex;
 
@@ -80,7 +80,6 @@ const RenderState = struct {
 
     materials: hya.Arena(mt.Material),
     objs: hya.Arena(RenderItem),
-    robjs: PassInfo,
 
     scene: *Scene = undefined,
 
@@ -120,6 +119,7 @@ const ShaderType = enum { vertex, fragment };
 device: *sdl.gpu.Device,
 allocator: std.mem.Allocator,
 arena: std.heap.ArenaAllocator,
+loader: *Loader,
 swapchain_target_desc: sdl.gpu.ColorTargetDescription,
 frames: u32 = 0,
 symbol: *Symbol,
@@ -127,7 +127,7 @@ render_state: RenderState = undefined,
 window_state: WindowState = .{},
 speed: f32 = 1,
 
-pub fn init(hdl_window: *sdl.Window, symbol: *Symbol, gpa: std.mem.Allocator) !Gpu {
+pub fn init(hdl_window: *sdl.Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allocator) !Gpu {
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
     const d = sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, null) orelse {
         std.log.err("[GPU] create device failure: {s}", .{sdl.getError()});
@@ -147,14 +147,13 @@ pub fn init(hdl_window: *sdl.Window, symbol: *Symbol, gpa: std.mem.Allocator) !G
         .arena = std.heap.ArenaAllocator.init(gpa),
         .device = d,
         .swapchain_target_desc = .{ .format = d.getSwapchainTextureFormat(hdl_window) },
+        .loader = loader,
         .symbol = symbol,
         .window_state = .{ .hdl_window = hdl_window }
     };
 
-    try ld.init(gpa);
     try sdlsc.init();
 
-    stb.init(self.allocator);
     std.time.sleep(1 * std.time.ns_per_s);
     const material = try mt.readFromPath(&self, "shaders/standard", self.arena.allocator());
 
@@ -212,27 +211,24 @@ pub fn init(hdl_window: *sdl.Window, symbol: *Symbol, gpa: std.mem.Allocator) !G
     try self.uploadToBuffer(quad_buffer, 0, &std.mem.toBytes(verts));
 
     self.render_state = .{
-        .objs = try hya.Arena(RenderItem).create(self.allocator, 1),
+        .objs = try hya.Arena(RenderItem).create(self.allocator, 8),
         .default_material = material,
         .default_texture = texture,
         .post_material = quad_mat_template,
         .outline_pipeline = undefined,
         .quad_buffer = quad_buffer,
         .sampler = self.device.createSampler(&sampler_info).?,
-        .textures = tx.Textures.create(self.device, self.symbol, self.allocator),
-        .models = mdl.Models.create(self.device, self.symbol, self.allocator),
+        .textures = tx.Textures.create(self.device, self.loader, self.symbol, self.allocator),
+        .models = mdl.Models.create(self.device, self.loader, self.symbol, self.allocator),
         .materials = try hya.Arena(mt.Material).create(self.allocator, 1),
         .active_target = null,
-        .robjs = undefined,
     };
 
     return self;
 }
 
 pub fn shutdown(self: *Gpu) void {
-    ld.deinit();
     sdlsc.quit();
-    stb.deinit();
 
     self.device.releaseWindow(self.window_state.hdl_window);
 
@@ -763,10 +759,10 @@ pub fn addModel(self: *Gpu, hdl: mdl.Handle, owner: *mat4.Mat4) !RenderItemHandl
             const buffer_size: u32 = @intCast(vertex_buffer_size + mesh.indices.items.len * @sizeOf(@TypeOf(mesh.indices.items[0])));
             const buffer = self.device.createBuffer(&.{ .size = buffer_size, .usage = .{ .index = true, .vertex = true } }).?;
 
-            try uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
-            try uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
+            try self.uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
+            try self.uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
 
-            const render_obj = RenderItem{
+            const render_obj = RenderItem {
                 .buf = buffer,
                 .next = last_handle,
                 .transform = model.transform,
@@ -780,7 +776,7 @@ pub fn addModel(self: *Gpu, hdl: mdl.Handle, owner: *mat4.Mat4) !RenderItemHandl
         }
 
         return last_handle.?;
-    } else return error.NotFound;
+    } else return error.ModelNotFound;
 }
 
 pub fn removeModel(self: *Gpu, handle: RenderItemHandle) void {
@@ -799,139 +795,4 @@ pub fn removeModel(self: *Gpu, handle: RenderItemHandle) void {
 pub fn addMaterial(self: *Gpu, material: mt.Material) !mt.Handle {
     std.debug.assert(material.textures.len > 0);
     return self.render_state.materials.insert(material);
-}
-
-pub fn createOutlineShader() *sdl.gpu.GraphicsPipeline {
-    // const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ self.swapchain_target_desc };
-
-    // const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
-    //     .slot = 0,
-    //     .input_rate = .vertex,
-    //     .instance_step_rate = 0,
-    //     .pitch = @sizeOf(Vertex),
-    // }};
-
-    // const vertex_attributes: []const sdl.gpu.VertexAttribute = &.{
-    //     .{
-    //         .buffer_slot = 0,
-    //         .format = .float3,
-    //         .location = 0,
-    //         .offset = 0,
-    //     },
-    //     .{
-    //         .buffer_slot = 0,
-    //         .format = .float3,
-    //         .location = 1,
-    //         .offset = @offsetOf(Vertex, "normal"),
-    //     },
-    //     .{
-    //         .buffer_slot = 0,
-    //         .format = .float2,
-    //         .location = 2,
-    //         .offset = @offsetOf(Vertex, "uv"),
-    //     }
-    // };
-
-    // const stencil_state = sdl.gpu.StencilOpState {
-    //     .compare_op = .not_equal,
-    //     .depth_fail_op = .keep,
-    //     .fail_op = .keep,
-    //     .pass_op = .keep,
-    // };
-
-    // const vert_shader = self.device.createShader(&@import("shaders/single_color.zig").vert_info).?;
-    // defer self.device.releaseShader(vert_shader);
-    // const frag_shader = self.device.createShader(&@import("shaders/single_color.zig").frag_info).?;
-    // defer self.device.releaseShader(frag_shader);
-
-    // const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
-    //     .target_info = .{
-    //         .num_color_targets = @intCast(color_target_desc.len),
-    //         .color_target_descriptions = color_target_desc.ptr,
-    //         .depth_stencil_format = .d32_float_s8_uint,
-    //         .has_depth_stencil_target = true,
-    //     },
-    //     .depth_stencil_state = .{
-    //         .enable_depth_test = false,
-    //         .enable_stencil_test = true,
-    //         .compare_mask = 0xff,
-    //         .write_mask = 0,
-    //         .front_stencil_state = stencil_state,
-    //         .back_stencil_state = stencil_state,
-    //     },
-    //     .multisample_state = .{ .sample_count = .@"1" },
-    //     .primitive_type = .trianglelist,
-    //     .vertex_shader = vert_shader,
-    //     .fragment_shader = frag_shader,
-    //     .vertex_input_state = .{
-    //         .num_vertex_buffers = @intCast(vertex_buffer_desc.len),
-    //         .vertex_buffer_descriptions = vertex_buffer_desc.ptr,
-    //         .num_vertex_attributes = @intCast(vertex_attributes.len),
-    //         .vertex_attributes = vertex_attributes.ptr,
-    //     },
-    //     .rasterizer_state = .{
-    //         .cull_mode = .front,
-    //     },
-    //     .props = 0,
-    // };
-
-    // return self.device.createGraphicsPipeline(&pipeline_desc).?;
-}
-
-pub fn createPostProcessShader() *sdl.gpu.GraphicsPipeline {
-    // const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ self.swapchain_target_desc };
-
-    // // vec2 pos
-    // // vec2 uv
-
-    // const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
-    //     .slot = 0,
-    //     .input_rate = .vertex,
-    //     .instance_step_rate = 0,
-    //     .pitch = @sizeOf(f32) * 4,
-    // }};
-
-    // const vertex_attributes: []const sdl.gpu.VertexAttribute = &.{
-    //     .{
-    //         .buffer_slot = 0,
-    //         .format = .float2,
-    //         .location = 0,
-    //         .offset = 0,
-    //     },
-    //     .{
-    //         .buffer_slot = 0,
-    //         .format = .float2,
-    //         .location = 1,
-    //         .offset = 8,
-    //     },
-    // };
-
-    // const vert_shader = self.device.createShader(&@import("shaders/post_process.zig").vert_info).?;
-    // defer self.device.releaseShader(vert_shader);
-    // const frag_shader = self.device.createShader(&@import("shaders/post_process.zig").frag_info).?;
-    // defer self.device.releaseShader(frag_shader);
-
-    // const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
-    //     .target_info = .{
-    //         .num_color_targets = @intCast(color_target_desc.len),
-    //         .color_target_descriptions = color_target_desc.ptr,
-    //         .has_depth_stencil_target = false,
-    //     },
-    //     .multisample_state = .{ .sample_count = .@"1" },
-    //     .primitive_type = .trianglelist,
-    //     .vertex_shader = vert_shader,
-    //     .fragment_shader = frag_shader,
-    //     .vertex_input_state = .{
-    //         .num_vertex_buffers = @intCast(vertex_buffer_desc.len),
-    //         .vertex_buffer_descriptions = vertex_buffer_desc.ptr,
-    //         .num_vertex_attributes = @intCast(vertex_attributes.len),
-    //         .vertex_attributes = vertex_attributes.ptr,
-    //     },
-    //     .rasterizer_state = .{
-    //         .cull_mode = .back,
-    //     },
-    //     .props = 0,
-    // };
-
-    // return self.device.createGraphicsPipeline(&pipeline_desc).?;
 }

@@ -4,7 +4,7 @@ const hya = @import("hyoga-arena");
 const ai = @import("assimp");
 const gpu = @import("gpu.zig");
 const mt = @import("material.zig");
-const ld = @import("loader.zig");
+const Loader = @import("loader.zig");
 const tx = @import("texture.zig");
 const Vertex = @import("vertex.zig").Vertex;
 const mat4 = @import("hyoga-math").mat4;
@@ -30,7 +30,7 @@ const ModelLoadResult = struct {
     model: Model,
 };
 
-const Queue = ld.Queue(ModelLoadResult);
+const Queue = Loader.Queue(ModelLoadResult);
 
 pub const Models = struct {
     allocator: std.mem.Allocator,
@@ -38,21 +38,24 @@ pub const Models = struct {
     queue: Queue,
     models: std.AutoHashMapUnmanaged(Symbol.ID, Model) = .{},
     symbol: *Symbol,
+    loader: *Loader,
 
-    pub fn init(self: *@This(), device: *sdl.gpu.Device, symbol: *Symbol, allocator: std.mem.Allocator,) void {
+    pub fn init(self: *@This(), device: *sdl.gpu.Device, loader: *Loader, symbol: *Symbol, allocator: std.mem.Allocator,) void {
         self.allocator = allocator;
         self.queue.init(allocator);
         self.device = device;
         self.models = .{};
         self.symbol = symbol;
+        self.loader = loader;
     }
 
-    pub fn create(device: *sdl.gpu.Device, symbol: *Symbol, allocator: std.mem.Allocator) Models {
+    pub fn create(device: *sdl.gpu.Device, loader: *Loader, symbol: *Symbol, allocator: std.mem.Allocator) Models {
         var m: Models = undefined;
         m.allocator = allocator;
         m.queue.init(allocator);
         m.device = device;
         m.symbol = symbol;
+        m.loader = loader;
         m.models = .{};
         return m;
     }
@@ -81,7 +84,7 @@ pub const Models = struct {
             .settings = import,
         };
 
-        try ld.run(&self.queue, doRead, .{job});
+        try self.loader.run(&self.queue, doRead, .{job});
         return self.symbol.from(path);
     }
 

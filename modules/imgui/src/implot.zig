@@ -80,7 +80,7 @@ pub extern fn ImPlot_DestroyContext(ctx: ?*Context) void;
 pub const destroyContext = ImPlot_DestroyContext;
 pub extern fn ImPlot_GetCurrentContext() *Context;
 pub const getCurrentContext = ImPlot_GetCurrentContext;
-pub extern fn ImPlot_SetCurrentContext(ctx: *Context) void;
+pub extern fn ImPlot_SetCurrentContext(ctx: ?*Context) void;
 pub const setCurrentContext = ImPlot_SetCurrentContext;
 pub extern fn ImPlot_SetImGuiContext(ctx: *imgui.Context) void;
 pub const setImguiContext = ImPlot_SetImGuiContext;

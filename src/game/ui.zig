@@ -24,7 +24,7 @@ pub fn drawMainUI(state: *State) void {
         state.drawn_frame_time = state.frame_time;
     }
 
-    const ui = hy.ui.imgui;
+    const ui = hy.UI.imgui;
     if (ui.BeginMainMenuBar()) {
         if (ui.MenuItem("Timings")) {
             state.window_timing_open = !state.window_timing_open;
@@ -58,7 +58,7 @@ pub fn drawFrametimePlot(state: *State) void {
         times[i] = state.frame_times[time];
     }
 
-    const plot = hy.ui.implot;
+    const plot = hy.UI.implot;
     if (plot.begin("My Plot", .{}, plot.Flags.CanvasOnly)) {
         plot.setupAxesLimits(0, @floatFromInt(frames_slice_len), 0, 40, .always);
         plot.plotBars("Bar", @as([]f64, &times), .{});

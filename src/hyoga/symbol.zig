@@ -54,7 +54,6 @@ pub fn shutdown(self: *Self) void {
 }
 
 pub fn from(self: *Self, str: []const u8) !ID {
-    std.debug.print("Symbol Lib {}\n",.{self.arena.child_allocator.ptr});
     if (self.map.getEntryAdapted(str, SliceAdapter { .parent = self })) |entry| {
         return .{ .value = entry.key_ptr.* };
     }
