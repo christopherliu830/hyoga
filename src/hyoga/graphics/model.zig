@@ -8,10 +8,10 @@ const ld = @import("loader.zig");
 const tx = @import("texture.zig");
 const Vertex = @import("vertex.zig").Vertex;
 const mat4 = @import("hyoga-math").mat4;
-const sym = @import("../symbol.zig");
+const Symbol = @import("../Symbol.zig");
 
 pub const Arena = hya.Arena(Model);
-pub const Handle = sym.Symbol;
+pub const Handle = Symbol.ID;
 
 const ModelLoadJob = struct {
     allocator: std.mem.Allocator,
@@ -36,20 +36,23 @@ pub const Models = struct {
     allocator: std.mem.Allocator,
     device: *sdl.gpu.Device,
     queue: Queue,
-    models: std.AutoHashMapUnmanaged(sym.Symbol, Model) = .{},
+    models: std.AutoHashMapUnmanaged(Symbol.ID, Model) = .{},
+    symbol: *Symbol,
 
-    pub fn init(self: *@This(), device: *sdl.gpu.Device, allocator: std.mem.Allocator) void {
+    pub fn init(self: *@This(), device: *sdl.gpu.Device, symbol: *Symbol, allocator: std.mem.Allocator,) void {
         self.allocator = allocator;
         self.queue.init(allocator);
         self.device = device;
         self.models = .{};
+        self.symbol = symbol;
     }
 
-    pub fn create(device: *sdl.gpu.Device, allocator: std.mem.Allocator) Models {
+    pub fn create(device: *sdl.gpu.Device, symbol: *Symbol, allocator: std.mem.Allocator) Models {
         var m: Models = undefined;
         m.allocator = allocator;
         m.queue.init(allocator);
         m.device = device;
+        m.symbol = symbol;
         m.models = .{};
         return m;
     }
@@ -65,26 +68,26 @@ pub const Models = struct {
         }
     }
 
-    pub fn get(self: *@This(), id: sym.Symbol) !?*Model {
+    pub fn get(self: *@This(), id: Symbol.ID) !?*Model {
         try self.flushQueue();
         return self.models.getPtr(id);
     }
 
-    pub fn read(self: *@This(), path: sym.Symbol, mats: []mt.Handle, import: ImportSettings) !sym.Symbol {
+    pub fn read(self: *@This(), path: [:0]const u8, mats: []mt.Handle, import: ImportSettings) !Symbol.ID {
         const job = ModelLoadJob {
             .allocator = self.allocator,
             .mats = try self.allocator.dupe(mt.Handle, mats),
-            .path = try self.allocator.dupeZ(u8, path.asStringZ()),
+            .path = try self.allocator.dupeZ(u8, path),
             .settings = import,
         };
 
         try ld.run(&self.queue, doRead, .{job});
-        return path;
+        return self.symbol.from(path);
     }
 
     fn flushQueue(self: *@This()) !void {
         while (self.queue.pop()) |result| {
-            try self.models.put(self.allocator, try sym.from(result.job.path), result.model);
+            try self.models.put(self.allocator, try self.symbol.from(result.job.path), result.model);
             result.job.deinit();
         }
     }

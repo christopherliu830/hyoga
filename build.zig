@@ -29,15 +29,13 @@ pub fn build(b: *std.Build) !void {
     options_step.addOption(?[:0]const u8, "backend", if (backend == .none) null else @tagName(backend));
     const options_module = options_step.createModule();
 
-    // Library
-    const hyoga_lib = b.addStaticLibrary(.{
-        .name = "hyoga",
+    const hyoga_lib = b.addModule("hyoga", .{
         .root_source_file = b.path("src/hyoga/root.zig"),
         .target = target,
         .optimize = optimize
     });
 
-    const exe = b.addSharedLibrary(.{
+    const game_lib = b.addSharedLibrary(.{
         .name = "game",
         .root_source_file = b.path("src/game/main.zig"),
         .target = target,
@@ -90,22 +88,22 @@ pub fn build(b: *std.Build) !void {
 
     // Modules
 
-    hyoga_lib.root_module.addImport("assimp", assimp.module("root"));
-    hyoga_lib.root_module.addImport("hyoga-math", hym.module("hyoga-math"));
-    hyoga_lib.root_module.addImport("hyoga-arena", hya.module("hyoga-arena"));
-    hyoga_lib.root_module.addImport("sdl", sdl.module("sdl"));
-    hyoga_lib.root_module.addImport("sdl_shadercross", sdl.module("sdl_shadercross"));
-    hyoga_lib.root_module.addImport("imgui", imgui.module("imgui"));
-    hyoga_lib.root_module.addImport("implot", imgui.module("implot"));
-    hyoga_lib.root_module.addImport("stb_image", stb_image.module("stb_image"));
-    hyoga_lib.root_module.addImport("ztracy", ztracy.module("root"));
-    hyoga_lib.root_module.addImport("build_options", options_module);
+    hyoga_lib.addImport("assimp", assimp.module("root"));
+    hyoga_lib.addImport("hyoga-math", hym.module("hyoga-math"));
+    hyoga_lib.addImport("hyoga-arena", hya.module("hyoga-arena"));
+    hyoga_lib.addImport("sdl", sdl.module("sdl"));
+    hyoga_lib.addImport("sdl_shadercross", sdl.module("sdl_shadercross"));
+    hyoga_lib.addImport("imgui", imgui.module("imgui"));
+    hyoga_lib.addImport("implot", imgui.module("implot"));
+    hyoga_lib.addImport("stb_image", stb_image.module("stb_image"));
+    hyoga_lib.addImport("ztracy", ztracy.module("root"));
+    hyoga_lib.addImport("build_options", options_module);
 
-    if (enable_tracy) { hyoga_lib.root_module.linkLibrary(ztracy.artifact("tracy")); }
+    if (enable_tracy) { hyoga_lib.linkLibrary(ztracy.artifact("tracy")); }
 
-    exe.root_module.addImport("hyoga", &hyoga_lib.root_module);
-    exe.root_module.addImport("ztracy", ztracy.module("root"));
-    runner.root_module.addImport("hyoga", &hyoga_lib.root_module);
+    game_lib.root_module.addImport("hyoga", hyoga_lib);
+    game_lib.root_module.addImport("ztracy", ztracy.module("root"));
+    runner.root_module.addImport("hyoga", hyoga_lib);
 
     const exe_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/game/main.zig"),
@@ -115,8 +113,7 @@ pub fn build(b: *std.Build) !void {
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
-    b.installArtifact(hyoga_lib);
-    const game_dll = b.addInstallArtifact(exe, .{});
+    const game_dll = b.addInstallArtifact(game_lib, .{});
     b.getInstallStep().dependOn(&game_dll.step);
     b.installArtifact(runner);
 

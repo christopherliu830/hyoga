@@ -19,7 +19,7 @@ const tx = @import("texture.zig");
 const mdl = @import("model.zig");
 const mt = @import("material.zig");
 const ld = @import("loader.zig");
-const sym = @import("../symbol.zig");
+const Symbol = @import("../Symbol.zig");
 
 const Vertex = @import("vertex.zig").Vertex;
 
@@ -99,6 +99,7 @@ const GPU = struct {
     device: *sdl.gpu.Device,
     swapchain_target_desc: sdl.gpu.ColorTargetDescription,
     frames: u32 = 0,
+    symbol: *Symbol
 };
 
 const WindowState = struct {
@@ -129,7 +130,7 @@ pub var window_state: WindowState = .{};
 
 pub var speed: f32 = 1;
 
-pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
+pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator, symbol: *Symbol) !void {
     window_state.hdl_window = hdl_window;
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
     const d = sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, null) orelse {
@@ -149,6 +150,7 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
         .arena = std.heap.ArenaAllocator.init(gpa),
         .device = d,
         .swapchain_target_desc = .{ .format = d.getSwapchainTextureFormat(hdl_window) },
+        .symbol = symbol,
     };
 
     try ld.init(gpa);
@@ -219,8 +221,8 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator) !void {
         .outline_pipeline = undefined,
         .quad_buffer = quad_buffer,
         .sampler = ctx.device.createSampler(&sampler_info).?,
-        .textures = tx.Textures.create(ctx.device, ctx.allocator),
-        .models = mdl.Models.create(ctx.device, ctx.allocator),
+        .textures = tx.Textures.create(ctx.device, ctx.symbol, ctx.allocator),
+        .models = mdl.Models.create(ctx.device, ctx.symbol, ctx.allocator),
         .materials = try hya.Arena(mt.Material).create(ctx.allocator, 1),
         .active_target = null,
         .robjs = undefined,
@@ -694,8 +696,8 @@ pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
     return pipeline;
 }
 
-pub fn importModel(path: sym.Symbol, settings: mdl.ImportSettings) !mdl.Handle {
-    var import = ai.importFile(path.asStringZ(), settings.post_process);
+pub fn importModel(path: Symbol.ID, settings: mdl.ImportSettings) !mdl.Handle {
+    var import = ai.importFile( ctx.symbol.asStringZ(path), settings.post_process);
     defer import.release();
     const allocator = ctx.arena.allocator();
 
@@ -717,7 +719,7 @@ pub fn importModel(path: sym.Symbol, settings: mdl.ImportSettings) !mdl.Handle {
                 });
 
                 const ai_tex_id: [:0]u8 = str.data[0..str.len :0];
-                var tex_id: []u8 = ai_tex_id;
+                var tex_id: [:0]u8 = ai_tex_id;
                 var handle: ?tx.Handle = null;
 
                 if (import.getEmbeddedTexture(ai_tex_id.ptr)) |tex| {
@@ -732,9 +734,12 @@ pub fn importModel(path: sym.Symbol, settings: mdl.ImportSettings) !mdl.Handle {
                     //     handle = try createTextureFromMemory(tex_id, .{ .w = tex.width, .h = tex.height, .d = 4, .data = data, .format = .b8g8r8a8_unorm });
                     // }
                 } else { // Texture is a relative path
-                    tex_id = try std.fs.path.join(ctx.allocator, &[_][]const u8{ std.fs.path.dirname(path.asString()).?, ai_tex_id });
+                    tex_id = try std.fs.path.joinZ(ctx.allocator, &[_][]const u8{ 
+                        std.fs.path.dirname(ctx.symbol.asString(path)).?,
+                        ai_tex_id
+                    });
                     defer ctx.allocator.free(tex_id);
-                    handle = try render_state.textures.read(try sym.from(tex_id));
+                    handle = try render_state.textures.read(tex_id);
                 }
 
                 std.debug.assert(handle != null);
@@ -743,7 +748,7 @@ pub fn importModel(path: sym.Symbol, settings: mdl.ImportSettings) !mdl.Handle {
                 if (hy_tex_type) |htt| {
                     texture_set.put(htt, .{ .handle = handle });
                 } else {
-                    std.log.warn("[GPU]: Unconsumed texture type {s} for object {s}", .{ field.name, path.asString() });
+                    std.log.warn("[GPU]: Unconsumed texture type {s} for object {s}", .{ field.name, ctx.symbol.asString(path) });
                 }
             }
         }
@@ -752,7 +757,7 @@ pub fn importModel(path: sym.Symbol, settings: mdl.ImportSettings) !mdl.Handle {
         materials_array[mat_index] = hdl;
     }
 
-    const model = try render_state.models.read(path, materials_array, settings);
+    const model = try render_state.models.read(ctx.symbol.asStringZ(path), materials_array, settings);
     return model;
 }
 

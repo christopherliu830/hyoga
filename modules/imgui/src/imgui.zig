@@ -63,8 +63,8 @@ pub const Wchar = Wchar16;
 pub const SelectionUserData = i64;
 pub const InputTextCallback = *const fn(data: [*c]InputTextCallbackData) callconv(.C) c_int;
 pub const SizeCallback = *const fn(data: [*c]SizeCallbackData) callconv(.C) void;
-pub const MemAllocFunc = *const fn(sz: usize, user_data: *anyopaque) callconv(.C) *anyopaque;
-pub const MemFreeFunc = *const fn(ptr: *anyopaque, user_data: *anyopaque) callconv(.C) void;
+pub const MemAllocFunc = ?*const fn(sz: usize, user_data: *anyopaque) callconv(.C) *anyopaque;
+pub const MemFreeFunc = ?*const fn(ptr: *anyopaque, user_data: *anyopaque) callconv(.C) void;
 pub const DrawCallback = *const fn(parent_list: [*c]const DrawList, cmd: [*c]const DrawCmd) callconv(.C) void;
 
 pub const WindowFlag = struct {
@@ -2250,8 +2250,8 @@ pub extern fn ImGui_DebugStartItemPicker() void;
 pub extern fn ImGui_DebugCheckVersionAndDataLayout(version_str: [*c]const u8, sz_io: usize, sz_style: usize, sz_vec2: usize, sz_vec4: usize, sz_drawvert: usize, sz_drawidx: usize) bool;
 pub extern fn ImGui_DebugLog(fmt: [*c]const u8, ...) void;
 // pub extern fn ImGui_DebugLogV(fmt: [*c]const u8, args: va_list) void;
-pub extern fn ImGui_SetAllocatorFunctions(alloc_func: MemAllocFunc, free_func: MemFreeFunc, user_data: *anyopaque) void;
-pub extern fn ImGui_GetAllocatorFunctions(p_alloc_func: [*c]MemAllocFunc, p_free_func: [*c]MemFreeFunc, p_user_data: [*c]*anyopaque) void;
+pub extern fn ImGui_SetAllocatorFunctions(alloc_func: MemAllocFunc, free_func: MemFreeFunc, user_data: ?*anyopaque) void;
+pub extern fn ImGui_GetAllocatorFunctions(p_alloc_func: *MemAllocFunc, p_free_func: *MemFreeFunc, p_user_data: **anyopaque) void;
 pub extern fn ImGui_MemAlloc(size: usize) *anyopaque;
 pub extern fn ImGui_MemFree(ptr: *anyopaque) void;
 pub extern fn ImGui_UpdatePlatformWindows() void;

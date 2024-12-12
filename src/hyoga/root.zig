@@ -1,11 +1,11 @@
 const std = @import("std");
 const sdl = @import("sdl");
 
-pub const math = @import("hyoga-math");
-pub const arena = @import("hyoga-arena");
-pub const symbol = @import("symbol.zig");
+pub const hym = @import("hyoga-math");
+pub const hya = @import("hyoga-arena");
+pub const Symbol = @import("Symbol.zig");
 pub const window = @import("window.zig");
-pub const input = @import("input.zig");
+pub const Input = @import("Input.zig");
 pub const material = @import("graphics/material.zig");
 pub const ui = @import("graphics/ui.zig");
 pub const gpu = @import("graphics/gpu.zig");
@@ -14,30 +14,65 @@ pub const Hive = @import("hive.zig").Hive;
 pub const Game = @import("Game.zig").Game;
 pub const GameInterface = @import("Game.zig").GameInterface;
 
-const vec3 = math.vec3;
+const vec3 = hym.vec3;
 
-pub fn init(allocator: std.mem.Allocator) void {
-    symbol.init(allocator);
-    input.init(allocator);
+const Self = @This();
+
+gpa: std.heap.GeneralPurposeAllocator(.{}),
+arena: std.heap.ArenaAllocator,
+symbol: Symbol,
+input: Input,
+
+pub fn init() *Self {
+    return tryInit() catch |err| std.debug.panic("error during init", .{err});
+}
+
+fn tryInit() !*Self {
+
+    var self_gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
+    var self = self_gpa.allocator().create(Self)
+        catch std.debug.panic("out of memory", .{});
+
+    self.* = .{
+        .gpa = self_gpa,
+        .arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
+        .symbol = Symbol.init(self.arena.allocator()),
+        .input = Input.init(self.gpa.allocator()),
+    };
+
     window.init() catch |e| std.debug.panic("|e| Window init failure: {}", .{e});
-    gpu.init(window.instance, allocator) catch |e| std.debug.panic("[GPU] GPU init failure: {}", .{e});
+
+    gpu.init(window.instance, self.gpa.allocator(), &self.symbol) catch |e| std.debug.panic("[GPU] GPU init failure: {}", .{e});
     ui.init(.{
         .device = gpu.device(),
         .window = window.instance,
-        .allocator = allocator
+        .allocator = self.gpa.allocator(),
     }) catch std.debug.panic("UI Init failure", .{});
+
+    return self;
 }
 
-pub fn shutdown() void {
+pub fn shutdown(self: *Self) void {
     ui.shutdown();
     gpu.shutdown();
     window.destroy();
-    input.shutdown();
-    symbol.shutdown();
+    self.input.shutdown();
+    self.symbol.shutdown();
+    self.arena.deinit();
+
+    var gpa = self.gpa;
+    gpa.allocator().destroy(self);
+    _ = gpa.detectLeaks();
+    _ = gpa.deinit();
 }
 
-pub fn update(old_game: Game, gi: GameInterface) Game {
+pub fn update(self: *Self, old_game: Game, gi: GameInterface) Game {
     var game = old_game;
+
+    if (game.imgui_state.context == null) {
+        @branchHint(.cold);
+        game.imgui_state = ui.getState();
+    }
 
     var time = std.time.Timer.start() catch unreachable;
 
@@ -50,7 +85,7 @@ pub fn update(old_game: Game, gi: GameInterface) Game {
         ui.processEvent(event) catch |err| 
             std.log.err("[UI] processEvent failure: {}", .{err});
 
-        input.update(event);
+        self.input.update(event);
 
         switch (event.type) {
             sdl.events.type.quit => {
@@ -61,7 +96,7 @@ pub fn update(old_game: Game, gi: GameInterface) Game {
         }
     }
 
-    game = gi.update(game);
+    game = gi.update(self, game);
 
     const q_cmd = blk: {
         if (gpu.begin()) |cmd| {
@@ -75,7 +110,7 @@ pub fn update(old_game: Game, gi: GameInterface) Game {
     if (q_cmd) |cmd| {
         ui.beginFrame() catch |err| std.log.err("[UI] Failed to begin frame for render: {}", .{err});
 
-        gi.render(game);
+        gi.render(self, game);
 
         gpu.render(cmd, &game.scene) catch |err| std.log.err("[GPU] failed to finish render: {}", .{err});
         ui.render(cmd) catch |err| std.log.err("[UI] failed to finish render: {}", .{err});

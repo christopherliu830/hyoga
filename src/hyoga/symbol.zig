@@ -1,28 +1,19 @@
 const std = @import("std");
 const hya = @import("hyoga-arena");
 
-pub const Symbol = struct {
+const Self = @This();
+
+pub const ID = struct {
     value: u32,
 
-    pub fn asString(self: Symbol) []const u8 {
-        return sliceAt(self.value);
-    }
-
-    pub fn asStringZ(self: Symbol) [:0]const u8 {
-        return std.mem.span(@as([*:0]const u8, @ptrCast(string_bytes.items.ptr)) + self.value);
-    }
 };
 
-var arena: std.heap.ArenaAllocator = undefined;
-var symbol_count: u32 = 0;
-var string_bytes: std.ArrayListUnmanaged(u8) = .{};
-var map: std.HashMapUnmanaged(u32, void, IndexContext, std.hash_map.default_max_load_percentage) = .{};
-
-inline fn sliceAt(i: u32) []const u8 {
-    return std.mem.span(@as([*:0]const u8, @ptrCast(string_bytes.items.ptr)) + i);
+inline fn sliceAt(self: *@This(), start: u32) []const u8 {
+    return std.mem.span(@as([*:0]const u8, @ptrCast(self.string_bytes.items.ptr)) + start);
 }
 
 const IndexContext = struct {
+    parent: *Self,
 
     pub fn eql(self: IndexContext, a: u32, b: u32) bool {
         _ = self;
@@ -30,17 +21,16 @@ const IndexContext = struct {
     }
 
     pub fn hash(self: IndexContext, x: u32) u64 {
-        _ = self;
-        const x_slice = sliceAt(x);
+        const x_slice = self.parent.sliceAt(x);
         return std.hash_map.hashString(x_slice);
     }
 };
 
 const SliceAdapter = struct {
+    parent: *Self,
 
     pub fn eql(self: SliceAdapter, a_slice: []const u8, b: u32) bool {
-        _ = self;
-        const b_slice = sliceAt(b);
+        const b_slice = self.parent.sliceAt(b);
         return std.mem.eql(u8, a_slice, b_slice);
     }
 
@@ -50,29 +40,39 @@ const SliceAdapter = struct {
     }
 };
 
-const index_context = IndexContext { };
+arena: std.heap.ArenaAllocator,
+symbol_count: u32 = 0,
+string_bytes: std.ArrayListUnmanaged(u8) = .{},
+map: std.HashMapUnmanaged(u32, void, IndexContext, std.hash_map.default_max_load_percentage) = .{},
 
-const slice_context = SliceAdapter { };
-
-pub fn init(in_allocator: std.mem.Allocator) void {
-    arena = std.heap.ArenaAllocator.init(in_allocator);
+pub fn init(in_allocator: std.mem.Allocator) Self {
+    return .{ .arena = std.heap.ArenaAllocator.init(in_allocator), };
 }
 
-pub fn shutdown() void {
-    arena.deinit();
+pub fn shutdown(self: *Self) void {
+    self.arena.deinit();
 }
 
-pub fn from(str: []const u8) !Symbol {
-    if (map.getEntryAdapted(str, slice_context)) |entry| {
+pub fn from(self: *Self, str: []const u8) !ID {
+    std.debug.print("Symbol Lib {}\n",.{self.arena.child_allocator.ptr});
+    if (self.map.getEntryAdapted(str, SliceAdapter { .parent = self })) |entry| {
         return .{ .value = entry.key_ptr.* };
     }
 
-    const index: u32 = @intCast(string_bytes.items.len);
-    try string_bytes.appendSlice(arena.allocator(), str);
+    const index: u32 = @intCast(self.string_bytes.items.len);
+    try self.string_bytes.appendSlice(self.arena.allocator(), str);
 
     // Manually add a sentinel to work with runtime-generated non-sentinel strings
     // and for compatibility
-    if (string_bytes.items[string_bytes.items.len - 1] != 0) try string_bytes.append(arena.allocator(), 0); 
-    try map.putContext(arena.allocator(), index, {}, index_context); 
+    if (self.string_bytes.items[self.string_bytes.items.len - 1] != 0) try self.string_bytes.append(self.arena.allocator(), 0); 
+    try self.map.putContext(self.arena.allocator(), index, {}, IndexContext { .parent = self }); 
     return .{ .value = index };
+}
+
+pub fn asString(self: *Self, id: ID) []const u8 {
+    return self.sliceAt(id.value);
+}
+
+pub fn asStringZ(self: *Self, id: ID) [:0]const u8 {
+    return std.mem.span(@as([*:0]const u8, @ptrCast(self.string_bytes.items.ptr)) + id.value);
 }

@@ -7,10 +7,10 @@ pub const imgui = @import("imgui");
 pub const implot = @import("implot");
 
 pub const ImguiState = extern struct {
-    context: ?*imgui.Context,
-    free_fn: imgui.MemFreeFunc,
-    alloc_fn: imgui.MemAllocFunc,
-    user_data: *anyopaque,
+    context: ?*imgui.Context = null,
+    free_fn: imgui.MemFreeFunc = null,
+    alloc_fn: imgui.MemAllocFunc = null,
+    user_data: ?*anyopaque = null,
 };
 
 pub const UIInitInfo = struct {
@@ -60,11 +60,19 @@ pub fn shutdown() void {
 pub fn getState() ImguiState {
     var st: ImguiState = undefined;
     st.context = imgui.GetCurrentContext();
-    imgui.GetAllocatorFunctions(&st.alloc_fn, &st.free_fn, &st.user_data);
+    if (st.context != null) {
+        var alloc_fn: imgui.MemAllocFunc = undefined;
+        var free_fn: imgui.MemFreeFunc = undefined;
+        var user_data: *anyopaque = undefined;
+        imgui.GetAllocatorFunctions(&alloc_fn, &free_fn, &user_data);
+        st.alloc_fn = alloc_fn;
+        st.free_fn = free_fn;
+        st.user_data = user_data;
+    }
     return st;
 }
 
 pub fn setState(state: ImguiState) void {
     imgui.SetCurrentContext(state.context);
-    imgui.SetAllocatorFunctions(state.alloc_fn, state.free_fn, state.user_data);
+    imgui.SetAllocatorFunctions(state.alloc_fn.?, state.free_fn.?, state.user_data);
 }

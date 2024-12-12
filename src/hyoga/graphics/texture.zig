@@ -4,13 +4,18 @@ const stbi = @import("stb_image");
 const ai = @import("assimp");
 const ld = @import("loader.zig");
 const hya = @import("hyoga-arena");
-const sym = @import("../symbol.zig");
+const sym = @import("../Symbol.zig");
 
-pub const Handle = sym.Symbol;
+pub const Handle = sym.ID;
 
 const TextureId = struct {
-    handle: ?sym.Symbol = null,
+    handle: ?sym.ID = null,
     target: ?*sdl.gpu.Texture = null,
+};
+
+const TextureLoadJob = struct {
+    path: [:0]const u8,
+    target: *sdl.gpu.Texture,
 };
 
 pub const TextureSet = std.EnumMap(TextureType, TextureId);
@@ -32,15 +37,17 @@ pub const tex_to_hyoga_type = std.EnumMap(ai.TextureType, TextureType).init(.{
 pub const Textures = struct {
     allocator: std.mem.Allocator,
     device: *sdl.gpu.Device,
-    queue: ld.Queue(TextureId),
-    textures: std.AutoHashMapUnmanaged(sym.Symbol, *sdl.gpu.Texture) = .{},
+    queue: ld.Queue(TextureLoadJob),
+    textures: std.AutoHashMapUnmanaged(sym.ID, *sdl.gpu.Texture) = .{},
+    symbol: *sym,
 
-    pub fn create(device: *sdl.gpu.Device, allocator: std.mem.Allocator) Textures {
+    pub fn create(device: *sdl.gpu.Device, symbol: *sym, allocator: std.mem.Allocator) Textures {
         var t: Textures = undefined;
         t.allocator = allocator;
         t.queue.init(allocator);
         t.device = device;
         t.textures = .{};
+        t.symbol = symbol;
         return t;
     }
 
@@ -53,24 +60,26 @@ pub const Textures = struct {
         self.textures.deinit(self.allocator);
     }
 
-    pub fn get(self: *@This(), id: sym.Symbol) !?*sdl.gpu.Texture {
+    pub fn get(self: *@This(), id: sym.ID) !?*sdl.gpu.Texture {
         try self.flushQueue();
         return self.textures.get(id);
     }
 
-    pub fn read(self: *@This(), path: sym.Symbol) !Handle {
-        try ld.run(&self.queue, readTexture, .{ self.device, path });
-        return path;
+    pub fn read(self: *@This(), path: [:0]const u8) !Handle {
+        const copy = try self.allocator.dupeZ(u8, path);
+        try ld.run(&self.queue, readTexture, .{ self.device, copy });
+        return self.symbol.from(path);
     }
 
     pub fn flushQueue(self: *@This()) !void {
         while (self.queue.pop()) |entry| {
-            try self.textures.put(self.allocator, entry.handle.?, entry.target.?);
+            const tex_symbol = try self.symbol.from(entry.path);
+            self.allocator.free(entry.path);
+            try self.textures.put(self.allocator,tex_symbol, entry.target);
         }
     }
 
-    fn readTexture(queue: *ld.Queue(TextureId), device: *sdl.gpu.Device, path: sym.Symbol) void {
-        const pathZ = path.asStringZ();
+    fn readTexture(queue: *ld.Queue(TextureLoadJob), device: *sdl.gpu.Device, pathZ: [:0]const u8) void {
 
         var c_w: c_int = 0;
         var c_h: c_int = 0;
@@ -121,7 +130,7 @@ pub const Textures = struct {
 
             if (!device.waitForFences(true, &[_]*sdl.gpu.Fence{fence}, 1)) @panic("Could not wait for fence");
             queue.push(.{
-                .handle = path,
+                .path = pathZ,
                 .target = tex,
             }) catch @panic("out of memory");
 

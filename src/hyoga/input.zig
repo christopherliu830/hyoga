@@ -1,13 +1,14 @@
 const std = @import("std");
-const window = @import("window.zig");
 const sdl = @import("sdl");
 const imgui = @import("imgui");
 const hya = @import("hyoga-arena");
 
-pub const keycode = @import("sdl").keycode;
+const window = @import("window.zig");
 
+pub const keycode = @import("sdl").keycode;
 const vec2 = @import("hyoga-math").vec2;
 
+const Input = @This();
 
 const MouseButton = enum {
     left, // m1
@@ -66,84 +67,84 @@ const Keybinds = std.AutoHashMap(keycode.Keycode, KeybindList);
 const Mousebinds = std.AutoHashMap(MouseButton, MousebindList);
 const KeyState = [8]keycode.Keycode; // 32 keys down at once
 
-var allocator: std.mem.Allocator = undefined;
-var keybinds: Keybinds = undefined;
-var keys_down: [32]keycode.Keycode = undefined;
-pub var num_keys_down: u8 = 0;
+allocator: std.mem.Allocator,
+keybinds: Keybinds,
+keys_down: [32]keycode.Keycode = [_]keycode.Keycode { 0 } ** 32,
+num_keys_down: u8 = 0,
 
-var mousebinds: Mousebinds = undefined;
-pub var mouse_state: MouseState = .{};
+mousebinds: Mousebinds,
+mouse_state: MouseState = .{},
 
-var input_inited = false;
+input_inited: bool = false,
 
-pub fn init(allocator_: std.mem.Allocator) void {
-    allocator = allocator_;
-
-    if (!input_inited) {
-        keybinds = Keybinds.init(allocator);
-        mousebinds = Mousebinds.init(allocator);
-        input_inited = true;
-    }
+pub fn init(in_allocator: std.mem.Allocator) Input {
+    return .{
+        .allocator = in_allocator,
+        .keybinds = Keybinds.init(in_allocator),
+        .mousebinds = Mousebinds.init(in_allocator),
+        .input_inited = true,
+    };
 }
 
-pub fn shutdown() void {
+pub fn shutdown(self: *@This()) void {
     {
-        var it = keybinds.valueIterator();
+        var it = self.keybinds.valueIterator();
         while (it.next()) |binds| {
             binds.deinit();
         }
     }
     {
-        var it = mousebinds.valueIterator();
+        var it = self.mousebinds.valueIterator();
         while (it.next()) |binds| {
             binds.deinit();
         }
     }
 
-    keybinds.deinit();
-    mousebinds.deinit();
+    self.keybinds.deinit();
+    self.mousebinds.deinit();
+    self.allocator.destroy(self);
 }
 
-pub fn bind(key: keycode.Keycode, handler: InputHandler) !KeybindList.Handle {
-    const entry = try keybinds.getOrPut(key);
+pub fn bind(self: *Input, key: keycode.Keycode, handler: InputHandler) !KeybindList.Handle {
+    const entry = try self.keybinds.getOrPut(key);
     if (!entry.found_existing) {
-        entry.value_ptr.* = try KeybindList.create(allocator, 1);
+        entry.value_ptr.* = try KeybindList.create(self.allocator, 1);
     }
 
     const list = entry.value_ptr;
     return try list.insert(handler);
 }
 
-pub fn bindMouse(button: MouseButton, handler: MouseInputHandler) !MousebindList.Handle {
-    const entry = try mousebinds.getOrPut(button);
+pub fn bindMouse(self: *Input, button: MouseButton, handler: MouseInputHandler) !MousebindList.Handle {
+    const entry = try self.mousebinds.getOrPut(button);
     if (!entry.found_existing) {
-        entry.value_ptr.* = try MousebindList.create(allocator, 1);
+        entry.value_ptr.* = try MousebindList.create(self.allocator, 1);
     }
     const list = entry.value_ptr;
     return try list.insert(handler);
 }
 
-pub fn queryKey(key: keycode.Keycode) bool {
-    for(keys_down[0..num_keys_down]) |downkey| {
+pub fn queryKey(self: *Input, key: keycode.Keycode) bool {
+    for(self.keys_down[0..self.num_keys_down]) |downkey| {
         if (downkey == key) return true;
     }
     return false;
 }
 
-pub fn queryMouse(button: MouseButton) bool {
+pub fn queryMouse(self: *Input, button: MouseButton) bool {
     return switch(button) {
-        .left => mouse_state.left,
-        .right => mouse_state.right,
-        .middle => mouse_state.middle,
-        .motion => mouse_state.motion.x != 0 and mouse_state.motion.y != 0,
-        .wheel => mouse_state.wheel != 0,
+        .left => self.mouse_state.left,
+        .right => self.mouse_state.right,
+        .middle => self.mouse_state.middle,
+        .motion => self.mouse_state.motion.x != 0 and self.mouse_state.motion.y != 0,
+        .wheel => self.mouse_state.wheel != 0,
     };
 }
 
-pub fn post(key: keycode.Keycode, mods: keycode.Keymod, action: InputFlags) void {
+pub fn post(self: *Input, key: keycode.Keycode, mods: keycode.Keymod, action: InputFlags) void {
     _ = mods;
 
-    if (keybinds.get(key)) |binds| {
+    if (self.keybinds.get(key)) |binds| {
         for (binds.entries.items[0..binds.len]) |entry| {
             if (entry == .occupied) {
                 const binded = entry.occupied.value;
@@ -157,8 +158,8 @@ pub fn post(key: keycode.Keycode, mods: keycode.Keymod, action: InputFlags) void
     }
 }
 
-pub fn postMouse(mouse: MouseButton, action: InputFlags, event: MouseEvent) void {
-    if (mousebinds.get(mouse)) |binds| {
+pub fn postMouse(self: *Input, mouse: MouseButton, action: InputFlags, event: MouseEvent) void {
+    if (self.mousebinds.get(mouse)) |binds| {
         for (binds.entries.items[0..binds.len]) |entry| {
             if (entry == .occupied) {
                 const binded = entry.occupied.value;
@@ -170,52 +171,52 @@ pub fn postMouse(mouse: MouseButton, action: InputFlags, event: MouseEvent) void
     }
 }
 
-pub fn update(event: sdl.events.Event) void {
-    if (!imgui.GetIO().?.WantCaptureKeyboard) switch (event.type) {
+pub fn update(self: *Input, event: sdl.events.Event) void {
+    switch (event.type) {
         sdl.events.type.key_down => {
             const key = event.key.key;
             if (!event.key.repeat) {
-                keys_down[num_keys_down] = key;
-                num_keys_down += 1;
-                post(key, undefined, .{ .down = true });
+                self.keys_down[self.num_keys_down] = key;
+                self.num_keys_down += 1;
+                self.post(key, undefined, .{ .down = true });
             }
             else {
-                post(key, undefined, .{ .held = true });
+                self.post(key, undefined, .{ .held = true });
             }
         },
 
         sdl.events.type.key_up => {
             const key = event.key.key;
 
-            if (num_keys_down > 0) {
-                for(0..num_keys_down) |i| {
-                    if (keys_down[i] == key) {
-                        keys_down[i] = keys_down[num_keys_down - 1];
-                        num_keys_down -= 1;
+            if (self.num_keys_down > 0) {
+                for(0..self.num_keys_down) |i| {
+                    if (self.keys_down[i] == key) {
+                        self.keys_down[i] = self.keys_down[self.num_keys_down - 1];
+                        self.num_keys_down -= 1;
                     }
                 }
             }
 
-            post(key, undefined, .{ .up = true });
+            self.post(key, undefined, .{ .up = true });
         },
 
         else => {},
-    };
+    }
 
-    if (!imgui.GetIO().?.WantCaptureMouse) switch(event.type) {
+    switch(event.type) {
         sdl.events.type.mouse_button_down => {
             switch(event.button.button) {
                 1 => {
-                    mouse_state.left = true;
-                    postMouse(.left, .{ .down = true }, .{ .left = event.button });
+                    self.mouse_state.left = true;
+                    self.postMouse(.left, .{ .down = true }, .{ .left = event.button });
                 },
                 2 => {
-                    mouse_state.middle = true;
-                    postMouse(.middle, .{ .down = true }, .{ .middle = event.button });
+                    self.mouse_state.middle = true;
+                    self.postMouse(.middle, .{ .down = true }, .{ .middle = event.button });
                 },
                 3 => {
-                    mouse_state.right = true;
-                    postMouse(.right, .{ .down = true }, .{ .right = event.button });
+                    self.mouse_state.right = true;
+                    self.postMouse(.right, .{ .down = true }, .{ .right = event.button });
                 },
                 else => {},
             }
@@ -223,28 +224,28 @@ pub fn update(event: sdl.events.Event) void {
         sdl.events.type.mouse_button_up => {
             switch(event.button.button) {
                 1 => {
-                    mouse_state.left = false;
-                    postMouse(.left, .{ .up = true }, .{ .left = event.button });
+                    self.mouse_state.left = false;
+                    self.postMouse(.left, .{ .up = true }, .{ .left = event.button });
                 },
                 2 => {
-                    mouse_state.middle = false;
-                    postMouse(.middle, .{ .up = true }, .{ .middle = event.button });
+                    self.mouse_state.middle = false;
+                    self.postMouse(.middle, .{ .up = true }, .{ .middle = event.button });
                 },
                 3 => {
-                    mouse_state.right = false;
-                    postMouse(.right, .{ .up = true }, .{ .right = event.button });
+                    self.mouse_state.right = false;
+                    self.postMouse(.right, .{ .up = true }, .{ .right = event.button });
                 },
                 else => {},
             }
         },
         sdl.events.type.mouse_motion => {
-            mouse_state.motion.x = event.motion.xrel;
-            mouse_state.motion.y = event.motion.yrel;
-            postMouse(.motion, .{ .down = true }, .{ .motion = event.motion });
+            self.mouse_state.motion.x = event.motion.xrel;
+            self.mouse_state.motion.y = event.motion.yrel;
+            self.postMouse(.motion, .{ .down = true }, .{ .motion = event.motion });
         },
         sdl.events.type.mouse_wheel => {
-            postMouse(.wheel, .{ .down = true }, .{ .wheel = event.wheel });
+            self.postMouse(.wheel, .{ .down = true }, .{ .wheel = event.wheel });
         },
         else => {},
-    };
+    }
 }
