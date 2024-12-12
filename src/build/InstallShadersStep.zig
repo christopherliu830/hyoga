@@ -54,6 +54,9 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
         });
     };
 
+    const needs_derived_path = try step.addDirectoryWatchInput(self.source_path);
+    if (needs_derived_path) try step.addDirectoryWatchInputFromPath(src_dir_path);
+
     defer src_dir.close();
 
     var it = try src_dir.walk(b.allocator);
@@ -69,7 +72,6 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
                     .{ .ext = ".vert.spv", .entry = "vertexMain", .offset = 0},
                     .{ .ext = ".frag.spv", .entry = "fragmentMain", .offset = 1 }
                 }) |opts| {
-                    step_opts.progress_node.increaseEstimatedTotalItems(2);
 
                     const out_basename = try std.mem.concat(b.allocator, u8, &.{std.fs.path.stem(entry.basename), opts.ext});
                     const out_name = b.pathJoin(&.{dest_prefix, out_basename});
@@ -78,6 +80,7 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
                     const dst_stat = cwd.statFile(out_name) catch null; 
 
                     if (self.always_generate or dst_stat == null or dst_stat.?.mtime < src_stat.mtime) {
+                        step_opts.progress_node.increaseEstimatedTotalItems(1);
                         const argv_list: []const []const u8 = &.{
                             "slangc",
                             try src_sub_path.toString(b.allocator), // Input file
