@@ -2,7 +2,7 @@ const std = @import("std");
 const sdl = @import("sdl");
 const sdlsc = @import("sdl_shadercross");
 const hya = @import("hyoga-arena");
-const gpu = @import("gpu.zig");
+const Gpu = @import("gpu.zig");
 const tx = @import("texture.zig");
 const Mat4 = @import("hyoga-math").Mat4;
 const Vec3 = @import("hyoga-math").Vec3;
@@ -56,20 +56,20 @@ pub const MaterialInfo = struct {
         samplers: ?std.json.ArrayHashMap(u32) = null,
     };
 
-    pass: gpu.PassType,
+    pass: Gpu.PassType,
     vert: ProgramInfo,
     frag: ProgramInfo, 
 };
 
-pub fn readFromPath(device: *sdl.gpu.Device, path: []const u8, arena: std.mem.Allocator) !MaterialTemplate {
+pub fn readFromPath(gpu: *Gpu, path: []const u8, arena: std.mem.Allocator) !MaterialTemplate {
     const info = try loadMaterialInfo(path, arena);
 
 
-    const vert_shader = try loadShader(device, .vertex, path, arena);
-    defer device.releaseShader(vert_shader);
+    const vert_shader = try loadShader(gpu.device, .vertex, path, arena);
+    defer gpu.device.releaseShader(vert_shader);
 
-    const frag_shader = try loadShader(device, .fragment, path, arena);
-    defer device.releaseShader(frag_shader);
+    const frag_shader = try loadShader(gpu.device, .fragment, path, arena);
+    defer gpu.device.releaseShader(frag_shader);
 
     const pipeline = gpu.buildPipeline(.{
         .enable_depth = true,

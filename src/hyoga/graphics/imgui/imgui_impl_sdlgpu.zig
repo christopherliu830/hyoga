@@ -1,6 +1,6 @@
 const std = @import("std");
 const sdl = @import("sdl");
-const gpu = @import("../gpu.zig");
+const Gpu = @import("../gpu.zig");
 const imgui = @import("imgui");
 const mt = @import("../material.zig");
 
@@ -8,7 +8,7 @@ const ShaderType = enum { vertex, fragment };
 
 const ImplData = struct {
     allocator: std.mem.Allocator,
-    device: *sdl.gpu.Device,
+    gpu: *Gpu,
     window: *sdl.Window,
     pipeline: *sdl.gpu.GraphicsPipeline,
     font_texture: *sdl.gpu.Texture,
@@ -20,7 +20,7 @@ const ImplData = struct {
 };
 
 pub const InitInfo = struct {
-    device: *sdl.gpu.Device,
+    gpu: *Gpu,
     window: *sdl.Window,
 };
 
@@ -34,11 +34,10 @@ pub fn init(info: *const InitInfo, allocator: std.mem.Allocator) !void {
 
     const bd = try allocator.create(ImplData);
     io.BackendRendererUserData = @ptrCast(bd);
-    bd.device = info.device;
 
     bd.* = .{
         .allocator = allocator,
-        .device = info.device,
+        .gpu = info.gpu,
         .window = info.window,
         .pipeline = try createPipeline(),
         .font_texture = try createFontsTexture(),
@@ -57,11 +56,11 @@ pub fn shutdown() void {
     io.BackendRendererName = null;
     io.BackendFlags &= ~(@as(c_int, imgui.BackendFlag.renderer_has_vtx_offset));
 
-    bd.device.releaseSampler(bd.sampler);
-    bd.device.releaseTexture(bd.font_texture);
-    bd.device.releaseGraphicsPipeline(bd.pipeline);
-    if (bd.buf_vertex) |buf| { bd.device.releaseBuffer(buf);}
-    if (bd.buf_index) |buf| { bd.device.releaseBuffer(buf); }
+    bd.gpu.device.releaseSampler(bd.sampler);
+    bd.gpu.device.releaseTexture(bd.font_texture);
+    bd.gpu.device.releaseGraphicsPipeline(bd.pipeline);
+    if (bd.buf_vertex) |buf| { bd.gpu.device.releaseBuffer(buf);}
+    if (bd.buf_index) |buf| { bd.gpu.device.releaseBuffer(buf); }
 
     bd.allocator.destroy(bd);
 }
@@ -75,11 +74,11 @@ pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
 
     var arena = std.heap.ArenaAllocator.init(bd.allocator);
     defer arena.deinit();
-    const vert_shader = try mt.loadShader(bd.device, .vertex, "shaders/imgui", arena.allocator()); 
-    defer bd.device.releaseShader(vert_shader);
+    const vert_shader = try mt.loadShader(bd.gpu.device, .vertex, "shaders/imgui", arena.allocator()); 
+    defer bd.gpu.device.releaseShader(vert_shader);
 
-    const frag_shader = try mt.loadShader(bd.device, .fragment, "shaders/imgui", arena.allocator()); 
-    defer bd.device.releaseShader(frag_shader);
+    const frag_shader = try mt.loadShader(bd.gpu.device, .fragment, "shaders/imgui", arena.allocator()); 
+    defer bd.gpu.device.releaseShader(frag_shader);
 
     const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
         .slot = 0,
@@ -110,7 +109,7 @@ pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
     };
 
     const color_target_desc = [_]sdl.gpu.ColorTargetDescription {.{ 
-        .format = bd.device.getSwapchainTextureFormat(bd.window),
+        .format = bd.gpu.device.getSwapchainTextureFormat(bd.window),
         .blend_state = .{
             .enable_blend = true,
             .src_color_blendfactor = .src_alpha,
@@ -155,7 +154,7 @@ pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
         .props = 0,
     };
 
-    return bd.device.createGraphicsPipeline(&pipeline).?;
+    return bd.gpu.device.createGraphicsPipeline(&pipeline).?;
 }
 
 pub fn createDeviceObjects() !void {
@@ -180,7 +179,7 @@ pub fn createFontsTexture() !*sdl.gpu.Texture {
     const w: u32 = @intCast(out_width);
     const h: u32 = @intCast(out_height);
 
-    const texture = bd.device.createTexture(&.{
+    const texture = bd.gpu.device.createTexture(&.{
         .type = .@"2d",
         .format = .r8g8b8a8_unorm,
         .usage = .{ .sampler = true },
@@ -190,13 +189,13 @@ pub fn createFontsTexture() !*sdl.gpu.Texture {
         .num_levels = 1,
     }).?;
 
-    try gpu.uploadToTexture(texture, w, h, pixels[0..@intCast(out_width * out_height * 4)]);
+    try bd.gpu.uploadToTexture(texture, w, h, pixels[0..@intCast(out_width * out_height * 4)]);
     return texture;
 }
 
 pub fn createSampler() *sdl.gpu.Sampler {
     const bd = getBackendData().?;
-    return bd.device.createSampler(&.{
+    return bd.gpu.device.createSampler(&.{
         .mag_filter = .linear,
         .min_filter = .linear,
         .mipmap_mode = .linear,
@@ -217,7 +216,7 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
     const bd = getBackendData().?;
 
     const color_target = [1]sdl.gpu.ColorTargetInfo {.{
-        .texture = gpu.activeRenderTarget(),
+        .texture = bd.gpu.render_state.active_target,
         .clear_color = .{ .r = 0, .g = 0, .b = 0, .a = 0},
         .load_op = .load,
         .store_op = .store,
@@ -238,7 +237,7 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
         if (bd.buf_vertex == null or bd.size_buf_vertex < draw_data.TotalVtxCount * @sizeOf(imgui.DrawVert)) {
 
             // create vertex buffer
-            if (bd.buf_vertex != null) bd.device.releaseBuffer(bd.buf_vertex.?);
+            if (bd.buf_vertex != null) bd.gpu.device.releaseBuffer(bd.buf_vertex.?);
             const new_vtx_size: u32 = @intCast((draw_data.TotalVtxCount + 5000) * @sizeOf(imgui.DrawVert));
 
             const vtx_buf_info = sdl.gpu.BufferCreateInfo {
@@ -246,20 +245,20 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
                 .size = new_vtx_size
             };
 
-            const buf_vertex = bd.device.createBuffer(&vtx_buf_info).?;
+            const buf_vertex = bd.gpu.device.createBuffer(&vtx_buf_info).?;
             bd.buf_vertex = buf_vertex;
             bd.size_buf_vertex = new_vtx_size;
         }
 
         if (bd.buf_index == null or bd.size_buf_index < draw_data.TotalIdxCount * @sizeOf(imgui.DrawIdx)) {
             // create index buffer
-            if (bd.buf_index != null) bd.device.releaseBuffer(bd.buf_index.?);
+            if (bd.buf_index != null) bd.gpu.device.releaseBuffer(bd.buf_index.?);
             const new_idx_size: u32 = @intCast((draw_data.TotalIdxCount + 10000) * @sizeOf(imgui.DrawIdx));
             const idx_buf_info = sdl.gpu.BufferCreateInfo {
                 .usage = .{ .index = true },
                 .size = new_idx_size,
             };
-            const buf_index = bd.device.createBuffer(&idx_buf_info);
+            const buf_index = bd.gpu.device.createBuffer(&idx_buf_info);
             bd.buf_index = buf_index;
             bd.size_buf_index = new_idx_size;
         }
@@ -269,12 +268,12 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
             .size = bd.size_buf_vertex + bd.size_buf_index,
             .usage = .upload
         };
-        const buf_transfer = bd.device.createTransferBuffer(&buf_transfer_desc).?;
-        defer bd.device.releaseTransferBuffer(buf_transfer);
+        const buf_transfer = bd.gpu.device.createTransferBuffer(&buf_transfer_desc).?;
+        defer bd.gpu.device.releaseTransferBuffer(buf_transfer);
 
         // var vtx_mapped_ptr : [*]imgui.ImDrawVert = @alignCast(@ptrCast(sdl.gpu.mapTransferBuffer(bd.device, buf_transfer, false)));
-        const ptr: [*]u8 = @ptrCast(@alignCast(bd.device.mapTransferBuffer(buf_transfer, false).?));
-        defer bd.device.unmapTransferBuffer(buf_transfer);
+        const ptr: [*]u8 = @ptrCast(@alignCast(bd.gpu.device.mapTransferBuffer(buf_transfer, false).?));
+        defer bd.gpu.device.unmapTransferBuffer(buf_transfer);
         var vtx_mapped_ptr: [*]imgui.DrawVert = @alignCast(@ptrCast(ptr));
         var idx_mapped_ptr: [*]imgui.DrawIdx = @alignCast(@ptrCast(ptr + bd.size_buf_vertex));
 
@@ -293,7 +292,7 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
             idx_mapped_ptr += idx_size;
         }
 
-        const copy_cmd = bd.device.acquireCommandBuffer().?;
+        const copy_cmd = bd.gpu.device.acquireCommandBuffer().?;
         defer _ = copy_cmd.submit();
         const cpass = copy_cmd.beginCopyPass().?;
         defer cpass.end();

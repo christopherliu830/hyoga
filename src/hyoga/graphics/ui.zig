@@ -2,38 +2,44 @@ const std = @import("std");
 const platform = @import("imgui/imgui_impl_sdl.zig");
 const backend = @import("imgui/imgui_impl_sdlgpu.zig");
 const sdl = @import("sdl");
-
 pub const imgui = @import("imgui");
 pub const implot = @import("implot");
+const Gpu = @import("gpu.zig");
 
-pub const ImguiState = extern struct {
-    context: ?*imgui.Context = null,
-    free_fn: imgui.MemFreeFunc = null,
-    alloc_fn: imgui.MemAllocFunc = null,
-    user_data: ?*anyopaque = null,
-};
+const UI = @This();
+
+context: ?*imgui.Context,
+implot_context: ?*implot.Context,
+free_fn: imgui.MemFreeFunc,
+alloc_fn: imgui.MemAllocFunc,
+user_data: ?*anyopaque,
 
 pub const UIInitInfo = struct {
     window: *sdl.Window,
-    device: *sdl.gpu.Device,
+    gpu: *Gpu,
     allocator: std.mem.Allocator,
 };
 
-pub fn init(info: UIInitInfo) !void {
-    _ = imgui.CreateContext(null);
-    _ = implot.createContext();
+pub fn init(info: UIInitInfo) !UI {
+    var self: UI = undefined;
+    self.context = imgui.CreateContext(null);
+    self.implot_context = implot.createContext();
+    imgui.GetAllocatorFunctions(&self.alloc_fn, &self.free_fn, &(self.user_data.?));
     try platform.init(info.window, info.allocator);
     try backend.init(&.{
-        .device = info.device,
+        .gpu = info.gpu,
         .window = info.window,
     }, info.allocator);
+    return self;
 }
 
-pub fn processEvent(event: sdl.events.Event) !void {
+pub fn processEvent(self: *UI, event: sdl.events.Event) !void {
+    self.useState();
     _ = try platform.processEvent(&event);
 }
 
-pub fn beginFrame() !void {
+pub fn beginFrame(self: *UI) !void {
+    self.useState();
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
     try backend.newFrame();
@@ -41,38 +47,30 @@ pub fn beginFrame() !void {
     imgui.NewFrame();
 }
 
-pub fn endFrame() void {
+pub fn endFrame(self: *UI) void {
+    self.useState();
     imgui.EndFrame();
 }
 
-pub fn render(cmd: *sdl.gpu.CommandBuffer) !void {
+pub fn render(self: *UI, cmd: *sdl.gpu.CommandBuffer) !void {
+    self.useState();
     imgui.Render();
     try backend.renderDrawData(imgui.GetDrawData().?, cmd);
 }
 
-pub fn shutdown() void {
+pub fn shutdown(self: *UI) void {
+    self.useState();
     backend.shutdown();
     platform.shutdown();
     implot.destroyContext(null);
     imgui.DestroyContext(null);
 }
 
-pub fn getState() ImguiState {
-    var st: ImguiState = undefined;
-    st.context = imgui.GetCurrentContext();
-    if (st.context != null) {
-        var alloc_fn: imgui.MemAllocFunc = undefined;
-        var free_fn: imgui.MemFreeFunc = undefined;
-        var user_data: *anyopaque = undefined;
-        imgui.GetAllocatorFunctions(&alloc_fn, &free_fn, &user_data);
-        st.alloc_fn = alloc_fn;
-        st.free_fn = free_fn;
-        st.user_data = user_data;
-    }
-    return st;
+pub fn useState(self: *UI) void {
+    imgui.SetCurrentContext(self.context);
+    imgui.SetAllocatorFunctions(self.alloc_fn,self.free_fn,self.user_data);
 }
 
-pub fn setState(state: ImguiState) void {
-    imgui.SetCurrentContext(state.context);
-    imgui.SetAllocatorFunctions(state.alloc_fn.?, state.free_fn.?, state.user_data);
-}
+pub fn useImgui(self: *UI) void {
+    self.useState();
+} 

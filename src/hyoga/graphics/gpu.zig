@@ -20,8 +20,9 @@ const mdl = @import("model.zig");
 const mt = @import("material.zig");
 const ld = @import("loader.zig");
 const Symbol = @import("../Symbol.zig");
-
 const Vertex = @import("vertex.zig").Vertex;
+
+const Gpu = @This();
 
 pub const Camera = extern struct {
     position: vec3.Vec3,
@@ -93,14 +94,6 @@ const PassInfo = struct {
     depth_target: ?*const sdl.gpu.DepthStencilTargetInfo,
 };
 
-const GPU = struct {
-    allocator: std.mem.Allocator,
-    arena: std.heap.ArenaAllocator,
-    device: *sdl.gpu.Device,
-    swapchain_target_desc: sdl.gpu.ColorTargetDescription,
-    frames: u32 = 0,
-    symbol: *Symbol
-};
 
 const WindowState = struct {
     hdl_window: *sdl.Window = undefined,
@@ -124,14 +117,17 @@ const RenderCommand = struct {
 
 const ShaderType = enum { vertex, fragment };
 
-pub var ctx: GPU = undefined;
-pub var render_state: RenderState = undefined;
-pub var window_state: WindowState = .{};
+device: *sdl.gpu.Device,
+allocator: std.mem.Allocator,
+arena: std.heap.ArenaAllocator,
+swapchain_target_desc: sdl.gpu.ColorTargetDescription,
+frames: u32 = 0,
+symbol: *Symbol,
+render_state: RenderState = undefined,
+window_state: WindowState = .{},
+speed: f32 = 1,
 
-pub var speed: f32 = 1;
-
-pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator, symbol: *Symbol) !void {
-    window_state.hdl_window = hdl_window;
+pub fn init(hdl_window: *sdl.Window, symbol: *Symbol, gpa: std.mem.Allocator) !Gpu {
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
     const d = sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, null) orelse {
         std.log.err("[GPU] create device failure: {s}", .{sdl.getError()});
@@ -143,24 +139,26 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator, symbol: *Symbol) !v
         std.log.warn("[GPU] Swapchain parameters could not be set:" ++
             "{s}", .{sdl.getError()});
     }
+
     std.log.info("[GPU] Selected backend: {s}", .{d.getDeviceDriver()});
 
-    ctx = .{ 
+    var self: Gpu = .{ 
         .allocator = gpa,
         .arena = std.heap.ArenaAllocator.init(gpa),
         .device = d,
         .swapchain_target_desc = .{ .format = d.getSwapchainTextureFormat(hdl_window) },
         .symbol = symbol,
+        .window_state = .{ .hdl_window = hdl_window }
     };
 
     try ld.init(gpa);
     try sdlsc.init();
 
-    stb.init(ctx.allocator);
+    stb.init(self.allocator);
     std.time.sleep(1 * std.time.ns_per_s);
-    const material = try mt.readFromPath(ctx.device, "shaders/standard", ctx.arena.allocator());
+    const material = try mt.readFromPath(&self, "shaders/standard", self.arena.allocator());
 
-    const texture = ctx.device.createTexture(&.{ .format = .r8g8b8a8_unorm, .height = 256, .width = 256, .layer_count_or_depth = 1, .num_levels = 1, .sample_count = .@"1", .usage = .{ .sampler = true } }).?;
+    const texture = self.device.createTexture(&.{ .format = .r8g8b8a8_unorm, .height = 256, .width = 256, .layer_count_or_depth = 1, .num_levels = 1, .sample_count = .@"1", .usage = .{ .sampler = true } }).?;
 
     var buf: [256 * 256]u32 = [_]u32{0xffffffff} ** (256 * 256);
     const black = 0xff000000;
@@ -174,12 +172,13 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator, symbol: *Symbol) !v
         }
     }
 
-    try uploadToTexture(texture, 256, 256, &std.mem.toBytes(buf));
+    try self.uploadToTexture(texture, 256, 256, &std.mem.toBytes(buf));
 
     var w: c_int = 0;
     var h: c_int = 0;
     _ = sdl.video.getWindowSizeInPixels(hdl_window, &w, &h);
-    window_state.tex_depth = try createDepthTexture(@intCast(w), @intCast(h));
+
+    self.window_state.tex_depth = try self.createDepthTexture(@intCast(w), @intCast(h));
 
     const sampler_info = sdl.gpu.SamplerCreateInfo{
         .address_mode_u = .clamp_to_edge,
@@ -203,82 +202,75 @@ pub fn init(hdl_window: *sdl.Window, gpa: std.mem.Allocator, symbol: *Symbol) !v
         .i = .{ 0, 3, 1, 0, 2, 3, }
     };
 
-    const quad_buffer = ctx.device.createBuffer(&.{
+    const quad_buffer = self.device.createBuffer(&.{
         .size = @sizeOf(Verts),
         .usage = .{ .vertex = true, .index = true },
     }).?;
 
-    const quad_mat_template = try mt.readFromPath(ctx.device, "shaders/post_process", ctx.arena.allocator());
+    const quad_mat_template = try mt.readFromPath(&self, "shaders/post_process", self.arena.allocator());
 
-    try uploadToBuffer(quad_buffer, 0, &std.mem.toBytes(verts));
+    try self.uploadToBuffer(quad_buffer, 0, &std.mem.toBytes(verts));
 
-    render_state = .{
-        .objs = try hya.Arena(RenderItem).create(ctx.allocator, 1),
+    self.render_state = .{
+        .objs = try hya.Arena(RenderItem).create(self.allocator, 1),
         .default_material = material,
         .default_texture = texture,
         .post_material = quad_mat_template,
-        // .outline_pipeline = createOutlineShader(),
         .outline_pipeline = undefined,
         .quad_buffer = quad_buffer,
-        .sampler = ctx.device.createSampler(&sampler_info).?,
-        .textures = tx.Textures.create(ctx.device, ctx.symbol, ctx.allocator),
-        .models = mdl.Models.create(ctx.device, ctx.symbol, ctx.allocator),
-        .materials = try hya.Arena(mt.Material).create(ctx.allocator, 1),
+        .sampler = self.device.createSampler(&sampler_info).?,
+        .textures = tx.Textures.create(self.device, self.symbol, self.allocator),
+        .models = mdl.Models.create(self.device, self.symbol, self.allocator),
+        .materials = try hya.Arena(mt.Material).create(self.allocator, 1),
         .active_target = null,
         .robjs = undefined,
     };
+
+    return self;
 }
 
-pub fn shutdown() void {
+pub fn shutdown(self: *Gpu) void {
     ld.deinit();
     sdlsc.quit();
     stb.deinit();
 
-    ctx.device.releaseWindow(window_state.hdl_window);
+    self.device.releaseWindow(self.window_state.hdl_window);
 
     {
-        var it = render_state.objs.iterator();
+        var it = self.render_state.objs.iterator();
         while (it.next()) |obj| {
-            ctx.device.releaseBuffer(obj.buf);
+            self.device.releaseBuffer(obj.buf);
         }
     }
 
-    render_state.textures.deinit();
-    render_state.models.deinit();
-    render_state.materials.deinit();
-    render_state.objs.deinit();
+    self.render_state.textures.deinit();
+    self.render_state.models.deinit();
+    self.render_state.materials.deinit();
+    self.render_state.objs.deinit();
 
-    ctx.device.releaseBuffer(render_state.quad_buffer);
-    ctx.device.releaseTexture(render_state.default_texture);
-    ctx.device.releaseTexture(window_state.tex_depth);
-    ctx.device.releaseSampler(render_state.sampler);
-    ctx.device.releaseGraphicsPipeline(render_state.post_material.pipeline);
-    ctx.device.releaseGraphicsPipeline(render_state.default_material.pipeline);
-    ctx.device.destroy();
+    self.device.releaseBuffer(self.render_state.quad_buffer);
+    self.device.releaseTexture(self.render_state.default_texture);
+    self.device.releaseTexture(self.window_state.tex_depth);
+    self.device.releaseSampler(self.render_state.sampler);
+    self.device.releaseGraphicsPipeline(self.render_state.post_material.pipeline);
+    self.device.releaseGraphicsPipeline(self.render_state.default_material.pipeline);
+    self.device.destroy();
 
-    ctx.arena.deinit();
+    self.arena.deinit();
 }
 
-pub fn device() *sdl.gpu.Device {
-    return ctx.device;
-}
-
-pub fn activeRenderTarget() ?*sdl.gpu.Texture {
-    return render_state.active_target;
-}
-
-pub fn uploadToBuffer(buffer: *sdl.gpu.Buffer, offset: u32, data: []const u8) !void {
-    const buf_transfer = ctx.device.createTransferBuffer(&.{
+pub fn uploadToBuffer(self: *Gpu, buffer: *sdl.gpu.Buffer, offset: u32, data: []const u8) !void {
+    const buf_transfer = self.device.createTransferBuffer(&.{
         .usage = .upload,
         .size = @intCast(data.len),
     }).?;
-    defer ctx.device.releaseTransferBuffer(buf_transfer);
+    defer self.device.releaseTransferBuffer(buf_transfer);
 
-    const map: [*]u8 = @ptrCast(@alignCast(ctx.device.mapTransferBuffer(buf_transfer, false).?));
+    const map: [*]u8 = @ptrCast(@alignCast(self.device.mapTransferBuffer(buf_transfer, false).?));
     @memcpy(map, data);
-    ctx.device.unmapTransferBuffer(buf_transfer);
+    self.device.unmapTransferBuffer(buf_transfer);
 
-    const cmd = ctx.device.acquireCommandBuffer().?;
+    const cmd = self.device.acquireCommandBuffer().?;
 
     const copy_pass = cmd.beginCopyPass().?;
 
@@ -298,15 +290,15 @@ pub fn uploadToBuffer(buffer: *sdl.gpu.Buffer, offset: u32, data: []const u8) !v
     _ = cmd.submit();
 }
 
-pub fn uploadToTexture(tex: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) !void {
-    const buf_transfer = ctx.device.createTransferBuffer(&.{ .size = @intCast(data.len), .usage = .upload }).?;
-    defer ctx.device.releaseTransferBuffer(buf_transfer);
-    const ptr_transfer: [*]u8 = @ptrCast(@alignCast(ctx.device.mapTransferBuffer(buf_transfer, false).?));
+pub fn uploadToTexture(self: *Gpu, tex: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) !void {
+    const buf_transfer = self.device.createTransferBuffer(&.{ .size = @intCast(data.len), .usage = .upload }).?;
+    defer self.device.releaseTransferBuffer(buf_transfer);
+    const ptr_transfer: [*]u8 = @ptrCast(@alignCast(self.device.mapTransferBuffer(buf_transfer, false).?));
     @memcpy(ptr_transfer, data);
-    ctx.device.unmapTransferBuffer(buf_transfer);
+    self.device.unmapTransferBuffer(buf_transfer);
 
     // copy to transfer buffer
-    const cmd = ctx.device.acquireCommandBuffer().?;
+    const cmd = self.device.acquireCommandBuffer().?;
     const copy_pass = cmd.beginCopyPass().?;
 
     const buf_src = sdl.gpu.TextureTransferInfo{
@@ -328,17 +320,17 @@ pub fn uploadToTexture(tex: *sdl.gpu.Texture, w: u32, h: u32, data: []const u8) 
     _ = cmd.submit();
 }
 
-pub fn begin() !?*sdl.gpu.CommandBuffer {
+pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
 
-    render_state.pending_submit_result = .{};
+    self.render_state.pending_submit_result = .{};
 
     var drawable_w: u32 = undefined;
     var drawable_h: u32 = undefined;
 
     const acquire= @import("ztracy").ZoneN(@src(), "acquireCommandBuffer");
-    const cmd = ctx.device.acquireCommandBuffer() orelse {
+    const cmd = self.device.acquireCommandBuffer() orelse {
         std.log.err("could not acquire command buffer", .{});
         return error.SDLError;
     };
@@ -347,19 +339,19 @@ pub fn begin() !?*sdl.gpu.CommandBuffer {
     const acquireSwapchainTexture= @import("ztracy").ZoneN(@src(), "acquireSwapchainTexture");
     defer acquireSwapchainTexture.End();
     var swapchain: ?*sdl.gpu.Texture = null;
-    if (!cmd.acquireSwapchainTexture(window_state.hdl_window, &swapchain, &drawable_w, &drawable_h)) {
+    if (!cmd.acquireSwapchainTexture(self.window_state.hdl_window, &swapchain, &drawable_w, &drawable_h)) {
         std.log.err("Could not acquire swapchain texture", .{});
         return error.AcquireSwapchainError;
     } else if (swapchain) |s| {
-        if (window_state.prev_drawable_w != drawable_w or window_state.prev_drawable_h != drawable_h) {
-            ctx.device.releaseTexture(window_state.tex_depth);
-            window_state.tex_depth = try createDepthTexture(drawable_w, drawable_h);
+        if (self.window_state.prev_drawable_w != drawable_w or self.window_state.prev_drawable_h != drawable_h) {
+            self.device.releaseTexture(self.window_state.tex_depth);
+            self.window_state.tex_depth = try self.createDepthTexture(drawable_w, drawable_h);
         }
 
-        window_state.prev_drawable_w = drawable_w;
-        window_state.prev_drawable_h = drawable_h;
+        self.window_state.prev_drawable_w = drawable_w;
+        self.window_state.prev_drawable_h = drawable_h;
 
-        render_state.active_target = s;
+        self.render_state.active_target = s;
         return cmd;
     } else {
         // No swapchain was acquired, probably too many frames in flight.
@@ -368,23 +360,23 @@ pub fn begin() !?*sdl.gpu.CommandBuffer {
     }
 }
 
-pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
+pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
     // First render to texture target
 
-    const tex = ctx.device.createTexture(&.{
+    const tex = self.device.createTexture(&.{
         .type = .@"2d",
-        .format = ctx.swapchain_target_desc.format,
+        .format = self.swapchain_target_desc.format,
         .usage = .{ .color_target = true, .sampler = true },
-        .width = window_state.prev_drawable_w,
-        .height = window_state.prev_drawable_h,
+        .width = self.window_state.prev_drawable_w,
+        .height = self.window_state.prev_drawable_h,
         .layer_count_or_depth = 1,
         .num_levels = 1,
         .sample_count = .@"1",
     }).?;
 
-    defer ctx.device.releaseTexture(tex);
+    defer self.device.releaseTexture(tex);
 
     const target: []const sdl.gpu.ColorTargetInfo = &.{.{
         .texture = tex,
@@ -401,20 +393,20 @@ pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
         .store_op = .store,
         .stencil_load_op = .clear,
         .stencil_store_op = .store,
-        .texture = window_state.tex_depth,
+        .texture = self.window_state.tex_depth,
         .cycle = true,
     };
 
     var pass = PassInfo{
         .targets = target,
         .depth_target = &depth_target,
-        .items = render_state.objs,
+        .items = self.render_state.objs,
     };
 
-    doPass(cmd, &pass, scene) catch {};
+    self.doPass(cmd, &pass, scene) catch {};
 
     const screen_target: []const sdl.gpu.ColorTargetInfo = &.{.{
-        .texture = render_state.active_target,
+        .texture = self.render_state.active_target,
         .load_op = .clear,
         .store_op = .store,
         .cycle = false,
@@ -422,13 +414,13 @@ pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
 
     // Create objects needed to render to final target
 
-    const material = mt.Material.fromTemplate(render_state.post_material, tx.TextureSet.init(.{ .diffuse = .{ .target = tex } }));
-    const hdl_material = try render_state.materials.insert(material);
-    defer render_state.materials.release(hdl_material);
+    const material = mt.Material.fromTemplate(self.render_state.post_material, tx.TextureSet.init(.{ .diffuse = .{ .target = tex } }));
+    const hdl_material = try self.render_state.materials.insert(material);
+    defer self.render_state.materials.release(hdl_material);
 
-    const render_object = RenderItem{ .buf = render_state.quad_buffer, .idx_count = 6, .idx_offset = @sizeOf(f32) * 16, .material = hdl_material };
+    const render_object = RenderItem{ .buf = self.render_state.quad_buffer, .idx_count = 6, .idx_offset = @sizeOf(f32) * 16, .material = hdl_material };
 
-    var temp_list = try hya.Arena(RenderItem).create(ctx.arena.allocator(), 1);
+    var temp_list = try hya.Arena(RenderItem).create(self.arena.allocator(), 1);
     _ = try temp_list.insert(render_object);
 
     pass = .{
@@ -437,10 +429,10 @@ pub fn render(cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
         .depth_target = null,
     };
 
-    doPass(cmd, &pass, scene) catch {};
+    self.doPass(cmd, &pass, scene) catch {};
 }
 
-pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void {
+pub fn doPass(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void {
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
 
@@ -452,7 +444,7 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
     const cam = scene.camera;
     const cam_pos = cam.position;
 
-    const aspect = @as(f32, @floatFromInt(window_state.prev_drawable_w)) / @as(f32, @floatFromInt(window_state.prev_drawable_h));
+    const aspect = @as(f32, @floatFromInt(self.window_state.prev_drawable_w)) / @as(f32, @floatFromInt(self.window_state.prev_drawable_h));
     const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
     const persp = hym_cam.perspectiveMatrix(45, aspect, 0.5, 100);
 
@@ -462,7 +454,7 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
         const render_one= @import("ztracy").ZoneN(@src(), "RenderOne");
         defer render_one.End();
 
-        const material = try render_state.materials.get(item.material);
+        const material = try self.render_state.materials.get(item.material);
 
         if (material.pipeline != last_pipeline) {
             last_pipeline = material.pipeline;
@@ -495,13 +487,13 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
                 const tex_id = material.textures.get(needed_tex_type.?).?;
                 const texture: *sdl.gpu.Texture = blk: {
                     if (tex_id.target) |target| break :blk target;
-                    if (tex_id.handle) |handle| break :blk render_state.textures.get(handle) 
-                        catch render_state.default_texture
-                        orelse render_state.default_texture;
+                    if (tex_id.handle) |handle| break :blk self.render_state.textures.get(handle) 
+                        catch self.render_state.default_texture
+                        orelse self.render_state.default_texture;
                     std.debug.panic("[GPU] Textures must have a handle or direct target defined", .{});
                 };
 
-                const binding = [_]sdl.gpu.TextureSamplerBinding{.{ .sampler = render_state.sampler, .texture = texture }};
+                const binding = [_]sdl.gpu.TextureSamplerBinding{.{ .sampler = self.render_state.sampler, .texture = texture }};
                 pushSampler(pass, @intCast(i), &binding, 1);
             }
         }
@@ -514,19 +506,19 @@ pub fn doPass(cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void 
     pass.end();
 }
 
-pub fn submit(cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
+pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
 
     _ = cmd.submit();
-    _ = ctx.arena.reset(.retain_capacity);
-    const result = render_state.pending_submit_result.?;
-    render_state.pending_submit_result = null;
-    render_state.active_target = null;
+    _ = self.arena.reset(.retain_capacity);
+    const result = self.render_state.pending_submit_result.?;
+    self.render_state.pending_submit_result = null;
+    self.render_state.active_target = null;
     return result;
 }
 
-pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
+pub fn createDepthTexture(self: *Gpu, w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
     const depthtex_createinfo = sdl.gpu.TextureCreateInfo{
         .type = .@"2d",
         .format = .d32_float_s8_uint,
@@ -539,18 +531,18 @@ pub fn createDepthTexture(w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
         .props = 0,
     };
 
-    return ctx.device.createTexture(&depthtex_createinfo) orelse {
+    return self.device.createTexture(&depthtex_createinfo) orelse {
         std.log.err("could not create depth texture: {s}", .{sdl.getError()});
         return error.SDLError;
     };
 }
 
 
-pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
+pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
     const sample_count = .@"1";
 
     const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{.{
-        .format = ctx.swapchain_target_desc.format,
+        .format = self.swapchain_target_desc.format,
         .blend_state = .{
             .enable_blend = true,
             .src_color_blendfactor = .src_alpha,
@@ -688,7 +680,7 @@ pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
         .props = 0,
     };
 
-    const pipeline = ctx.device.createGraphicsPipeline(&pipeline_desc) orelse {
+    const pipeline = self.device.createGraphicsPipeline(&pipeline_desc) orelse {
         std.log.err("Could not create pipeline: {s}", .{sdl.getError()});
         unreachable;
     };
@@ -696,10 +688,10 @@ pub fn buildPipeline(params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
     return pipeline;
 }
 
-pub fn importModel(path: Symbol.ID, settings: mdl.ImportSettings) !mdl.Handle {
-    var import = ai.importFile( ctx.symbol.asStringZ(path), settings.post_process);
+pub fn importModel(self: *Gpu, path: Symbol.ID, settings: mdl.ImportSettings) !mdl.Handle {
+    var import = ai.importFile( self.symbol.asStringZ(path), settings.post_process);
     defer import.release();
-    const allocator = ctx.arena.allocator();
+    const allocator = self.arena.allocator();
 
     var materials_array = try allocator.alloc(mt.Handle, import.num_materials);
     materials_array[0] = mt.Handle.invalid;
@@ -725,7 +717,7 @@ pub fn importModel(path: Symbol.ID, settings: mdl.ImportSettings) !mdl.Handle {
                 if (import.getEmbeddedTexture(ai_tex_id.ptr)) |tex| {
                     _ = tex;
                     unreachable;
-                    // tex_id = try std.mem.concatWithSentinel(ctx.allocator, u8, &.{ path, ai_tex_id }, 0);
+                    // tex_id = try std.mem.concatWithSentinel(self.allocator, u8, &.{ path, ai_tex_id }, 0);
                     // if (tex.height == 0) {
                     //     const data = std.mem.sliceAsBytes(tex.pc_data[0..tex.width]);
                     //     handle = try createTextureFromImageMemory(tex_id, data);
@@ -734,12 +726,12 @@ pub fn importModel(path: Symbol.ID, settings: mdl.ImportSettings) !mdl.Handle {
                     //     handle = try createTextureFromMemory(tex_id, .{ .w = tex.width, .h = tex.height, .d = 4, .data = data, .format = .b8g8r8a8_unorm });
                     // }
                 } else { // Texture is a relative path
-                    tex_id = try std.fs.path.joinZ(ctx.allocator, &[_][]const u8{ 
-                        std.fs.path.dirname(ctx.symbol.asString(path)).?,
+                    tex_id = try std.fs.path.joinZ(self.allocator, &[_][]const u8{ 
+                        std.fs.path.dirname(self.symbol.asString(path)).?,
                         ai_tex_id
                     });
-                    defer ctx.allocator.free(tex_id);
-                    handle = try render_state.textures.read(tex_id);
+                    defer self.allocator.free(tex_id);
+                    handle = try self.render_state.textures.read(tex_id);
                 }
 
                 std.debug.assert(handle != null);
@@ -748,28 +740,28 @@ pub fn importModel(path: Symbol.ID, settings: mdl.ImportSettings) !mdl.Handle {
                 if (hy_tex_type) |htt| {
                     texture_set.put(htt, .{ .handle = handle });
                 } else {
-                    std.log.warn("[GPU]: Unconsumed texture type {s} for object {s}", .{ field.name, ctx.symbol.asString(path) });
+                    std.log.warn("[GPU]: Unconsumed texture type {s} for object {s}", .{ field.name, self.symbol.asString(path) });
                 }
             }
         }
-        const material = mt.Material.fromTemplate(render_state.default_material, texture_set);
-        const hdl = try render_state.materials.insert(material);
+        const material = mt.Material.fromTemplate(self.render_state.default_material, texture_set);
+        const hdl = try self.render_state.materials.insert(material);
         materials_array[mat_index] = hdl;
     }
 
-    const model = try render_state.models.read(ctx.symbol.asStringZ(path), materials_array, settings);
+    const model = try self.render_state.models.read(self.symbol.asStringZ(path), materials_array, settings);
     return model;
 }
 
-pub fn addModel(hdl: mdl.Handle, owner: *mat4.Mat4) !RenderItemHandle {
-    const q_model = try render_state.models.get(hdl);
+pub fn addModel(self: *Gpu, hdl: mdl.Handle, owner: *mat4.Mat4) !RenderItemHandle {
+    const q_model = try self.render_state.models.get(hdl);
     if (q_model) |model| {
         var last_handle: ?RenderItemHandle = null;
 
         for (model.meshes.items) |mesh| {
             const vertex_buffer_size: u32 = @intCast(mesh.vertices.items.len * @sizeOf(@TypeOf(mesh.vertices.items[0])));
             const buffer_size: u32 = @intCast(vertex_buffer_size + mesh.indices.items.len * @sizeOf(@TypeOf(mesh.indices.items[0])));
-            const buffer = ctx.device.createBuffer(&.{ .size = buffer_size, .usage = .{ .index = true, .vertex = true } }).?;
+            const buffer = self.device.createBuffer(&.{ .size = buffer_size, .usage = .{ .index = true, .vertex = true } }).?;
 
             try uploadToBuffer(buffer, 0, std.mem.sliceAsBytes(mesh.vertices.items));
             try uploadToBuffer(buffer, vertex_buffer_size, std.mem.sliceAsBytes(mesh.indices.items));
@@ -784,33 +776,33 @@ pub fn addModel(hdl: mdl.Handle, owner: *mat4.Mat4) !RenderItemHandle {
                 .material = mesh.material,
             };
 
-            last_handle = try render_state.objs.insert(render_obj);
+            last_handle = try self.render_state.objs.insert(render_obj);
         }
 
         return last_handle.?;
     } else return error.NotFound;
 }
 
-pub fn removeModel(handle: RenderItemHandle) void {
+pub fn removeModel(self: *Gpu, handle: RenderItemHandle) void {
     var next_node: ?RenderItemHandle = handle;
     while (next_node) |node| {
-        const obj = render_state.objs.get(node) catch {
+        const obj = self.render_state.objs.get(node) catch {
             std.log.warn("[GPU]: Invalid handle for removeModel, returning...", .{});
             return;
         };
         next_node = obj.next;
-        ctx.device.releaseBuffer(obj.buf);
-        render_state.objs.release(node);
+        self.device.releaseBuffer(obj.buf);
+        self.render_state.objs.release(node);
     }
 }
 
-pub fn addMaterial(material: mt.Material) !mt.Handle {
+pub fn addMaterial(self: *Gpu, material: mt.Material) !mt.Handle {
     std.debug.assert(material.textures.len > 0);
-    return render_state.materials.insert(material);
+    return self.render_state.materials.insert(material);
 }
 
 pub fn createOutlineShader() *sdl.gpu.GraphicsPipeline {
-    // const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ ctx.swapchain_target_desc };
+    // const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ self.swapchain_target_desc };
 
     // const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
     //     .slot = 0,
@@ -847,10 +839,10 @@ pub fn createOutlineShader() *sdl.gpu.GraphicsPipeline {
     //     .pass_op = .keep,
     // };
 
-    // const vert_shader = ctx.device.createShader(&@import("shaders/single_color.zig").vert_info).?;
-    // defer ctx.device.releaseShader(vert_shader);
-    // const frag_shader = ctx.device.createShader(&@import("shaders/single_color.zig").frag_info).?;
-    // defer ctx.device.releaseShader(frag_shader);
+    // const vert_shader = self.device.createShader(&@import("shaders/single_color.zig").vert_info).?;
+    // defer self.device.releaseShader(vert_shader);
+    // const frag_shader = self.device.createShader(&@import("shaders/single_color.zig").frag_info).?;
+    // defer self.device.releaseShader(frag_shader);
 
     // const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
     //     .target_info = .{
@@ -883,11 +875,11 @@ pub fn createOutlineShader() *sdl.gpu.GraphicsPipeline {
     //     .props = 0,
     // };
 
-    // return ctx.device.createGraphicsPipeline(&pipeline_desc).?;
+    // return self.device.createGraphicsPipeline(&pipeline_desc).?;
 }
 
 pub fn createPostProcessShader() *sdl.gpu.GraphicsPipeline {
-    // const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ ctx.swapchain_target_desc };
+    // const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{ self.swapchain_target_desc };
 
     // // vec2 pos
     // // vec2 uv
@@ -914,10 +906,10 @@ pub fn createPostProcessShader() *sdl.gpu.GraphicsPipeline {
     //     },
     // };
 
-    // const vert_shader = ctx.device.createShader(&@import("shaders/post_process.zig").vert_info).?;
-    // defer ctx.device.releaseShader(vert_shader);
-    // const frag_shader = ctx.device.createShader(&@import("shaders/post_process.zig").frag_info).?;
-    // defer ctx.device.releaseShader(frag_shader);
+    // const vert_shader = self.device.createShader(&@import("shaders/post_process.zig").vert_info).?;
+    // defer self.device.releaseShader(vert_shader);
+    // const frag_shader = self.device.createShader(&@import("shaders/post_process.zig").frag_info).?;
+    // defer self.device.releaseShader(frag_shader);
 
     // const pipeline_desc = sdl.gpu.GraphicsPipelineCreateInfo {
     //     .target_info = .{
@@ -941,5 +933,5 @@ pub fn createPostProcessShader() *sdl.gpu.GraphicsPipeline {
     //     .props = 0,
     // };
 
-    // return ctx.device.createGraphicsPipeline(&pipeline_desc).?;
+    // return self.device.createGraphicsPipeline(&pipeline_desc).?;
 }

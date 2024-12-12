@@ -1,17 +1,17 @@
 const std = @import("std");
 const ui = @import("ui.zig");
 const Hy = @import("hyoga");
-const hym = Hy.hym;
+const hym = Hy.math;
 
 const Self = @This();
 
 const Object = struct {
     transform: hym.Mat4,
-    hdl: Hy.gpu.RenderItemHandle,
+    hdl: Hy.Gpu.RenderItemHandle,
 };
 
 gpa: std.heap.GeneralPurposeAllocator(.{}), 
-backpack_hdl: Hy.gpu.ModelHandle = undefined,
+backpack_hdl: Hy.Gpu.ModelHandle = undefined,
 objects: Hy.Hive(Object),
 
 inline fn get(ptr: *anyopaque) *Self {
@@ -50,10 +50,10 @@ fn tryInit(hy: *Hy) !Hy.Game {
     return .{
         .scene = .{
             .camera = .{
-                .position = Hy.hym.vec3.create(0, 0, 2.5),
-                .look_direction = Hy.hym.vec3.create(0, 0, -1),
+                .position = Hy.math.vec3.create(0, 0, 2.5),
+                .look_direction = Hy.math.vec3.create(0, 0, -1),
             },
-            .light_dir = Hy.hym.vec3.create(0, -1, 0),
+            .light_dir = Hy.math.vec3.create(0, -1, 0),
         },
         .memory = self,
     };
@@ -70,14 +70,14 @@ fn update(_: *Hy, pregame: Hy.Game) callconv(.C) Hy.Game {
 }
 
 // Only called on new frames
-fn render(_: *Hy, state: Hy.Game) callconv(.C) void {
-    const ptr: *u32 = @ptrCast(@alignCast(state.memory));
-    const imgui = Hy.ui.imgui;
-    Hy.ui.setState(state.imgui_state);
-    if (imgui.Begin("Debug Window", null, 0)) {
-        imgui.Text("%d", ptr.*);
-    }
-    imgui.End();
+fn render(hy: *Hy, state: Hy.Game) callconv(.C) void {
+    _ = state;
+    // const ptr: *u32 = @ptrCast(@alignCast(state.memory));
+    hy.ui.useImgui();
+    // const imgui = Hy.UI.imgui;
+    // if (imgui.Begin("Debug Window", null, 0)) {
+    // }
+    // imgui.End();
 }
 
 export fn interface() Hy.GameInterface {
