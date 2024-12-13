@@ -1,7 +1,9 @@
 const std = @import("std");
-const ui = @import("ui.zig");
 const hy = @import("hyoga");
 const hym = hy.math;
+
+const ui = @import("ui.zig");
+const cam = @import("camera.zig");
 
 const Self = @This();
 

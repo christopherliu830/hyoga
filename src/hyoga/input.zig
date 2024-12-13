@@ -61,6 +61,12 @@ pub const MouseEvent = union(MouseButton) {
     wheel: sdl.events.MouseWheelEvent,
 };
 
+const Runnable = struct {
+    runFn: RunProto,
+};
+
+const RunProto = *const fn(*Runnable) void;
+
 const KeybindList = hya.Arena(InputHandler);
 const MousebindList = hya.Arena(MouseInputHandler);
 const Keybinds = std.AutoHashMap(keycode.Keycode, KeybindList);
@@ -102,7 +108,6 @@ pub fn shutdown(self: *@This()) void {
 
     self.keybinds.deinit();
     self.mousebinds.deinit();
-    self.allocator.destroy(self);
 }
 
 pub fn bind(self: *Input, key: keycode.Keycode, handler: InputHandler) !KeybindList.Handle {
@@ -122,6 +127,22 @@ pub fn bindMouse(self: *Input, button: MouseButton, handler: MouseInputHandler) 
     }
     const list = entry.value_ptr;
     return try list.insert(handler);
+}
+
+pub fn bindMouseAny(self: *Input, button: MouseButton, comptime handler: anytype, args: anytype) {
+    const Args = @TypeOf(args);
+    const Closure = struct {
+        input: *Input,
+        arguments: Args,
+        run_node: std.SinglyLinkedList(Runnable).Node = .{ .data = .{ .runFn = runFn }},
+
+        fn runFn() void {
+            const run_node: *std.SinglyLinkedList(Runnable).Node = @fieldParentPtr("data", runnable);
+            const closure: *@This() = @alignCast(@fieldParentPtr("run_node", run_node));
+            @call(.auto, func, closure.arguments);
+            closure.input.allocator.destroy(closure);
+        }
+    };
 }
 
 pub fn queryKey(self: *Input, key: keycode.Keycode) bool {

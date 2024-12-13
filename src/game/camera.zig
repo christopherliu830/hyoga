@@ -1,29 +1,36 @@
 const std = @import("std");
-const input = @import("input.zig");
+const hy = @import("hyoga");
 const math = @import("hyoga-math");
-const window = @import("window.zig");
 
 const vec3 = math.vec3;
 const vec2 = math.vec2;
 
 pub const Camera = struct {
-    position: vec3.Vec3,
-    look_direction: vec3.Vec3,
+    input: *hy.Input,
 
+    position: vec3.Vec3 = vec3.zero,
+    look_direction: vec3.Vec3 = vec3.zero,
     pending_input: vec2.Vec2 = vec2.zero,
     mouse_lock_position: vec2.Vec2 = vec2.create(-1, -1),
 
+    pub fn create(input: *hy.Input) Camera {
+        return .{
+            .input = input,
+        };
+    }
+
     pub fn registerInputs(self: *Camera) !void {
-        _ = try input.bindMouse(.motion, .{ .handler = translate, .ctx = self });
-        _ = try input.bindMouse(.left , .{ .handler = lockMouse, .ctx = self });
-        _ = try input.bindMouse(.left , .{ .handler = unlockMouse, .ctx = self, .fire_on = .{ .up = true } });
-        _ = try input.bindMouse(.middle, .{ .handler = lockMouse, .ctx = self });
-        _ = try input.bindMouse(.middle, .{ .handler = unlockMouse, .ctx = self, .fire_on = .{ .up = true } });
-        _ = try input.bindMouse(.wheel, .{ .handler = zoom, .ctx = self });
-        _ = try input.bind(input.keycode.s, .{ .handler = scrollLeft, .ctx = self, .fire_on = .{ .down = true, .held = true } });
-        _ = try input.bind(input.keycode.g, .{ .handler = scrollRight, .ctx = self, .fire_on = .{ .down = true, .held = true } });
-        _ = try input.bind(input.keycode.f, .{ .handler = scrollUp, .ctx = self, .fire_on = .{ .down = true, .held = true } });
-        _ = try input.bind(input.keycode.d, .{ .handler = scrollDown, .ctx = self, .fire_on = .{ .down = true, .held = true } });
+        _ = try self.input.bindMouse(.motion, .{ .handler = translate, .ctx = self });
+        _ = try self.input.bindMouse(.left , .{ .handler = lockMouse, .ctx = self });
+        _ = try self.input.bindMouse(.left , .{ .handler = unlockMouse, .ctx = self, .fire_on = .{ .up = true } });
+        _ = try self.input.bindMouse(.middle, .{ .handler = lockMouse, .ctx = self });
+        _ = try self.input.bindMouse(.middle, .{ .handler = unlockMouse, .ctx = self, .fire_on = .{ .up = true } });
+        _ = try self.input.bindMouse(.wheel, .{ .handler = zoom, .ctx = self });
+        _ = try self.input.bind( hy.Input.keycode.s, .{ .handler = scrollLeft, .ctx = self, .fire_on = .{ .down = true, .held = true } });
+        _ = try self.input.bind( hy.Input.keycode.g, .{ .handler = scrollRight, .ctx = self, .fire_on = .{ .down = true, .held = true } });
+        _ = try self.input.bind(hy.Input.keycode.f, .{ .handler = scrollUp, .ctx = self, .fire_on = .{ .down = true, .held = true } });
+        _ = try self.input.bind( hy.Input.keycode.d, .{ .handler = scrollDown, .ctx = self, .fire_on = .{ .down = true, .held = true } });
+        std.Thread.Pool
     }
 
     pub fn flushPendingInput(self: *Camera) void {
@@ -35,21 +42,20 @@ pub const Camera = struct {
 
 };
 
-fn lockMouse(_: ?*anyopaque, _: input.MouseEvent) void {
-    window.setRelativeMouseMode(true);
-
+fn lockMouse(_: ?*anyopaque, _: hy.Input.MouseEvent) void {
+    // window.setRelativeMouseMode(true);
 }
 
-fn unlockMouse(_: ?*anyopaque, _: input.MouseEvent) void {
-    window.setRelativeMouseMode(false);
+fn unlockMouse(_: ?*anyopaque, _: hy.Input.MouseEvent) void {
+    // window.setRelativeMouseMode(false);
 }
 
 
-fn translate(ctx: ?*anyopaque, event: input.MouseEvent) void {
+fn translate(ctx: ?*anyopaque, event: hy.Input.MouseEvent) void {
     const cam: *Camera = @ptrCast(@alignCast(ctx.?));
 
     // sliding
-    if (input.queryMouse(.middle)) {
+    if (event.queryMouse(.middle)) {
         const right = vec3.cross(cam.look_direction, vec3.y);
         const up = vec3.cross(cam.look_direction, right);
         cam.position.add(vec3.mul(right, -event.motion.xrel / 100));
@@ -57,7 +63,7 @@ fn translate(ctx: ?*anyopaque, event: input.MouseEvent) void {
     }
 
     // moving
-    if (input.queryMouse(.left)) {
+    if (event.queryMouse(.left)) {
         var direction = cam.look_direction;
         direction.rotate(vec3.y, -event.motion.xrel / 500); 
         direction.rotate(vec3.cross(direction, vec3.y), -event.motion.yrel / 500);
@@ -92,7 +98,7 @@ fn scrollDown(ctx: ?*anyopaque) void {
 }
 
 
-fn zoom(ctx: ?*anyopaque, event: input.MouseEvent) void {
+fn zoom(ctx: ?*anyopaque, event: hy.Input.MouseEvent) void {
     const cam: *Camera = @ptrCast(@alignCast(ctx.?));
     cam.position.add(vec3.mul(cam.look_direction, event.wheel.y));
 }
