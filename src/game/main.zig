@@ -16,6 +16,7 @@ gpa: std.heap.GeneralPurposeAllocator(.{}),
 backpack_hdl: hy.Gpu.ModelHandle = undefined,
 objects: hy.Hive(Object),
 ui_state: ui.State,
+camera: cam.Camera,
 
 inline fn get(ptr: *anyopaque) *Self {
     return @ptrCast(@alignCast(ptr));
@@ -35,7 +36,8 @@ fn tryInit(hye: *hy.Engine) !hy.Game {
     self.* = .{
         .gpa = self_gpa,
         .objects = try hy.Hive(Object).create(self_gpa.allocator(), .{}),
-        .ui_state = .{ .second_timer = try std.time.Timer.start() }
+        .ui_state = .{ .second_timer = try std.time.Timer.start() },
+        .camera = .{ .input = &hye.input },
     };
 
     self.backpack_hdl = try hye.gpu.importModel(try hye.symbol.from("assets/backpack/backpack.obj"), .{
@@ -59,6 +61,8 @@ fn tryInit(hye: *hy.Engine) !hy.Game {
     };
     object.transform = hy.math.mat4.identity;
 
+    try self.camera.registerInputs();
+
     return .{
         .scene = .{
             .camera = .{
@@ -78,7 +82,14 @@ fn shutdown(_: *hy.Engine, state: hy.Game) callconv(.C) void {
 
 // Called every loop iteration
 fn update(_: *hy.Engine, pregame: hy.Game) callconv(.C) hy.Game {
-    return pregame;
+    const self: *Self = @ptrCast(@alignCast(pregame.memory));
+
+    var game = pregame;
+    std.debug.print("{} {}\n", .{self.camera.position, self.camera.look_direction});
+    game.scene.camera.position = self.camera.position;
+    game.scene.camera.look_direction = self.camera.look_direction;
+    
+    return game;
 }
 
 // Only called on new frames

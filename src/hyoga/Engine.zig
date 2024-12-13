@@ -6,7 +6,7 @@ pub const slotmap = @import("hyoga-arena");
 pub const window = @import("window.zig");
 pub const material = @import("graphics/material.zig");
 
-pub const Input = @import("Input.zig");
+pub const Input = @import("input/Input.zig");
 pub const Symbol = @import("Symbol.zig");
 pub const UI = @import("graphics/ui.zig");
 pub const Gpu = @import("graphics/gpu.zig");
@@ -37,7 +37,7 @@ pub fn init() !*Engine {
         .gpa = self_gpa,
         .arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
         .symbol = Symbol.init(self.arena.allocator()),
-        .input = Input.init(self.gpa.allocator()),
+        .input = try Input.init(self.gpa.allocator()),
         .gpu = try Gpu.init(window.instance, &self.loader, &self.symbol, self.gpa.allocator()),
         .ui = try UI.init(.{.gpu = &self.gpu, .window = window.instance, .allocator = self.gpa.allocator()}),
         .loader = undefined,
