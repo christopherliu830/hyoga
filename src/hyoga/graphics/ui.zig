@@ -5,6 +5,7 @@ const sdl = @import("sdl");
 pub const imgui = @import("imgui");
 pub const implot = @import("implot");
 const Gpu = @import("gpu.zig");
+const Window = @import("../window.zig");
 
 const UI = @This();
 
@@ -15,7 +16,7 @@ alloc_fn: imgui.MemAllocFunc,
 user_data: ?*anyopaque,
 
 pub const UIInitInfo = struct {
-    window: *sdl.Window,
+    window: *Window,
     gpu: *Gpu,
     allocator: std.mem.Allocator,
 };
@@ -28,7 +29,7 @@ pub fn init(info: UIInitInfo) !UI {
     try platform.init(info.window, info.allocator);
     try backend.init(&.{
         .gpu = info.gpu,
-        .window = info.window,
+        .window = info.window.hdl,
     }, info.allocator);
     return self;
 }

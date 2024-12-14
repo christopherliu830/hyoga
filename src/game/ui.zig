@@ -10,6 +10,7 @@ pub const State = struct {
     drawn_frame_time: u64 = 0,
     frame_times: [frames_slice_len]f64 = [_]f64{0} ** frames_slice_len,
     current_frame_time_idx: u8 = 0,
+    restart_requested: bool = false, 
 
     pub fn create() !State {
         return .{
@@ -26,6 +27,13 @@ pub fn drawMainUI(state: *State) void {
 
     const ui = hy.UI.imgui;
     if (ui.BeginMainMenuBar()) {
+        if (ui.BeginMenu("File")) {
+            if (ui.MenuItem("Restart")) {
+                state.restart_requested = true;
+
+            }
+            ui.EndMenu();
+        }
         if (ui.MenuItem("Timings")) {
             state.window_timing_open = !state.window_timing_open;
         }

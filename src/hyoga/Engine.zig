@@ -3,7 +3,6 @@ const sdl = @import("sdl");
 
 pub const math = @import("hyoga-math");
 pub const slotmap = @import("hyoga-arena");
-pub const window = @import("window.zig");
 pub const material = @import("graphics/material.zig");
 
 pub const Input = @import("input/Input.zig");
@@ -14,11 +13,13 @@ pub const Hive = @import("hive.zig").Hive;
 pub const Game = @import("Game.zig").Game;
 pub const GameInterface = @import("Game.zig").GameInterface;
 pub const Loader = @import("graphics/loader.zig");
+pub const Window = @import("window.zig");
 
 const Engine = @This();
 
 gpa: std.heap.GeneralPurposeAllocator(.{}),
 arena: std.heap.ArenaAllocator,
+window: Window,
 symbol: Symbol,
 input: Input,
 gpu: Gpu,
@@ -31,15 +32,14 @@ pub fn init() !*Engine {
     var self = self_gpa.allocator().create(Engine)
         catch std.debug.panic("out of memory", .{});
 
-    window.init() catch |e| std.debug.panic("|e| Window init failure: {}", .{e});
-
     self.* = .{
         .gpa = self_gpa,
         .arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
         .symbol = Symbol.init(self.arena.allocator()),
         .input = try Input.init(self.gpa.allocator()),
-        .gpu = try Gpu.init(window.instance, &self.loader, &self.symbol, self.gpa.allocator()),
-        .ui = try UI.init(.{.gpu = &self.gpu, .window = window.instance, .allocator = self.gpa.allocator()}),
+        .window = try Window.init(), 
+        .gpu = try Gpu.init(&self.window, &self.loader, &self.symbol, self.gpa.allocator()),
+        .ui = try UI.init(.{.gpu = &self.gpu, .window = &self.window, .allocator = self.gpa.allocator()}),
         .loader = undefined,
     };
 
@@ -54,10 +54,10 @@ pub fn shutdown(self: *Engine) void {
     self.loader.deinit();
     self.ui.shutdown();
     self.gpu.shutdown();
-    window.destroy();
     self.input.shutdown();
     self.symbol.shutdown();
     self.arena.deinit();
+    self.window.deinit();
 
     var gpa = self.gpa;
     gpa.allocator().destroy(self);

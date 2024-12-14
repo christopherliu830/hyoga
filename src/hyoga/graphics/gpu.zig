@@ -11,7 +11,7 @@ const mat4 = hym.mat4;
 const hym_cam = hym.cam;
 
 const stb = @import("stb_image");
-const window = @import("../window.zig");
+const Window = @import("../window.zig");
 
 const cube = @import("primitives.zig").createCube();
 
@@ -34,7 +34,7 @@ pub const RenderItemHandle = hya.Handle(RenderItem);
 pub const ModelHandle = mdl.Handle;
 
 pub const Scene = extern struct {
-    camera: Camera,
+    view_proj: mat4.Mat4,
     light_dir: vec3.Vec3,
 };
 
@@ -95,7 +95,7 @@ const PassInfo = struct {
 
 
 const WindowState = struct {
-    hdl_window: *sdl.Window = undefined,
+    window: *Window = undefined,
     angle: vec3.Vec3 = vec3.zero,
     cam_position: vec3.Vec3 = vec3.create(0, 0, 2.5),
     tex_depth: *sdl.gpu.Texture = undefined,
@@ -127,15 +127,15 @@ render_state: RenderState = undefined,
 window_state: WindowState = .{},
 speed: f32 = 1,
 
-pub fn init(hdl_window: *sdl.Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allocator) !Gpu {
+pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allocator) !Gpu {
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
     const d = sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, null) orelse {
         std.log.err("[GPU] create device failure: {s}", .{sdl.getError()});
         return error.CreateDeviceFailure;
     };
-    _ = d.claimWindow(hdl_window);
+    _ = d.claimWindow(window.hdl);
 
-    if (!d.setSwapchainParameters(hdl_window, .sdr, .immediate)) {
+    if (!d.setSwapchainParameters(window.hdl, .sdr, .immediate)) {
         std.log.warn("[GPU] Swapchain parameters could not be set:" ++
             "{s}", .{sdl.getError()});
     }
@@ -146,10 +146,10 @@ pub fn init(hdl_window: *sdl.Window, loader: *Loader, symbol: *Symbol, gpa: std.
         .allocator = gpa,
         .arena = std.heap.ArenaAllocator.init(gpa),
         .device = d,
-        .swapchain_target_desc = .{ .format = d.getSwapchainTextureFormat(hdl_window) },
+        .swapchain_target_desc = .{ .format = d.getSwapchainTextureFormat(window.hdl) },
         .loader = loader,
         .symbol = symbol,
-        .window_state = .{ .hdl_window = hdl_window }
+        .window_state = .{ .window = window }
     };
 
     try sdlsc.init();
@@ -175,7 +175,7 @@ pub fn init(hdl_window: *sdl.Window, loader: *Loader, symbol: *Symbol, gpa: std.
 
     var w: c_int = 0;
     var h: c_int = 0;
-    _ = sdl.video.getWindowSizeInPixels(hdl_window, &w, &h);
+    _ = sdl.video.getWindowSizeInPixels(window.hdl, &w, &h);
 
     self.window_state.tex_depth = try self.createDepthTexture(@intCast(w), @intCast(h));
 
@@ -230,7 +230,7 @@ pub fn init(hdl_window: *sdl.Window, loader: *Loader, symbol: *Symbol, gpa: std.
 pub fn shutdown(self: *Gpu) void {
     sdlsc.quit();
 
-    self.device.releaseWindow(self.window_state.hdl_window);
+    self.device.releaseWindow(self.window_state.window.hdl);
 
     {
         var it = self.render_state.objs.iterator();
@@ -316,6 +316,9 @@ pub fn uploadToTexture(self: *Gpu, tex: *sdl.gpu.Texture, w: u32, h: u32, data: 
     _ = cmd.submit();
 }
 
+/// This function acquires a swapchain to draw to the
+/// screen. Do not use for offscreen buffers as this is not needed.
+/// Returns a command buffer.
 pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
@@ -335,7 +338,7 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
     const acquireSwapchainTexture= @import("ztracy").ZoneN(@src(), "acquireSwapchainTexture");
     defer acquireSwapchainTexture.End();
     var swapchain: ?*sdl.gpu.Texture = null;
-    if (!cmd.acquireSwapchainTexture(self.window_state.hdl_window, &swapchain, &drawable_w, &drawable_h)) {
+    if (!cmd.acquireSwapchainTexture(self.window_state.window.hdl, &swapchain, &drawable_w, &drawable_h)) {
         std.log.err("Could not acquire swapchain texture", .{});
         return error.AcquireSwapchainError;
     } else if (swapchain) |s| {
@@ -346,6 +349,7 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
 
         self.window_state.prev_drawable_w = drawable_w;
         self.window_state.prev_drawable_h = drawable_h;
+        self.window_state.window.aspect = @as(f32, @floatFromInt(drawable_w)) / @as(f32, @floatFromInt(drawable_h));
 
         self.render_state.active_target = s;
         return cmd;
@@ -435,14 +439,10 @@ pub fn doPass(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *S
     const color_targets = job.targets;
     const pass = cmd.beginRenderPass(color_targets.ptr, @intCast(color_targets.len), job.depth_target).?;
 
-    const lighting_ubo = mt.LightingUBO{ .light_dir = scene.light_dir, .camera_pos = scene.camera.position };
-
-    const cam = scene.camera;
-    const cam_pos = cam.position;
-
-    const aspect = @as(f32, @floatFromInt(self.window_state.prev_drawable_w)) / @as(f32, @floatFromInt(self.window_state.prev_drawable_h));
-    const view = hym_cam.lookAt(cam_pos, vec3.add(cam_pos, cam.look_direction), vec3.y);
-    const persp = hym_cam.perspectiveMatrix(45, aspect, 0.5, 100);
+    const lighting_ubo = mt.LightingUBO {
+        .light_dir = scene.light_dir,
+        .camera_pos = vec3.zero,
+    };
 
     var it = job.items.iterator();
     var last_pipeline: ?*sdl.gpu.GraphicsPipeline = null;
@@ -468,7 +468,7 @@ pub fn doPass(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *S
                 const mat_model = mat4.mul(item.transform, (item.parent_transform orelse &mat4.identity).*);
                 const ubo = mt.MvpUniformGroup{
                     .inverse_model = mat4.transpose(mat4.inverse(item.transform)),
-                    .view_proj = mat4.mul(view, persp),
+                    .view_proj = scene.view_proj,
                     .model = mat_model,
                 };
                 pushUniform(cmd, slot_index, &ubo, @sizeOf(mt.MvpUniformGroup));

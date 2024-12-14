@@ -70,28 +70,36 @@ const HotLibrary = struct {
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}) {};
     const allocator = gpa.allocator();
-    var arena_allocator = std.heap.ArenaAllocator.init(allocator);
-    const arena = arena_allocator.allocator();
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
+    var game: Hy.Game = undefined;
+    while (!game.quit) {
+        game = try run(&arena);
+    }
+}
+
+pub fn run(arena: *std.heap.ArenaAllocator) !Hy.Game {
     const hyoga = Hy.init();
     defer hyoga.shutdown();
 
     var lib: HotLibrary = .{.name = "game.dll" };
-    try lib.reload(arena);
+    try lib.reload(arena.allocator());
 
     var gi = lib.interface.?;
     var game = gi.init(hyoga);
 
-    while (!game.quit) {
+    while (!game.restart and !game.quit) {
 
         game = hyoga.update(game, gi);
 
         if (try lib.isStale()) {
-            lib.reload(arena) catch |err| std.debug.panic("Could not reload library: {}", .{err});
+            lib.reload(arena.allocator()) catch |err| std.debug.panic("Could not reload library: {}", .{err});
             gi = lib.interface.?;
-            gi.reload(hyoga, game);
+            _ = gi.reload(hyoga, game);
         }
 
-        _ = arena_allocator.reset(.retain_capacity);
+        _ = arena.reset(.retain_capacity);
     }
+
+    return game;
 }

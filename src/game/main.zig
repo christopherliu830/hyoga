@@ -37,7 +37,7 @@ fn tryInit(hye: *hy.Engine) !hy.Game {
         .gpa = self_gpa,
         .objects = try hy.Hive(Object).create(self_gpa.allocator(), .{}),
         .ui_state = .{ .second_timer = try std.time.Timer.start() },
-        .camera = .{ .input = &hye.input },
+        .camera = .{ .input = &hye.input, .window = &hye.window },
     };
 
     self.backpack_hdl = try hye.gpu.importModel(try hye.symbol.from("assets/backpack/backpack.obj"), .{
@@ -65,10 +65,7 @@ fn tryInit(hye: *hy.Engine) !hy.Game {
 
     return .{
         .scene = .{
-            .camera = .{
-                .position = hy.math.vec3.create(0, 0, 2.5),
-                .look_direction = hy.math.vec3.create(0, 0, -1),
-            },
+            .view_proj = self.camera.viewProj(),
             .light_dir = hy.math.vec3.create(0, -1, 0),
         },
         .memory = self,
@@ -83,11 +80,13 @@ fn shutdown(_: *hy.Engine, state: hy.Game) callconv(.C) void {
 // Called every loop iteration
 fn update(_: *hy.Engine, pregame: hy.Game) callconv(.C) hy.Game {
     const self: *Self = @ptrCast(@alignCast(pregame.memory));
-
     var game = pregame;
-    std.debug.print("{} {}\n", .{self.camera.position, self.camera.look_direction});
-    game.scene.camera.position = self.camera.position;
-    game.scene.camera.look_direction = self.camera.look_direction;
+
+    game.scene.view_proj = self.camera.viewProj();
+    if (self.ui_state.restart_requested) game.restart = true;
+
+    // game.scene.camera.position = self.camera.position;
+    // game.scene.camera.look_direction = self.camera.look_direction;
     
     return game;
 }
@@ -119,8 +118,21 @@ fn render(hye: *hy.Engine, state: hy.Game) callconv(.C) void {
     imgui.End();
 }
 
-fn reload(hye: *hy.Engine, _: hy.Game) callconv(.C) void {
+fn reload(hye: *hy.Engine, game: hy.Game) callconv(.C) bool {
+    tryReload(hye, game) catch |err| {
+        std.log.err("Failed reload: {}", .{err});
+        return false;
+    };
+    return true;
+}
+
+fn tryReload(hye: *hy.Engine, game: hy.Game) !void {
     hye.setGlobalState();
+    hye.input.reset();
+
+    const ptr = @as(*Self, @ptrCast(@alignCast(game.memory)));
+    try ptr.camera.registerInputs();
+
 }
 
 export fn interface() hy.GameInterface {

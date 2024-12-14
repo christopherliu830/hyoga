@@ -3,6 +3,8 @@ const builtin = @import("builtin");
 const imgui = @import("imgui");
 const sdl = @import("sdl");
 
+const Window = @import("../../window.zig");
+
 pub const GamepadMode = enum(c_int) { auto_first, auto_all, manual };
 
 pub const ImplData = struct {
@@ -35,7 +37,7 @@ pub fn initForD3d(window: *sdl.Window) void {
     init(window);
 }
 
-pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) !void {
+pub fn init(window: *Window, allocator: std.mem.Allocator) !void {
     const io = imgui.GetIO().?;
     var mouse_can_use_global_state = false;
     const sdl_backend = sdl.video.getCurrentVideoDriver();
@@ -58,8 +60,8 @@ pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) !void {
     if (mouse_can_use_global_state) {
         io.BackendFlags |= imgui.BackendFlag.platform_has_viewports;
     }
-    bd.window = window;
-    bd.window_id = sdl.video.getWindowID(window);
+    bd.window = window.hdl;
+    bd.window_id = sdl.video.getWindowID(window.hdl);
     bd.mouse_can_use_global_state = mouse_can_use_global_state;
     bd.mouse_can_report_hovered_viewport = if (builtin.os.tag != .macos) mouse_can_use_global_state else false;
     bd.want_update_monitors = true;
@@ -82,7 +84,7 @@ pub fn init(window: *sdl.Window, allocator: std.mem.Allocator) !void {
     bd.mouse_cursors[@intFromEnum(imgui.MouseCursor.not_allowed)] = sdl.mouse.createSystemCursor(.not_allowed);
 
     const main_viewport = imgui.GetMainViewport().?;
-    setupPlatformHandles(main_viewport, window);
+    setupPlatformHandles(main_viewport, window.hdl);
 
     // From 2.0.5: Set SDL hint to receive mouse click events on window focus, otherwise SDL doesn't emit the event.
     // Without this, when clicking to gain focus, our widgets wouldn't activate even though they showed as hovered.

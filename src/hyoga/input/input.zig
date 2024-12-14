@@ -29,12 +29,12 @@ const RunProto = *const fn(*Runnable, event: sdl.events.Event) void;
 
 const DelegateList = std.SinglyLinkedList(Runnable);
 const ActionSet = std.EnumArray(Action, DelegateList);
-const Mousebinds = std.EnumArray(MouseButton, ActionSet);
-const Keybinds = std.EnumArray(Keycode, ActionSet);
+const Mousebinds = std.AutoHashMapUnmanaged(MouseButton, ActionSet);
+const Keybinds = std.AutoHashMapUnmanaged(Keycode, ActionSet);
 const KeysDownSet = std.EnumSet(Keycode);
 const MouseDownSet = std.EnumSet(MouseButton);
 
-allocator: std.mem.Allocator,
+arena: std.heap.ArenaAllocator,
 keybinds: Keybinds,
 mousebinds: Mousebinds,
 keys_down: KeysDownSet = .{},
@@ -44,15 +44,47 @@ input_inited: bool = false,
 
 pub fn init(in_allocator: std.mem.Allocator) !Input {
     return .{
-        .allocator = in_allocator,
-        .mousebinds = Mousebinds.initFill(ActionSet.initFill(.{})),
-        .keybinds = Keybinds.initFill(ActionSet.initFill(.{})),
+        .arena = std.heap.ArenaAllocator.init(in_allocator),
+        .mousebinds = .{},
+        .keybinds = .{},
         .input_inited = true,
     };
 }
 
-pub fn shutdown(self: *@This()) void {
-    _ = self;
+pub fn shutdown(self: *Input) void {
+    _ = self.arena.reset(.free_all);
+}
+
+pub fn reset(self: *Input) void {
+    self.mousebinds = .{};
+    self.keybinds = .{};
+    _ = self.arena.reset(.retain_capacity);
+}
+
+pub fn getKeyCallbacks(self: *Input, button: Keycode) ?*ActionSet {
+    const allocator = self.arena.allocator();
+
+    const entry = self.keybinds.getOrPut(allocator,button) catch {
+        std.log.warn("[INPUT] Out of memory", .{});
+        return null;
+    }; 
+
+    if (!entry.found_existing) {
+        entry.value_ptr.* = ActionSet.initFill(.{});
+    }
+
+    return entry.value_ptr;
+}
+pub fn getMouseCallbacks(self: *Input, button: MouseButton) ?*ActionSet {
+    const allocator = self.arena.allocator();
+    const entry = self.mousebinds.getOrPut(allocator,button) catch {
+        std.log.warn("[INPUT] Out of memory", .{});
+        return null;
+    }; 
+    if (!entry.found_existing) {
+        entry.value_ptr.* = ActionSet.initFill(.{});
+    }
+    return entry.value_ptr;
 }
 
 pub const BindKeyOptions = struct {
@@ -61,7 +93,7 @@ pub const BindKeyOptions = struct {
 };
 
 pub fn bindKey(self: *Input, options: BindKeyOptions, comptime handler: anytype, args: anytype) !void {
-    const action_set= self.keybinds.getPtr(options.button);
+    const action_set = self.getKeyCallbacks(options.button) orelse return;
     try self.bind(action_set, options.fire_on, handler, args);
 }
 
@@ -71,7 +103,7 @@ pub const BindMouseOptions = struct {
 };
 
 pub fn bindMouse(self: *Input, options: BindMouseOptions, comptime handler: anytype, args: anytype) !void {
-    const action_set= self.mousebinds.getPtr(options.button);
+    const action_set = self.getMouseCallbacks(options.button) orelse return;
     try self.bind(action_set, options.fire_on, handler, args);
 }
 
@@ -89,7 +121,8 @@ fn bind(self: *Input, action_set: *ActionSet, fire_on: InputFlags , comptime han
         }
     };
 
-    const closure = try self.allocator.create(Closure);
+    var allocator = self.arena.allocator();
+    const closure = try allocator.create(Closure);
     closure.* = .{
         .arguments = args,
         .input = self,
@@ -113,14 +146,16 @@ pub fn queryMouse(self: *Input, button: MouseButton) bool {
 
 pub fn post(self: *Input, key: types.Keycode, mods: types.Keymod, action: Action, event: sdl.events.Event) void {
     _ = mods;
-    var node = self.keybinds.getPtr(key).getPtr(action).first;
+    const callbacks = self.getKeyCallbacks(key) orelse return;
+    var node = callbacks.getPtr(action).first;
     while (node) |binded| : (node = binded.next) {
         binded.data.runFn(&binded.data, event);
     }
 }
 
 pub fn postMouse(self: *Input, mouse: MouseButton, action: Action, event: sdl.events.Event) void {
-    var node = self.mousebinds.getPtr(mouse).getPtr(action).first;
+    const callbacks = self.getMouseCallbacks(mouse) orelse return;
+    var node = callbacks.getPtr(action).first;
     while (node) |binded| : (node = binded.next) {
         binded.data.runFn(&binded.data, event);
     }
