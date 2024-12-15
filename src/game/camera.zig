@@ -47,6 +47,18 @@ pub const Camera = struct {
         _ = try self.input.bindKey(.{ .button = .f, .fire_on = .{ .down = true, .held = true} }, pan, .{ self, vec2.create( 0,  1)});
         _ = try self.input.bindKey(.{ .button = .g, .fire_on = .{ .down = true, .held = true} }, pan, .{ self, vec2.create( 1,  0)});
     }
+
+    pub fn editor(self: *Camera) void {
+        const imgui = hy.UI.imgui;
+        if (imgui.Begin("Camera", null, imgui.WindowFlag.always_auto_resize)) {
+            _ = imgui.SliderFloat("Near Plane", @ptrCast(&self.z_near), 0.1, 1000);
+            _ = imgui.SliderFloat("Far Plane", @ptrCast(&self.z_far), 0.1, 1000);
+            var fovy = self.fovy * std.math.deg_per_rad;
+            _ = imgui.SliderFloat("FOV", &fovy, 0, 180);
+            self.fovy = fovy * std.math.rad_per_deg;
+        }
+        imgui.End();
+    }
 };
 
 fn lockMouse(cam: *Camera, lock: bool, _: Event) void {

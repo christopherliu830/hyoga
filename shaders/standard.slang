@@ -20,6 +20,7 @@ struct Camera {
 struct VOut {
     float4 position: SV_Position;
     float3 vert_world_pos;
+    float3 light_dir;
     float3 color;
     float3 normal;
     float2 uv;
@@ -36,6 +37,7 @@ VOut vertexMain(Vertex input) {
     output.color = vec3(1, 1, 1);
     output.normal = mul(input.normal, mat3x3(camera.trans_inverse_model));
     output.uv = input.uv;
+    output.light_dir = mul(float4(1, 1, 1, 0), inverse(camera.vp)).xyz;
     return output;
 }
 

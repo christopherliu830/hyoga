@@ -1,11 +1,11 @@
 //! Link to game and library dlls and run.
 
 const std = @import("std");
-const Hy = @import("hyoga");
+const hy = @import("hyoga_lib");
 
 const HotLibrary = struct {
     lib: ?std.DynLib = null,
-    interface: ?Hy.GameInterface = null,
+    interface: ?hy.GameInterface = null,
     last_write_time: i128 = 0,
     name: []const u8,
     version: u32 = 0,
@@ -34,7 +34,7 @@ const HotLibrary = struct {
         }
 
         var new_lib = try std.DynLib.open(dest_path);
-        if (new_lib.lookup(*const fn() callconv(.C) Hy.GameInterface, "interface")) |interface| {
+        if (new_lib.lookup(*const fn() callconv(.C) hy.GameInterface, "interface")) |interface| {
             std.log.debug("Hot reload triggered", .{});
             self.interface = interface();
             self.last_write_time = src_stat.mtime;
@@ -52,6 +52,7 @@ const HotLibrary = struct {
 
     pub fn unload(self: *HotLibrary, path: []const u8) !void {
         self.lib.?.close();
+        std.debug.print("Delete?{s}\n", .{path});
         try std.fs.cwd().deleteFile(path);
         self.lib = null;
     }
@@ -70,15 +71,16 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}) {};
     const allocator = gpa.allocator();
     var arena = std.heap.ArenaAllocator.init(allocator);
+    _ = &arena;
 
-    var game: Hy.Game = undefined;
+    var game: hy.Game = undefined;
     while (!game.quit) {
         game = try run(&arena);
     }
 }
 
-pub fn run(arena: *std.heap.ArenaAllocator) !Hy.Game {
-    const hyoga = Hy.init();
+pub fn run(arena: *std.heap.ArenaAllocator) !hy.Game {
+    const hyoga = hy.init();
     defer hyoga.shutdown();
 
     var lib: HotLibrary = .{.name = "game.dll" };
@@ -86,6 +88,8 @@ pub fn run(arena: *std.heap.ArenaAllocator) !Hy.Game {
 
     var gi = lib.interface.?;
     var game = gi.init(hyoga);
+
+    _ = &game;
 
     while (!game.restart and !game.quit) {
 

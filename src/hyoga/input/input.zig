@@ -161,10 +161,7 @@ pub fn postMouse(self: *Input, mouse: MouseButton, action: Action, event: sdl.ev
     }
 }
 
-pub fn update(self: *Input, event: sdl.events.Event) void {
-    self.mouse_state.remove(.motion);
-    self.mouse_state.remove(.wheel);
-
+pub fn updateKeyboard(self: *Input, event: sdl.events.Event) void {
     switch (event.type) {
         sdl.events.type.key_down => {
             const key = types.fromSdl(event.key.key);
@@ -178,6 +175,16 @@ pub fn update(self: *Input, event: sdl.events.Event) void {
             self.post(key, undefined, .up, event);
         },
 
+
+        else => {},
+    }
+}
+
+pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
+    self.mouse_state.remove(.motion);
+    self.mouse_state.remove(.wheel);
+
+    switch (event.type) {
         sdl.events.type.mouse_button_down => {
             switch(event.button.button) {
                 1 => {

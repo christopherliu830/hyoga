@@ -82,6 +82,7 @@ fn update(_: *hy.Engine, pregame: hy.Game) callconv(.C) hy.Game {
     const self: *Self = @ptrCast(@alignCast(pregame.memory));
     var game = pregame;
 
+    game.scene.light_dir = hym.vec3.create(1, 0, 0);
     game.scene.view_proj = self.camera.viewProj();
     if (self.ui_state.restart_requested) game.restart = true;
 
@@ -97,6 +98,8 @@ fn render(hye: *hy.Engine, state: hy.Game) callconv(.C) void {
 
     ui.drawMainUI(&ptr.ui_state);
     ptr.ui_state.frame_time = state.frame_time;
+
+    ptr.camera.editor();
 
     const imgui = hy.UI.imgui;
     if (imgui.Begin("Debug Window", null, 0)) {

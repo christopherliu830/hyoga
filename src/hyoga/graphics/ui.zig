@@ -53,6 +53,14 @@ pub fn endFrame(self: *UI) void {
     imgui.EndFrame();
 }
 
+pub fn wantsKeyboard(_: *UI) bool {
+    return (imgui.GetIO() orelse return false).WantCaptureKeyboard;
+}
+
+pub fn wantsMouse(_: *UI) bool {
+    return (imgui.GetIO() orelse return false).WantCaptureMouse;
+}
+
 pub fn render(self: *UI, cmd: *sdl.gpu.CommandBuffer) !void {
     self.useState();
     imgui.Render();

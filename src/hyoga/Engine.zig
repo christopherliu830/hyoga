@@ -79,7 +79,8 @@ pub fn update(self: *Engine, old_game: Game, gi: GameInterface) Game {
         self.ui.processEvent(event) catch |err| 
             std.log.err("[UI] processEvent failure: {}", .{err});
 
-        self.input.update(event);
+        if (!self.ui.wantsKeyboard()) self.input.updateKeyboard(event);
+        if (!self.ui.wantsMouse()) self.input.updateMouse(event);
 
         switch (event.type) {
             sdl.events.type.quit => {
