@@ -216,7 +216,7 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
     const bd = getBackendData().?;
 
     const color_target = [1]sdl.gpu.ColorTargetInfo {.{
-        .texture = bd.gpu.render_state.active_target,
+        .texture = bd.gpu.render_state.active_target.?,
         .clear_color = .{ .r = 0, .g = 0, .b = 0, .a = 0},
         .load_op = .load,
         .store_op = .store,

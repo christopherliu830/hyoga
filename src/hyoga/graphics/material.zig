@@ -31,20 +31,31 @@ pub const Material = struct {
     }
 };
 
-pub const MvpUniformGroup = extern struct {
-    model: Mat4,
-    inverse_model: Mat4,
-    view_proj: Mat4,
+pub const uniform = struct {
+    pub const Transform = extern struct {
+        model: Mat4,
+        inverse_model: Mat4,
+        view_proj: Mat4,
+    };
+
+    pub const Lighting = extern struct {
+        light_dir: Vec3,
+        camera_pos: Vec3
+    };
+
+    pub const Window = extern struct {
+        size_x: u16,
+        size_y: u16,
+    };
 };
 
-pub const LightingUBO = extern struct {
-    light_dir: Vec3,
-    camera_pos: Vec3
-};
+
+
 
 pub const ShaderDefinition = struct {
-    uniform_location_mvp: ?u32 = null,
-    uniform_location_lighting: ?u32 = null,
+    uniform_location_mvp: ?u8 = null,
+    uniform_location_lighting: ?u8 = null,
+    uniform_location_window: ?u8 = null,
     textures: [4]?tx.TextureType = [_]?tx.TextureType{ null } ** 4,
 };
 
@@ -52,8 +63,8 @@ pub const ShaderDefinition = struct {
 // Specification for the resource JSON
 pub const MaterialInfo = struct {
     pub const ProgramInfo = struct {
-        uniforms: ?std.json.ArrayHashMap(u32) = null,
-        samplers: ?std.json.ArrayHashMap(u32) = null,
+        uniforms: ?std.json.ArrayHashMap(u8) = null,
+        samplers: ?std.json.ArrayHashMap(u8) = null,
     };
 
     pass: Gpu.PassType,
@@ -61,9 +72,19 @@ pub const MaterialInfo = struct {
     frag: ProgramInfo, 
 };
 
-pub fn readFromPath(gpu: *Gpu, path: []const u8, arena: std.mem.Allocator) !MaterialTemplate {
-    const info = try loadMaterialInfo(path, arena);
+pub const MaterialReadOptions = struct {
+    path: []const u8,
+    format: ?sdl.gpu.TextureFormat = null,
+    enable_depth: bool = true,
+    enable_stencil: bool = true,
+};
 
+pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, arena: std.mem.Allocator) !MaterialTemplate {
+    const path = options.path;
+
+    const info = loadMaterialInfo(path, arena) catch |err| {
+        std.debug.panic("Could not read material json: {s}: {}", .{path, err});
+    };
 
     const vert_shader = try loadShader(gpu.device, .vertex, path, arena);
     defer gpu.device.releaseShader(vert_shader);
@@ -72,49 +93,49 @@ pub fn readFromPath(gpu: *Gpu, path: []const u8, arena: std.mem.Allocator) !Mate
     defer gpu.device.releaseShader(frag_shader);
 
     const pipeline = gpu.buildPipeline(.{
-        .enable_depth = true,
-        .enable_stencil = true,
+        .enable_depth = options.enable_depth,
+        .enable_stencil = options.enable_stencil,
+        .format = options.format,
         .vert = vert_shader,
         .frag = frag_shader,
         .pass = info.pass,
     });
 
-    const v_uniform_mvp = if (info.vert.uniforms) |x| x.map.get("mvp") else null;
-    const v_uniform_lighting = if (info.vert.uniforms) |x| x.map.get("lighting") else null;
-    const f_uniform_mvp = if (info.frag.uniforms) |x| x.map.get("mvp") else null;
-    const f_uniform_lighting = if (info.frag.uniforms) |x| x.map.get("lighting") else null;
+    const v_uniform_mvp: ?u8 = if (info.vert.uniforms) |x| x.map.get("mvp") else null;
+    const v_uniform_lighting: ?u8 = if (info.vert.uniforms) |x| x.map.get("lighting") else null;
+    const v_uniform_window: ?u8 = if (info.vert.uniforms) |x| x.map.get("window") else null;
+    const f_uniform_mvp: ?u8 = if (info.frag.uniforms) |x| x.map.get("mvp") else null;
+    const f_uniform_lighting: ?u8 = if (info.frag.uniforms) |x| x.map.get("lighting") else null;
+    const f_uniform_window: ?u8 = if (info.frag.uniforms) |x| x.map.get("window") else null;
     
     var vert_textures: [4]?tx.TextureType = [_]?tx.TextureType { null } ** 4;
-
-    // Convert specified requested samplers to enum values
-    if (info.vert.samplers) |samplers| {
-        var it = samplers.map.iterator();
-        while (it.next()) |entry| {
-            var tex_type: tx.TextureType = undefined;
-            if (std.mem.eql(u8, entry.key_ptr.*, "diffuse")) {
-                tex_type = .diffuse;
-            } else if (std.mem.eql(u8, entry.key_ptr.*, "specular")) {
-                tex_type = .specular;
-            } else {
-                std.debug.panic("Texture type key not found!", .{});
-            }
-            vert_textures[entry.value_ptr.*] = tex_type;
-        }
-    }
-
     var frag_textures: [4]?tx.TextureType = [_]?tx.TextureType { null } ** 4;
-    if (info.frag.samplers) |samplers| {
-        var it = samplers.map.iterator();
-        while (it.next()) |entry| {
-            var tex_type: tx.TextureType = undefined;
-            if (std.mem.eql(u8, entry.key_ptr.*, "diffuse")) {
-                tex_type = .diffuse;
-            } else if (std.mem.eql(u8, entry.key_ptr.*, "specular")) {
-                tex_type = .specular;
-            } else {
-                std.debug.panic("Texture type key not found!", .{});
+
+    inline for (.{
+        .{ info.vert.samplers, &vert_textures }, 
+        .{ info.frag.samplers, &frag_textures },
+    }) |x| {
+        // Convert specified requested samplers in JSON to an array of enum values
+        if (x[0]) |samplers| {
+            var it = samplers.map.iterator();
+            while (it.next()) |entry| {
+                var tex_type: ?tx.TextureType = undefined;
+                inline for (@typeInfo(tx.TextureType).@"enum".fields) |field| {
+                    if (std.mem.eql(u8, entry.key_ptr.*, field.name)) {
+                        tex_type = @enumFromInt(field.value);
+                        break;
+                    }
+                }
+
+                if (tex_type == null) {
+                    std.debug.panic("Invalid RSL for {s}: Requested shader of type {s}", .{
+                        options.path,
+                        entry.key_ptr.*
+                    });
+                }
+
+                x[1][entry.value_ptr.*] = tex_type;
             }
-            frag_textures[entry.value_ptr.*] = tex_type;
         }
     }
 
@@ -123,11 +144,13 @@ pub fn readFromPath(gpu: *Gpu, path: []const u8, arena: std.mem.Allocator) !Mate
         .vert_program_def = .{
             .uniform_location_mvp = v_uniform_mvp,
             .uniform_location_lighting = v_uniform_lighting,
+            .uniform_location_window = v_uniform_window,
             .textures = vert_textures,
         },
         .frag_program_def = .{
             .uniform_location_mvp = f_uniform_mvp,
             .uniform_location_lighting = f_uniform_lighting,
+            .uniform_location_window = f_uniform_window,
             .textures = frag_textures,
         },
     };

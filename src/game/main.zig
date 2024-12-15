@@ -17,6 +17,7 @@ backpack_hdl: hy.Gpu.ModelHandle = undefined,
 objects: hy.Hive(Object),
 ui_state: ui.State,
 camera: cam.Camera,
+selected: ?*Object = null,
 
 inline fn get(ptr: *anyopaque) *Self {
     return @ptrCast(@alignCast(ptr));
@@ -52,13 +53,18 @@ fn tryInit(hye: *hy.Engine) !hy.Game {
     });
 
     var object = (try self.objects.insert(undefined)).unpack();
-    object.hdl = hye.gpu.addModel(self.backpack_hdl, &object.transform) catch |err| blk: switch (err) {
+    object.hdl = hye.gpu.addModel(.{
+        .hdl = self.backpack_hdl,
+        .owner = &object.transform,
+        .time = 1 * std.time.ns_per_s,
+    })  catch |err| blk: switch (err) {
         error.ModelNotFound => {
             std.debug.print("Model not done yet\n", .{});
             break :blk hy.Gpu.RenderItemHandle.invalid;
         },
         else => return err,
     };
+
     object.transform = hy.math.mat4.identity;
 
     try self.camera.registerInputs();
@@ -94,28 +100,23 @@ fn update(_: *hy.Engine, pregame: hy.Game) callconv(.C) hy.Game {
 
 // Only called on new frames
 fn render(hye: *hy.Engine, state: hy.Game) callconv(.C) void {
-    const ptr: *Self = @ptrCast(@alignCast(state.memory));
+    _ = hye;
+    const self: *Self = @ptrCast(@alignCast(state.memory));
 
-    ui.drawMainUI(&ptr.ui_state);
-    ptr.ui_state.frame_time = state.frame_time;
-
-    ptr.camera.editor();
+    ui.drawMainUI(&self.ui_state);
+    self.ui_state.frame_time = state.frame_time;
+    if (self.ui_state.windows.camera) self.camera.editor();
 
     const imgui = hy.UI.imgui;
-    if (imgui.Begin("Debug Window", null, 0)) {
-        var it = ptr.objects.iterator();
+    if (imgui.Begin("Test", null, 0)) {
+        var it = self.objects.iterator();
         while (it.next()) |cursor| {
-            var obj = cursor.unpack();
-            if (!obj.hdl.is_valid()) {
-                obj.hdl = hye.gpu.addModel(ptr.backpack_hdl, &obj.transform) catch |err| 
-                    blk: switch (err) {
-                        error.ModelNotFound => break :blk hy.Gpu.RenderItemHandle.invalid,
-                        else => std.debug.panic("Unexpected error trying to add model: {}", .{err}),
-                    };
-                imgui.Text("Loading", );
-            } else {
-                imgui.Text("Done");
+            const object = cursor.unpack();
+            imgui.PushIDPtr(object);
+            if (imgui.Button("Select")) {
+                self.selected = object;
             }
+            imgui.PopID();
         }
     }
     imgui.End();

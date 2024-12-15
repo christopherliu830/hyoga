@@ -21,6 +21,7 @@ const mt = @import("material.zig");
 const Loader = @import("loader.zig");
 const Symbol = @import("../Symbol.zig");
 const Vertex = @import("vertex.zig").Vertex;
+const passes = @import("passes.zig");
 
 const Gpu = @This();
 
@@ -50,6 +51,7 @@ pub const PassType = enum {
 };
 
 pub const BuildPipelineParams = struct {
+    format: ?sdl.gpu.TextureFormat = null,
     vert: *sdl.gpu.Shader,
     frag: *sdl.gpu.Shader,
     pass: PassType,
@@ -57,7 +59,7 @@ pub const BuildPipelineParams = struct {
     enable_stencil: bool = true,
 };
 
-const RenderItem = struct {
+pub const RenderItem = struct {
     next: ?RenderItemHandle = null,
     buf: *sdl.gpu.Buffer,
     transform: mat4.Mat4 = mat4.identity,
@@ -68,10 +70,13 @@ const RenderItem = struct {
 };
 
 const RenderState = struct {
+    forward_pass: passes.Forward,
+    blit_pass: passes.BlitPass,
+
     default_material: mt.MaterialTemplate,
     default_texture: *sdl.gpu.Texture,
     post_material: mt.MaterialTemplate,
-    outline_pipeline: *sdl.gpu.GraphicsPipeline,
+    outline_material: mt.MaterialTemplate,
     quad_buffer: *sdl.gpu.Buffer,
     sampler: *sdl.gpu.Sampler = undefined,
 
@@ -88,9 +93,16 @@ const RenderState = struct {
 };
 
 const PassInfo = struct {
-    items: hya.Arena(RenderItem),
-    targets: []const sdl.gpu.ColorTargetInfo,
-    depth_target: ?*const sdl.gpu.DepthStencilTargetInfo,
+    cmd: *sdl.gpu.CommandBuffer,
+    items: []const RenderItem,
+    material: ?mt.Material = null, // force every object to use the same material
+    targets: PassTargets,
+    scene: Scene,
+};
+
+pub const PassTargets= struct {
+    color: []const sdl.gpu.ColorTargetInfo,
+    depth: ?*const sdl.gpu.DepthStencilTargetInfo,
 };
 
 
@@ -98,7 +110,6 @@ const WindowState = struct {
     window: *Window = undefined,
     angle: vec3.Vec3 = vec3.zero,
     cam_position: vec3.Vec3 = vec3.create(0, 0, 2.5),
-    tex_depth: *sdl.gpu.Texture = undefined,
     msaa_tex: *sdl.gpu.Texture = undefined,
     prev_drawable_w: u32 = 0,
     prev_drawable_h: u32 = 0,
@@ -117,7 +128,7 @@ const RenderCommand = struct {
 const ShaderType = enum { vertex, fragment };
 
 device: *sdl.gpu.Device,
-allocator: std.mem.Allocator,
+gpa: std.mem.Allocator,
 arena: std.heap.ArenaAllocator,
 loader: *Loader,
 swapchain_target_desc: sdl.gpu.ColorTargetDescription,
@@ -143,7 +154,7 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
     std.log.info("[GPU] Selected backend: {s}", .{d.getDeviceDriver()});
 
     var self: Gpu = .{ 
-        .allocator = gpa,
+        .gpa = gpa,
         .arena = std.heap.ArenaAllocator.init(gpa),
         .device = d,
         .swapchain_target_desc = .{ .format = d.getSwapchainTextureFormat(window.hdl) },
@@ -154,10 +165,21 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
 
     try sdlsc.init();
 
-    std.time.sleep(1 * std.time.ns_per_s);
-    const material = try mt.readFromPath(&self, "shaders/standard", self.arena.allocator());
+    const material = try mt.readFromPath(&self, .{
+        .path = "shaders/standard",
+        .enable_depth = true,
+        .enable_stencil = false,
+    }, self.arena.allocator());
 
-    const texture = self.device.createTexture(&.{ .format = .r8g8b8a8_unorm, .height = 256, .width = 256, .layer_count_or_depth = 1, .num_levels = 1, .sample_count = .@"1", .usage = .{ .sampler = true } }).?;
+    const texture = self.device.createTexture(&.{
+        .format = .b8g8r8a8_unorm, 
+        .height = 256,
+        .width = 256,
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
+        .sample_count = .@"1",
+        .usage = .{ .sampler = true }
+    }).?;
 
     var buf: [256 * 256]u32 = [_]u32{0xffffffff} ** (256 * 256);
     const black = 0xff000000;
@@ -177,8 +199,6 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
     var h: c_int = 0;
     _ = sdl.video.getWindowSizeInPixels(window.hdl, &w, &h);
 
-    self.window_state.tex_depth = try self.createDepthTexture(@intCast(w), @intCast(h));
-
     const sampler_info = sdl.gpu.SamplerCreateInfo{
         .address_mode_u = .clamp_to_edge,
         .address_mode_v = .clamp_to_edge,
@@ -191,7 +211,7 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         v: [16]f32,
         i: [6]u32,
     };
-    const verts = Verts{ 
+    const verts = Verts { 
         .v = .{
             -1, -1, 0, 1,
             -1, 1,  0, 0,
@@ -206,21 +226,39 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         .usage = .{ .vertex = true, .index = true },
     }).?;
 
-    const quad_mat_template = try mt.readFromPath(&self, "shaders/post_process", self.arena.allocator());
+    const quad_mat_template = try mt.readFromPath(&self, .{ 
+        .path = "shaders/post_process",
+        .enable_depth = false,
+        .enable_stencil = false,
+    }, self.gpa);
 
     try self.uploadToBuffer(quad_buffer, 0, &std.mem.toBytes(verts));
 
     self.render_state = .{
-        .objs = try hya.Arena(RenderItem).create(self.allocator, 8),
+        .forward_pass = passes.Forward.init(self.device, .{
+            .depth_enabled = true,
+            .stencil_enabled = false,
+            .dest_format = self.swapchain_target_desc.format,
+            .dest_usage = .{ .color_target = true, .sampler = true },
+            .dest_tex_width = @intCast(w),
+            .dest_tex_height = @intCast(h),
+        }),
+        .blit_pass = passes.BlitPass.init(&self, self.device),
+        .objs = try hya.Arena(RenderItem).create(self.gpa, 8),
         .default_material = material,
         .default_texture = texture,
         .post_material = quad_mat_template,
-        .outline_pipeline = undefined,
+        .outline_material = try mt.readFromPath(&self, .{
+            .path = "shaders/outline", 
+            .enable_depth = false,
+            .enable_stencil = false,
+            .format = .r8_unorm,
+        }, self.gpa),
         .quad_buffer = quad_buffer,
         .sampler = self.device.createSampler(&sampler_info).?,
-        .textures = tx.Textures.create(self.device, self.loader, self.symbol, self.allocator),
-        .models = mdl.Models.create(self.device, self.loader, self.symbol, self.allocator),
-        .materials = try hya.Arena(mt.Material).create(self.allocator, 1),
+        .textures = tx.Textures.create(self.device, self.loader, self.symbol, self.gpa),
+        .models = mdl.Models.create(self.device, self.loader, self.symbol, self.gpa),
+        .materials = try hya.Arena(mt.Material).create(self.gpa, 1),
         .active_target = null,
     };
 
@@ -246,7 +284,6 @@ pub fn shutdown(self: *Gpu) void {
 
     self.device.releaseBuffer(self.render_state.quad_buffer);
     self.device.releaseTexture(self.render_state.default_texture);
-    self.device.releaseTexture(self.window_state.tex_depth);
     self.device.releaseSampler(self.render_state.sampler);
     self.device.releaseGraphicsPipeline(self.render_state.post_material.pipeline);
     self.device.releaseGraphicsPipeline(self.render_state.default_material.pipeline);
@@ -343,8 +380,7 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
         return error.AcquireSwapchainError;
     } else if (swapchain) |s| {
         if (self.window_state.prev_drawable_w != drawable_w or self.window_state.prev_drawable_h != drawable_h) {
-            self.device.releaseTexture(self.window_state.tex_depth);
-            self.window_state.tex_depth = try self.createDepthTexture(drawable_w, drawable_h);
+            self.render_state.forward_pass.resize(drawable_w, drawable_h);
         }
 
         self.window_state.prev_drawable_w = drawable_w;
@@ -363,11 +399,21 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
 pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
-    // First render to texture target
 
-    const tex = self.device.createTexture(&.{
+    // First render scene to texture target
+    const all_items = try self.render_state.objs.toSlice(self.arena.allocator());
+
+    self.doPass(.{
+        .cmd = cmd,
+        .scene = scene.*,
+        .targets = self.render_state.forward_pass.targets(),
+        .items = all_items,
+    }) catch {};
+
+    // Render selected objects as mask for outline
+    const bw_tex = self.device.createTexture(&.{
         .type = .@"2d",
-        .format = self.swapchain_target_desc.format,
+        .format = .r8_unorm,
         .usage = .{ .color_target = true, .sampler = true },
         .width = self.window_state.prev_drawable_w,
         .height = self.window_state.prev_drawable_h,
@@ -376,86 +422,71 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
         .sample_count = .@"1",
     }).?;
 
-    defer self.device.releaseTexture(tex);
+    defer self.device.releaseTexture(bw_tex);
 
-    const target: []const sdl.gpu.ColorTargetInfo = &.{.{
-        .texture = tex,
-        .clear_color = .{ .r = 0.1, .g = 0.2, .b = 0.4, .a = 1 },
+    const bw_target: []const sdl.gpu.ColorTargetInfo = &.{.{
+        .texture = bw_tex,
+        .clear_color = .{ .r = 0, .g = 0, .b = 0, .a = 1 },
         .load_op = .clear,
         .store_op = .store,
         .cycle = true,
     }};
 
-    const depth_target = sdl.gpu.DepthStencilTargetInfo{
-        .clear_depth = 1,
-        .clear_stencil = 0,
-        .load_op = .clear,
-        .store_op = .store,
-        .stencil_load_op = .clear,
-        .stencil_store_op = .store,
-        .texture = self.window_state.tex_depth,
-        .cycle = true,
-    };
+    self.doPass(.{
+        .cmd = cmd,
+        .scene = scene.*,
+        .material = mt.Material.fromTemplate(self.render_state.outline_material, .{}),
+        .targets = .{ .color = bw_target, .depth = null },
+        .items = all_items, 
+    }) catch {};
 
-    var pass = PassInfo{
-        .targets = target,
-        .depth_target = &depth_target,
-        .items = self.render_state.objs,
-    };
-
-    self.doPass(cmd, &pass, scene) catch {};
-
-    const screen_target: []const sdl.gpu.ColorTargetInfo = &.{.{
-        .texture = self.render_state.active_target,
-        .load_op = .clear,
-        .store_op = .store,
-        .cycle = false,
-    }};
-
-    // Create objects needed to render to final target
-
-    const material = mt.Material.fromTemplate(self.render_state.post_material, tx.TextureSet.init(.{ .diffuse = .{ .target = tex } }));
-    const hdl_material = try self.render_state.materials.insert(material);
-    defer self.render_state.materials.release(hdl_material);
-
-    const render_object = RenderItem{ .buf = self.render_state.quad_buffer, .idx_count = 6, .idx_offset = @sizeOf(f32) * 16, .material = hdl_material };
-
-    var temp_list = try hya.Arena(RenderItem).create(self.arena.allocator(), 1);
-    _ = try temp_list.insert(render_object);
-
-    pass = .{
-        .items = temp_list,
-        .targets = screen_target,
-        .depth_target = null,
-    };
-
-    self.doPass(cmd, &pass, scene) catch {};
+    self.doPass(.{
+        .cmd = cmd,
+        .scene = scene.*,
+        .targets = self.render_state.blit_pass.targets(self.render_state.active_target.?),
+        .items = &.{self.render_state.blit_pass.quad},
+        .material = mt.Material.fromTemplate(
+            self.render_state.post_material,
+            tx.TextureSet.init(.{
+                .diffuse = .{ .target = self.render_state.forward_pass.texture() },
+                .mask = .{ .target = bw_tex },
+            }),
+        ),
+    }) catch {};
 }
 
-pub fn doPass(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *Scene) !void {
+pub fn doPass(self: *Gpu, job: PassInfo) !void {
+    if (job.items.len == 0) return;
+
+    const cmd = job.cmd;
+    const scene = job.scene;
+
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
 
-    const color_targets = job.targets;
-    const pass = cmd.beginRenderPass(color_targets.ptr, @intCast(color_targets.len), job.depth_target).?;
+    const color = job.targets.color;
+    const depth = job.targets.depth;
+    const pass = cmd.beginRenderPass(color.ptr, @intCast(color.len), depth).?;
+    defer pass.end();
 
-    const lighting_ubo = mt.LightingUBO {
+    const lighting_ubo = mt.uniform.Lighting {
         .light_dir = scene.light_dir,
         .camera_pos = vec3.zero,
     };
 
-    var it = job.items.iterator();
     var last_pipeline: ?*sdl.gpu.GraphicsPipeline = null;
-    while (it.next()) |item| {
+    for (job.items) |item| {
         const render_one= @import("ztracy").ZoneN(@src(), "RenderOne");
         defer render_one.End();
 
-        const material = try self.render_state.materials.get(item.material);
+        const material = if (job.material) |m| m 
+            else try self.render_state.materials.get(item.material);
 
         if (material.pipeline != last_pipeline) {
             last_pipeline = material.pipeline;
             pass.bindGraphicsPipeline(material.pipeline);
         }
+
 
         inline for (.{
             .{ material.vert_program_def, sdl.gpu.CommandBuffer.pushVertexUniformData, sdl.gpu.RenderPass.bindVertexSamplers },
@@ -464,18 +495,27 @@ pub fn doPass(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *S
             const program_def = params[0];
             const pushUniform = params[1];
             const pushSampler = params[2];
+
             if (program_def.uniform_location_mvp) |slot_index| {
                 const mat_model = mat4.mul(item.transform, (item.parent_transform orelse &mat4.identity).*);
-                const ubo = mt.MvpUniformGroup{
+                const ubo = mt.uniform.Transform {
                     .inverse_model = mat4.transpose(mat4.inverse(item.transform)),
                     .view_proj = scene.view_proj,
                     .model = mat_model,
                 };
-                pushUniform(cmd, slot_index, &ubo, @sizeOf(mt.MvpUniformGroup));
+                pushUniform(cmd, slot_index, &ubo, @sizeOf(mt.uniform.Transform));
             }
 
             if (program_def.uniform_location_lighting) |slot_index| {
-                pushUniform(cmd, slot_index, &lighting_ubo, @sizeOf(mt.LightingUBO));
+                pushUniform(cmd, slot_index, &lighting_ubo, @sizeOf(mt.uniform.Lighting));
+            }
+
+            if (program_def.uniform_location_window) |slot_index| {
+                const window = mt.uniform.Window {
+                    .size_x = @intCast(self.window_state.prev_drawable_w),
+                    .size_y = @intCast(self.window_state.prev_drawable_h),
+                };
+                pushUniform(cmd, slot_index, &window, @sizeOf(mt.uniform.Window));
             }
 
             for (program_def.textures, 0..) |needed_tex_type, i| {
@@ -489,7 +529,11 @@ pub fn doPass(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *S
                     std.debug.panic("[GPU] Textures must have a handle or direct target defined", .{});
                 };
 
-                const binding = [_]sdl.gpu.TextureSamplerBinding{.{ .sampler = self.render_state.sampler, .texture = texture }};
+                const binding = [_]sdl.gpu.TextureSamplerBinding{.{
+                    .sampler = self.render_state.sampler,
+                    .texture = texture
+                }};
+
                 pushSampler(pass, @intCast(i), &binding, 1);
             }
         }
@@ -499,7 +543,6 @@ pub fn doPass(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, job: *PassInfo, scene: *S
         pass.drawIndexedPrimitives(item.idx_count, 1, 0, 0, 0);
     }
 
-    pass.end();
 }
 
 pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
@@ -514,31 +557,11 @@ pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
     return result;
 }
 
-pub fn createDepthTexture(self: *Gpu, w: u32, h: u32) (error{SDLError}!*sdl.gpu.Texture) {
-    const depthtex_createinfo = sdl.gpu.TextureCreateInfo{
-        .type = .@"2d",
-        .format = .d32_float_s8_uint,
-        .usage = .{ .depth_stencil_target = true },
-        .width = @intCast(w),
-        .height = @intCast(h),
-        .layer_count_or_depth = 1,
-        .num_levels = 1,
-        .sample_count = .@"1",
-        .props = 0,
-    };
-
-    return self.device.createTexture(&depthtex_createinfo) orelse {
-        std.log.err("could not create depth texture: {s}", .{sdl.getError()});
-        return error.SDLError;
-    };
-}
-
-
 pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
     const sample_count = .@"1";
 
     const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{.{
-        .format = self.swapchain_target_desc.format,
+        .format = params.format orelse self.swapchain_target_desc.format,
         .blend_state = .{
             .enable_blend = true,
             .src_color_blendfactor = .src_alpha,
@@ -624,25 +647,18 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
         },
     };
 
-    const stencil_state = sdl.gpu.StencilOpState{
+    const stencil_state = sdl.gpu.StencilOpState {
         .compare_op = .always,
         .depth_fail_op = .keep,
         .fail_op = .keep,
         .pass_op = .replace,
     };
 
-    const target_info: sdl.gpu.GraphicsPipelineTargetInfo = switch (params.pass) {
-        .default => .{
-            .num_color_targets = @intCast(color_target_desc.len),
-            .color_target_descriptions = color_target_desc.ptr,
-            .depth_stencil_format = .d32_float_s8_uint,
-            .has_depth_stencil_target = true,
-        },
-        .ui, .post_process => .{
-            .num_color_targets = @intCast(color_target_desc.len),
-            .color_target_descriptions = color_target_desc.ptr,
-            .has_depth_stencil_target = false,
-        },
+    const target_info: sdl.gpu.GraphicsPipelineTargetInfo = .{
+        .num_color_targets = @intCast(color_target_desc.len),
+        .color_target_descriptions = color_target_desc.ptr,
+        .depth_stencil_format = if (params.enable_stencil) .d32_float_s8_uint else .d32_float,
+        .has_depth_stencil_target = params.enable_depth or params.enable_stencil,
     };
 
     const depth_stencil_state: sdl.gpu.DepthStencilState = switch (params.pass) {
@@ -722,11 +738,10 @@ pub fn importModel(self: *Gpu, path: Symbol.ID, settings: mdl.ImportSettings) !m
                     //     handle = try createTextureFromMemory(tex_id, .{ .w = tex.width, .h = tex.height, .d = 4, .data = data, .format = .b8g8r8a8_unorm });
                     // }
                 } else { // Texture is a relative path
-                    tex_id = try std.fs.path.joinZ(self.allocator, &[_][]const u8{ 
+                    tex_id = try std.fs.path.joinZ(self.arena.allocator(), &[_][]const u8{ 
                         std.fs.path.dirname(self.symbol.asString(path)).?,
                         ai_tex_id
                     });
-                    defer self.allocator.free(tex_id);
                     handle = try self.render_state.textures.read(tex_id);
                 }
 
@@ -749,8 +764,23 @@ pub fn importModel(self: *Gpu, path: Symbol.ID, settings: mdl.ImportSettings) !m
     return model;
 }
 
-pub fn addModel(self: *Gpu, hdl: mdl.Handle, owner: *mat4.Mat4) !RenderItemHandle {
-    const q_model = try self.render_state.models.get(hdl);
+pub const AddModelOptions = struct {
+    hdl: ModelHandle,
+    owner: *mat4.Mat4,
+    time: u64 = 0, // Time to wait for model load in nanoseconds.
+};
+
+pub fn addModel(self: *Gpu, options: AddModelOptions) !RenderItemHandle {
+    const q_model = blk: {
+        var model = try self.render_state.models.get(options.hdl);
+        if (options.time > 0) {
+            var timer = try std.time.Timer.start();
+            while (model == null and timer.read() < options.time) model = try self.render_state.models.get(options.hdl);
+        }
+        break :blk model;
+    };
+
+
     if (q_model) |model| {
         var last_handle: ?RenderItemHandle = null;
 
@@ -766,7 +796,7 @@ pub fn addModel(self: *Gpu, hdl: mdl.Handle, owner: *mat4.Mat4) !RenderItemHandl
                 .buf = buffer,
                 .next = last_handle,
                 .transform = model.transform,
-                .parent_transform = owner,
+                .parent_transform = options.owner,
                 .idx_offset = vertex_buffer_size,
                 .idx_count = @intCast(mesh.indices.items.len),
                 .material = mesh.material,

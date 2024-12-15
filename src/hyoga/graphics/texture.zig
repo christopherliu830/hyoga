@@ -25,6 +25,7 @@ pub const TextureType = enum {
     specular,
     height,
     normal,
+    mask,
 };
 
 pub const tex_to_hyoga_type = std.EnumMap(ai.TextureType, TextureType).init(.{

@@ -3,9 +3,14 @@ const hy = @import("hyoga");
 
 const frames_slice_len = 128;
 
+const Windows = struct {
+    camera: bool = false,
+    perf: bool = false,
+
+};
 pub const State = struct {
     second_timer: std.time.Timer, // Timer that ticks every second
-    window_timing_open: bool = false,
+    windows: Windows = .{},
     frame_time: u64 = 0,
     drawn_frame_time: u64 = 0,
     frame_times: [frames_slice_len]f64 = [_]f64{0} ** frames_slice_len,
@@ -34,14 +39,20 @@ pub fn drawMainUI(state: *State) void {
             }
             ui.EndMenu();
         }
-        if (ui.MenuItem("Timings")) {
-            state.window_timing_open = !state.window_timing_open;
+        if (ui.BeginMenu("Window")) {
+            if (ui.MenuItemEx("Camera", null, state.windows.camera, true)) {
+                state.windows.camera = !state.windows.camera;
+            }
+            if (ui.MenuItemEx("Performance", null, state.windows.perf, true)) {
+                state.windows.perf = !state.windows.perf;
+            }
+            ui.EndMenu();
         }
         ui.EndMainMenuBar();
     }
 
-    if (state.window_timing_open) {
-        if (ui.Begin("Timings", &state.window_timing_open, 0)) {
+    if (state.windows.perf) {
+        if (ui.Begin("Performance", &state.windows.perf, 0)) {
             const fps: f32 = 1 / (@as(f32, @floatFromInt(state.drawn_frame_time)) / std.time.ns_per_s);
             ui.Text("Frame time: %.2fms (%.1f)fps", 
                 @as(f32, @floatFromInt(state.drawn_frame_time)) / std.time.ns_per_ms,

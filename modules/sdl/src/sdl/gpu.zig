@@ -731,7 +731,7 @@ pub const ComputePipelineCreateInfo = extern struct {
 };
 
 pub const ColorTargetInfo = extern struct {
-	texture: ?*Texture = @import("std").mem.zeroes(?*Texture),
+	texture: *Texture,
 	mip_level: u32 = @import("std").mem.zeroes(u32),
 	layer_or_depth_plane: u32 = @import("std").mem.zeroes(u32),
 	clear_color: FColor = @import("std").mem.zeroes(FColor),

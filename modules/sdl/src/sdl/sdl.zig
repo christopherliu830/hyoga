@@ -5,6 +5,7 @@ pub const hints = @import("hints.zig");
 pub const keyboard = @import("keyboard.zig");
 pub const keycode = @import("keycode.zig");
 pub const mouse = @import("mouse.zig");
+pub const pixels = @import("pixels.zig");
 pub const rect = @import("rect.zig");
 pub const scancode = @import("scancode.zig");
 pub const video = @import("video.zig");

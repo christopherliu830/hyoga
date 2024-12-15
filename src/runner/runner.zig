@@ -52,7 +52,6 @@ const HotLibrary = struct {
 
     pub fn unload(self: *HotLibrary, path: []const u8) !void {
         self.lib.?.close();
-        std.debug.print("Delete?{s}\n", .{path});
         try std.fs.cwd().deleteFile(path);
         self.lib = null;
     }

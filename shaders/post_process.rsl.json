@@ -2,8 +2,12 @@
     "pass": 1,
     "vert": { },
     "frag": {
+        "uniforms": {
+            "window": 0
+        },
         "samplers": {
-            "diffuse": 0
+            "diffuse": 0,
+            "mask": 1
         }
     }
 }
