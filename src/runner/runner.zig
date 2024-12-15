@@ -1,7 +1,7 @@
 //! Link to game and library dlls and run.
 
 const std = @import("std");
-const hy = @import("hyoga_lib");
+const hy = @import("hyoga");
 
 const HotLibrary = struct {
     lib: ?std.DynLib = null,
