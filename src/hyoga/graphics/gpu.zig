@@ -21,6 +21,7 @@ const mt = @import("material.zig");
 const Loader = @import("loader.zig");
 const Symbol = @import("../Symbol.zig");
 const Vertex = @import("vertex.zig").Vertex;
+const GpuScene = @import("Scene.zig");
 const passes = @import("passes.zig");
 
 const Gpu = @This();
@@ -80,6 +81,8 @@ const RenderState = struct {
     models: mdl.Models,
     materials: hya.Arena(mt.Material),
     objs: hya.Arena(RenderItem),
+
+    ssbo: *sdl.gpu.Buffer,
 
     scene: *Scene = undefined,
 
@@ -166,6 +169,8 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         .enable_stencil = false,
     }, self.arena.allocator());
 
+    // Generate unloaded texture pattern
+
     const texture = self.device.createTexture(&.{
         .format = .b8g8r8a8_unorm, 
         .height = 256,
@@ -179,7 +184,6 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
     var buf: [256 * 256]u32 = [_]u32{0xffffffff} ** (256 * 256);
     const black = 0xff000000;
 
-    // Generate unloaded texture pattern
     for (0..256) |i| {
         for (0..256) |j| {
             if ((i + j) % 2 == 0) {
@@ -194,7 +198,7 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
     var h: c_int = 0;
     _ = sdl.video.getWindowSizeInPixels(window.hdl, &w, &h);
 
-    const sampler_info = sdl.gpu.SamplerCreateInfo{
+    const sampler_info = sdl.gpu.SamplerCreateInfo {
         .address_mode_u = .clamp_to_edge,
         .address_mode_v = .clamp_to_edge,
         .address_mode_w = .clamp_to_edge,
@@ -202,32 +206,11 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         .mag_filter = .linear,
     };
 
-    const Verts = extern struct {
-        v: [16]f32,
-        i: [6]u32,
-    };
-    const verts = Verts { 
-        .v = .{
-            -1, -1, 0, 1,
-            -1, 1,  0, 0,
-            1,  -1, 1, 1,
-            1,  1,  1, 0,
-        }, 
-        .i = .{ 0, 3, 1, 0, 2, 3, }
-    };
-
-    const quad_buffer = self.device.createBuffer(&.{
-        .size = @sizeOf(Verts),
-        .usage = .{ .vertex = true, .index = true },
-    }).?;
-
     const quad_mat_template = try mt.readFromPath(&self, .{ 
         .path = "shaders/post_process",
         .enable_depth = false,
         .enable_stencil = false,
     }, self.gpa);
-
-    try self.uploadToBuffer(quad_buffer, 0, &std.mem.toBytes(verts));
 
     self.render_state = .{
         .forward_pass = passes.Forward.init(self.device, .{
@@ -253,11 +236,16 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
             .enable_stencil = false,
             .format = .r8_unorm,
         }, self.gpa),
+
         .sampler = self.device.createSampler(&sampler_info).?,
         .textures = tx.Textures.create(self.device, self.loader, self.symbol, self.gpa),
         .models = mdl.Models.create(self.device, self.loader, self.symbol, self.gpa),
         .materials = try hya.Arena(mt.Material).create(self.gpa, 1),
         .active_target = null,
+        .ssbo = self.device.createBuffer(&.{
+            .usage = .{ .graphics_storage_read = true },
+            .size = @sizeOf(GpuScene),
+        }).?,
     };
 
     return self;
@@ -309,7 +297,7 @@ pub fn uploadToBuffer(self: *Gpu, buffer: *sdl.gpu.Buffer, offset: u32, data: []
         .offset = 0,
     };
 
-    const dst_region = sdl.gpu.BufferRegion{
+    const dst_region = sdl.gpu.BufferRegion {
         .buffer = buffer,
         .offset = offset,
         .size = @intCast(data.len),
@@ -398,7 +386,12 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     defer zone.End();
 
     // First render scene to texture target
-    const all_items = try self.render_state.objs.toSlice(self.arena.allocator());
+    const all_items = try self.arena.allocator().alloc(RenderItem, self.render_state.objs.len);
+    var it = self.render_state.objs.iterator();
+    var i: usize = 0;
+    while (it.next()) |item| : (i += 1) {
+        all_items[i] = item;
+    }
 
     self.doPass(.{
         .cmd = cmd,

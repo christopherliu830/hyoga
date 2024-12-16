@@ -72,13 +72,13 @@ pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(allocator);
     _ = &arena;
 
-    var game: hy.Game = undefined;
+    var game: hy.World = undefined;
     while (!game.quit) {
         game = try run(&arena);
     }
 }
 
-pub fn run(arena: *std.heap.ArenaAllocator) !hy.Game {
+pub fn run(arena: *std.heap.ArenaAllocator) !hy.World {
     const hyoga = hy.init();
     defer hyoga.shutdown();
 

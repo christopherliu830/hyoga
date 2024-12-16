@@ -5,18 +5,18 @@ const Vec3 = @import("hyoga-math").Vec3;
 
 const Engine= @import("Engine.zig");
 
-pub const Game = extern struct {
+pub const World = extern struct {
     quit: bool = false,
     restart: bool = false,
     scene: gpu.Scene,
-    frame_time: f64 = 0,
+    frame_time: u64 = 0,
     memory: *anyopaque,
 };
 
 pub const GameInterface = extern struct {
-    init: *const fn(*Engine) callconv(.C) Game,
-    shutdown: *const fn(*Engine, Game) callconv(.C) void,
-    update: *const fn (*Engine, Game) callconv(.C) Game,
-    render: *const fn (*Engine, Game) callconv(.C) void,
-    reload: *const fn (*Engine, Game) callconv (.C) bool,
+    init: *const fn(*Engine) callconv(.C) World,
+    shutdown: *const fn(*Engine, World) callconv(.C) void,
+    update: *const fn (*Engine, World) callconv(.C) World,
+    render: *const fn (*Engine, World) callconv(.C) void,
+    reload: *const fn (*Engine, World) callconv (.C) bool,
 };

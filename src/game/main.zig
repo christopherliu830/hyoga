@@ -20,19 +20,20 @@ objects: hy.Hive(Object),
 ui_state: ui.State,
 camera: cam.Camera,
 selected: ?*Object = null,
-seed: f64 = 0,
+seed: u64 = 0,
+timer: std.time.Timer,
 
 inline fn get(ptr: *anyopaque) *Self {
     return @ptrCast(@alignCast(ptr));
 }
 
-fn init(hye: *hy.Engine) callconv(.C) hy.Game {
+fn init(hye: *hy.Engine) callconv(.C) hy.World {
     return tryInit(hye) catch |err| {
         std.debug.panic("init failure: {}", .{err});
     };
 }
 
-fn tryInit(hye: *hy.Engine) !hy.Game {
+fn tryInit(hye: *hy.Engine) !hy.World {
     hye.setGlobalState();
 
     var self_gpa = std.heap.GeneralPurposeAllocator(.{}) {};
@@ -42,6 +43,7 @@ fn tryInit(hye: *hy.Engine) !hy.Game {
         .objects = try hy.Hive(Object).create(self_gpa.allocator(), .{}),
         .ui_state = .{ .second_timer = try std.time.Timer.start() },
         .camera = .{ .input = &hye.input, .window = &hye.window },
+        .timer = try std.time.Timer.start(),
     };
 
     self.backpack_hdl = try hye.gpu.importModel(try hye.symbol.from("assets/backpack/backpack.obj"), .{
@@ -85,19 +87,23 @@ fn tryInit(hye: *hy.Engine) !hy.Game {
     };
 }
 
-fn shutdown(_: *hy.Engine, state: hy.Game) callconv(.C) void {
+fn shutdown(_: *hy.Engine, state: hy.World) callconv(.C) void {
     const ptr = @as(*u32, @ptrCast(@alignCast(state.memory)));
     std.heap.page_allocator.destroy(ptr);
 }
 
 // Called every loop iteration
-fn update(_: *hy.Engine, pregame: hy.Game) callconv(.C) hy.Game {
+fn update(_: *hy.Engine, pregame: hy.World) callconv(.C) hy.World {
     const self: *Self = @ptrCast(@alignCast(pregame.memory));
     var game = pregame;
-    const obj = self.objects.groups.head.?.unpack();
     self.seed += game.frame_time;
-    const x: f32 = @floatCast(std.math.sin(self.seed));
-    obj.transform = mat4.scale(vec3.create(x, x, x));
+
+    var it = self.objects.iterator();
+    var i: f32 = 0;
+    while (it.next()) |cursor| : (i += 1) {
+        const obj = cursor.unpack();
+        obj.transform.translate(vec3.create(0, @sin(@as(f32, @floatFromInt(self.seed)) / std.time.ns_per_s + i) * 0.0001, 0));
+    }
 
     game.scene.light_dir = hym.vec3.create(1, 0, 0);
     game.scene.view_proj = self.camera.viewProj();
@@ -107,17 +113,17 @@ fn update(_: *hy.Engine, pregame: hy.Game) callconv(.C) hy.Game {
 }
 
 // Only called on new frames
-fn render(hye: *hy.Engine, state: hy.Game) callconv(.C) void {
+fn render(hye: *hy.Engine, state: hy.World) callconv(.C) void {
     _ = hye;
     const self: *Self = @ptrCast(@alignCast(state.memory));
 
     ui.drawMainUI(&self.ui_state);
-    self.ui_state.frame_time = state.frame_time;
+    self.ui_state.frame_time = @floatFromInt(state.frame_time);
     if (self.ui_state.windows.camera) self.camera.editor();
 
     const imgui = hy.UI.imgui;
     if (imgui.Begin("Test", null, 0)) {
-        imgui.Text("%f, %f", self.seed, state.frame_time);
+        imgui.Text("%d, %d", self.seed / std.time.ns_per_s, state.frame_time / std.time.ns_per_ms);
         var it = self.objects.iterator();
         while (it.next()) |cursor| {
             const object = cursor.unpack();
@@ -131,7 +137,7 @@ fn render(hye: *hy.Engine, state: hy.Game) callconv(.C) void {
     imgui.End();
 }
 
-fn reload(hye: *hy.Engine, game: hy.Game) callconv(.C) bool {
+fn reload(hye: *hy.Engine, game: hy.World) callconv(.C) bool {
     tryReload(hye, game) catch |err| {
         std.log.err("Failed reload: {}", .{err});
         return false;
@@ -139,7 +145,7 @@ fn reload(hye: *hy.Engine, game: hy.Game) callconv(.C) bool {
     return true;
 }
 
-fn tryReload(hye: *hy.Engine, game: hy.Game) !void {
+fn tryReload(hye: *hy.Engine, game: hy.World) !void {
     hye.setGlobalState();
     hye.input.reset();
 

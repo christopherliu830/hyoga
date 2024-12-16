@@ -9,7 +9,7 @@ pub const Symbol = @import("Symbol.zig");
 pub const UI = @import("graphics/ui.zig");
 pub const Gpu = @import("graphics/gpu.zig");
 pub const Hive = @import("hive.zig").Hive;
-pub const Game = @import("Game.zig").Game;
+pub const World = @import("Game.zig").World;
 pub const GameInterface = @import("Game.zig").GameInterface;
 pub const Engine = @import("Engine.zig");
 

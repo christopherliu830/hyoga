@@ -10,7 +10,7 @@ pub const Symbol = @import("Symbol.zig");
 pub const UI = @import("graphics/ui.zig");
 pub const Gpu = @import("graphics/gpu.zig");
 pub const Hive = @import("hive.zig").Hive;
-pub const Game = @import("Game.zig").Game;
+pub const Game = @import("Game.zig").World;
 pub const GameInterface = @import("Game.zig").GameInterface;
 pub const Loader = @import("graphics/loader.zig");
 pub const Window = @import("window.zig");
@@ -25,9 +25,9 @@ input: Input,
 gpu: Gpu,
 ui: UI,
 loader: Loader,
+timer: std.time.Timer,
 
 pub fn init() !*Engine {
-
     var self_gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
     var self = self_gpa.allocator().create(Engine)
         catch std.debug.panic("out of memory", .{});
@@ -41,6 +41,7 @@ pub fn init() !*Engine {
         .gpu = try Gpu.init(&self.window, &self.loader, &self.symbol, self.gpa.allocator()),
         .ui = try UI.init(.{.gpu = &self.gpu, .window = &self.window, .allocator = self.gpa.allocator()}),
         .loader = undefined,
+        .timer = try std.time.Timer.start(),
     };
 
     try self.loader.init(self.gpa.allocator());
@@ -67,9 +68,6 @@ pub fn shutdown(self: *Engine) void {
 
 pub fn update(self: *Engine, old_game: Game, gi: GameInterface) Game {
     var game = old_game;
-
-    var time = std.time.Timer.start() catch unreachable;
-
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
 
@@ -102,6 +100,7 @@ pub fn update(self: *Engine, old_game: Game, gi: GameInterface) Game {
         }
     };
 
+    // If no command buffer, too many frames are in flight - skip rendering.
     if (q_cmd) |cmd| {
         self.ui.beginFrame() catch |err| std.log.err("[UI] Failed to begin frame for render: {}", .{err});
 
@@ -110,12 +109,11 @@ pub fn update(self: *Engine, old_game: Game, gi: GameInterface) Game {
         self.gpu.render(cmd, &game.scene) catch |err| std.log.err("[GPU] failed to finish render: {}", .{err});
         self.ui.render(cmd) catch |err| std.log.err("[UI] failed to finish render: {}", .{err});
         _ = self.gpu.submit(cmd);
-    } else return game; // Too many frames in flight, skip rendering.
-    game.frame_time = @as(f64, @floatFromInt(time.lap())) / std.time.ns_per_s;
+    }
 
     @import("ztracy").FrameMark();
+    game.frame_time = self.timer.lap();
     return game;
-
 }
 
 /// Global variables don't get loaded across DLL boundaries, meaning
