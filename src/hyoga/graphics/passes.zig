@@ -50,7 +50,7 @@ pub fn forward(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Gpu.Scene, items
 
 pub const Forward = struct {
     device: *sdl.gpu.Device,
-    target: [1]sdl.gpu.ColorTargetInfo,
+    target: sdl.gpu.ColorTargetInfo,
     ds_target: ?sdl.gpu.DepthStencilTargetInfo,
     tex_info: sdl.gpu.TextureCreateInfo,
     ds_tex_info: ?sdl.gpu.TextureCreateInfo,
@@ -127,7 +127,7 @@ pub const Forward = struct {
 
         return .{
             .device = device,
-            .target = .{ target },
+            .target = target,
             .tex_info = tex_info,
             .ds_tex_info = ds_tex_info,
             .ds_target = depth_stencil_target,
@@ -135,23 +135,13 @@ pub const Forward = struct {
     }
 
     pub fn deinit(self: Forward) void {
-        self.device.releaseTexture(self.target.texture);
-        if (self.ds_target) self.device.releaseTexture(self.ds_target.texture);
+        self.device.releaseTexture(self.texture());
+        if (self.depthStencilTexture()) |dst| self.device.releaseTexture(dst);
     }
 
-    // pub fn run(self: Forward, gpu: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Gpu.Scene, items: []Gpu.RenderItem) void {
-    //     gpu.doPass(.{
-    //         .cmd = cmd,
-    //         .targets = &.{self.target},
-    //         .depth_target = if (self.ds_target) |*d| d else null,
-    //         .items = items,
-    //         .scene = scene.*,
-    //     }) catch {};
-    // }
-
-    pub fn targets(self: *Forward) Gpu.PassTargets {
+    pub fn targets(self: *const Forward) Gpu.PassTargets {
         return .{
-            .color = &self.target,
+            .color = (&self.target)[0..1],
             .depth = if (self.ds_target != null) &(self.ds_target.?) else null,
         };
     }
@@ -168,20 +158,20 @@ pub const Forward = struct {
         self.device.releaseTexture(self.texture());
         self.device.releaseTexture(self.depthStencilTexture());
 
-        self.target[0].texture = self.device.createTexture(&self.tex_info).?;
+        self.target.texture = self.device.createTexture(&self.tex_info).?;
         if (self.ds_target) |*target| {
             target.texture = self.device.createTexture(&self.ds_tex_info.?);
         }
     }
 
-    pub fn texture(self: Forward) *sdl.gpu.Texture { return self.target[0].texture; }
+    pub fn texture(self: Forward) *sdl.gpu.Texture { return self.target.texture; }
     pub fn depthStencilTexture(self: Forward) ?*sdl.gpu.Texture { return (self.ds_target orelse return null).texture; }
 };
 
 pub const BlitPass = struct {
     device: *sdl.gpu.Device,
     quad: Gpu.RenderItem,
-    target: [1]sdl.gpu.ColorTargetInfo,
+    target: sdl.gpu.ColorTargetInfo,
 
     pub fn init(gpu: *Gpu, device: *sdl.gpu.Device) BlitPass {
         const Verts = extern struct {
@@ -214,12 +204,12 @@ pub const BlitPass = struct {
                 .idx_offset = @sizeOf(f32) * 16, 
                 .material = undefined,
             },
-            .target = .{.{
+            .target = .{
                 .texture = undefined,
                 .load_op = .clear,
                 .store_op = .store,
                 .cycle = false,
-            }}
+            }
         };
     }
 
@@ -228,7 +218,7 @@ pub const BlitPass = struct {
     }
 
     pub fn targets(self: *BlitPass, tex: *sdl.gpu.Texture) Gpu.PassTargets {
-        self.target[0] = .{
+        self.target = .{
             .texture = tex,
             .load_op = .clear,
             .store_op = .store,
@@ -236,7 +226,7 @@ pub const BlitPass = struct {
         };
 
         return .{
-            .color = &self.target,
+            .color = (&self.target)[0..1],
             .depth = null,
         };
     }

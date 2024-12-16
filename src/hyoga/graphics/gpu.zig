@@ -25,11 +25,6 @@ const passes = @import("passes.zig");
 
 const Gpu = @This();
 
-pub const Camera = extern struct {
-    position: vec3.Vec3,
-    look_direction: vec3.Vec3,
-};
-
 // Exports
 pub const RenderItemHandle = hya.Handle(RenderItem);
 pub const ModelHandle = mdl.Handle;
@@ -74,15 +69,15 @@ const RenderState = struct {
     blit_pass: passes.BlitPass,
 
     default_material: mt.MaterialTemplate,
-    default_texture: *sdl.gpu.Texture,
     post_material: mt.MaterialTemplate,
     outline_material: mt.MaterialTemplate,
-    quad_buffer: *sdl.gpu.Buffer,
+
+    default_texture: *sdl.gpu.Texture,
+
     sampler: *sdl.gpu.Sampler = undefined,
 
     textures: tx.Textures,
     models: mdl.Models,
-
     materials: hya.Arena(mt.Material),
     objs: hya.Arena(RenderItem),
 
@@ -244,17 +239,20 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
             .dest_tex_height = @intCast(h),
         }),
         .blit_pass = passes.BlitPass.init(&self, self.device),
+
         .objs = try hya.Arena(RenderItem).create(self.gpa, 8),
+
         .default_material = material,
         .default_texture = texture,
+
         .post_material = quad_mat_template,
+
         .outline_material = try mt.readFromPath(&self, .{
             .path = "shaders/outline", 
             .enable_depth = false,
             .enable_stencil = false,
             .format = .r8_unorm,
         }, self.gpa),
-        .quad_buffer = quad_buffer,
         .sampler = self.device.createSampler(&sampler_info).?,
         .textures = tx.Textures.create(self.device, self.loader, self.symbol, self.gpa),
         .models = mdl.Models.create(self.device, self.loader, self.symbol, self.gpa),
@@ -282,7 +280,6 @@ pub fn shutdown(self: *Gpu) void {
     self.render_state.materials.deinit();
     self.render_state.objs.deinit();
 
-    self.device.releaseBuffer(self.render_state.quad_buffer);
     self.device.releaseTexture(self.render_state.default_texture);
     self.device.releaseSampler(self.render_state.sampler);
     self.device.releaseGraphicsPipeline(self.render_state.post_material.pipeline);
@@ -411,32 +408,19 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     }) catch {};
 
     // Render selected objects as mask for outline
-    const bw_tex = self.device.createTexture(&.{
-        .type = .@"2d",
-        .format = .r8_unorm,
-        .usage = .{ .color_target = true, .sampler = true },
-        .width = self.window_state.prev_drawable_w,
-        .height = self.window_state.prev_drawable_h,
-        .layer_count_or_depth = 1,
-        .num_levels = 1,
-        .sample_count = .@"1",
-    }).?;
-
-    defer self.device.releaseTexture(bw_tex);
-
-    const bw_target: []const sdl.gpu.ColorTargetInfo = &.{.{
-        .texture = bw_tex,
-        .clear_color = .{ .r = 0, .g = 0, .b = 0, .a = 1 },
-        .load_op = .clear,
-        .store_op = .store,
-        .cycle = true,
-    }};
+    const mask = passes.Forward.init(self.device, .{
+        .dest_format = .r8_unorm,
+        .dest_usage = .{ .color_target = true, .sampler = true },
+        .dest_tex_width = @intCast(self.window_state.prev_drawable_w),
+        .dest_tex_height = @intCast(self.window_state.prev_drawable_h),
+    });
+    defer mask.deinit();
 
     self.doPass(.{
         .cmd = cmd,
         .scene = scene.*,
         .material = mt.Material.fromTemplate(self.render_state.outline_material, .{}),
-        .targets = .{ .color = bw_target, .depth = null },
+        .targets = mask.targets(),
         .items = all_items, 
     }) catch {};
 
@@ -449,10 +433,21 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
             self.render_state.post_material,
             tx.TextureSet.init(.{
                 .diffuse = .{ .target = self.render_state.forward_pass.texture() },
-                .mask = .{ .target = bw_tex },
+                .mask = .{ .target = mask.texture() },
             }),
         ),
     }) catch {};
+}
+
+pub fn prepareObjects(self: *Gpu) ![]mat4.Mat4 {
+    var allocator = self.arena.allocator();
+    const objs = allocator.create(mat4.Mat4, self.render_state.objs.len);
+    var it = self.render_state.objs.iterator();
+    var i: usize = 0;
+    while (it.next()) |obj| {
+        objs[i] = mat4.mul(obj.transform, obj.parent_transform);
+        i += 1;
+    }
 }
 
 pub fn doPass(self: *Gpu, job: PassInfo) !void {

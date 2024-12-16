@@ -9,7 +9,7 @@ pub const Game = extern struct {
     quit: bool = false,
     restart: bool = false,
     scene: gpu.Scene,
-    frame_time: u64 = 0,
+    frame_time: f64 = 0,
     memory: *anyopaque,
 };
 

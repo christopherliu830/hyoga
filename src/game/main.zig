@@ -1,6 +1,8 @@
 const std = @import("std");
 const hy = @import("hyoga");
 const hym = hy.math;
+const mat4 = hym.mat4;
+const vec3 = hym.vec3;
 
 const ui = @import("ui.zig");
 const cam = @import("camera.zig");
@@ -18,6 +20,7 @@ objects: hy.Hive(Object),
 ui_state: ui.State,
 camera: cam.Camera,
 selected: ?*Object = null,
+seed: f64 = 0,
 
 inline fn get(ptr: *anyopaque) *Self {
     return @ptrCast(@alignCast(ptr));
@@ -42,7 +45,7 @@ fn tryInit(hye: *hy.Engine) !hy.Game {
     };
 
     self.backpack_hdl = try hye.gpu.importModel(try hye.symbol.from("assets/backpack/backpack.obj"), .{
-        .transform = hym.mat4.identity,
+        .transform = mat4.identity,
         .post_process = .{
             .triangulate = true,
             .split_large_meshes = true,
@@ -52,20 +55,24 @@ fn tryInit(hye: *hy.Engine) !hy.Game {
         }
     });
 
-    var object = (try self.objects.insert(undefined)).unpack();
-    object.hdl = hye.gpu.addModel(.{
-        .hdl = self.backpack_hdl,
-        .owner = &object.transform,
-        .time = 1 * std.time.ns_per_s,
-    })  catch |err| blk: switch (err) {
-        error.ModelNotFound => {
-            std.debug.print("Model not done yet\n", .{});
-            break :blk hy.Gpu.RenderItemHandle.invalid;
-        },
-        else => return err,
-    };
-
-    object.transform = hy.math.mat4.identity;
+    inline for (0..10) |x| {
+        inline for (0..10) |y| {
+            var object = (try self.objects.insert(undefined)).unpack();
+            object.hdl = hye.gpu.addModel(.{
+                .hdl = self.backpack_hdl,
+                .owner = &object.transform,
+                .time = 1 * std.time.ns_per_s,
+            })  catch |err| blk: switch (err) {
+                error.ModelNotFound => {
+                    std.debug.print("Model not done yet\n", .{});
+                    break :blk hy.Gpu.RenderItemHandle.invalid;
+                },
+                else => return err,
+            };
+            object.transform = hym.mat4.identity;
+            object.transform.translate(hym.vec3.create(x * 10, y * 10,0));
+        }
+    }
 
     try self.camera.registerInputs();
 
@@ -87,13 +94,14 @@ fn shutdown(_: *hy.Engine, state: hy.Game) callconv(.C) void {
 fn update(_: *hy.Engine, pregame: hy.Game) callconv(.C) hy.Game {
     const self: *Self = @ptrCast(@alignCast(pregame.memory));
     var game = pregame;
+    const obj = self.objects.groups.head.?.unpack();
+    self.seed += game.frame_time;
+    const x: f32 = @floatCast(std.math.sin(self.seed));
+    obj.transform = mat4.scale(vec3.create(x, x, x));
 
     game.scene.light_dir = hym.vec3.create(1, 0, 0);
     game.scene.view_proj = self.camera.viewProj();
     if (self.ui_state.restart_requested) game.restart = true;
-
-    // game.scene.camera.position = self.camera.position;
-    // game.scene.camera.look_direction = self.camera.look_direction;
     
     return game;
 }
@@ -109,6 +117,7 @@ fn render(hye: *hy.Engine, state: hy.Game) callconv(.C) void {
 
     const imgui = hy.UI.imgui;
     if (imgui.Begin("Test", null, 0)) {
+        imgui.Text("%f, %f", self.seed, state.frame_time);
         var it = self.objects.iterator();
         while (it.next()) |cursor| {
             const object = cursor.unpack();

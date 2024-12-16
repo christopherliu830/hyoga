@@ -111,7 +111,7 @@ pub fn update(self: *Engine, old_game: Game, gi: GameInterface) Game {
         self.ui.render(cmd) catch |err| std.log.err("[UI] failed to finish render: {}", .{err});
         _ = self.gpu.submit(cmd);
     } else return game; // Too many frames in flight, skip rendering.
-    game.frame_time = time.lap();
+    game.frame_time = @as(f64, @floatFromInt(time.lap())) / std.time.ns_per_s;
 
     @import("ztracy").FrameMark();
     return game;
