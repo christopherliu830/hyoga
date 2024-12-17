@@ -16,7 +16,7 @@ const Object = struct {
 
 gpa: std.heap.GeneralPurposeAllocator(.{}), 
 backpack_hdl: hy.Gpu.ModelHandle = undefined,
-objects: hy.Hive(Object),
+objects: hy.SkipMap(Object),
 ui_state: ui.State,
 camera: cam.Camera,
 selected: ?*Object = null,
@@ -40,7 +40,7 @@ fn tryInit(hye: *hy.Engine) !hy.World {
     const self = try self_gpa.allocator().create(Self);
     self.* = .{
         .gpa = self_gpa,
-        .objects = try hy.Hive(Object).create(self_gpa.allocator(), .{}),
+        .objects = try hy.SkipMap(Object).create(self_gpa.allocator(), .{}),
         .ui_state = .{ .second_timer = try std.time.Timer.start() },
         .camera = .{ .input = &hye.input, .window = &hye.window },
         .timer = try std.time.Timer.start(),
@@ -59,18 +59,13 @@ fn tryInit(hye: *hy.Engine) !hy.World {
 
     inline for (0..10) |x| {
         inline for (0..10) |y| {
-            var object = (try self.objects.insert(undefined)).unpack();
-            object.hdl = hye.gpu.addModel(.{
-                .hdl = self.backpack_hdl,
+            var object = (try self.objects.insert(undefined)).unwrap();
+            object.hdl = hye.gpu.render_state.renderables.add(.{
+                .model = self.backpack_hdl,
                 .owner = &object.transform,
                 .time = 1 * std.time.ns_per_s,
-            })  catch |err| blk: switch (err) {
-                error.ModelNotFound => {
-                    std.debug.print("Model not done yet\n", .{});
-                    break :blk hy.Gpu.RenderItemHandle.invalid;
-                },
-                else => return err,
-            };
+            }) catch { std.debug.panic("model add fail", .{}); };
+
             object.transform = hym.mat4.identity;
             object.transform.translate(hym.vec3.create(x * 10, y * 10,0));
         }
@@ -101,7 +96,7 @@ fn update(_: *hy.Engine, pregame: hy.World) callconv(.C) hy.World {
     var it = self.objects.iterator();
     var i: f32 = 0;
     while (it.next()) |cursor| : (i += 1) {
-        const obj = cursor.unpack();
+        const obj = cursor.unwrap();
         obj.transform.translate(vec3.create(0, @sin(@as(f32, @floatFromInt(self.seed)) / std.time.ns_per_s + i) * 0.0001, 0));
     }
 
@@ -126,7 +121,7 @@ fn render(hye: *hy.Engine, state: hy.World) callconv(.C) void {
         imgui.Text("%d, %d", self.seed / std.time.ns_per_s, state.frame_time / std.time.ns_per_ms);
         var it = self.objects.iterator();
         while (it.next()) |cursor| {
-            const object = cursor.unpack();
+            const object = cursor.unwrap();
             imgui.PushIDPtr(object);
             if (imgui.Button("Select")) {
                 self.selected = object;

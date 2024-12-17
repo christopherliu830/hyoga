@@ -9,7 +9,7 @@
         .stb_image = .{ .path = "modules/stb_image", },
         .ztracy = .{ .path = "modules/ztracy", },
         .hyoga_math = .{ .path = "../hyoga-math", },
-        .hyoga_arena = .{ .path = "../hyoga-arena", },
+        .hyoga_slotmap = .{ .path = "../hyoga-slotmap", },
     },
     .paths = .{ "" },
 }

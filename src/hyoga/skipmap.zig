@@ -6,21 +6,34 @@ const EntryType = enum {
 };
 
 
-// A hive retains the memory addresses of members as it grows 
-// while maintaining a O(n) iteration time. A hive consists of
+// A skipmap retains the memory addresses of members as it grows 
+// while maintaining a O(n) iteration time. A skipmap consists of
 // a doubly-linked list of blocks that contain an array of
 // members an associated metadata. Each new allocated block is
 // double the size of the previous block. 
 // Insertions make use of a free list, both per-block as well 
-// as a second the hive maintains of 
-pub fn Hive(comptime T: type) type {
+// as a second the skipmap maintains of 
+pub fn SkipMap(comptime T: type) type {
+    const Size = blk: {
+        if (@sizeOf(T) > 10 or @alignOf(T) > 10) {
+            break :blk u16;
+        }
+        else {
+            break :blk u8;
+        }
+    };
+
+    return SkipMapSized(T, Size);
+}
+
+pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
     return struct {
         pub const Cursor = struct {
             group: *Group,
             element: *Slot,
             skip: *Skip,
 
-            pub inline fn unpack(self: Cursor) *T { return &self.element.data; }
+            pub inline fn unwrap(self: Cursor) *T { return &self.element.data; }
         };
         
         pub const Iterator = struct {
@@ -63,15 +76,6 @@ pub fn Hive(comptime T: type) type {
         };
 
         const Self = @This();
-
-        const Size = blk: {
-            if (@sizeOf(T) > 10 or @alignOf(T) > 10) {
-                break :blk u16;
-            }
-            else {
-                break :blk u8;
-            }
-        };
 
         const Stride = std.meta.Int(.unsigned, @alignOf(T) * 8); 
 
@@ -314,13 +318,13 @@ pub fn Hive(comptime T: type) type {
             initial_block_capacity: Size = 32,
         };
 
-        pub fn create(allocator: std.mem.Allocator, options: CreateOptions) !Hive(T) {
-            const hive = Hive(T) {
+        pub fn create(allocator: std.mem.Allocator, options: CreateOptions) !SkipMap(T) {
+            const skipmap = SkipMap(T) {
                 .groups = .{},
                 .allocator = allocator,
                 .block_capacity = options.initial_block_capacity,
             };
-            return hive;
+            return skipmap;
         }
 
         pub fn deinit(self: *Self) void {
@@ -757,61 +761,61 @@ pub fn Hive(comptime T: type) type {
     };
 }
 
-test "hive.create" {
+test "skipmap.create" {
     const allocator = std.testing.allocator;
-    var hive = try Hive(u128).create(allocator, .{ .initial_block_capacity = 2 });
-    defer hive.deinit();
-    for (0..100) |i| { _ = try hive.insert(@intCast(i)); }
-    var it = hive.iterator();
+    var skipmap = try SkipMap(u128).create(allocator, .{ .initial_block_capacity = 2 });
+    defer skipmap.deinit();
+    for (0..100) |i| { _ = try skipmap.insert(@intCast(i)); }
+    var it = skipmap.iterator();
     var i: u128 = 0;
     while (it.next()) |val| : ({ i += 1; }) {
         try std.testing.expectEqual(i, val.*);
     }
 }
 
-test "hive.remove" {
+test "skipmap.remove" {
     const allocator = std.testing.allocator;
-    var hive = try Hive(u128).create(allocator, .{ .initial_block_capacity = 8 });
-    defer hive.deinit();
-    const a = try hive.insert(1);
-    const b = try hive.insert(2);
-    const c = try hive.insert(3);
-    const d = try hive.insert(4);
-    const e = try hive.insert(5);
-    const f = try hive.insert(6);
-    _ = try hive.insert(7);
+    var skipmap = try SkipMap(u128).create(allocator, .{ .initial_block_capacity = 8 });
+    defer skipmap.deinit();
+    const a = try skipmap.insert(1);
+    const b = try skipmap.insert(2);
+    const c = try skipmap.insert(3);
+    const d = try skipmap.insert(4);
+    const e = try skipmap.insert(5);
+    const f = try skipmap.insert(6);
+    _ = try skipmap.insert(7);
 
     // Test all skipblock merge cases
-    hive.remove(b); 
-    hive.remove(c); // [1] [_] [_] skipblock on left
-    hive.remove(f);  
-    hive.remove(e); // [_] [_] [1] skipblock on right
-    hive.remove(d); // [2] [_] [2] skipblock merge
-    hive.remove(a); // First element
+    skipmap.remove(b); 
+    skipmap.remove(c); // [1] [_] [_] skipblock on left
+    skipmap.remove(f);  
+    skipmap.remove(e); // [_] [_] [1] skipblock on right
+    skipmap.remove(d); // [2] [_] [2] skipblock merge
+    skipmap.remove(a); // First element
 
-    var it = hive.iterator();
+    var it = skipmap.iterator();
     try std.testing.expectEqual(7, it.next().?.*);
     try std.testing.expectEqual(null, it.next());
 }
 
-test "hive.reuse" {
+test "skipmap.reuse" {
     const allocator = std.testing.allocator;
-    var hive = try Hive(u128).create(allocator, .{ .initial_block_capacity = 8 });
-    defer hive.deinit();
-    _ = try hive.insert(1);
-    const b = try hive.insert(2);
-    _ = try hive.insert(3);
+    var skipmap = try SkipMap(u128).create(allocator, .{ .initial_block_capacity = 8 });
+    defer skipmap.deinit();
+    _ = try skipmap.insert(1);
+    const b = try skipmap.insert(2);
+    _ = try skipmap.insert(3);
 
-    hive.remove(b);
-    _ = try hive.insert(4);
+    skipmap.remove(b);
+    _ = try skipmap.insert(4);
 
-    var it = hive.iterator();
+    var it = skipmap.iterator();
     try std.testing.expectEqual(1, it.next().?.*);
     try std.testing.expectEqual(4, it.next().?.*);
     try std.testing.expectEqual(3, it.next().?.*);
     try std.testing.expectEqual(null, it.next());
 }
 
-test "hive.basic" {
+test "skipmap.basic" {
 
 }

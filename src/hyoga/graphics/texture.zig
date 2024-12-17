@@ -3,7 +3,7 @@ const sdl = @import("sdl");
 const stbi = @import("stb_image");
 const ai = @import("assimp");
 const Loader = @import("loader.zig");
-const hya = @import("hyoga-arena");
+const hysm = @import("hyoga-slotmap");
 const Symbol = @import("../Symbol.zig");
 
 pub const Handle = Symbol.ID;

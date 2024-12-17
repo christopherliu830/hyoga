@@ -13,6 +13,9 @@ pub const World = extern struct {
     memory: *anyopaque,
 };
 
+pub const Entity = extern struct {
+};
+
 pub const GameInterface = extern struct {
     init: *const fn(*Engine) callconv(.C) World,
     shutdown: *const fn(*Engine, World) callconv(.C) void,

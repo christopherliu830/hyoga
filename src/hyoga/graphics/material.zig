@@ -1,13 +1,13 @@
 const std = @import("std");
 const sdl = @import("sdl");
 const sdlsc = @import("sdl_shadercross");
-const hya = @import("hyoga-arena");
+const hysm = @import("hyoga-slotmap");
 const Gpu = @import("gpu.zig");
 const tx = @import("texture.zig");
 const Mat4 = @import("hyoga-math").Mat4;
 const Vec3 = @import("hyoga-math").Vec3;
 
-pub const Handle = hya.Arena(Material).Handle;
+pub const Handle = hysm.SlotMap(Material).Handle;
 
 pub const MaterialTemplate = struct {
     pipeline: *sdl.gpu.GraphicsPipeline,
@@ -49,16 +49,12 @@ pub const uniform = struct {
     };
 };
 
-
-
-
 pub const ShaderDefinition = struct {
     uniform_location_mvp: ?u8 = null,
     uniform_location_lighting: ?u8 = null,
     uniform_location_window: ?u8 = null,
     textures: [4]?tx.TextureType = [_]?tx.TextureType{ null } ** 4,
 };
-
 
 // Specification for the resource JSON
 pub const MaterialInfo = struct {

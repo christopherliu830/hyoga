@@ -2,14 +2,14 @@ const std = @import("std");
 const sdl = @import("sdl");
 
 pub const math = @import("hyoga-math");
-pub const slotmap = @import("hyoga-arena");
+pub const slotmap = @import("hyoga-slotmap");
 pub const material = @import("graphics/material.zig");
 
 pub const Input = @import("input/Input.zig");
 pub const Symbol = @import("Symbol.zig");
 pub const UI = @import("graphics/ui.zig");
 pub const Gpu = @import("graphics/gpu.zig");
-pub const Hive = @import("hive.zig").Hive;
+pub const SkipMap = @import("skipmap.zig").SkipMap;
 pub const Game = @import("Game.zig").World;
 pub const GameInterface = @import("Game.zig").GameInterface;
 pub const Loader = @import("graphics/loader.zig");
@@ -22,7 +22,7 @@ arena: std.heap.ArenaAllocator,
 window: Window,
 symbol: Symbol,
 input: Input,
-gpu: Gpu,
+gpu: *Gpu,
 ui: UI,
 loader: Loader,
 timer: std.time.Timer,
@@ -39,7 +39,7 @@ pub fn init() !*Engine {
         .input = try Input.init(self.gpa.allocator()),
         .window = try Window.init(), 
         .gpu = try Gpu.init(&self.window, &self.loader, &self.symbol, self.gpa.allocator()),
-        .ui = try UI.init(.{.gpu = &self.gpu, .window = &self.window, .allocator = self.gpa.allocator()}),
+        .ui = try UI.init(.{.gpu = self.gpu, .window = &self.window, .allocator = self.gpa.allocator()}),
         .loader = undefined,
         .timer = try std.time.Timer.start(),
     };
@@ -62,8 +62,8 @@ pub fn shutdown(self: *Engine) void {
 
     var gpa = self.gpa;
     gpa.allocator().destroy(self);
-    _ = gpa.detectLeaks();
-    _ = gpa.deinit();
+    // _ = gpa.detectLeaks();
+    // _ = gpa.deinit();
 }
 
 pub fn update(self: *Engine, old_game: Game, gi: GameInterface) Game {
@@ -121,5 +121,5 @@ pub fn update(self: *Engine, old_game: Game, gi: GameInterface) Game {
 /// on DLL load.
 pub fn setGlobalState(self: *Engine) void {
     self.ui.useState(); // Uses IMGUI
-    self.gpu.render_state.textures.image_loader.use(); // Uses STBI
+    self.gpu.textures.image_loader.use(); // Uses STBI
 }

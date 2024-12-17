@@ -2,8 +2,11 @@ const std = @import("std");
 const sdl = @import("sdl");
 const Gpu = @import("gpu.zig");
 const mt = @import("material.zig");
+const mdl = @import("model.zig");
 
-pub fn forward(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Gpu.Scene, items: []Gpu.RenderItem) *sdl.gpu.Texture {
+const Renderable = @import("renderable.zig").Renderable;
+
+pub fn forward(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Gpu.Scene, items: []Gpu.Renderable) *sdl.gpu.Texture {
     const tex = self.device.createTexture(&.{
         .type = .@"2d",
         .format = self.swapchain_target_desc.format,
@@ -170,7 +173,7 @@ pub const Forward = struct {
 
 pub const BlitPass = struct {
     device: *sdl.gpu.Device,
-    quad: Gpu.RenderItem,
+    quad: Renderable,
     target: sdl.gpu.ColorTargetInfo,
 
     pub fn init(gpu: *Gpu, device: *sdl.gpu.Device) BlitPass {
@@ -199,10 +202,14 @@ pub const BlitPass = struct {
         return .{
             .device = device,
             .quad = .{
-                .buf = quad_buffer, 
-                .idx_count = 6, 
-                .idx_offset = @sizeOf(f32) * 16, 
-                .material = undefined,
+                .mesh = .{
+                    .buffer = .{
+                        .hdl = quad_buffer,
+                        .size = @sizeOf(Verts),
+                        .idx_start = @sizeOf(f32) * 16,
+                    },
+                    .material = undefined,
+                },
             },
             .target = .{
                 .texture = undefined,

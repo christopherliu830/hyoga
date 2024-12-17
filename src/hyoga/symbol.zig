@@ -1,5 +1,5 @@
 const std = @import("std");
-const hya = @import("hyoga-arena");
+const hysm = @import("hyoga-slotmap");
 
 const Self = @This();
 

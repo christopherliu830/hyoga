@@ -54,7 +54,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    const hya = b.dependency("hyoga_arena", .{
+    const hysm = b.dependency("hyoga_slotmap", .{
         .target = target,
         .optimize = optimize,
     });
@@ -90,7 +90,7 @@ pub fn build(b: *std.Build) !void {
 
     hyoga.addImport("assimp", assimp.module("root"));
     hyoga.addImport("hyoga-math", hym.module("hyoga-math"));
-    hyoga.addImport("hyoga-arena", hya.module("hyoga-arena"));
+    hyoga.addImport("hyoga-slotmap", hysm.module("hyoga-slotmap"));
     hyoga.addImport("sdl", sdl.module("sdl"));
     hyoga.addImport("sdl_shadercross", sdl.module("sdl_shadercross"));
     hyoga.addImport("imgui", imgui.module("imgui"));

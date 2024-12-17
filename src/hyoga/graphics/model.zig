@@ -1,8 +1,8 @@
 const std = @import("std");
 const sdl = @import("sdl");
-const hya = @import("hyoga-arena");
+const hysm = @import("hyoga-slotmap");
 const ai = @import("assimp");
-const gpu = @import("gpu.zig");
+const Gpu = @import("gpu.zig");
 const mt = @import("material.zig");
 const Loader = @import("loader.zig");
 const tx = @import("texture.zig");
@@ -10,8 +10,10 @@ const Vertex = @import("vertex.zig").Vertex;
 const mat4 = @import("hyoga-math").mat4;
 const Symbol = @import("../Symbol.zig");
 
-pub const Arena = hya.Arena(Model);
+pub const Arena = hysm.SlotMap(ImportModel);
 pub const Handle = Symbol.ID;
+
+const Buffer = Gpu.Buffer;
 
 const ModelLoadJob = struct {
     allocator: std.mem.Allocator,
@@ -19,41 +21,30 @@ const ModelLoadJob = struct {
     mats: []mt.Handle,
     settings: ImportSettings,
 
+    const Result = struct {
+        job: ModelLoadJob,
+        model: Model,
+    };
+
     pub fn deinit(self: @This()) void {
         self.allocator.free(self.path);
         self.allocator.free(self.mats);
     }
 };
 
-const ModelLoadResult = struct {
-    job: ModelLoadJob,
-    model: Model,
-};
-
-const Queue = Loader.Queue(ModelLoadResult);
+const Queue = Loader.Queue(ModelLoadJob.Result);
 
 pub const Models = struct {
     allocator: std.mem.Allocator,
-    device: *sdl.gpu.Device,
     queue: Queue,
     models: std.AutoHashMapUnmanaged(Symbol.ID, Model) = .{},
     symbol: *Symbol,
     loader: *Loader,
 
-    pub fn init(self: *@This(), device: *sdl.gpu.Device, loader: *Loader, symbol: *Symbol, allocator: std.mem.Allocator,) void {
-        self.allocator = allocator;
-        self.queue.init(allocator);
-        self.device = device;
-        self.models = .{};
-        self.symbol = symbol;
-        self.loader = loader;
-    }
-
-    pub fn create(device: *sdl.gpu.Device, loader: *Loader, symbol: *Symbol, allocator: std.mem.Allocator) Models {
+    pub fn create(loader: *Loader, symbol: *Symbol, allocator: std.mem.Allocator) Models {
         var m: Models = undefined;
         m.allocator = allocator;
         m.queue.init(allocator);
-        m.device = device;
         m.symbol = symbol;
         m.loader = loader;
         m.models = .{};
@@ -62,10 +53,13 @@ pub const Models = struct {
 
     pub fn deinit(self: *@This()) void {
         self.flushQueue() catch std.debug.panic("Could not flush queue", .{});
+        const gpu: *Gpu = @alignCast(@fieldParentPtr("models", self));
+
         if (self.models.count() > 0) {
             var it = self.models.valueIterator();
             while (it.next()) |entry| {
-                entry.deinit(self.allocator);
+                gpu.device.releaseBuffer(entry.root_buffer.hdl);
+                self.allocator.free(entry.children);
             }
             self.models.deinit(self.allocator);
         }
@@ -84,7 +78,7 @@ pub const Models = struct {
             .settings = import,
         };
 
-        try self.loader.run(&self.queue, doRead, .{job});
+        try self.loader.run(&self.queue, doRead, .{self, job});
         return self.symbol.from(path);
     }
 
@@ -95,20 +89,23 @@ pub const Models = struct {
         }
     }
 
-    fn doRead(queue: *Queue, job: ModelLoadJob) void {
-        const allocator = queue.tsa.allocator();
+    fn doRead(queue: *Queue, self: *Models, job: ModelLoadJob) void {
+        const gpu: *Gpu = @alignCast(@fieldParentPtr("models", self));
+        const device = gpu.device;
+
+        const allocator = self.queue.tsa.allocator();
         const pathz = job.path;
         var scene = ai.importFile(pathz, job.settings.post_process);
         defer scene.release();
 
-        var model: Model = .{
+        var in_model: ImportModel = .{
             .total_index_count = 0,
             .total_vertex_count = 0,
             .meshes = .{},
             .transform = job.settings.transform,
         };
 
-        model.processNode(.{
+        in_model.processNode(.{
             .allocator = allocator,
             .path = pathz,
             .scene = scene,
@@ -118,33 +115,88 @@ pub const Models = struct {
             std.log.err("[GPU] model load failure: {}", .{err});
         };
 
-        errdefer model.deinit();
+        defer in_model.deinit(allocator);
 
-        queue.push(ModelLoadResult {
+        const vtx_buf_size = in_model.total_vertex_count * @sizeOf(Vertex);
+        const idx_buf_size = in_model.total_index_count * @sizeOf(u32);
+
+        const hdl = device.createBuffer(&.{
+            .usage = .{ .index = true, .vertex = true },
+            .size = vtx_buf_size + idx_buf_size,
+        }).?;
+
+        const root_buffer = Buffer {
+            .hdl = hdl,
+            .size = vtx_buf_size + idx_buf_size,
+            .idx_start = vtx_buf_size,
+        };
+
+        var buf_offset: usize = 0;
+
+        const children = allocator.alloc(Mesh, in_model.meshes.items.len) catch {
+            std.debug.panic("out of memory", .{});
+        };
+
+        for (in_model.meshes.items, 0..) |mesh, i| {
+            const mesh_vbuf_size = mesh.vertices.items.len * @sizeOf(Vertex);
+            const mesh_ibuf_size = mesh.indices.items.len * @sizeOf(u32);
+            gpu.uploadToBuffer(root_buffer.hdl, @intCast(buf_offset), std.mem.sliceAsBytes(mesh.vertices.items))
+                catch std.debug.panic("model load error");
+            gpu.uploadToBuffer(root_buffer.hdl, @intCast(buf_offset + root_buffer.idx_start), std.mem.sliceAsBytes(mesh.indices.items))
+                catch std.debug.panic("model load error");
+            children[i] = .{
+                .buffer = .{
+                    .hdl = hdl,
+                    .size = @intCast(mesh_vbuf_size + mesh_ibuf_size),
+                    .vtx_start = @intCast(buf_offset),
+                    .idx_start = @intCast(buf_offset + mesh_vbuf_size),
+                },
+                .material = mesh.material,
+            };
+            buf_offset += mesh_vbuf_size;
+        }
+
+        queue.push(.{
             .job = job,
-            .model = model,
+            .model = .{
+                .root_buffer = root_buffer,
+                .children = children,
+            },
         }) catch |err| std.log.err("[GPU] model load failure: {}", .{err});
     }
 };
 
+pub const Model = struct {
+    root_buffer: Buffer,
+    children: []Mesh,
+    transform: mat4.Mat4 = mat4.identity,
+};
+
 pub const Mesh = struct {
+    buffer: Buffer,
+    material: mt.Handle = mt.Handle.invalid,
+
+};
+
+const ImportMesh = struct {
     vertices: std.ArrayListUnmanaged(Vertex) = .{},
     indices: std.ArrayListUnmanaged(u32) = .{},
     material: mt.Handle,
 
-    pub fn deinit(self: *Mesh, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *ImportMesh, allocator: std.mem.Allocator) void {
         self.vertices.deinit(allocator);
         self.indices.deinit(allocator);
     }
 };
 
-pub const Model = struct {
+const ImportModel = struct {
     total_vertex_count: u32 = 0,
     total_index_count: u32 = 0,
-    meshes: std.ArrayListUnmanaged(Mesh) = .{},
+    buffer: ?Buffer = null,
+    meshes: std.ArrayListUnmanaged(ImportMesh) = .{},
     transform: mat4.Mat4 = mat4.identity,
 
-    pub fn deinit(self: Model, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: ImportModel, allocator: std.mem.Allocator) void {
         for (self.meshes.items) |*mesh| { 
             mesh.deinit(allocator);
         }
@@ -160,8 +212,8 @@ pub const Model = struct {
         materials: []mt.Handle,
     };
 
-    pub fn deepCopy(old: Model, allocator: std.mem.Allocator) !Model {
-        var copy: Model = .{
+    pub fn deepCopy(old: ImportModel, allocator: std.mem.Allocator) !ImportModel {
+        var copy: ImportModel = .{
             .total_index_count = old.total_index_count,
             .total_vertex_count = old.total_vertex_count,
         };
@@ -187,7 +239,7 @@ pub const Model = struct {
         return copy;
     }
 
-    fn processNode(self: *Model, params: ProcessModelParams) !void {
+    fn processNode(self: *ImportModel, params: ProcessModelParams) !void {
         const node = params.node;
         try self.meshes.ensureTotalCapacity(params.allocator, node.num_meshes);
         for (node.meshes[0..node.num_meshes]) |idx_mesh| {
@@ -207,10 +259,10 @@ pub const Model = struct {
         }
     }
 
-    fn processMesh(model: *Model, params: ProcessModelParams) !Mesh {
+    fn processMesh(model: *ImportModel, params: ProcessModelParams) !ImportMesh {
         const in_mesh = params.mesh.?;
 
-        var out_mesh = Mesh { .material = params.materials[in_mesh.material_index], };
+        var out_mesh = ImportMesh { .material = params.materials[in_mesh.material_index], };
         try out_mesh.vertices.ensureTotalCapacity(params.allocator, in_mesh.num_vertices);
         model.total_vertex_count += in_mesh.num_vertices;
 
