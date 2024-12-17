@@ -82,7 +82,7 @@ const RenderState = struct {
     sampler: *sdl.gpu.Sampler = undefined,
 
     renderables: rbl.RenderList,
-    outline_renderables: std.ArrayListUnmanaged(rbl.RenderItemHandle),
+    outline_renderables: rbl.RenderList,
 
     ssbo: *sdl.gpu.Buffer,
     scene: *Scene = undefined,
@@ -212,6 +212,7 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
 
     self.render_state = .{
         .forward_pass = passes.Forward.init(self.device, .{
+            .clear_color = .{ .r = 0.2, .g = 0.2, .b = 0.4, .a = 1 },
             .depth_enabled = true,
             .stencil_enabled = false,
             .dest_format = self.swapchain_target_desc.format,
@@ -223,7 +224,7 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         .blit_pass = passes.BlitPass.init(self, self.device),
 
         .renderables = try rbl.RenderList.init(self, self.gpa),
-        .outline_renderables = .{},
+        .outline_renderables = try rbl.RenderList.init(self, self.gpa),
 
         .default_material = material,
         .default_texture = texture,
@@ -401,12 +402,13 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     });
     defer mask.deinit();
 
+    const selected_mask = self.render_state.outline_renderables.items.iterator();
     self.doPass(.{
         .cmd = cmd,
         .scene = scene.*,
         .material = mt.Material.fromTemplate(self.render_state.outline_material, .{}),
         .targets = mask.targets(),
-        .iterator = all_items,
+        .iterator = selected_mask,
     }) catch {};
 
     self.doPass(.{

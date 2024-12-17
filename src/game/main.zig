@@ -19,7 +19,7 @@ backpack_hdl: hy.Gpu.ModelHandle = undefined,
 objects: hy.SkipMap(Object),
 ui_state: ui.State,
 camera: cam.Camera,
-selected: ?*Object = null,
+selected: ?hy.Gpu.RenderItemHandle = null,
 seed: u64 = 0,
 timer: std.time.Timer,
 
@@ -57,8 +57,8 @@ fn tryInit(hye: *hy.Engine) !hy.World {
         }
     });
 
-    inline for (0..10) |x| {
-        inline for (0..10) |y| {
+    inline for (0..10) |y| {
+        inline for (0..10) |x| {
             var object = (try self.objects.insert(undefined)).unwrap();
             object.hdl = hye.gpu.render_state.renderables.add(.{
                 .model = self.backpack_hdl,
@@ -67,7 +67,7 @@ fn tryInit(hye: *hy.Engine) !hy.World {
             }) catch { std.debug.panic("model add fail", .{}); };
 
             object.transform = hym.mat4.identity;
-            object.transform.translate(hym.vec3.create(x * 10, y * 10,0));
+            object.transform.translate(hym.vec3.create(x * 10, 100 - y * 10,0));
         }
     }
 
@@ -109,7 +109,6 @@ fn update(_: *hy.Engine, pregame: hy.World) callconv(.C) hy.World {
 
 // Only called on new frames
 fn render(hye: *hy.Engine, state: hy.World) callconv(.C) void {
-    _ = hye;
     const self: *Self = @ptrCast(@alignCast(state.memory));
 
     ui.drawMainUI(&self.ui_state);
@@ -118,17 +117,29 @@ fn render(hye: *hy.Engine, state: hy.World) callconv(.C) void {
 
     const imgui = hy.UI.imgui;
     if (imgui.Begin("Test", null, 0)) {
-        imgui.Text("%d, %d", self.seed / std.time.ns_per_s, state.frame_time / std.time.ns_per_ms);
         var it = self.objects.iterator();
+        var count: u32 = 0;
         while (it.next()) |cursor| {
             const object = cursor.unwrap();
             imgui.PushIDPtr(object);
-            if (imgui.Button("Select")) {
-                self.selected = object;
+            if (count % 10 > 0) imgui.SameLine();
+            if (imgui.ButtonEx("", .{.x = 20, .y = 20})) {
+                if (self.selected != null) {
+                    hye.gpu.render_state.outline_renderables.remove(self.selected.?);
+                    self.selected = null;
+                }
+
+                self.selected = hye.gpu.render_state.outline_renderables.add(.{
+                    .model = self.backpack_hdl,
+                    .owner = &object.transform,
+                    .time = 1 * std.time.ns_per_s,
+                }) catch { std.debug.panic("model add fail", .{}); };
             }
             imgui.PopID();
+            count += 1;
         }
     }
+    self.camera.position = vec3.create(50, 50, 50);
     imgui.End();
 }
 

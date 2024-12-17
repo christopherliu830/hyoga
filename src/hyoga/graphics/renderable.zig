@@ -69,14 +69,11 @@ pub const RenderList = struct {
     }
 
     pub fn remove(self: *RenderList, hdl: RenderItemHandle) void {
-        var head = hdl;
-        while (head != RenderItemHandle.invalid) |node| {
-            const obj = self.render_state.renderables.get(node) catch {
-                std.log.warn("[GPU]: Invalid handle for removeModel, returning...", .{});
-                return;
-            };
+        var head: ?RenderItemHandle = hdl;
+        while (head) |node| {
+            const obj = node.unwrap();
+            self.items.remove(node);
             head = obj.next;
-            self.items.remove(obj);
         }
     }
 
