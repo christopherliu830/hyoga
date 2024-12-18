@@ -43,7 +43,6 @@ pub const Buffer = struct {
     }
 };
 
-
 pub const Scene = extern struct {
     view_proj: mat4.Mat4,
     light_dir: vec3.Vec3,
@@ -90,7 +89,7 @@ const RenderState = struct {
     pending_submit_result: ?RenderSubmitResult = null,
 };
 
-pub const PassTargets= struct {
+pub const PassTargets = struct {
     color: []const sdl.gpu.ColorTargetInfo,
     depth: ?*const sdl.gpu.DepthStencilTargetInfo,
 };
@@ -204,7 +203,7 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         .mag_filter = .linear,
     };
 
-    const quad_mat_template = try mt.readFromPath(self, .{ 
+    const quad_mat_template = try mt.readFromPath(self, .{
         .path = "shaders/post_process",
         .enable_depth = false,
         .enable_stencil = false,
@@ -232,7 +231,7 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         .post_material = quad_mat_template,
 
         .outline_material = try mt.readFromPath(self, .{
-            .path = "shaders/outline", 
+            .path = "shaders/outline",
             .enable_depth = false,
             .enable_stencil = false,
             .format = .r8_unorm,
@@ -264,7 +263,7 @@ pub fn shutdown(self: *Gpu) void {
     self.textures.deinit();
     self.models.deinit();
     self.materials.deinit();
-    // self.render_state.renderables.deinit(); 
+    // self.render_state.renderables.deinit();
 
     self.device.releaseTexture(self.render_state.default_texture);
     self.device.releaseSampler(self.render_state.sampler);
@@ -348,14 +347,14 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
     var drawable_w: u32 = undefined;
     var drawable_h: u32 = undefined;
 
-    const acquire= @import("ztracy").ZoneN(@src(), "acquireCommandBuffer");
+    const acquire = @import("ztracy").ZoneN(@src(), "acquireCommandBuffer");
     const cmd = self.device.acquireCommandBuffer() orelse {
         std.log.err("could not acquire command buffer", .{});
         return error.SDLError;
     };
     acquire.End();
 
-    const acquireSwapchainTexture= @import("ztracy").ZoneN(@src(), "acquireSwapchainTexture");
+    const acquireSwapchainTexture = @import("ztracy").ZoneN(@src(), "acquireSwapchainTexture");
     defer acquireSwapchainTexture.End();
     var swapchain: ?*sdl.gpu.Texture = null;
     if (!cmd.acquireSwapchainTexture(self.window_state.window.hdl, &swapchain, &drawable_w, &drawable_h)) {
@@ -496,7 +495,7 @@ fn doPassOne(self: *Gpu,
 
         if (program_def.uniform_location_mvp) |slot_index| {
             const mat_model = mat4.mul(item.transform, (item.parent_transform orelse &mat4.identity).*);
-            const ubo = mt.uniform.Transform {
+            const ubo = mt.uniform.Transform{
                 .inverse_model = mat4.transpose(mat4.inverse(item.transform)),
                 .view_proj = job.scene.view_proj,
                 .model = mat_model,

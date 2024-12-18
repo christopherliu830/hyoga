@@ -6,6 +6,7 @@ const Event = hy.Input.Event;
 
 const vec3 = math.vec3;
 const vec2 = math.vec2;
+const mat4 = math.mat4;
 
 const ViewMatrix = math.Mat4;
 
@@ -30,22 +31,22 @@ pub const Camera = struct {
     }
 
     pub fn viewProj(self: Camera) ViewMatrix {
-        const view = math.cam.lookAt(self.position, vec3.add(self.position, self.look_direction), vec3.y);
+        const view = math.cam.lookTo(self.position, self.look_direction, vec3.y);
         const persp = math.cam.perspectiveMatrix(self.fovy, self.window.aspect, self.z_near, self.z_far);
-        return math.mat4.mul(view, persp);
+        return math.mul(view, persp);
     }
 
     pub fn registerInputs(self: *Camera) !void {
-        _ = try self.input.bindMouse(.{ .button = .motion}, translate, .{self});
+        _ = try self.input.bindMouse(.{ .button = .motion }, translate, .{self});
         _ = try self.input.bindMouse(.{ .button = .left }, lockMouse, .{ self, true });
         _ = try self.input.bindMouse(.{ .button = .middle }, lockMouse, .{ self, true });
-        _ = try self.input.bindMouse(.{ .button = .left, .fire_on = .{ .up = true }}, lockMouse, .{ self, false });
-        _ = try self.input.bindMouse(.{ .button = .middle, .fire_on = .{ .up = true }}, lockMouse, .{ self, false });
-        _ = try self.input.bindMouse(.{ .button = .wheel }, zoom, .{ self });
-        _ = try self.input.bindKey(.{ .button = .s, .fire_on = .{ .down = true, .held = true} }, pan, .{ self, vec2.create(-1,  0)});
-        _ = try self.input.bindKey(.{ .button = .d, .fire_on = .{ .down = true, .held = true}}, pan, .{ self, vec2.create( 0, -1)});
-        _ = try self.input.bindKey(.{ .button = .f, .fire_on = .{ .down = true, .held = true} }, pan, .{ self, vec2.create( 0,  1)});
-        _ = try self.input.bindKey(.{ .button = .g, .fire_on = .{ .down = true, .held = true} }, pan, .{ self, vec2.create( 1,  0)});
+        _ = try self.input.bindMouse(.{ .button = .left, .fire_on = .{ .up = true } }, lockMouse, .{ self, false });
+        _ = try self.input.bindMouse(.{ .button = .middle, .fire_on = .{ .up = true } }, lockMouse, .{ self, false });
+        _ = try self.input.bindMouse(.{ .button = .wheel }, zoom, .{self});
+        _ = try self.input.bindKey(.{ .button = .s, .fire_on = .{ .down = true, .held = true } }, pan, .{ self, vec2.create(-1, 0) });
+        _ = try self.input.bindKey(.{ .button = .d, .fire_on = .{ .down = true, .held = true } }, pan, .{ self, vec2.create(0, -1) });
+        _ = try self.input.bindKey(.{ .button = .f, .fire_on = .{ .down = true, .held = true } }, pan, .{ self, vec2.create(0, 1) });
+        _ = try self.input.bindKey(.{ .button = .g, .fire_on = .{ .down = true, .held = true } }, pan, .{ self, vec2.create(1, 0) });
     }
 
     pub fn editor(self: *Camera) void {
@@ -74,7 +75,7 @@ fn translate(cam: *Camera, event: Event) void {
     // change look
     if (cam.input.queryMouse(.left)) {
         var direction = cam.look_direction;
-        direction.rotate(vec3.y, -event.motion.xrel / 500); 
+        direction.rotate(vec3.y, -event.motion.xrel / 500);
         direction.rotate(vec3.cross(direction, vec3.y), -event.motion.yrel / 500);
         cam.look_direction = direction;
     }

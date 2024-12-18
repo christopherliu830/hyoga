@@ -77,12 +77,13 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
                     const out_name = b.pathJoin(&.{dest_prefix, out_basename});
 
                     const src_stat = try src_dir.statFile(entry.path);
-                    const dst_stat = cwd.statFile(out_name) catch null; 
+                    const dst_stat = cwd.statFile(out_name) catch null;
 
                     if (self.always_generate or dst_stat == null or dst_stat.?.mtime < src_stat.mtime) {
                         step_opts.progress_node.increaseEstimatedTotalItems(1);
                         const argv_list: []const []const u8 = &.{
                             "slangc",
+                            "-matrix-layout-row-major",
                             try src_sub_path.toString(b.allocator), // Input file
                             "-entry", opts.entry,
                             "-target", self.target,
@@ -100,6 +101,4 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
             else => {},
         }
     }
-
-
 }

@@ -3,6 +3,7 @@ const hy = @import("hyoga");
 const hym = hy.math;
 const mat4 = hym.mat4;
 const vec3 = hym.vec3;
+const vec4 = hym.vec4;
 
 const ui = @import("ui.zig");
 const cam = @import("camera.zig");
@@ -14,7 +15,7 @@ const Object = struct {
     hdl: hy.Gpu.RenderItemHandle,
 };
 
-gpa: std.heap.GeneralPurposeAllocator(.{}), 
+gpa: std.heap.GeneralPurposeAllocator(.{}),
 backpack_hdl: hy.Gpu.ModelHandle = undefined,
 objects: hy.SkipMap(Object),
 ui_state: ui.State,
@@ -36,7 +37,7 @@ fn init(hye: *hy.Engine) callconv(.C) hy.World {
 fn tryInit(hye: *hy.Engine) !hy.World {
     hye.setGlobalState();
 
-    var self_gpa = std.heap.GeneralPurposeAllocator(.{}) {};
+    var self_gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const self = try self_gpa.allocator().create(Self);
     self.* = .{
         .gpa = self_gpa,
@@ -49,11 +50,11 @@ fn tryInit(hye: *hy.Engine) !hy.World {
     self.backpack_hdl = try hye.gpu.importModel(try hye.symbol.from("assets/backpack/backpack.obj"), .{
         .transform = mat4.identity,
         .post_process = .{
-            .triangulate = true,
-            .split_large_meshes = true,
-            .pre_transform_vertices = true,
-            .optimize_graph = true,
-            .optimize_meshes = true,
+        .triangulate = true,
+        .split_large_meshes = true,
+        .pre_transform_vertices = true,
+        .optimize_graph = true,
+        .optimize_meshes = true,
         }
     });
 
@@ -67,7 +68,7 @@ fn tryInit(hye: *hy.Engine) !hy.World {
             }) catch { std.debug.panic("model add fail", .{}); };
 
             object.transform = hym.mat4.identity;
-            object.transform.translate(hym.vec3.create(x * 10, 100 - y * 10,0));
+            object.transform = hym.mat4.translation(object.transform, hym.vec3.create(x * 10, 100 - y * 10,0));
         }
     }
 
@@ -97,13 +98,15 @@ fn update(_: *hy.Engine, pregame: hy.World) callconv(.C) hy.World {
     var i: f32 = 0;
     while (it.next()) |cursor| : (i += 1) {
         const obj = cursor.unwrap();
-        obj.transform.translate(vec3.create(0, @sin(@as(f32, @floatFromInt(self.seed)) / std.time.ns_per_s + i) * 0.0001, 0));
+        _ = obj;
+        // obj.transform = mat4.translation(obj.transform, vec3.create(0, @sin(@as(f32, @floatFromInt(self.seed)) / std.time.ns_per_s + i) * 0, 0));
+        // obj.transform = mat4.mul(obj.transform, self.camera.viewProj());
     }
 
     game.scene.light_dir = hym.vec3.create(1, 0, 0);
     game.scene.view_proj = self.camera.viewProj();
     if (self.ui_state.restart_requested) game.restart = true;
-    
+
     return game;
 }
 
@@ -123,7 +126,7 @@ fn render(hye: *hy.Engine, state: hy.World) callconv(.C) void {
             const object = cursor.unwrap();
             imgui.PushIDPtr(object);
             if (count % 10 > 0) imgui.SameLine();
-            if (imgui.ButtonEx("", .{.x = 20, .y = 20})) {
+            if (imgui.ButtonEx("", .{ .x = 20, .y = 20 })) {
                 if (self.selected != null) {
                     hye.gpu.render_state.outline_renderables.remove(self.selected.?);
                     self.selected = null;
@@ -139,7 +142,6 @@ fn render(hye: *hy.Engine, state: hy.World) callconv(.C) void {
             count += 1;
         }
     }
-    self.camera.position = vec3.create(50, 50, 50);
     imgui.End();
 }
 

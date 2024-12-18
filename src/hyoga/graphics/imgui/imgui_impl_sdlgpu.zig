@@ -408,18 +408,18 @@ pub fn setupRenderState(cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.Rende
         const r = draw_data.DisplayPos.x + draw_data.DisplaySize.x;
         const t = draw_data.DisplayPos.y;
         const b = draw_data.DisplayPos.y + draw_data.DisplaySize.y;
-        // const proj = [4][4]f32 {
-        //     .{     2/(r-l),           0,  0,  0 },
-        //     .{           0,     2/(t-b),  0,  0 },
-        //     .{           0,           0, -1,  0 },
-        //     .{ (r+l)/(l-r), (t+b)/(b-t),  0,  1 },
-        // };
         const proj = [4][4]f32 {
-            .{     2/(r-l),           0,  0,  (r+l)/(l-r) },
-            .{           0,     2/(t-b),  0,  (t+b)/(b-t) },
-            .{           0,           0, -1,            0 },
-            .{           0,           0,  0,            1 },
+            .{     2/(r-l),           0,  0,  0 },
+            .{           0,     2/(t-b),  0,  0 },
+            .{           0,           0, -1,  0 },
+            .{ (r+l)/(l-r), (t+b)/(b-t),  0,  1 },
         };
+        // const proj = [4][4]f32 {
+        //     .{     2/(r-l),           0,  0,  (r+l)/(l-r) },
+        //     .{           0,     2/(t-b),  0,  (t+b)/(b-t) },
+        //     .{           0,           0, -1,            0 },
+        //     .{           0,           0,  0,            1 },
+        // };
 
         const viewport= sdl.gpu.Viewport {
             .x = 0,
