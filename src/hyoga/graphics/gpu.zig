@@ -494,7 +494,7 @@ fn doPassOne(self: *Gpu,
         const pushSampler = params[2];
 
         if (program_def.uniform_location_mvp) |slot_index| {
-            const mat_model = mat4.mul(item.transform, (item.parent_transform orelse &mat4.identity).*);
+            const mat_model = mat4.mul((item.parent_transform orelse &mat4.identity).*, item.transform);
             const ubo = mt.uniform.Transform{
                 .inverse_model = mat4.transpose(mat4.inverse(item.transform)),
                 .view_proj = job.scene.view_proj,

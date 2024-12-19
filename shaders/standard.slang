@@ -20,7 +20,6 @@ struct Camera {
 struct VOut {
     float4 position: SV_Position;
     float3 vert_world_pos;
-    float3 camera_pos;
     float3 color;
     float3 normal;
     float2 uv;
@@ -37,7 +36,6 @@ VOut vertexMain(Vertex input) {
     output.color = vec3(1, 1, 1);
     output.normal = mul(input.normal, mat3x3(camera.trans_inverse_model));
     output.uv = input.uv;
-    output.camera_pos = mul(float4(0, 0, 0, 1), inverse(camera.vp)).xyz;
     return output;
 }
 
@@ -51,7 +49,7 @@ float4 fragmentMain(VOut input): SV_Target {
     vec3 ld = -normalize(lighting.light_dir);
     vec3 n = normalize(input.normal);
     float diffuse = max(0, dot(n, ld));
-    vec3 eye_direction = normalize(input.camera_pos - input.vert_world_pos);
+    vec3 eye_direction = normalize(lighting.camera_pos - input.vert_world_pos);
 
     vec3 reflected = reflect(-ld, input.normal);
     float spec = pow(max(dot(eye_direction, reflected), 0), 32) * 0.5;

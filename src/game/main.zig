@@ -69,10 +69,13 @@ fn tryInit(hye: *hy.Engine) !hy.World {
 
             object.transform = hym.mat4.identity;
             object.transform = hym.mat4.translation(object.transform, hym.vec3.create(x * 10, 100 - y * 10,0));
+
         }
     }
 
     try self.camera.registerInputs();
+    self.camera.position = hym.vec(.{50, 50, 50});
+    self.camera.look_direction = hym.vec(.{0, 0, -1});
 
     return .{
         .scene = .{
@@ -93,15 +96,6 @@ fn update(_: *hy.Engine, pregame: hy.World) callconv(.C) hy.World {
     const self: *Self = @ptrCast(@alignCast(pregame.memory));
     var game = pregame;
     self.seed += game.frame_time;
-
-    var it = self.objects.iterator();
-    var i: f32 = 0;
-    while (it.next()) |cursor| : (i += 1) {
-        const obj = cursor.unwrap();
-        _ = obj;
-        // obj.transform = mat4.translation(obj.transform, vec3.create(0, @sin(@as(f32, @floatFromInt(self.seed)) / std.time.ns_per_s + i) * 0, 0));
-        // obj.transform = mat4.mul(obj.transform, self.camera.viewProj());
-    }
 
     game.scene.light_dir = hym.vec3.create(1, 0, 0);
     game.scene.view_proj = self.camera.viewProj();
