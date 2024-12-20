@@ -21,7 +21,7 @@ const mt = @import("material.zig");
 const Loader = @import("loader.zig");
 const Symbol = @import("../Symbol.zig");
 const Vertex = @import("vertex.zig").Vertex;
-const GpuScene = @import("Scene.zig");
+const scn = @import("Scene.zig");
 const passes = @import("passes.zig");
 const rbl = @import("renderable.zig");
 
@@ -83,7 +83,7 @@ const RenderState = struct {
     renderables: rbl.RenderList,
     outline_renderables: rbl.RenderList,
 
-    ssbo: *sdl.gpu.Buffer,
+    ssbo: scn.SceneBuffer,
     scene: *Scene = undefined,
     active_target: ?*sdl.gpu.Texture,
     pending_submit_result: ?RenderSubmitResult = null,
@@ -208,6 +208,25 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         .enable_depth = false,
         .enable_stencil = false,
     }, self.gpa);
+    
+    const ssbo_buf = self.device.createBuffer(&.{
+        .usage = .{ .graphics_storage_read = true, },
+        .size = @sizeOf(scn.Scene),
+    }).?;
+
+    const scene_buf = scn.SceneBuffer {
+        .buffer = .{
+            .hdl = ssbo_buf,
+            .size = @sizeOf(scn.Scene),
+        },
+        .scene = .{
+            .viewport_size_x = @intCast(w),
+            .viewport_size_y = @intCast(h),
+            .view_proj = mat4.identity,
+            .light_dir = hym.vec(.{0, 0, -1}),
+            .renderables = &.{mat4.identity},
+        }
+    };
 
     self.render_state = .{
         .forward_pass = passes.Forward.init(self.device, .{
@@ -238,11 +257,8 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         }, self.gpa),
 
         .sampler = self.device.createSampler(&sampler_info).?,
+        .ssbo = scene_buf,
         .active_target = null,
-        .ssbo = self.device.createBuffer(&.{
-            .usage = .{ .graphics_storage_read = true },
-            .size = @sizeOf(GpuScene),
-        }).?,
     };
 
     return self;
@@ -263,7 +279,6 @@ pub fn shutdown(self: *Gpu) void {
     self.textures.deinit();
     self.models.deinit();
     self.materials.deinit();
-    // self.render_state.renderables.deinit();
 
     self.device.releaseTexture(self.render_state.default_texture);
     self.device.releaseSampler(self.render_state.sampler);
