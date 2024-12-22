@@ -1,8 +1,10 @@
 const std = @import("std");
 const sdl = @import("sdl");
+const hym = @import("hyoga-math");
 const mat4 = @import("hyoga-math").mat4;
 
 const SkipMap = @import("../skipmap.zig").SkipMapSized;
+const SlotMap = @import("hyoga-slotmap").SlotMap;
 const Gpu = @import("gpu.zig");
 const mt = @import("material.zig");
 
@@ -10,8 +12,9 @@ const mdl = @import("model.zig");
 const Model = mdl.Model;
 const ModelHandle = mdl.Handle;
 
-const RenderItems = SkipMap(Renderable, u16);
-pub const RenderItemHandle = RenderItems.Cursor;
+const RenderItems = SlotMap(Renderable);
+
+pub const RenderItemHandle = RenderItems.Handle;
 
 pub const Renderable = struct {
     next: ?RenderItemHandle = null, // When models are imported as a group, support adds and removes via this link.
@@ -26,12 +29,12 @@ pub const RenderList = struct {
     gpu: *Gpu,
     items: RenderItems,
 
-    pub const Iterator = RenderItems.Iterator;
+    pub const Iterator = RenderItems.ValidItemsIterator;
 
     pub fn init(gpu: *Gpu, allocator: std.mem.Allocator) !RenderList {
         return .{
             .gpu = gpu,
-            .items = try RenderItems.create(allocator, .{}),
+            .items = try RenderItems.create(allocator, 8),
         };
     }
 
@@ -69,16 +72,29 @@ pub const RenderList = struct {
     }
 
     pub fn remove(self: *RenderList, hdl: RenderItemHandle) void {
-        var head: ?RenderItemHandle = hdl;
-        while (head) |node| {
-            const obj = node.unwrap();
-            self.items.remove(node);
-            head = obj.next;
+        var head_hdl: ?RenderItemHandle = hdl;
+        while (head_hdl) |node_hdl| {
+            const head: ?Renderable = self.items.get(node_hdl) catch null;
+            if (head) |h| {
+                head_hdl = h.next;
+                self.items.remove(node_hdl);
+            }
         }
     }
 
     pub inline fn iterator(self: *RenderList) Iterator {
         return self.items.iterator();
     } 
+
+    pub inline fn copyItems(self: *RenderList, allocator: std.mem.Allocator) ![]mat4.Mat4 {
+        var items = try allocator.alloc(mat4.Mat4, self.items.len);
+        var it = self.items.iterator();
+        var i: u32 = 0;
+        while (it.next()) |value|: (i += 1) {
+            items[i] = hym.mul((value.parent_transform orelse &mat4.identity).*, value.transform);
+        }
+        return items;
+    }
+
 };
 

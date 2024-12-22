@@ -140,9 +140,9 @@ pub const Models = struct {
         for (in_model.meshes.items, 0..) |mesh, i| {
             const mesh_vbuf_size = mesh.vertices.items.len * @sizeOf(Vertex);
             const mesh_ibuf_size = mesh.indices.items.len * @sizeOf(u32);
-            gpu.uploadToBuffer(root_buffer.hdl, @intCast(buf_offset), std.mem.sliceAsBytes(mesh.vertices.items))
+            gpu.uploadToBuffer(root_buffer.hdl.?, @intCast(buf_offset), std.mem.sliceAsBytes(mesh.vertices.items))
                 catch std.debug.panic("model load error");
-            gpu.uploadToBuffer(root_buffer.hdl, @intCast(buf_offset + root_buffer.idx_start), std.mem.sliceAsBytes(mesh.indices.items))
+            gpu.uploadToBuffer(root_buffer.hdl.?, @intCast(buf_offset + root_buffer.idx_start), std.mem.sliceAsBytes(mesh.indices.items))
                 catch std.debug.panic("model load error");
             children[i] = .{
                 .buffer = .{

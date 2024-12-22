@@ -87,7 +87,6 @@ pub fn build(b: *std.Build) !void {
     });
 
     // Modules
-
     hyoga.addImport("assimp", assimp.module("root"));
     hyoga.addImport("hyoga-math", hym.module("hyoga-math"));
     hyoga.addImport("hyoga-slotmap", hysm.module("hyoga-slotmap"));
@@ -121,12 +120,6 @@ pub fn build(b: *std.Build) !void {
 
     b.installDirectory(.{
         .install_dir = .bin,
-        .source_dir = b.path("assets"),
-        .install_subdir = "assets",
-    });
-
-    b.installDirectory(.{
-        .install_dir = .bin,
         .source_dir = assimp.namedWriteFiles("dlls").getDirectory(),
         .install_subdir = "",
     });
@@ -135,6 +128,12 @@ pub fn build(b: *std.Build) !void {
         .install_dir = .bin,
         .source_dir = sdl.namedWriteFiles("dlls").getDirectory(),
         .install_subdir = "",
+    });
+
+    b.installDirectory(.{
+        .install_dir = .bin,
+        .source_dir = b.path("assets"),
+        .install_subdir = "assets",
     });
 
     const install_shaders = try @import("src/build/InstallShadersStep.zig").init(b, .{ 

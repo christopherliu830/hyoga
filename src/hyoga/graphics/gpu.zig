@@ -32,7 +32,8 @@ pub const ModelHandle = mdl.Handle;
 pub const RenderItemHandle = rbl.RenderItemHandle;
 
 pub const Buffer = struct {
-    hdl: *sdl.gpu.Buffer,
+    hdl: ?*sdl.gpu.Buffer = null,
+    hdl_transfer: ?*sdl.gpu.TransferBuffer = null,
     size: u32,
     vtx_start: u32 = 0,
     idx_start: u32 = std.math.maxInt(u32),
@@ -209,23 +210,8 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         .enable_stencil = false,
     }, self.gpa);
     
-    const ssbo_buf = self.device.createBuffer(&.{
-        .usage = .{ .graphics_storage_read = true, },
-        .size = @sizeOf(scn.Scene),
-    }).?;
-
     const scene_buf = scn.SceneBuffer {
-        .buffer = .{
-            .hdl = ssbo_buf,
-            .size = @sizeOf(scn.Scene),
-        },
-        .scene = .{
-            .viewport_size_x = @intCast(w),
-            .viewport_size_y = @intCast(h),
-            .view_proj = mat4.identity,
-            .light_dir = hym.vec(.{0, 0, -1}),
-            .renderables = &.{mat4.identity},
-        }
+        .device = self.device,
     };
 
     self.render_state = .{
@@ -272,7 +258,7 @@ pub fn shutdown(self: *Gpu) void {
     {
         var it = self.render_state.renderables.iterator();
         while (it.next()) |obj| {
-            self.device.releaseBuffer(obj.unwrap().mesh.buffer.hdl);
+            self.device.releaseBuffer(obj.mesh.buffer.hdl);
         }
     }
 
@@ -397,6 +383,18 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
 
+
+    const render_scene = scn.Scene {
+        .viewport_size_x = @intCast(self.window_state.prev_drawable_w),
+        .viewport_size_y = @intCast(self.window_state.prev_drawable_h),
+        .view_proj = scene.view_proj,
+        .light_dir = scene.light_dir,
+        .start_renderables = .{ mat4.identity },
+    };
+
+    const items = try self.render_state.renderables.copyItems(self.arena.allocator());
+    self.render_state.ssbo.update(render_scene, items);
+
     // First render scene to texture target
     const all_items = self.render_state.renderables.items.iterator();
 
@@ -477,8 +475,8 @@ pub fn doPass(self: *Gpu, job: PassInfo) !void {
 
     var iterator = job.iterator;
     if (iterator) |*it| {
-        while (it.next()) |cursor| {
-            try self.doPassOne(pass, cursor.unwrap().*, job, &last_pipeline);
+        while (it.next()) |value| {
+            try self.doPassOne(pass, value, job, &last_pipeline);
         }
     }
 }
@@ -555,8 +553,8 @@ fn doPassOne(self: *Gpu,
     }
 
     const buffer = item.mesh.buffer;
-    pass.bindVertexBuffers(0, &.{ .buffer = buffer.hdl, .offset = @intCast(buffer.vtx_start) }, 1);
-    pass.bindIndexBuffer(&.{ .buffer = buffer.hdl, .offset = @intCast(buffer.idx_start) }, .@"32bit");
+    pass.bindVertexBuffers(0, &.{ .buffer = buffer.hdl.?, .offset = @intCast(buffer.vtx_start) }, 1);
+    pass.bindIndexBuffer(&.{ .buffer = buffer.hdl.?, .offset = @intCast(buffer.idx_start) }, .@"32bit");
     pass.drawIndexedPrimitives(buffer.idxCount(), 1, 0, 0, 0);
 }
 
