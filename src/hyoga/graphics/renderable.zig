@@ -86,15 +86,16 @@ pub const RenderList = struct {
         return self.items.iterator();
     } 
 
-    pub inline fn copyItems(self: *RenderList, allocator: std.mem.Allocator) ![]mat4.Mat4 {
-        var items = try allocator.alloc(mat4.Mat4, self.items.len);
-        var it = self.items.iterator();
-        var i: u32 = 0;
-        while (it.next()) |value|: (i += 1) {
-            items[i] = hym.mul((value.parent_transform orelse &mat4.identity).*, value.transform);
+    /// Caller must free the returned slice.
+    pub fn prepare(self: *RenderList, allocator: std.mem.Allocator) ![]mat4.Mat4 {
+        const slice = try allocator.alloc(mat4.Mat4, self.items.capacity());
+        for (self.items.entries.items, 0..) |entry, i| {
+            switch(entry) {
+                .occupied => |val| slice[i] = mat4.mul((val.value.parent_transform orelse &mat4.identity).*, val.value.transform),
+                .empty => continue,
+            }
         }
-        return items;
+        return slice;
     }
-
 };
 

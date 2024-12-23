@@ -2,11 +2,7 @@
 
 #version 450 core
 
-struct Vertex {
-    float3 position;
-    float3 normal;
-    float2 uv;
-}
+import _include.common;
 
 struct Transforms {
     float4x4 model;
@@ -18,18 +14,22 @@ struct VOut {
     float4 position: SV_Position;
 }
 
+[vk::binding(0, 0)]
+StructuredBuffer<float4x4> objects;
+
 [vk::binding(0, 1)]
-ConstantBuffer<Transforms> m;
+ConstantBuffer<Scene> scene;
 
 [shader("vertex")]
-VOut vertexMain(Vertex in)
+VOut vertexMain(Vertex in, int instance_id: SV_InstanceID)
 {
-    VOut output;
-    output.position = mul(float4(in.position, 1), mul(m.model, m.vp));
-    return output;
+    float4x4 model = objects[instance_id];
+    VOut out;
+    out.position = mul(float4(in.position, 1), mul(model, scene.view_proj));
+    return out;
 }
 
 [shader("fragment")]
-float4 fragmentMain(VOut input) : SV_Target {
+float4 fragmentMain(): SV_Target {
     return float4(1, 1, 1, 1);
 }

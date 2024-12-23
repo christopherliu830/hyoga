@@ -1,10 +1,6 @@
 {
     "pass": 0,
-    "vert": {
-        "uniforms": {
-            "mvp": 0
-        }
-    },
+    "vert": { },
     "frag": {
         "uniforms": {
             "lighting": 0

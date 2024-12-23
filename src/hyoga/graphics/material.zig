@@ -50,6 +50,10 @@ pub const uniform = struct {
 };
 
 pub const ShaderDefinition = struct {
+    num_samplers: u32 = 0,
+    num_storage_textures: u32 = 0,
+    num_storage_buffers: u32 = 0,
+    num_uniform_buffers: u32 = 0,
     uniform_location_mvp: ?u8 = null,
     uniform_location_lighting: ?u8 = null,
     uniform_location_window: ?u8 = null,
@@ -82,10 +86,12 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, arena: std.mem.Allo
         std.debug.panic("Could not read material json: {s}: {}", .{path, err});
     };
 
-    const vert_shader = try loadShader(gpu.device, .vertex, path, arena);
+    var vert_info: sdlsc.GraphicsShaderInfo = undefined;
+    const vert_shader = try loadShader(gpu.device, .vertex, path, &vert_info, arena);
     defer gpu.device.releaseShader(vert_shader);
 
-    const frag_shader = try loadShader(gpu.device, .fragment, path, arena);
+    var frag_info: sdlsc.GraphicsShaderInfo = undefined;
+    const frag_shader = try loadShader(gpu.device, .fragment, path, &frag_info, arena);
     defer gpu.device.releaseShader(frag_shader);
 
     const pipeline = gpu.buildPipeline(.{
@@ -138,12 +144,20 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, arena: std.mem.Allo
     return MaterialTemplate {
         .pipeline = pipeline,
         .vert_program_def = .{
+            .num_samplers = vert_info.num_samplers,
+            .num_storage_textures = vert_info.num_storage_textures,
+            .num_storage_buffers = vert_info.num_storage_buffers,
+            .num_uniform_buffers = vert_info.num_uniform_buffers,
             .uniform_location_mvp = v_uniform_mvp,
             .uniform_location_lighting = v_uniform_lighting,
             .uniform_location_window = v_uniform_window,
             .textures = vert_textures,
         },
         .frag_program_def = .{
+            .num_samplers = frag_info.num_samplers,
+            .num_storage_textures = frag_info.num_storage_textures,
+            .num_storage_buffers = frag_info.num_storage_buffers,
+            .num_uniform_buffers = frag_info.num_uniform_buffers,
             .uniform_location_mvp = f_uniform_mvp,
             .uniform_location_lighting = f_uniform_lighting,
             .uniform_location_window = f_uniform_window,
@@ -160,7 +174,7 @@ pub fn loadMaterialInfo(path: []const u8, arena: std.mem.Allocator) !MaterialInf
     return try std.json.parseFromSliceLeaky(MaterialInfo, arena, info_bytes, .{});
 }
 
-pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []const u8, arena: std.mem.Allocator) !*sdl.gpu.Shader {
+pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []const u8, out_info: ?*sdlsc.GraphicsShaderInfo, arena: std.mem.Allocator) !*sdl.gpu.Shader {
     const full_path = switch(stage) {
         .vertex => try std.mem.concat(arena, u8, &.{path, ".vert.spv"}),
         .fragment => try std.mem.concat(arena, u8, &.{path, ".frag.spv"}),
@@ -170,10 +184,13 @@ pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []c
     defer file.close();
     const code = try file.readToEndAlloc(arena, 1024 * 16);
 
-    var shader_info = try sdlsc.reflectGraphicsSpirv(code);
+    var info = try sdlsc.reflectGraphicsSpirv(code);
+    if (out_info) |ptr| {
+        ptr.* = info;
+    } 
 
     return try sdlsc.compileGraphicsShaderFromSpirv(device, stage, .{
         .bytecode = code,
         .entrypoint = "main",
-    }, &shader_info);
+    }, &info);
 }

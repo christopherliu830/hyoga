@@ -1,17 +1,8 @@
 #version 450 core
 
-struct Vertex {
-    float3 position;
-    float3 normal;
-    float2 uv;
-}
+import _include.common;
 
-struct Lighting {
-    float3 light_dir;
-    float3 camera_pos;
-}
-
-struct Camera {
+struct Transforms {
     float4x4 model;
     float4x4 trans_inverse_model;
     float4x4 vp;
@@ -25,16 +16,21 @@ struct VOut {
     float2 uv;
 }
 
+[vk::binding(0, 0)]
+StructuredBuffer<float4x4> objects;
+
 [vk::binding(0, 1)]
-ConstantBuffer<Camera> camera;
+ConstantBuffer<Scene> scene;
+
 
 [shader("vertex")]
-VOut vertexMain(Vertex input) {
+VOut vertexMain(Vertex input, int instance_id: SV_InstanceID) {
     VOut output;
-    output.position = mul(float4(input.position, 1), mul(camera.model, camera.vp));
-    output.vert_world_pos = vec3(camera.model * vec4(input.position, 1));
-    output.color = vec3(1, 1, 1);
-    output.normal = mul(input.normal, mat3x3(camera.trans_inverse_model));
+    float4x4 model = objects[instance_id];
+    output.position = mul(float4(input.position, 1), mul(model, scene.view_proj));
+    output.vert_world_pos = vec3(model * vec4(input.position, 1));
+    output.color = float3(1, 1, 1);
+    output.normal = mul(input.normal, adjugate(model));
     output.uv = input.uv;
     return output;
 }

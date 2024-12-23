@@ -122,15 +122,12 @@ fn render(hye: *hy.Engine, state: hy.World) callconv(.C) void {
             if (count % 10 > 0) imgui.SameLine();
             if (imgui.ButtonEx("", .{ .x = 20, .y = 20 })) {
                 if (self.selected != null) {
-                    hye.gpu.render_state.outline_renderables.remove(self.selected.?);
+                    hye.gpu.render_state.outline_renderables.clearRetainingCapacity();
                     self.selected = null;
                 }
 
-                self.selected = hye.gpu.render_state.outline_renderables.add(.{
-                    .model = self.backpack_hdl,
-                    .owner = &object.transform,
-                    .time = 1 * std.time.ns_per_s,
-                }) catch { std.debug.panic("model add fail", .{}); };
+                self.selected = object.hdl;
+                hye.gpu.render_state.outline_renderables.append(hye.gpa.allocator(), self.selected.?) catch { std.debug.panic("model add fail", .{}); };
             }
             imgui.PopID();
             count += 1;

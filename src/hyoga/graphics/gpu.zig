@@ -15,6 +15,7 @@ const Window = @import("../window.zig");
 
 const cube = @import("primitives.zig").createCube();
 
+const buf = @import("buffer.zig");
 const tx = @import("texture.zig");
 const mdl = @import("model.zig");
 const mt = @import("material.zig");
@@ -31,17 +32,10 @@ pub const ModelHandle = mdl.Handle;
 
 pub const RenderItemHandle = rbl.RenderItemHandle;
 
-pub const Buffer = struct {
-    hdl: ?*sdl.gpu.Buffer = null,
-    hdl_transfer: ?*sdl.gpu.TransferBuffer = null,
-    size: u32,
-    vtx_start: u32 = 0,
-    idx_start: u32 = std.math.maxInt(u32),
-    idx_size: u32 = 0,
 
-    pub inline fn idxCount(self: Buffer) u32 {
-        return (self.size - self.idx_start) / @sizeOf(u32);
-    }
+pub const BufferHandle = packed union {
+    buffer: *sdl.gpu.Buffer,
+    transfer: *sdl.gpu.Buffer,
 };
 
 pub const Scene = extern struct {
@@ -82,9 +76,10 @@ const RenderState = struct {
     sampler: *sdl.gpu.Sampler = undefined,
 
     renderables: rbl.RenderList,
-    outline_renderables: rbl.RenderList,
+    outline_renderables: std.ArrayListUnmanaged(rbl.RenderItemHandle),
 
-    ssbo: scn.SceneBuffer,
+    scn_buf: buf.StorageBuffer(scn.SceneConstants),
+    obj_buf: buf.DynamicBuffer(mat4.Mat4),
     scene: *Scene = undefined,
     active_target: ?*sdl.gpu.Texture,
     pending_submit_result: ?RenderSubmitResult = null,
@@ -179,18 +174,17 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         .usage = .{ .sampler = true }
     }).?;
 
-    var buf: [256 * 256]u32 = [_]u32{0xffffffff} ** (256 * 256);
+    var buffer: [256 * 256]u32 = [_]u32{0xffffffff} ** (256 * 256);
     const black = 0xff000000;
 
     for (0..256) |i| {
         for (0..256) |j| {
             if ((i + j) % 2 == 0) {
-                @memset(buf[i * 256 + j .. i * 256 + j + 1], black);
+                @memset(buffer[i * 256 + j .. i * 256 + j + 1], black);
             }
         }
     }
-
-    try self.uploadToTexture(texture, 256, 256, &std.mem.toBytes(buf));
+    try self.uploadToTexture(texture, 256, 256, &std.mem.toBytes(buffer));
 
     var w: c_int = 0;
     var h: c_int = 0;
@@ -210,10 +204,6 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         .enable_stencil = false,
     }, self.gpa);
     
-    const scene_buf = scn.SceneBuffer {
-        .device = self.device,
-    };
-
     self.render_state = .{
         .forward_pass = passes.Forward.init(self.device, .{
             .clear_color = .{ .r = 0.2, .g = 0.2, .b = 0.4, .a = 1 },
@@ -228,7 +218,7 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         .blit_pass = passes.BlitPass.init(self, self.device),
 
         .renderables = try rbl.RenderList.init(self, self.gpa),
-        .outline_renderables = try rbl.RenderList.init(self, self.gpa),
+        .outline_renderables = .{},
 
         .default_material = material,
         .default_texture = texture,
@@ -243,7 +233,8 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         }, self.gpa),
 
         .sampler = self.device.createSampler(&sampler_info).?,
-        .ssbo = scene_buf,
+        .scn_buf = try buf.StorageBuffer(scn.SceneConstants).init(self.device, ""),
+        .obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 256, "Object Mats"),
         .active_target = null,
     };
 
@@ -383,17 +374,8 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
 
-
-    const render_scene = scn.Scene {
-        .viewport_size_x = @intCast(self.window_state.prev_drawable_w),
-        .viewport_size_y = @intCast(self.window_state.prev_drawable_h),
-        .view_proj = scene.view_proj,
-        .light_dir = scene.light_dir,
-        .start_renderables = .{ mat4.identity },
-    };
-
-    const items = try self.render_state.renderables.copyItems(self.arena.allocator());
-    self.render_state.ssbo.update(render_scene, items);
+    const arr = try self.render_state.renderables.prepare(self.arena.allocator());
+    try self.uploadToBuffer(self.render_state.obj_buf.hdl, 0, std.mem.sliceAsBytes(arr));
 
     // First render scene to texture target
     const all_items = self.render_state.renderables.items.iterator();
@@ -402,7 +384,7 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
         .cmd = cmd,
         .scene = scene.*,
         .targets = self.render_state.forward_pass.targets(),
-        .iterator = all_items,
+        .items = .{ .iterator = all_items },
     }) catch {};
 
     // Render selected objects as mask for outline
@@ -414,20 +396,19 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     });
     defer mask.deinit();
 
-    const selected_mask = self.render_state.outline_renderables.items.iterator();
     self.doPass(.{
         .cmd = cmd,
         .scene = scene.*,
         .material = mt.Material.fromTemplate(self.render_state.outline_material, .{}),
         .targets = mask.targets(),
-        .iterator = selected_mask,
+        .items = .{ .handles = self.render_state.outline_renderables.items },
     }) catch {};
 
     self.doPass(.{
         .cmd = cmd,
         .scene = scene.*,
         .targets = self.render_state.blit_pass.targets(self.render_state.active_target.?),
-        .items = (&self.render_state.blit_pass.quad)[0..1],
+        .items = .{ .renderables = (&self.render_state.blit_pass.quad)[0..1] },
         .material = mt.Material.fromTemplate(
             self.render_state.post_material,
             tx.TextureSet.init(.{
@@ -450,17 +431,23 @@ pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
     return result;
 }
 
+pub const PassIterator = union(enum) {
+    renderables: []const rbl.Renderable,
+    handles: []const rbl.RenderItemHandle,
+    iterator: rbl.RenderList.Iterator,
+};
+
 pub const PassInfo = struct {
     cmd: *sdl.gpu.CommandBuffer,
-    items: []const rbl.Renderable = &.{},
-    iterator: ?rbl.RenderList.Iterator = null,
+
+    items: PassIterator,
+
     material: ?mt.Material = null, // force every object to use the same material
     targets: PassTargets,
     scene: Scene,
 };
 
 pub fn doPass(self: *Gpu, job: PassInfo) !void {
-    if (job.items.len == 0 and job.iterator == null) return;
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
 
@@ -471,17 +458,25 @@ pub fn doPass(self: *Gpu, job: PassInfo) !void {
 
     var last_pipeline: ?*sdl.gpu.GraphicsPipeline = null;
 
-    for (job.items) |item| try self.doPassOne(pass, item, job, &last_pipeline);
-
-    var iterator = job.iterator;
-    if (iterator) |*it| {
-        while (it.next()) |value| {
-            try self.doPassOne(pass, value, job, &last_pipeline);
-        }
+    switch(job.items) {
+        .renderables => |items| for (items, 0..) |item, i| {
+            try self.doPassOne(@intCast(i), pass, item, job, &last_pipeline);
+        },
+        .handles => |handles| for (handles) |hdl| {
+            const item = self.render_state.renderables.items.get(hdl) catch continue;
+            try self.doPassOne(hdl.index, pass, item, job, &last_pipeline);
+        },
+        .iterator => |iterator| {
+            var it = iterator;
+            while (it.next()) |value| {
+                try self.doPassOne(it.index(), pass, value, job, &last_pipeline);
+            }
+        },
     }
 }
 
 fn doPassOne(self: *Gpu,
+             index: u32,
              pass: *sdl.gpu.RenderPass,
              item: rbl.Renderable,
              job: PassInfo,
@@ -498,13 +493,37 @@ fn doPassOne(self: *Gpu,
         pass.bindGraphicsPipeline(material.pipeline);
     }
 
+    if (material.vert_program_def.num_storage_buffers > 0) {
+        pass.bindVertexStorageBuffers(0, &[_]*sdl.gpu.Buffer{ self.render_state.obj_buf.hdl }, 1);
+
+        const render_scene = scn.SceneConstants {
+            .viewport_size_x = @intCast(self.window_state.prev_drawable_w),
+            .viewport_size_y = @intCast(self.window_state.prev_drawable_h),
+            .view_proj = job.scene.view_proj,
+            .light_dir = job.scene.light_dir,
+        };
+        job.cmd.pushVertexUniformData(0, &render_scene, @sizeOf(scn.SceneConstants));
+    }
+
     inline for (.{
-        .{ material.vert_program_def, sdl.gpu.CommandBuffer.pushVertexUniformData, sdl.gpu.RenderPass.bindVertexSamplers },
-        .{ material.frag_program_def, sdl.gpu.CommandBuffer.pushFragmentUniformData, sdl.gpu.RenderPass.bindFragmentSamplers },
-    }) |params| {
-        const program_def = params[0];
-        const pushUniform = params[1];
-        const pushSampler = params[2];
+        .{ 
+            material.vert_program_def, 
+            sdl.gpu.CommandBuffer.pushVertexUniformData, 
+            sdl.gpu.RenderPass.bindVertexSamplers,
+            sdl.gpu.RenderPass.bindVertexStorageBuffers,
+        },
+        .{ 
+            material.frag_program_def,
+            sdl.gpu.CommandBuffer.pushFragmentUniformData,
+            sdl.gpu.RenderPass.bindFragmentSamplers,
+            sdl.gpu.RenderPass.bindFragmentStorageBuffers,
+        },
+    }) |opt| {
+        const program_def = opt[0];
+        const pushUniform = opt[1];
+        const pushSampler = opt[2];
+        const pushStorageBuffer = opt[3];
+        _ = pushStorageBuffer;
 
         if (program_def.uniform_location_mvp) |slot_index| {
             const mat_model = mat4.mul((item.parent_transform orelse &mat4.identity).*, item.transform);
@@ -553,9 +572,9 @@ fn doPassOne(self: *Gpu,
     }
 
     const buffer = item.mesh.buffer;
-    pass.bindVertexBuffers(0, &.{ .buffer = buffer.hdl.?, .offset = @intCast(buffer.vtx_start) }, 1);
-    pass.bindIndexBuffer(&.{ .buffer = buffer.hdl.?, .offset = @intCast(buffer.idx_start) }, .@"32bit");
-    pass.drawIndexedPrimitives(buffer.idxCount(), 1, 0, 0, 0);
+    pass.bindVertexBuffers(0, &.{ .buffer = buffer.hdl, .offset = @intCast(buffer.offset) }, 1);
+    pass.bindIndexBuffer(&.{ .buffer = buffer.hdl, .offset = @intCast(buffer.idx_start) }, .@"32bit");
+    pass.drawIndexedPrimitives(buffer.idxCount(), 1, 0, 0, index);
 }
 
 pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {

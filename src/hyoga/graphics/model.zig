@@ -3,6 +3,7 @@ const sdl = @import("sdl");
 const hysm = @import("hyoga-slotmap");
 const ai = @import("assimp");
 const Gpu = @import("gpu.zig");
+const buf = @import("buffer.zig");
 const mt = @import("material.zig");
 const Loader = @import("loader.zig");
 const tx = @import("texture.zig");
@@ -13,7 +14,7 @@ const Symbol = @import("../Symbol.zig");
 pub const Arena = hysm.SlotMap(ImportModel);
 pub const Handle = Symbol.ID;
 
-const Buffer = Gpu.Buffer;
+const Buffer = buf.VertexIndexBuffer;
 
 const ModelLoadJob = struct {
     allocator: std.mem.Allocator,
@@ -140,15 +141,15 @@ pub const Models = struct {
         for (in_model.meshes.items, 0..) |mesh, i| {
             const mesh_vbuf_size = mesh.vertices.items.len * @sizeOf(Vertex);
             const mesh_ibuf_size = mesh.indices.items.len * @sizeOf(u32);
-            gpu.uploadToBuffer(root_buffer.hdl.?, @intCast(buf_offset), std.mem.sliceAsBytes(mesh.vertices.items))
+            gpu.uploadToBuffer(root_buffer.hdl, @intCast(buf_offset), std.mem.sliceAsBytes(mesh.vertices.items))
                 catch std.debug.panic("model load error");
-            gpu.uploadToBuffer(root_buffer.hdl.?, @intCast(buf_offset + root_buffer.idx_start), std.mem.sliceAsBytes(mesh.indices.items))
+            gpu.uploadToBuffer(root_buffer.hdl, @intCast(buf_offset + root_buffer.idx_start), std.mem.sliceAsBytes(mesh.indices.items))
                 catch std.debug.panic("model load error");
             children[i] = .{
                 .buffer = .{
                     .hdl = hdl,
                     .size = @intCast(mesh_vbuf_size + mesh_ibuf_size),
-                    .vtx_start = @intCast(buf_offset),
+                    .offset = @intCast(buf_offset),
                     .idx_start = @intCast(buf_offset + mesh_vbuf_size),
                 },
                 .material = mesh.material,

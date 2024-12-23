@@ -63,6 +63,16 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
 
     while (try it.next()) |entry| {
         switch (entry.kind) {
+            .directory => {
+                // Skip any directories beginning with "_"
+                if (std.mem.startsWith(u8, entry.basename, "_")) {
+                    var item = it.stack.pop();
+                    if (it.stack.items.len != 0) {
+                        item.iter.dir.close();
+                    }
+                    continue;
+                }
+            },
             .file => if (std.mem.endsWith(u8, entry.path, ".slang")) {
                 const src_sub_path = try src_dir_path.join(b.allocator, entry.path);
                 const cwd = std.fs.cwd(); // default zig-out
