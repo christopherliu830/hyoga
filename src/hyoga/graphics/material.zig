@@ -31,24 +31,6 @@ pub const Material = struct {
     }
 };
 
-pub const uniform = struct {
-    pub const Transform = extern struct {
-        model: Mat4,
-        inverse_model: Mat4,
-        view_proj: Mat4,
-    };
-
-    pub const Lighting = extern struct {
-        light_dir: Vec3,
-        camera_pos: Vec3
-    };
-
-    pub const Window = extern struct {
-        size_x: u16,
-        size_y: u16,
-    };
-};
-
 pub const ShaderDefinition = struct {
     num_samplers: u32 = 0,
     num_storage_textures: u32 = 0,
@@ -103,13 +85,6 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, arena: std.mem.Allo
         .pass = info.pass,
     });
 
-    const v_uniform_mvp: ?u8 = if (info.vert.uniforms) |x| x.map.get("mvp") else null;
-    const v_uniform_lighting: ?u8 = if (info.vert.uniforms) |x| x.map.get("lighting") else null;
-    const v_uniform_window: ?u8 = if (info.vert.uniforms) |x| x.map.get("window") else null;
-    const f_uniform_mvp: ?u8 = if (info.frag.uniforms) |x| x.map.get("mvp") else null;
-    const f_uniform_lighting: ?u8 = if (info.frag.uniforms) |x| x.map.get("lighting") else null;
-    const f_uniform_window: ?u8 = if (info.frag.uniforms) |x| x.map.get("window") else null;
-    
     var vert_textures: [4]?tx.TextureType = [_]?tx.TextureType { null } ** 4;
     var frag_textures: [4]?tx.TextureType = [_]?tx.TextureType { null } ** 4;
 
@@ -148,9 +123,6 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, arena: std.mem.Allo
             .num_storage_textures = vert_info.num_storage_textures,
             .num_storage_buffers = vert_info.num_storage_buffers,
             .num_uniform_buffers = vert_info.num_uniform_buffers,
-            .uniform_location_mvp = v_uniform_mvp,
-            .uniform_location_lighting = v_uniform_lighting,
-            .uniform_location_window = v_uniform_window,
             .textures = vert_textures,
         },
         .frag_program_def = .{
@@ -158,9 +130,6 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, arena: std.mem.Allo
             .num_storage_textures = frag_info.num_storage_textures,
             .num_storage_buffers = frag_info.num_storage_buffers,
             .num_uniform_buffers = frag_info.num_uniform_buffers,
-            .uniform_location_mvp = f_uniform_mvp,
-            .uniform_location_lighting = f_uniform_lighting,
-            .uniform_location_window = f_uniform_window,
             .textures = frag_textures,
         },
     };

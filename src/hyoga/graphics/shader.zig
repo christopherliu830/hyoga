@@ -7,13 +7,13 @@ const Buffer = @import("buffer.zig").VertexIndexBuffer;
 const Mat4 = hym.Mat4;
 const Vec3 = hym.Vec3;
 
-pub const SceneConstants = extern struct {
-    // Global data, changes rarely
+/// This struct is sent to shaders as a uniform
+/// buffer and fields must be kept in sync.
+pub const GpuScene = extern struct {
+    view_proj: Mat4,
+    camera_world_pos: Vec3,
     viewport_size_x: u16,
     viewport_size_y: u16,
-
-    // Global data, changes every frame
-    view_proj: Mat4,
     light_dir: Vec3,
 };
 

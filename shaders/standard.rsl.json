@@ -2,9 +2,6 @@
     "pass": 0,
     "vert": { },
     "frag": {
-        "uniforms": {
-            "lighting": 0
-        },
         "samplers": {
             "diffuse": 0,
             "specular": 1

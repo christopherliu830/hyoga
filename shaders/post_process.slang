@@ -1,20 +1,14 @@
-struct Vertex {
-    float2 position;
-    float2 uv;
-}
+#version 450 core
+
+import _include.common;
 
 struct VOut {
     float4 position: SV_Position;
     float2 uv;
 }
 
-struct Window {
-    uint16_t size_x;
-    uint16_t size_y;
-}
-
 [shader("vertex")]
-VOut vertexMain(Vertex in)
+VOut vertexMain(ScreenVertex in)
 {
     VOut output;
     output.position = float4(in.position.xy, 0, 1);
@@ -29,13 +23,13 @@ Sampler2D tex_diffuse;
 Sampler2D tex_mask;
 
 [vk::binding(0, 3)]
-ConstantBuffer<Window> window;
+ConstantBuffer<Scene> scene;
 
-float neighborDepthDelta(float2 uv) {
+float neighborDepthDelta(int w, int h, float2 uv) {
     float2 uvCenter = uv;
-    float2 uv_t = uv + float2(0, -1.0/window.size_y);
-    float2 uv_r = uv + float2(1.0/window.size_x, 0);
-    float2 uv_tr = uv + float2(1.0/window.size_x, -1.0/window.size_y);
+    float2 uv_t = uv + float2(0, -1.0/h);
+    float2 uv_r = uv + float2(1.0/w, 0);
+    float2 uv_tr = uv + float2(1.0/w, -1.0/h);
 
     float m_center = tex_mask.Sample(uv).r;
     float m_top = tex_mask.Sample(uv_t).r;
@@ -56,7 +50,7 @@ float neighborDepthDelta(float2 uv) {
 float4 fragmentMain(VOut input): SV_Target {
 
     // outline
-    float delta = neighborDepthDelta(input.uv); 
+    float delta = neighborDepthDelta(scene.viewport_size_x, scene.viewport_size_y, input.uv); 
 
     return tex_diffuse.Sample(input.uv) + float4(delta, delta, delta, 1);
 }

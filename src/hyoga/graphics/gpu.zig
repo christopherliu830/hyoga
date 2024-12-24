@@ -22,7 +22,7 @@ const mt = @import("material.zig");
 const Loader = @import("loader.zig");
 const Symbol = @import("../Symbol.zig");
 const Vertex = @import("vertex.zig").Vertex;
-const scn = @import("Scene.zig");
+const sd = @import("shader.zig");
 const passes = @import("passes.zig");
 const rbl = @import("renderable.zig");
 
@@ -39,8 +39,19 @@ pub const BufferHandle = packed union {
 };
 
 pub const Scene = extern struct {
-    view_proj: mat4.Mat4,
-    light_dir: vec3.Vec3,
+    view_proj: hym.Mat4,
+    light_dir: hym.Vec3,
+    camera_world_pos: hym.Vec3,
+};
+
+/// This struct is sent to shaders as a uniform
+/// buffer and fields must be kept in sync.
+pub const GpuScene = extern struct {
+    view_proj: hym.Mat4,
+    camera_world_pos: [3]f32,
+    viewport_size_x: u32,
+    light_dir: [3]f32,
+    viewport_size_y: u32,
 };
 
 pub const RenderSubmitResult = struct {
@@ -77,8 +88,7 @@ const RenderState = struct {
 
     renderables: rbl.RenderList,
     outline_renderables: std.ArrayListUnmanaged(rbl.RenderItemHandle),
-
-    scn_buf: buf.StorageBuffer(scn.SceneConstants),
+    scn_buf: buf.StorageBuffer(GpuScene),
     obj_buf: buf.DynamicBuffer(mat4.Mat4),
     scene: *Scene = undefined,
     active_target: ?*sdl.gpu.Texture,
@@ -233,7 +243,7 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         }, self.gpa),
 
         .sampler = self.device.createSampler(&sampler_info).?,
-        .scn_buf = try buf.StorageBuffer(scn.SceneConstants).init(self.device, ""),
+        .scn_buf = try buf.StorageBuffer(GpuScene).init(self.device, ""),
         .obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 256, "Object Mats"),
         .active_target = null,
     };
@@ -493,18 +503,6 @@ fn doPassOne(self: *Gpu,
         pass.bindGraphicsPipeline(material.pipeline);
     }
 
-    if (material.vert_program_def.num_storage_buffers > 0) {
-        pass.bindVertexStorageBuffers(0, &[_]*sdl.gpu.Buffer{ self.render_state.obj_buf.hdl }, 1);
-
-        const render_scene = scn.SceneConstants {
-            .viewport_size_x = @intCast(self.window_state.prev_drawable_w),
-            .viewport_size_y = @intCast(self.window_state.prev_drawable_h),
-            .view_proj = job.scene.view_proj,
-            .light_dir = job.scene.light_dir,
-        };
-        job.cmd.pushVertexUniformData(0, &render_scene, @sizeOf(scn.SceneConstants));
-    }
-
     inline for (.{
         .{ 
             material.vert_program_def, 
@@ -519,37 +517,30 @@ fn doPassOne(self: *Gpu,
             sdl.gpu.RenderPass.bindFragmentStorageBuffers,
         },
     }) |opt| {
+
         const program_def = opt[0];
         const pushUniform = opt[1];
         const pushSampler = opt[2];
         const pushStorageBuffer = opt[3];
-        _ = pushStorageBuffer;
 
-        if (program_def.uniform_location_mvp) |slot_index| {
-            const mat_model = mat4.mul((item.parent_transform orelse &mat4.identity).*, item.transform);
-            const ubo = mt.uniform.Transform{
-                .inverse_model = mat4.transpose(mat4.inverse(item.transform)),
+        if (program_def.num_storage_buffers > 0) {
+            pushStorageBuffer(pass, 0, &[1]*sdl.gpu.Buffer{ self.render_state.obj_buf.hdl }, 1); 
+        }
+
+
+        if (program_def.num_uniform_buffers > 0) {
+            const render_scene = GpuScene {
                 .view_proj = job.scene.view_proj,
-                .model = mat_model,
+                .camera_world_pos = job.scene.camera_world_pos.v,
+                .viewport_size_x = @intCast(self.window_state.prev_drawable_w),
+                .light_dir = hym.vec(.{1, 0, 0}).v,
+                .viewport_size_y = @intCast(self.window_state.prev_drawable_h),
             };
-            pushUniform(job.cmd, slot_index, &ubo, @sizeOf(mt.uniform.Transform));
+
+            pushUniform(job.cmd, 0, &render_scene, @sizeOf(GpuScene));
         }
 
-        if (program_def.uniform_location_lighting) |slot_index| {
-            const lighting_ubo = mt.uniform.Lighting {
-                .light_dir = job.scene.light_dir,
-                .camera_pos = vec3.zero,
-            };
-            pushUniform(job.cmd, slot_index, &lighting_ubo, @sizeOf(mt.uniform.Lighting));
-        }
 
-        if (program_def.uniform_location_window) |slot_index| {
-            const window = mt.uniform.Window {
-                .size_x = @intCast(self.window_state.prev_drawable_w),
-                .size_y = @intCast(self.window_state.prev_drawable_h),
-            };
-            pushUniform(job.cmd, slot_index, &window, @sizeOf(mt.uniform.Window));
-        }
 
         for (program_def.textures, 0..) |needed_tex_type, i| {
             if (needed_tex_type == null) continue;

@@ -4,12 +4,6 @@
 
 import _include.common;
 
-struct Transforms {
-    float4x4 model;
-    float4x4 trans_inverse_model;
-    float4x4 vp;
-}
-
 struct VOut {
     float4 position: SV_Position;
 }

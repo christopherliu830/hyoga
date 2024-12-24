@@ -4,12 +4,17 @@ struct Vertex {
     float2 uv;
 }
 
+struct ScreenVertex {
+    float2 position;
+    float2 uv;
+}
+
 struct Scene {
-    int16_t     viewport_size_x;
-    int16_t     viewport_size_y;
     float4x4    view_proj;
-    float4x4    adj;
+    float3      camera_world_pos;
+    int32_t     viewport_size_x;
     float3      light_dir;
+    int32_t     viewport_size_y;
 };
 
 struct Lighting {

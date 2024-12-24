@@ -20,7 +20,6 @@ backpack_hdl: hy.Gpu.ModelHandle = undefined,
 objects: hy.SkipMap(Object),
 ui_state: ui.State,
 camera: cam.Camera,
-selected: ?hy.Gpu.RenderItemHandle = null,
 seed: u64 = 0,
 timer: std.time.Timer,
 
@@ -79,8 +78,9 @@ fn tryInit(hye: *hy.Engine) !hy.World {
 
     return .{
         .scene = .{
+            .light_dir = hym.vec3.create(0, 0, -1),
             .view_proj = self.camera.viewProj(),
-            .light_dir = hy.math.vec3.create(0, -1, 0),
+            .camera_world_pos = self.camera.position,
         },
         .memory = self,
     };
@@ -121,13 +121,8 @@ fn render(hye: *hy.Engine, state: hy.World) callconv(.C) void {
             imgui.PushIDPtr(object);
             if (count % 10 > 0) imgui.SameLine();
             if (imgui.ButtonEx("", .{ .x = 20, .y = 20 })) {
-                if (self.selected != null) {
-                    hye.gpu.render_state.outline_renderables.clearRetainingCapacity();
-                    self.selected = null;
-                }
-
-                self.selected = object.hdl;
-                hye.gpu.render_state.outline_renderables.append(hye.gpa.allocator(), self.selected.?) catch { std.debug.panic("model add fail", .{}); };
+                hye.gpu.render_state.outline_renderables.clearRetainingCapacity();
+                hye.gpu.render_state.outline_renderables.append(hye.gpa.allocator(), object.hdl) catch { std.debug.panic("model add fail", .{}); };
             }
             imgui.PopID();
             count += 1;

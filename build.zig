@@ -18,7 +18,8 @@ pub fn build(b: *std.Build) !void {
 
     const dxc = b.option(bool, "dxc", "enable HLSL support") orelse false;
     const backend = b.option(GpuDriver, "gpu_driver", "force backend graphics driver") orelse .none;
-    const enable_tracy= b.option(bool, "enable_tracy", "enable profiling with tracy") orelse false;
+    const gen_shaders = b.option(bool, "compile_shaders", "force shader compile") orelse false;
+    const enable_tracy = b.option(bool, "enable_tracy", "enable profiling with tracy") orelse false;
 
     if (backend == .direct3d12 and !dxc) {
         std.log.err("{} requires -Ddxc", .{backend});
@@ -138,6 +139,7 @@ pub fn build(b: *std.Build) !void {
 
     const install_shaders = try @import("src/build/InstallShadersStep.zig").init(b, .{ 
         .install_dir = .bin,
+        .always_generate = gen_shaders,
         .source_path = b.path("shaders"),
         .dest_path = "shaders",
         .target = "spirv",
