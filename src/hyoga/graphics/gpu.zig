@@ -20,7 +20,7 @@ const tx = @import("texture.zig");
 const mdl = @import("model.zig");
 const mt = @import("material.zig");
 const Loader = @import("loader.zig");
-const Symbol = @import("../Symbol.zig");
+const Strint = @import("../strintern.zig");
 const Vertex = @import("vertex.zig").Vertex;
 const sd = @import("shader.zig");
 const passes = @import("passes.zig");
@@ -127,7 +127,7 @@ arena: std.heap.ArenaAllocator,
 loader: *Loader,
 swapchain_target_desc: sdl.gpu.ColorTargetDescription,
 frames: u32 = 0,
-symbol: *Symbol,
+strint: *Strint,
 render_state: RenderState = undefined,
 window_state: WindowState = .{},
 speed: f32 = 1,
@@ -135,7 +135,7 @@ textures: tx.Textures,
 models: mdl.Models,
 materials: hysm.SlotMap(mt.Material),
 
-pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allocator) !*Gpu {
+pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allocator) !*Gpu {
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
     const d = sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, null) orelse {
         std.log.err("[GPU] create device failure: {s}", .{sdl.getError()});
@@ -157,9 +157,9 @@ pub fn init(window: *Window, loader: *Loader, symbol: *Symbol, gpa: std.mem.Allo
         .device = d,
         .swapchain_target_desc = .{ .format = d.getSwapchainTextureFormat(window.hdl) },
         .loader = loader,
-        .symbol = symbol,
-        .textures = tx.Textures.create(d, loader, symbol, gpa),
-        .models = mdl.Models.create(loader, symbol, gpa),
+        .strint = strint,
+        .textures = tx.Textures.create(d, loader, strint, gpa),
+        .models = mdl.Models.create(loader, strint, gpa),
         .materials = try hysm.SlotMap(mt.Material).create(gpa, 1),
         .window_state = .{ .window = window }
     };
@@ -711,8 +711,8 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
     return pipeline;
 }
 
-pub fn importModel(self: *Gpu, path: Symbol.ID, settings: mdl.ImportSettings) !mdl.Handle {
-    var import = ai.importFile( self.symbol.asStringZ(path), settings.post_process);
+pub fn importModel(self: *Gpu, path: Strint.ID, settings: mdl.ImportSettings) !mdl.Handle {
+    var import = ai.importFile( self.strint.asStringZ(path), settings.post_process);
     defer import.release();
     const allocator = self.arena.allocator();
 
@@ -751,7 +751,7 @@ pub fn importModel(self: *Gpu, path: Symbol.ID, settings: mdl.ImportSettings) !m
                     // }
                 } else { // Texture is a relative path
                     tex_id = try std.fs.path.joinZ(self.arena.allocator(), &[_][]const u8{ 
-                        std.fs.path.dirname(self.symbol.asString(path)).?,
+                        std.fs.path.dirname(self.strint.asString(path)).?,
                         ai_tex_id
                     });
                     handle = try self.textures.read(tex_id);
@@ -763,7 +763,7 @@ pub fn importModel(self: *Gpu, path: Symbol.ID, settings: mdl.ImportSettings) !m
                 if (hy_tex_type) |htt| {
                     texture_set.put(htt, .{ .handle = handle });
                 } else {
-                    std.log.warn("[GPU]: Unconsumed texture type {s} for object {s}", .{ field.name, self.symbol.asString(path) });
+                    std.log.warn("[GPU]: Unconsumed texture type {s} for object {s}", .{ field.name, self.strint.asString(path) });
                 }
             }
         }
@@ -772,7 +772,7 @@ pub fn importModel(self: *Gpu, path: Symbol.ID, settings: mdl.ImportSettings) !m
         materials_array[mat_index] = hdl;
     }
 
-    const model = try self.models.read(self.symbol.asStringZ(path), materials_array, settings);
+    const model = try self.models.read(self.strint.asStringZ(path), materials_array, settings);
     return model;
 }
 

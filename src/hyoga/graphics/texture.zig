@@ -4,12 +4,12 @@ const stbi = @import("stb_image");
 const ai = @import("assimp");
 const Loader = @import("loader.zig");
 const hysm = @import("hyoga-slotmap");
-const Symbol = @import("../Symbol.zig");
+const Strint = @import("../strintern.zig");
 
-pub const Handle = Symbol.ID;
+pub const Handle = Strint.ID;
 
 const TextureId = struct {
-    handle: ?Symbol.ID = null,
+    handle: ?Strint.ID = null,
     target: ?*sdl.gpu.Texture = null,
 };
 
@@ -40,17 +40,17 @@ pub const Textures = struct {
     device: *sdl.gpu.Device,
     loader: *Loader,
     queue: Loader.Queue(TextureLoadJob),
-    textures: std.AutoHashMapUnmanaged(Symbol.ID, *sdl.gpu.Texture) = .{},
-    symbol: *Symbol,
+    textures: std.AutoHashMapUnmanaged(Strint.ID, *sdl.gpu.Texture) = .{},
+    strint: *Strint,
     image_loader: stbi, 
 
-    pub fn create(device: *sdl.gpu.Device, loader: *Loader, symbol: *Symbol, allocator: std.mem.Allocator) Textures {
+    pub fn create(device: *sdl.gpu.Device, loader: *Loader, strint: *Strint, allocator: std.mem.Allocator) Textures {
         var t: Textures = undefined;
         t.allocator = allocator;
         t.queue.init(allocator);
         t.device = device;
         t.textures = .{};
-        t.symbol = symbol;
+        t.strint = strint;
         t.loader = loader;
         t.image_loader = stbi.init(t.allocator);
         return t;
@@ -66,7 +66,7 @@ pub const Textures = struct {
         self.textures.deinit(self.allocator);
     }
 
-    pub fn get(self: *@This(), id: Symbol.ID) !?*sdl.gpu.Texture {
+    pub fn get(self: *@This(), id: Strint.ID) !?*sdl.gpu.Texture {
         try self.flushQueue();
         return self.textures.get(id);
     }
@@ -75,14 +75,14 @@ pub const Textures = struct {
         const copy = try self.allocator.dupeZ(u8, path);
         // readTexture(&self.queue, self, copy); 
         try self.loader.run(&self.queue, readTexture, .{ self, copy });
-        return self.symbol.from(path);
+        return self.strint.from(path);
     }
 
     pub fn flushQueue(self: *@This()) !void {
         while (self.queue.pop()) |entry| {
-            const tex_symbol = try self.symbol.from(entry.path);
+            const tex_strint = try self.strint.from(entry.path);
             self.allocator.free(entry.path);
-            try self.textures.put(self.allocator,tex_symbol, entry.target);
+            try self.textures.put(self.allocator,tex_strint, entry.target);
         }
     }
 

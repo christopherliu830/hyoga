@@ -41,7 +41,7 @@ const SliceAdapter = struct {
 };
 
 arena: std.heap.ArenaAllocator,
-symbol_count: u32 = 0,
+strint_count: u32 = 0,
 string_bytes: std.ArrayListUnmanaged(u8) = .{},
 map: std.HashMapUnmanaged(u32, void, IndexContext, std.hash_map.default_max_load_percentage) = .{},
 

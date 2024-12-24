@@ -46,7 +46,7 @@ fn tryInit(hye: *hy.Engine) !hy.World {
         .timer = try std.time.Timer.start(),
     };
 
-    self.backpack_hdl = try hye.gpu.importModel(try hye.symbol.from("assets/backpack/backpack.obj"), .{
+    self.backpack_hdl = try hye.gpu.importModel(try hye.strint.from("assets/backpack/backpack.obj"), .{
         .transform = mat4.identity,
         .post_process = .{
         .triangulate = true,

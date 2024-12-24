@@ -6,7 +6,7 @@ pub const slotmap = @import("hyoga-slotmap");
 pub const material = @import("graphics/material.zig");
 
 pub const Input = @import("input/Input.zig");
-pub const Symbol = @import("Symbol.zig");
+pub const Strint = @import("strintern.zig");
 pub const UI = @import("graphics/ui.zig");
 pub const Gpu = @import("graphics/gpu.zig");
 pub const SkipMap = @import("skipmap.zig").SkipMap;
@@ -20,7 +20,7 @@ const Engine = @This();
 gpa: std.heap.GeneralPurposeAllocator(.{}),
 arena: std.heap.ArenaAllocator,
 window: Window,
-symbol: Symbol,
+strint: Strint,
 input: Input,
 gpu: *Gpu,
 ui: UI,
@@ -35,10 +35,10 @@ pub fn init() !*Engine {
     self.* = .{
         .gpa = self_gpa,
         .arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
-        .symbol = Symbol.init(self.arena.allocator()),
+        .strint = Strint.init(self.arena.allocator()),
         .input = try Input.init(self.gpa.allocator()),
         .window = try Window.init(), 
-        .gpu = try Gpu.init(&self.window, &self.loader, &self.symbol, self.gpa.allocator()),
+        .gpu = try Gpu.init(&self.window, &self.loader, &self.strint, self.gpa.allocator()),
         .ui = try UI.init(.{.gpu = self.gpu, .window = &self.window, .allocator = self.gpa.allocator()}),
         .loader = undefined,
         .timer = try std.time.Timer.start(),
@@ -56,7 +56,7 @@ pub fn shutdown(self: *Engine) void {
     self.ui.shutdown();
     self.gpu.shutdown();
     self.input.shutdown();
-    self.symbol.shutdown();
+    self.strint.shutdown();
     self.arena.deinit();
     self.window.deinit();
 

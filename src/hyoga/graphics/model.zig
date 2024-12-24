@@ -9,10 +9,10 @@ const Loader = @import("loader.zig");
 const tx = @import("texture.zig");
 const Vertex = @import("vertex.zig").Vertex;
 const mat4 = @import("hyoga-math").mat4;
-const Symbol = @import("../Symbol.zig");
+const Strint = @import("../strintern.zig");
 
 pub const Arena = hysm.SlotMap(ImportModel);
-pub const Handle = Symbol.ID;
+pub const Handle = Strint.ID;
 
 const Buffer = buf.VertexIndexBuffer;
 
@@ -38,15 +38,15 @@ const Queue = Loader.Queue(ModelLoadJob.Result);
 pub const Models = struct {
     allocator: std.mem.Allocator,
     queue: Queue,
-    models: std.AutoHashMapUnmanaged(Symbol.ID, Model) = .{},
-    symbol: *Symbol,
+    models: std.AutoHashMapUnmanaged(Strint.ID, Model) = .{},
+    strint: *Strint,
     loader: *Loader,
 
-    pub fn create(loader: *Loader, symbol: *Symbol, allocator: std.mem.Allocator) Models {
+    pub fn create(loader: *Loader, strint: *Strint, allocator: std.mem.Allocator) Models {
         var m: Models = undefined;
         m.allocator = allocator;
         m.queue.init(allocator);
-        m.symbol = symbol;
+        m.strint = strint;
         m.loader = loader;
         m.models = .{};
         return m;
@@ -66,12 +66,12 @@ pub const Models = struct {
         }
     }
 
-    pub fn get(self: *@This(), id: Symbol.ID) !?*Model {
+    pub fn get(self: *@This(), id: Strint.ID) !?*Model {
         try self.flushQueue();
         return self.models.getPtr(id);
     }
 
-    pub fn read(self: *@This(), path: [:0]const u8, mats: []mt.Handle, import: ImportSettings) !Symbol.ID {
+    pub fn read(self: *@This(), path: [:0]const u8, mats: []mt.Handle, import: ImportSettings) !Strint.ID {
         const job = ModelLoadJob {
             .allocator = self.allocator,
             .mats = try self.allocator.dupe(mt.Handle, mats),
@@ -80,12 +80,12 @@ pub const Models = struct {
         };
 
         try self.loader.run(&self.queue, doRead, .{self, job});
-        return self.symbol.from(path);
+        return self.strint.from(path);
     }
 
     fn flushQueue(self: *@This()) !void {
         while (self.queue.pop()) |result| {
-            try self.models.put(self.allocator, try self.symbol.from(result.job.path), result.model);
+            try self.models.put(self.allocator, try self.strint.from(result.job.path), result.model);
             result.job.deinit();
         }
     }
