@@ -1,6 +1,6 @@
 const std = @import("std");
 const sdl = @import("sdl");
-const hym = @import("hyoga-math");
+const hym = @import("hyoga-lib");
 const gpu = @import("gpu.zig");
 
 const Mat4 = hym.Mat4;

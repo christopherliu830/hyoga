@@ -1,4 +1,4 @@
-const vec3 = @import("hyoga-math").vec3;
+const vec3 = @import("hyoga-lib").math.vec3;
 
 pub const Vertex = struct {
     pos: [3]f32,

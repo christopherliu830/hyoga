@@ -4,8 +4,8 @@ const sdlsc = @import("sdl_shadercross");
 const ai = @import("assimp");
 const build_options = @import("build_options");
 
-const hysm = @import("hyoga-slotmap");
-const hym = @import("hyoga-math");
+const SlotMap = @import("hyoga-lib").SlotMap;
+const hym = @import("hyoga-lib").math;
 const vec3 = hym.vec3;
 const mat4 = hym.mat4;
 const hym_cam = hym.cam;
@@ -132,7 +132,7 @@ outlined: std.ArrayListUnmanaged(rbl.RenderItemHandle),
 speed: f32 = 1,
 textures: tx.Textures,
 models: mdl.Models,
-materials: hysm.SlotMap(mt.Material),
+materials: SlotMap(mt.Material),
 
 pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allocator) !*Gpu {
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
@@ -159,7 +159,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .strint = strint,
         .textures = tx.Textures.create(d, loader, strint, gpa),
         .models = mdl.Models.create(loader, strint, gpa),
-        .materials = try hysm.SlotMap(mt.Material).create(gpa, 1),
+        .materials = try SlotMap(mt.Material).create(gpa, 1),
         .window_state = .{ .window = window },
         .renderables = try rbl.RenderList.init(self, gpa),
         .outlined = .{},

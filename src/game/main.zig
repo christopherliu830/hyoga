@@ -1,9 +1,11 @@
 const std = @import("std");
 const hy = @import("hyoga");
-const hym = hy.math;
+const hylib = @import("hyoga-lib");
+const hym = hylib.math;
 const mat4 = hym.mat4;
 const vec3 = hym.vec3;
 const vec4 = hym.vec4;
+const SkipMap = hylib.SkipMap;
 
 const ui = @import("ui.zig");
 const cam = @import("camera.zig");
@@ -17,7 +19,7 @@ const Object = struct {
 
 gpa: std.heap.GeneralPurposeAllocator(.{}),
 backpack_hdl: hy.Gpu.ModelHandle = undefined,
-objects: hy.SkipMap(Object),
+objects: SkipMap(Object),
 ui_state: ui.State,
 camera: cam.Camera,
 
@@ -32,7 +34,7 @@ fn tryInit(hye: *hy.Engine) !hy.World {
     const self = try self_gpa.allocator().create(Self);
     self.* = .{
         .gpa = self_gpa,
-        .objects = try hy.SkipMap(Object).create(self_gpa.allocator(), .{}),
+        .objects = try SkipMap(Object).create(self_gpa.allocator(), .{}),
         .ui_state = .{ .second_timer = try std.time.Timer.start() },
         .camera = .{ .input = &hye.input, .window = &hye.window },
     };

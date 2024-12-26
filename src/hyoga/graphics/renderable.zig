@@ -1,10 +1,9 @@
 const std = @import("std");
 const sdl = @import("sdl");
-const hym = @import("hyoga-math");
-const mat4 = @import("hyoga-math").mat4;
+const hy = @import("hyoga-lib");
+const mat4 = hy.math.mat4;
 
-const SkipMap = @import("../skipmap.zig").SkipMapSized;
-const SlotMap = @import("hyoga-slotmap").SlotMap;
+const SlotMap = @import("hyoga-lib").SlotMap;
 const Gpu = @import("gpu.zig");
 const mt = @import("material.zig");
 

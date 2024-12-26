@@ -1,13 +1,13 @@
 const std = @import("std");
 const sdl = @import("sdl");
 const sdlsc = @import("sdl_shadercross");
-const hysm = @import("hyoga-slotmap");
+const SlotMap = @import("hyoga-lib").SlotMap;
 const Gpu = @import("gpu.zig");
 const tx = @import("texture.zig");
-const Mat4 = @import("hyoga-math").Mat4;
-const Vec3 = @import("hyoga-math").Vec3;
+const Mat4 = @import("hyoga-lib").math.Mat4;
+const Vec3 = @import("hyoga-lib").math.Vec3;
 
-pub const Handle = hysm.SlotMap(Material).Handle;
+pub const Handle = SlotMap(Material).Handle;
 
 pub const MaterialTemplate = struct {
     pipeline: *sdl.gpu.GraphicsPipeline,
