@@ -1,0 +1,157 @@
+#pragma clang diagnostic ignored "-Wmissing-prototypes"
+#pragma clang diagnostic ignored "-Wmissing-braces"
+
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+template<typename T, size_t Num>
+struct spvUnsafeArray
+{
+    T elements[Num ? Num : 1];
+    
+    thread T& operator [] (size_t pos) thread
+    {
+        return elements[pos];
+    }
+    constexpr const thread T& operator [] (size_t pos) const thread
+    {
+        return elements[pos];
+    }
+    
+    device T& operator [] (size_t pos) device
+    {
+        return elements[pos];
+    }
+    constexpr const device T& operator [] (size_t pos) const device
+    {
+        return elements[pos];
+    }
+    
+    constexpr const constant T& operator [] (size_t pos) const constant
+    {
+        return elements[pos];
+    }
+    
+    threadgroup T& operator [] (size_t pos) threadgroup
+    {
+        return elements[pos];
+    }
+    constexpr const threadgroup T& operator [] (size_t pos) const threadgroup
+    {
+        return elements[pos];
+    }
+};
+
+struct _MatrixStorage_float4x4std430_0
+{
+    spvUnsafeArray<float4, 4> data_0;
+};
+
+struct _MatrixStorage_float4x4std140_0
+{
+    spvUnsafeArray<float4, 4> data_1;
+};
+
+struct _MatrixStorage_float4x4std430_0_1
+{
+    float4 data_0[4];
+};
+
+struct StructuredBuffer_MatrixStorage_float4x4std430_t_0
+{
+    _MatrixStorage_float4x4std430_0_1 _data[1];
+};
+
+struct VOut_0
+{
+    float4 position_0;
+    float3 vert_world_pos_0;
+    float3 color_0;
+    float3 normal_0;
+    float2 uv_0;
+};
+
+struct _MatrixStorage_float4x4std140_0_1
+{
+    float4 data_1[4];
+};
+
+struct block_Scene_std140_0
+{
+    _MatrixStorage_float4x4std140_0_1 view_proj_0;
+    packed_float3 camera_world_pos_0;
+    int viewport_size_x_0;
+    packed_float3 light_dir_0;
+    int viewport_size_y_0;
+};
+
+struct main0_out
+{
+    float3 entryPointParam_vertexMain_vert_world_pos_0 [[user(locn0)]];
+    float3 entryPointParam_vertexMain_color_0 [[user(locn1)]];
+    float3 entryPointParam_vertexMain_normal_0 [[user(locn2)]];
+    float2 entryPointParam_vertexMain_uv_0 [[user(locn3)]];
+    float4 gl_Position [[position]];
+};
+
+struct main0_in
+{
+    float3 input_position_0 [[attribute(0)]];
+    float3 input_normal_0 [[attribute(1)]];
+    float2 input_uv_0 [[attribute(2)]];
+};
+
+static inline __attribute__((always_inline))
+float4x4 unpackStorage_0(thread const _MatrixStorage_float4x4std430_0& _S1)
+{
+    return float4x4(float4(_S1.data_0[0].x, _S1.data_0[0].y, _S1.data_0[0].z, _S1.data_0[0].w), float4(_S1.data_0[1].x, _S1.data_0[1].y, _S1.data_0[1].z, _S1.data_0[1].w), float4(_S1.data_0[2].x, _S1.data_0[2].y, _S1.data_0[2].z, _S1.data_0[2].w), float4(_S1.data_0[3].x, _S1.data_0[3].y, _S1.data_0[3].z, _S1.data_0[3].w));
+}
+
+static inline __attribute__((always_inline))
+float4x4 unpackStorage_1(thread const _MatrixStorage_float4x4std140_0& _S2)
+{
+    return float4x4(float4(_S2.data_1[0].x, _S2.data_1[0].y, _S2.data_1[0].z, _S2.data_1[0].w), float4(_S2.data_1[1].x, _S2.data_1[1].y, _S2.data_1[1].z, _S2.data_1[1].w), float4(_S2.data_1[2].x, _S2.data_1[2].y, _S2.data_1[2].z, _S2.data_1[2].w), float4(_S2.data_1[3].x, _S2.data_1[3].y, _S2.data_1[3].z, _S2.data_1[3].w));
+}
+
+static inline __attribute__((always_inline))
+float3x3 adjugate_0(thread const float4x4& m_0)
+{
+    float3 _S3 = m_0[1].xyz;
+    float3 _S4 = m_0[2].xyz;
+    float3 _S5 = m_0[0].xyz;
+    return float3x3(float3(cross(_S3, _S4)), float3(cross(_S4, _S5)), float3(cross(_S5, _S3)));
+}
+
+vertex main0_out main0(main0_in in [[stage_in]], const device StructuredBuffer_MatrixStorage_float4x4std430_t_0& objects_0 [[buffer(0)]], constant block_Scene_std140_0& scene_0 [[buffer(1)]], uint gl_InstanceIndex [[instance_id]])
+{
+    main0_out out = {};
+    _MatrixStorage_float4x4std430_0 param;
+    param.data_0[0] = objects_0._data[uint(int(gl_InstanceIndex))].data_0[0];
+    param.data_0[1] = objects_0._data[uint(int(gl_InstanceIndex))].data_0[1];
+    param.data_0[2] = objects_0._data[uint(int(gl_InstanceIndex))].data_0[2];
+    param.data_0[3] = objects_0._data[uint(int(gl_InstanceIndex))].data_0[3];
+    float4x4 _S6 = unpackStorage_0(param);
+    float4 _S7 = float4(in.input_position_0, 1.0);
+    _MatrixStorage_float4x4std140_0 param_1;
+    param_1.data_1[0] = scene_0.view_proj_0.data_1[0];
+    param_1.data_1[1] = scene_0.view_proj_0.data_1[1];
+    param_1.data_1[2] = scene_0.view_proj_0.data_1[2];
+    param_1.data_1[3] = scene_0.view_proj_0.data_1[3];
+    VOut_0 output_0;
+    output_0.position_0 = (unpackStorage_1(param_1) * _S6) * _S7;
+    output_0.vert_world_pos_0 = (_S6 * _S7).xyz;
+    output_0.color_0 = float3(1.0);
+    float4x4 param_2 = _S6;
+    output_0.normal_0 = adjugate_0(param_2) * in.input_normal_0;
+    output_0.uv_0 = in.input_uv_0;
+    VOut_0 _S8 = output_0;
+    out.gl_Position = output_0.position_0;
+    out.entryPointParam_vertexMain_vert_world_pos_0 = _S8.vert_world_pos_0;
+    out.entryPointParam_vertexMain_color_0 = _S8.color_0;
+    out.entryPointParam_vertexMain_normal_0 = _S8.normal_0;
+    out.entryPointParam_vertexMain_uv_0 = _S8.uv_0;
+    return out;
+}
+

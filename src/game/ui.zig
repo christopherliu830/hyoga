@@ -1,5 +1,7 @@
 const std = @import("std");
-const hy = @import("hyoga");
+const hy = @import("hyoga-lib");
+const imgui = @import("imgui");
+const plot = @import("implot");
 
 const frames_slice_len = 128;
 
@@ -30,7 +32,7 @@ pub fn drawMainUI(state: *State) void {
         state.drawn_frame_time = state.frame_time;
     }
 
-    const ui = hy.UI.imgui;
+    const ui = imgui;
     if (ui.BeginMainMenuBar()) {
         if (ui.BeginMenu("File")) {
             if (ui.MenuItem("Restart")) {
@@ -77,7 +79,6 @@ pub fn drawFrametimePlot(state: *State) void {
         times[i] = state.frame_times[time];
     }
 
-    const plot = hy.UI.implot;
     if (plot.begin("My Plot", .{}, plot.Flags.CanvasOnly)) {
         plot.setupAxesLimits(0, @floatFromInt(frames_slice_len), 0, 40, .always);
         plot.plotBars("Bar", @as([]f64, &times), .{});

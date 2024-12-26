@@ -1,40 +1,16 @@
 const std = @import("std");
-const Sdl = @import("sdl");
-const sdl_shadercross = @import("sdl_shadercross");
-const Assimp = @import("assimp");
+const builtin = @import("builtin");
 
-const os = @import("builtin").target.os.tag;
-
-pub const GpuDriver = enum {
-    none,
-    vulkan,
-    direct3d12,
-    metal,
-}; 
+const GpuDriver = @import("hyoga_rt").GpuDriver;
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
     const dxc = b.option(bool, "dxc", "enable HLSL support") orelse false;
+    const enable_tracy = b.option(bool, "enable_tracy", "enable profiling with tracy") orelse false;
     const backend = b.option(GpuDriver, "gpu_driver", "force backend graphics driver") orelse .none;
     const gen_shaders = b.option(bool, "compile_shaders", "force shader compile") orelse false;
-    const enable_tracy = b.option(bool, "enable_tracy", "enable profiling with tracy") orelse false;
-
-    if (backend == .direct3d12 and !dxc) {
-        std.log.err("{} requires -Ddxc", .{backend});
-        return error.InvalidConfiguration;
-    }
-
-    const options_step = b.addOptions();
-    options_step.addOption(?[:0]const u8, "backend", if (backend == .none) null else @tagName(backend));
-    const options_module = options_step.createModule();
-
-    const hyoga = b.addModule("hyoga", .{
-        .root_source_file = b.path("src/hyoga/root.zig"),
-        .target = target,
-        .optimize = optimize
-    });
 
     const game_lib = b.addSharedLibrary(.{
         .name = "game",
@@ -50,24 +26,22 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    const imgui = b.dependency("imgui", .{
+    const lib = b.dependency("hyoga_lib", .{
         .target = target,
         .optimize = optimize,
     });
 
-    const stb_image = b.dependency("stb_image", .{ 
-        .target = target
-    });
-
-    const sdl = b.dependency("sdl", .{
+    const rt = b.dependency("hyoga_rt", .{
         .target = target,
         .optimize = optimize,
+        .enable_tracy = enable_tracy,
+        .gpu_driver = backend,
         .dxc = dxc,
     });
 
-    const assimp = b.dependency("assimp", .{
+    const imgui = b.dependency("imgui", .{
         .target = target,
-        .optimize = optimize
+        .optimize = optimize,
     });
 
     const ztracy = b.dependency("ztracy", .{
@@ -77,29 +51,15 @@ pub fn build(b: *std.Build) !void {
         .enable_fibers = true,
     });
 
-    const hylib = b.dependency("hyoga_lib", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
     // Modules
-    hyoga.addImport("assimp", assimp.module("root"));
-    hyoga.addImport("hyoga-lib", hylib.module("hyoga-lib"));
-    hyoga.addImport("sdl", sdl.module("sdl"));
-    hyoga.addImport("sdl_shadercross", sdl.module("sdl_shadercross"));
-    hyoga.addImport("imgui", imgui.module("imgui"));
-    hyoga.addImport("implot", imgui.module("implot"));
-    hyoga.addImport("stb_image", stb_image.module("stb_image"));
-    hyoga.addImport("ztracy", ztracy.module("root"));
-    hyoga.addImport("build_options", options_module);
-
-    if (enable_tracy) { hyoga.linkLibrary(ztracy.artifact("tracy")); }
-
-    game_lib.root_module.addImport("hyoga-lib", hylib.module("hyoga-lib"));
-    game_lib.root_module.addImport("hyoga", hyoga);
+    game_lib.root_module.addImport("hyoga-lib", lib.module("hyoga-lib"));
+    game_lib.root_module.addImport("imgui", imgui.module("imgui"));
+    game_lib.root_module.addImport("implot", imgui.module("implot"));
     game_lib.root_module.addImport("ztracy", ztracy.module("root"));
+    game_lib.linkLibrary(rt.artifact("hyrt"));
 
-    runner.root_module.addImport("hyoga", hyoga);
+    runner.root_module.addImport("hyoga-lib", lib.module("hyoga-lib"));
+    runner.linkLibrary(rt.artifact("hyrt"));
 
     const exe_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/game/main.zig"),
@@ -109,20 +69,16 @@ pub fn build(b: *std.Build) !void {
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
-    const game_dll = b.addInstallArtifact(game_lib, .{});
+    const game_dll = b.addInstallArtifact(game_lib, .{ .dest_dir = .{ .override = .bin }});
     b.getInstallStep().dependOn(&game_dll.step);
 
     b.installArtifact(runner);
 
-    b.installDirectory(.{
-        .install_dir = .bin,
-        .source_dir = assimp.namedWriteFiles("dlls").getDirectory(),
-        .install_subdir = "",
-    });
+    b.installArtifact(rt.artifact("hyrt")); // Needed for ZLS to work
 
     b.installDirectory(.{
         .install_dir = .bin,
-        .source_dir = sdl.namedWriteFiles("dlls").getDirectory(),
+        .source_dir = rt.namedWriteFiles("bin_files").getDirectory(),
         .install_subdir = "",
     });
 
@@ -138,7 +94,7 @@ pub fn build(b: *std.Build) !void {
         .source_path = b.path("shaders"),
         .dest_path = "shaders",
         .target = "spirv",
-        .profile = "",
+        .profile = "spirv_1_3",
     });
 
     b.getInstallStep().dependOn(&install_shaders.step);
@@ -151,7 +107,7 @@ pub fn build(b: *std.Build) !void {
     });
 
     const run_cmd = b.addRunArtifact(runner);
-    run_cmd.setCwd(b.path("zig-out/bin/"));
+    run_cmd.setCwd(std.Build.LazyPath {.cwd_relative = b.getInstallPath(.bin, ".")});
 
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| run_cmd.addArgs(args);
@@ -166,10 +122,3 @@ pub fn build(b: *std.Build) !void {
     hot_reload_step.dependOn(&game_dll.step);
 }
 
-fn copyDlls(b: *std.Build, dlls: *std.Build.Step.WriteFile) !void {
-    for (dlls.files.items) |dll| {
-        const src = try dlls.getDirectory().join(b.allocator, dll.sub_path);
-        const install_file = b.addInstallFileWithDir(src, .bin, dll.sub_path);
-        b.getInstallStep().dependOn(&install_file.step);
-    }
-}

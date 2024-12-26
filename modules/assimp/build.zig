@@ -19,9 +19,16 @@ pub fn build(b: *std.Build) void {
 
     switch(builtin.target.os.tag) {
         .windows => module.linkSystemLibrary("assimp-vc143-mt", .{}),
-        else => module.linkSystemLibrary("assimp", .{}),
+        .macos => {
+            module.addObjectFile(b.path("lib/libassimp.a"));
+            module.linkSystemLibrary("z", .{});
+        },
+        else => {},
     }
 
     const wf_dlls = b.addNamedWriteFiles("dlls");
-    _ = wf_dlls.addCopyFile(b.path("lib/assimp-vc143-mt.dll"), "assimp-vc143-mt.dll");
+    switch(builtin.target.os.tag) {
+        .windows => _ = wf_dlls.addCopyFile(b.path("lib/assimp-vc143-mt.dll"), "assimp-vc143-mt.dll"),
+        else => {},
+    }
 }

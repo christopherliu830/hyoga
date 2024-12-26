@@ -3,6 +3,11 @@ const InstallShadersStep = @This();
 const Build = std.Build;
 const Step = std.Build.Step;
 
+const ext_from_target = std.StaticStringMap([]const u8).initComptime(.{
+    .{ "spirv", ".spv" },
+    .{ "metal", ".metal" },
+});
+
 const Options = struct {
     source_path: Build.LazyPath,
     install_dir: Build.InstallDir = .bin,
@@ -41,6 +46,19 @@ pub fn init(b: *Build, options: Options) !*InstallShadersStep {
     return self;
 }
 
+const ShaderArgs = struct {
+    stage: []const u8,
+    ext: []const u8,
+    entry: []const u8,
+};
+
+const ShaderInvocation = struct {
+    process: std.process.Child,
+    stderr: std.ArrayList(u8),
+    stdout: std.ArrayList(u8),
+    args: []const []const u8,
+};
+
 fn make(step: *Step, step_opts: Step.MakeOptions) !void {
     const self: *InstallShadersStep = @fieldParentPtr("step", step);
     const b = self.builder;
@@ -59,8 +77,8 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
 
     defer src_dir.close();
 
+    var children = std.ArrayList(ShaderInvocation).init(b.allocator);
     var it = try src_dir.walk(b.allocator);
-
     while (try it.next()) |entry| {
         switch (entry.kind) {
             .directory => {
@@ -78,12 +96,27 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
                 const cwd = std.fs.cwd(); // default zig-out
                 try cwd.makePath(dest_prefix);
 
-                inline for (.{
-                    .{ .ext = ".vert.spv", .entry = "vertexMain", .offset = 0},
-                    .{ .ext = ".frag.spv", .entry = "fragmentMain", .offset = 1 }
-                }) |opts| {
-
-                    const out_basename = try std.mem.concat(b.allocator, u8, &.{std.fs.path.stem(entry.basename), opts.ext});
+                const shader_args: []const ShaderArgs = blk: {
+                    if (std.mem.endsWith(u8, entry.path, ".vert.slang")) {
+                        break :blk &.{
+                            .{ .stage = "", .ext = ext_from_target.get(self.target).?, .entry = "vertexMain", },
+                        };
+                    } else if (std.mem.endsWith(u8, entry.path, ".frag.slang")) {
+                        break :blk &.{
+                            .{ .stage = "", .ext = ext_from_target.get(self.target).?, .entry = "fragmentMain", }
+                        };
+                    } else {
+                        break :blk &.{
+                            .{ .stage = ".vert", .ext = ext_from_target.get(self.target).?, .entry = "vertexMain", },
+                            .{ .stage = ".frag", .ext = ext_from_target.get(self.target).?, .entry = "fragmentMain", }
+                        };
+                    }
+                };
+                   
+                for (shader_args) |opts| {
+                    // eg. standard.vert.spv, standard.frag.spv
+                    const out_basename = try std.mem.concat(b.allocator, u8, &.{std.fs.path.stem(entry.basename), opts.stage, opts.ext});
+                    // eg. shaders/standard.vert.spv
                     const out_name = b.pathJoin(&.{dest_prefix, out_basename});
 
                     const src_stat = try src_dir.statFile(entry.path);
@@ -91,24 +124,56 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
 
                     if (self.always_generate or dst_stat == null or dst_stat.?.mtime < src_stat.mtime) {
                         step_opts.progress_node.increaseEstimatedTotalItems(1);
-                        const argv_list: []const []const u8 = &.{
+                        var argv_list = std.ArrayList([]const u8).init(b.allocator);
+                        try argv_list.appendSlice(&.{
                             "slangc",
                             "-matrix-layout-row-major",
-                            try src_sub_path.toString(b.allocator), // Input file
                             "-entry", opts.entry,
+                            "-fvk-use-entrypoint-name",
+                            try src_sub_path.toString(b.allocator), // Input file
                             "-target", self.target,
-                            "-profile", "spirv_1_3",
                             "-o", out_name,
-                        };
+                        });
 
-                        const child = step_opts.progress_node.start(out_basename, 1);
-                        const run_result = try step.captureChildProcess(child, argv_list);
-                        try step.handleChildProcessTerm(run_result.term, null, argv_list);
-                        child.end();
+                        if (self.profile.len > 0) {
+                            try argv_list.appendSlice(&.{"-profile", self.profile});
+                        }
+
+                        try step.handleChildProcUnsupported(null, argv_list.items);
+                        try Step.handleVerbose(step.owner, null, argv_list.items);
+
+                        const prog_node = step_opts.progress_node.start(out_basename, 1);
+                        var child = std.process.Child.init(argv_list.items, b.allocator);
+                        child.env_map = &b.graph.env_map;
+                        child.stdin_behavior = .Ignore;
+                        child.stdout_behavior = .Pipe;
+                        child.stderr_behavior = .Pipe;
+                        child.request_resource_usage_statistics = true;
+                        child.progress_node = prog_node;
+
+                        child.spawn() catch |err| return step.fail("failed to spawn slangc: {s}", .{ @errorName(err), });
+                        const invoc = try children.addOne();
+                        invoc.* = .{ 
+                            .process = child,
+                            .args = argv_list.items,
+                            .stderr = std.ArrayList(u8).init(b.allocator),
+                            .stdout = std.ArrayList(u8).init(b.allocator),
+                        };
                     }
                 }
             },
             else => {},
         }
     }
+
+    for (children.items) |*child| {
+        try child.process.collectOutput(&child.stdout, &child.stderr, 50 * 1024);
+        const term = child.process.wait() catch |err| return step.fail("failed to wait process: {s}", .{ @errorName(err), });
+        if (child.stderr.items.len > 0) {
+            try step.result_error_msgs.append(b.allocator, child.stderr.items);
+        }
+
+        try step.handleChildProcessTerm(term, null, child.args);
+    }
 }
+

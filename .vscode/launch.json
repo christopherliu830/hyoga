@@ -8,10 +8,10 @@
             "name": "(macos) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/zig-out/bin/game",
+            "program": "${workspaceFolder}/zig-out/bin/run",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceRoot}",
+            "cwd": "${workspaceRoot}/zig-out/bin",
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"
