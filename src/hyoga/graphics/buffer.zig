@@ -1,5 +1,74 @@
 const std = @import("std");
 const sdl = @import("sdl");
+ 
+pub const BufferAllocator = struct {
+    device: *sdl.gpu.Device, 
+    usage: sdl.gpu.BufferUsageFlags,
+    buffer_list: std.SinglyLinkedList(Buf) = .{},
+    node_allocator: std.mem.Allocator,
+    end_index: u32 = 0,
+
+    pub const Buf = struct {
+        hdl: *sdl.gpu.Buffer,
+        size: u32,
+    };
+
+    const BufNode = std.SinglyLinkedList(Buf).Node;
+
+    fn init(device: sdl.gpu.Device,
+            usage: sdl.gpu.BufferUsageFlags,
+            allocator: std.mem.Allocator) BufferAllocator {
+        return .{
+            .device = device,
+            .usage = usage,
+            .allocator = allocator,
+        };
+    }
+
+    fn createNode(self: *BufferAllocator, prev_len: u32, min_size: u32) ?*BufNode {
+        const len = (prev_len + min_size) + (prev_len + min_size) / 2;
+        const buf = self.device.createBuffer(&.{
+            .size = len,
+            .usage = self.usage
+        })
+            orelse return null;
+        const node = self.node_allocator.create(BufNode)
+            catch return null;
+        node.* = .{ .data = .{
+            .hdl = buf,
+            .size = len,
+        }};
+        self.buffer_list.prepend(node);
+        self.end_index = 0;
+        return node;
+    }
+
+    fn alloc(self: *BufferAllocator, n: u32) ?Buffer {
+        var cur_node = if (self.buffer_list.first) |first_node|
+            first_node
+        else
+            (self.createNode(0, n) orelse return null);
+        while (true) {
+            const offset = self.end_index;
+            const end_offset = offset + n;
+
+            if (end_offset <= cur_node.size) {
+                self.end_index = end_offset;
+                return .{
+                    .hdl = cur_node.hdl,
+                    .offset = end_offset,
+                    .size = n,
+                };
+            }
+
+            cur_node = self.createNode(cur_node.size, n) orelse return null;
+        }
+    }
+
+    fn resize() void {}
+
+    fn free() void {}
+};
 
 pub const VertexIndexBuffer = struct {
     hdl: *sdl.gpu.Buffer,
@@ -81,30 +150,8 @@ pub fn DynamicBuffer(comptime T: anytype) type {
     };
 }
 
-pub fn Buffer(comptime T: anytype, usage: sdl.gpu.BufferUsageFlags) type {
-    return struct {
-        hdl: *sdl.gpu.Buffer,
-        offset: u32 = 0,
-        size: u32,
-
-        pub fn init(device: *sdl.gpu.Device, name: []const u8) !@This() {
-            const hdl = device.createBuffer(&.{
-                .usage = usage,
-                .size = @sizeOf(T),
-            }) orelse {
-                return error.BufferCreateFailure;
-            };
-
-            if (name.len > 0) device.setBufferName(hdl, name.ptr);
-
-            return .{
-                .hdl = hdl,
-                .size = @sizeOf(T),
-            };
-        }
-
-        pub fn destroy(self: @This(), device: *sdl.gpu.Device) void {
-            device.releaseBuffer(self.hdl);
-        }
-    };
-}
+pub const Buffer = struct {
+    hdl: *sdl.gpu.Buffer,
+    offset: u32 = 0,
+    size: u32,
+};

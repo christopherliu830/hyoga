@@ -86,9 +86,6 @@ const RenderState = struct {
 
     sampler: *sdl.gpu.Sampler = undefined,
 
-    renderables: rbl.RenderList,
-    outline_renderables: std.ArrayListUnmanaged(rbl.RenderItemHandle),
-    scn_buf: buf.StorageBuffer(GpuScene),
     obj_buf: buf.DynamicBuffer(mat4.Mat4),
     scene: *Scene = undefined,
     active_target: ?*sdl.gpu.Texture,
@@ -130,6 +127,8 @@ frames: u32 = 0,
 strint: *Strint,
 render_state: RenderState = undefined,
 window_state: WindowState = .{},
+renderables: rbl.RenderList,
+outlined: std.ArrayListUnmanaged(rbl.RenderItemHandle),
 speed: f32 = 1,
 textures: tx.Textures,
 models: mdl.Models,
@@ -161,7 +160,9 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .textures = tx.Textures.create(d, loader, strint, gpa),
         .models = mdl.Models.create(loader, strint, gpa),
         .materials = try hysm.SlotMap(mt.Material).create(gpa, 1),
-        .window_state = .{ .window = window }
+        .window_state = .{ .window = window },
+        .renderables = try rbl.RenderList.init(self, gpa),
+        .outlined = .{},
     };
 
     try sdlsc.init();
@@ -227,9 +228,6 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
         .blit_pass = passes.BlitPass.init(self, self.device),
 
-        .renderables = try rbl.RenderList.init(self, self.gpa),
-        .outline_renderables = .{},
-
         .default_material = material,
         .default_texture = texture,
 
@@ -243,7 +241,6 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         }, self.gpa),
 
         .sampler = self.device.createSampler(&sampler_info).?,
-        .scn_buf = try buf.StorageBuffer(GpuScene).init(self.device, ""),
         .obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 256, "Object Mats"),
         .active_target = null,
     };
@@ -257,7 +254,7 @@ pub fn shutdown(self: *Gpu) void {
     self.device.releaseWindow(self.window_state.window.hdl);
 
     {
-        var it = self.render_state.renderables.iterator();
+        var it = self.renderables.iterator();
         while (it.next()) |obj| {
             self.device.releaseBuffer(obj.mesh.buffer.hdl);
         }
@@ -384,11 +381,11 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
 
-    const arr = try self.render_state.renderables.prepare(self.arena.allocator());
+    const arr = try self.renderables.prepare(self.arena.allocator());
     try self.uploadToBuffer(self.render_state.obj_buf.hdl, 0, std.mem.sliceAsBytes(arr));
 
     // First render scene to texture target
-    const all_items = self.render_state.renderables.items.iterator();
+    const all_items = self.renderables.items.iterator();
 
     self.doPass(.{
         .cmd = cmd,
@@ -411,7 +408,7 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
         .scene = scene.*,
         .material = mt.Material.fromTemplate(self.render_state.outline_material, .{}),
         .targets = mask.targets(),
-        .items = .{ .handles = self.render_state.outline_renderables.items },
+        .items = .{ .handles = self.outlined.items },
     }) catch {};
 
     self.doPass(.{
@@ -473,7 +470,7 @@ pub fn doPass(self: *Gpu, job: PassInfo) !void {
             try self.doPassOne(@intCast(i), pass, item, job, &last_pipeline);
         },
         .handles => |handles| for (handles) |hdl| {
-            const item = self.render_state.renderables.items.get(hdl) catch continue;
+            const item = self.renderables.items.get(hdl) catch continue;
             try self.doPassOne(hdl.index, pass, item, job, &last_pipeline);
         },
         .iterator => |iterator| {

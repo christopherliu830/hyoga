@@ -20,17 +20,9 @@ backpack_hdl: hy.Gpu.ModelHandle = undefined,
 objects: hy.SkipMap(Object),
 ui_state: ui.State,
 camera: cam.Camera,
-seed: u64 = 0,
-timer: std.time.Timer,
-
-inline fn get(ptr: *anyopaque) *Self {
-    return @ptrCast(@alignCast(ptr));
-}
 
 fn init(hye: *hy.Engine) callconv(.C) hy.World {
-    return tryInit(hye) catch |err| {
-        std.debug.panic("init failure: {}", .{err});
-    };
+    return tryInit(hye) catch |e| std.debug.panic("init failure: {}", .{e});
 }
 
 fn tryInit(hye: *hy.Engine) !hy.World {
@@ -43,24 +35,23 @@ fn tryInit(hye: *hy.Engine) !hy.World {
         .objects = try hy.SkipMap(Object).create(self_gpa.allocator(), .{}),
         .ui_state = .{ .second_timer = try std.time.Timer.start() },
         .camera = .{ .input = &hye.input, .window = &hye.window },
-        .timer = try std.time.Timer.start(),
     };
 
     self.backpack_hdl = try hye.gpu.importModel(try hye.strint.from("assets/backpack/backpack.obj"), .{
         .transform = mat4.identity,
         .post_process = .{
-        .triangulate = true,
-        .split_large_meshes = true,
-        .pre_transform_vertices = true,
-        .optimize_graph = true,
-        .optimize_meshes = true,
+            .triangulate = true,
+            .split_large_meshes = true,
+            .pre_transform_vertices = true,
+            .optimize_graph = true,
+            .optimize_meshes = true,
         }
     });
 
     inline for (0..10) |y| {
         inline for (0..10) |x| {
             var object = (try self.objects.insert(undefined)).unwrap();
-            object.hdl = hye.gpu.render_state.renderables.add(.{
+            object.hdl = hye.gpu.renderables.add(.{
                 .model = self.backpack_hdl,
                 .owner = &object.transform,
                 .time = 1 * std.time.ns_per_s,
@@ -92,13 +83,12 @@ fn shutdown(_: *hy.Engine, state: hy.World) callconv(.C) void {
 }
 
 // Called every loop iteration
-fn update(_: *hy.Engine, pregame: hy.World) callconv(.C) hy.World {
-    const self: *Self = @ptrCast(@alignCast(pregame.memory));
-    var game = pregame;
-    self.seed += game.frame_time;
+fn update(_: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
+    const self: *Self = @ptrCast(@alignCast(pre.memory));
+    var game = pre;
 
-    game.scene.light_dir = hym.vec3.create(1, 0, 0);
     game.scene.view_proj = self.camera.viewProj();
+
     if (self.ui_state.restart_requested) game.restart = true;
 
     return game;
@@ -121,8 +111,8 @@ fn render(hye: *hy.Engine, state: hy.World) callconv(.C) void {
             imgui.PushIDPtr(object);
             if (count % 10 > 0) imgui.SameLine();
             if (imgui.ButtonEx("", .{ .x = 20, .y = 20 })) {
-                hye.gpu.render_state.outline_renderables.clearRetainingCapacity();
-                hye.gpu.render_state.outline_renderables.append(hye.gpa.allocator(), object.hdl) catch { std.debug.panic("model add fail", .{}); };
+                hye.gpu.outlined.clearRetainingCapacity();
+                hye.gpu.outlined.append(hye.gpa.allocator(), object.hdl) catch { std.debug.panic("model add fail", .{}); };
             }
             imgui.PopID();
             count += 1;
