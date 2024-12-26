@@ -50,16 +50,6 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    const hym = b.dependency("hyoga_math", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const hysm = b.dependency("hyoga_slotmap", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
     const imgui = b.dependency("imgui", .{
         .target = target,
         .optimize = optimize,
@@ -87,10 +77,14 @@ pub fn build(b: *std.Build) !void {
         .enable_fibers = true,
     });
 
+    const hylib = b.dependency("hyoga_lib", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     // Modules
     hyoga.addImport("assimp", assimp.module("root"));
-    hyoga.addImport("hyoga-math", hym.module("hyoga-math"));
-    hyoga.addImport("hyoga-slotmap", hysm.module("hyoga-slotmap"));
+    hyoga.addImport("hyoga-lib", hylib.module("hyoga-lib"));
     hyoga.addImport("sdl", sdl.module("sdl"));
     hyoga.addImport("sdl_shadercross", sdl.module("sdl_shadercross"));
     hyoga.addImport("imgui", imgui.module("imgui"));
@@ -101,6 +95,7 @@ pub fn build(b: *std.Build) !void {
 
     if (enable_tracy) { hyoga.linkLibrary(ztracy.artifact("tracy")); }
 
+    game_lib.root_module.addImport("hyoga-lib", hylib.module("hyoga-lib"));
     game_lib.root_module.addImport("hyoga", hyoga);
     game_lib.root_module.addImport("ztracy", ztracy.module("root"));
 

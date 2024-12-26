@@ -1,17 +1,13 @@
 const std = @import("std");
 const sdl = @import("sdl");
 
-pub const math = @import("hyoga-math");
-pub const slotmap = @import("hyoga-slotmap");
 pub const material = @import("graphics/material.zig");
-
 pub const Input = @import("input/Input.zig");
 pub const Strint = @import("strintern.zig");
 pub const UI = @import("graphics/ui.zig");
 pub const Gpu = @import("graphics/gpu.zig");
-pub const SkipMap = @import("skipmap.zig").SkipMap;
-pub const Game = @import("Game.zig").World;
-pub const GameInterface = @import("Game.zig").GameInterface;
+pub const Game = @import("game.zig").World;
+pub const GameInterface = @import("game.zig").GameInterface;
 pub const Loader = @import("graphics/loader.zig");
 pub const Window = @import("window.zig");
 

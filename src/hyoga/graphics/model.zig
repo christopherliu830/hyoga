@@ -1,6 +1,6 @@
 const std = @import("std");
 const sdl = @import("sdl");
-const hysm = @import("hyoga-slotmap");
+const SlotMap = @import("hyoga-lib").SlotMap;
 const ai = @import("assimp");
 const Gpu = @import("gpu.zig");
 const buf = @import("buffer.zig");
@@ -8,10 +8,10 @@ const mt = @import("material.zig");
 const Loader = @import("loader.zig");
 const tx = @import("texture.zig");
 const Vertex = @import("vertex.zig").Vertex;
-const mat4 = @import("hyoga-math").mat4;
+const mat4 = @import("hyoga-lib").math.mat4;
 const Strint = @import("../strintern.zig");
 
-pub const Arena = hysm.SlotMap(ImportModel);
+pub const Arena = SlotMap(ImportModel);
 pub const Handle = Strint.ID;
 
 const Buffer = buf.VertexIndexBuffer;

@@ -1,8 +1,6 @@
 const std = @import("std");
 const sdl = @import("sdl");
 const imgui = @import("imgui");
-const hysm = @import("hyoga-slotmap");
-const vec2 = @import("hyoga-math").vec2;
 const window = @import("../window.zig");
 const types = @import("types.zig");
 

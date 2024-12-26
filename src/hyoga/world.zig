@@ -1,7 +1,7 @@
 const std = @import("std");
 const gpu = @import("graphics/gpu.zig");
-const Mat4 = @import("hyoga-math").Mat4;
-const Vec3 = @import("hyoga-math").Vec3;
+const Mat4 = @import("hyoga-lib").math.Mat4;
+const Vec3 = @import("hyoga-lib").math.Vec3;
 
 const Engine= @import("Engine.zig");
 

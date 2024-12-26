@@ -5,7 +5,6 @@ const tx = @import("texture.zig");
 const mdl = @import("model.zig");
 const mt = @import("material.zig");
 const sdl = @import("sdl");
-const hysm = @import("hyoga-slotmap");
 
 const Loader = @This();
 

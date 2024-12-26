@@ -3,7 +3,6 @@ const sdl = @import("sdl");
 const stbi = @import("stb_image");
 const ai = @import("assimp");
 const Loader = @import("loader.zig");
-const hysm = @import("hyoga-slotmap");
 const Strint = @import("../strintern.zig");
 
 pub const Handle = Strint.ID;

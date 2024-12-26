@@ -8,8 +8,7 @@
         .assimp = .{ .path = "modules/assimp", },
         .stb_image = .{ .path = "modules/stb_image", },
         .ztracy = .{ .path = "modules/ztracy", },
-        .hyoga_math = .{ .path = "../hyoga-math", },
-        .hyoga_slotmap = .{ .path = "../hyoga-slotmap", },
+        .hyoga_lib = .{ .path = "modules/hyoga-lib", },
     },
     .paths = .{ "" },
 }
