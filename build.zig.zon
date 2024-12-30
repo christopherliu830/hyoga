@@ -1,14 +1,11 @@
 .{
-    .name = "hyoga-zig",
+    .name = "hyoga",
     .version = "0.0.0",
     .dependencies = .{
-        .imgui = .{ .path = "modules/imgui", },
-        .sdl = .{ .path = "modules/sdl", },
-        .sdl_shadercross = .{ .path = "modules/sdl_shadercross", },
-        .assimp = .{ .path = "modules/assimp", },
-        .stb_image = .{ .path = "modules/stb_image", },
-        .ztracy = .{ .path = "modules/ztracy", },
         .hyoga_lib = .{ .path = "modules/hyoga-lib", },
+        .hyoga_rt = .{ .path = "modules/hyoga-rt", },
+        .imgui = .{ .path = "modules/imgui", },
+        .ztracy = .{ .path = "modules/ztracy", },
     },
     .paths = .{ "" },
 }

@@ -59,19 +59,21 @@ pub fn build(b: *std.Build) void {
     if (target.result.abi != .msvc)
         tracy.linkLibCpp();
 
-    switch (target.result.os.tag) {
-        .windows => {
-            tracy.linkSystemLibrary("ws2_32");
-            tracy.linkSystemLibrary("dbghelp");
-        },
-        .macos => {
-            const system_sdk = b.dependency("system_sdk", .{});
-            tracy.addFrameworkPath(system_sdk.path("System/Library/Frameworks"));
-        },
-        else => {},
-    }
+    if (options.enable_ztracy) {
+        switch (target.result.os.tag) {
+            .windows => {
+                tracy.linkSystemLibrary("ws2_32");
+                tracy.linkSystemLibrary("dbghelp");
+            },
+            .macos => {
+                const system_sdk = b.dependency("system_sdk", .{});
+                tracy.addFrameworkPath(system_sdk.path("System/Library/Frameworks"));
+            },
+            else => {},
+        }
 
-    b.installArtifact(tracy);
+        b.installArtifact(tracy);
+    }
 
     const test_step = b.step("test", "Run ztracy tests");
 

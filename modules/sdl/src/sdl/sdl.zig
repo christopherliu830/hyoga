@@ -6,11 +6,13 @@ pub const keyboard = @import("keyboard.zig");
 pub const keycode = @import("keycode.zig");
 pub const mouse = @import("mouse.zig");
 pub const pixels = @import("pixels.zig");
+pub const properties = @import("properties.zig");
 pub const rect = @import("rect.zig");
 pub const scancode = @import("scancode.zig");
 pub const video = @import("video.zig");
 pub const init = @import("init.zig");
 
+pub const PropertiesID = properties.PropertiesID;
 pub const Window = video.Window;
 
 extern fn SDL_GetError() [*:0]const u8;

@@ -1,11 +1,10 @@
 const std = @import("std");
-const hy = @import("hyoga");
-const hylib = @import("hyoga-lib");
-const hym = hylib.math;
-const mat4 = hym.mat4;
-const vec3 = hym.vec3;
-const vec4 = hym.vec4;
-const SkipMap = hylib.SkipMap;
+const imgui = @import("imgui");
+const implot = @import("implot");
+const hy = @import("hyoga-lib");
+const rt = hy.runtime;
+const hym = hy.math;
+const SkipMap = hy.SkipMap;
 
 const ui = @import("ui.zig");
 const cam = @import("camera.zig");
@@ -14,33 +13,35 @@ const Self = @This();
 
 const Object = struct {
     transform: hym.Mat4,
-    hdl: hy.Gpu.RenderItemHandle,
+    hdl: rt.gpu.RenderItemHandle = .invalid,
 };
 
 gpa: std.heap.GeneralPurposeAllocator(.{}),
-backpack_hdl: hy.Gpu.ModelHandle = undefined,
+callback_arena: std.heap.ArenaAllocator,
+backpack_hdl: rt.gpu.ModelHandle = undefined,
 objects: SkipMap(Object),
 ui_state: ui.State,
 camera: cam.Camera,
 
-fn init(hye: *hy.Engine) callconv(.C) hy.World {
-    return tryInit(hye) catch |e| std.debug.panic("init failure: {}", .{e});
+fn init(engine: *hy.Engine) callconv(.C) hy.World {
+    return tryInit(engine) catch |e| std.debug.panic("init failure: {}", .{e});
 }
 
-fn tryInit(hye: *hy.Engine) !hy.World {
-    hye.setGlobalState();
-
+fn tryInit(engine: *hy.Engine) !hy.World {
     var self_gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const self = try self_gpa.allocator().create(Self);
     self.* = .{
         .gpa = self_gpa,
+        .callback_arena = std.heap.ArenaAllocator.init(self_gpa.allocator()),
         .objects = try SkipMap(Object).create(self_gpa.allocator(), .{}),
         .ui_state = .{ .second_timer = try std.time.Timer.start() },
-        .camera = .{ .input = &hye.input, .window = &hye.window },
+        .camera = .{ .input = engine.input(), .window = engine.window() },
     };
 
-    self.backpack_hdl = try hye.gpu.importModel(try hye.strint.from("assets/backpack/backpack.obj"), .{
-        .transform = mat4.identity,
+    const gpu = engine.gpu();
+
+    self.backpack_hdl = gpu.importModel("assets/backpack/backpack.obj", .{
+        .transform = hym.mat4.identity,
         .post_process = .{
             .triangulate = true,
             .split_large_meshes = true,
@@ -53,25 +54,29 @@ fn tryInit(hye: *hy.Engine) !hy.World {
     inline for (0..10) |y| {
         inline for (0..10) |x| {
             var object = (try self.objects.insert(undefined)).unwrap();
-            object.hdl = hye.gpu.renderables.add(.{
+            object.hdl = gpu.addRenderable(.{
                 .model = self.backpack_hdl,
                 .owner = &object.transform,
                 .time = 1 * std.time.ns_per_s,
-            }) catch { std.debug.panic("model add fail", .{}); };
+            });
 
             object.transform = hym.mat4.identity;
             object.transform = hym.mat4.translation(object.transform, hym.vec3.create(x * 10, 100 - y * 10,0));
-
         }
     }
 
-    try self.camera.registerInputs();
+    try self.camera.registerInputs(self.callback_arena.allocator());
     self.camera.position = hym.vec(.{50, 50, 50});
     self.camera.look_direction = hym.vec(.{0, 0, -1});
 
+    const ui_state = engine.ui().getGlobalState();
+
+    imgui.SetCurrentContext(@ptrCast(ui_state.imgui_ctx));
+    implot.setCurrentContext(@ptrCast(ui_state.implot_ctx));
+
     return .{
         .scene = .{
-            .light_dir = hym.vec3.create(0, 0, -1),
+            .light_dir = hym.vec(.{0, -1, -0.5}),
             .view_proj = self.camera.viewProj(),
             .camera_world_pos = self.camera.position,
         },
@@ -97,14 +102,14 @@ fn update(_: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
 }
 
 // Only called on new frames
-fn render(hye: *hy.Engine, state: hy.World) callconv(.C) void {
+fn render(engine: *hy.Engine, state: hy.World) callconv(.C) void {
+    const gpu = engine.gpu();
     const self: *Self = @ptrCast(@alignCast(state.memory));
 
     ui.drawMainUI(&self.ui_state);
     self.ui_state.frame_time = @floatFromInt(state.frame_time);
     if (self.ui_state.windows.camera) self.camera.editor();
 
-    const imgui = hy.UI.imgui;
     if (imgui.Begin("Test", null, 0)) {
         var it = self.objects.iterator();
         var count: u32 = 0;
@@ -113,8 +118,10 @@ fn render(hye: *hy.Engine, state: hy.World) callconv(.C) void {
             imgui.PushIDPtr(object);
             if (count % 10 > 0) imgui.SameLine();
             if (imgui.ButtonEx("", .{ .x = 20, .y = 20 })) {
-                hye.gpu.outlined.clearRetainingCapacity();
-                hye.gpu.outlined.append(hye.gpa.allocator(), object.hdl) catch { std.debug.panic("model add fail", .{}); };
+                gpu.clearSelection();
+                gpu.selectRenderable(object.hdl);
+                // engine.gpu.outlined.clearRetainingCapacity();
+                // engine.gpu.outlined.append(engine.gpa.allocator(), object.hdl) catch { std.debug.panic("model add fail", .{}); };
             }
             imgui.PopID();
             count += 1;
@@ -123,21 +130,19 @@ fn render(hye: *hy.Engine, state: hy.World) callconv(.C) void {
     imgui.End();
 }
 
-fn reload(hye: *hy.Engine, game: hy.World) callconv(.C) bool {
-    tryReload(hye, game) catch |err| {
+fn reload(engine: *hy.Engine, game: hy.World) callconv(.C) bool {
+    tryReload(engine, game) catch |err| {
         std.log.err("Failed reload: {}", .{err});
         return false;
     };
     return true;
 }
 
-fn tryReload(hye: *hy.Engine, game: hy.World) !void {
-    hye.setGlobalState();
-    hye.input.reset();
-
+fn tryReload(engine: *hy.Engine, game: hy.World) !void {
     const ptr = @as(*Self, @ptrCast(@alignCast(game.memory)));
-    try ptr.camera.registerInputs();
-
+    engine.input().reset();
+    _ = ptr.callback_arena.reset(.retain_capacity);
+    try ptr.camera.registerInputs(ptr.callback_arena.allocator());
 }
 
 export fn interface() hy.GameInterface {

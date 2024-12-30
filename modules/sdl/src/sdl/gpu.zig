@@ -33,7 +33,9 @@ pub const Device = opaque {
 	pub const claimWindow = SDL_ClaimWindowForGPUDevice;
 	pub const releaseWindow = SDL_ReleaseWindowFromGPUDevice;
 	pub const setSwapchainParameters = SDL_SetGPUSwapchainParameters;
+	pub const setAllowedFramesInFlight = SDL_SetGPUAllowedFramesInFlight;
 	pub const getSwapchainTextureFormat = SDL_GetGPUSwapchainTextureFormat;
+	pub const waitForSwapchain = SDL_WaitForGPUSwapchain;
 	pub const waitForIdle = SDL_WaitForGPUIdle;
 	pub const waitForFences = SDL_WaitForGPUFences;
 	pub const queryFence = SDL_QueryGPUFence;
@@ -78,6 +80,7 @@ pub const CommandBuffer = opaque {
 	pub const generateMipmapsForTexture = SDL_GenerateMipmapsForGPUTexture;
 	pub const blitTexture = SDL_BlitGPUTexture;
 	pub const acquireSwapchainTexture = SDL_AcquireGPUSwapchainTexture;
+	pub const waitAndAcquireSwapchainTexture = SDL_WaitAndAcquireGPUSwapchainTexture;
 	pub const submit = SDL_SubmitGPUCommandBuffer;
 	pub const submitAndAcquireFence = SDL_SubmitGPUCommandBufferAndAcquireFence;
 	pub const cancel = SDL_CancelGPUCommandBuffer;
@@ -426,7 +429,7 @@ pub const SwapchainComposition = enum (c_uint) {
 	sdr,
 	sdr_linear,
 	hdr_extended_linear,
-	hdr10_st2048,
+	hdr10_st2084,
 };
 
 pub const TextureUsageFlags = packed struct (u32) {
@@ -876,8 +879,11 @@ extern fn SDL_WindowSupportsGPUPresentMode(device: *Device, window: ?*Window, pr
 extern fn SDL_ClaimWindowForGPUDevice(device: *Device, window: ?*Window) bool;
 extern fn SDL_ReleaseWindowFromGPUDevice(device: *Device, window: ?*Window) void;
 extern fn SDL_SetGPUSwapchainParameters(device: *Device, window: ?*Window, swapchain_composition: SwapchainComposition, present_mode: PresentMode) bool;
+extern fn SDL_SetGPUAllowedFramesInFlight(device: *Device, allowed_frames_in_flight: u32) bool;
 extern fn SDL_GetGPUSwapchainTextureFormat(device: *Device, window: ?*Window) TextureFormat;
 extern fn SDL_AcquireGPUSwapchainTexture(command_buffer: *CommandBuffer, window: ?*Window, swapchain_texture: ?*?*Texture, swapchain_texture_width: ?*u32, swapchain_texture_height: ?*u32) bool;
+extern fn SDL_WaitForGPUSwapchain(device: *Device, window: ?*Window) bool;
+extern fn SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer: *CommandBuffer, window: ?*Window, swapchain_texture: ?*?*Texture, swapchain_texture_width: ?*u32, swapchain_texture_height: ?*u32) bool;
 extern fn SDL_SubmitGPUCommandBuffer(command_buffer: *CommandBuffer) bool;
 extern fn SDL_SubmitGPUCommandBufferAndAcquireFence(command_buffer: *CommandBuffer) ?*Fence;
 extern fn SDL_CancelGPUCommandBuffer(command_buffer: *CommandBuffer) bool;

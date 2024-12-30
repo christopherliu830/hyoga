@@ -6,7 +6,8 @@
         "xhash": "cpp",
         "xmemory": "cpp",
         "xutility": "cpp",
-        "spirv_cross_c.h": "c"
+        "spirv_cross_c.h": "c",
+        "sdl_shadercross.h": "c"
     },
     "[zig]": {
         "editor.formatOnSave": false

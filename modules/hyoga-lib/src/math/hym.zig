@@ -12,8 +12,8 @@ pub const Vec4 = vec4.Vec4;
 
 pub const Mat4 = mat4.Mat4;
 
-pub fn VectorType(v: anytype) type {
-    const len = @typeInfo(@TypeOf(v)).@"struct".fields.len;
+pub fn VectorType(comptime v: type) type {
+    const len = @typeInfo(v).@"struct".fields.len;
     return switch (len) {
         2 => Vec2,
         3 => Vec3,
@@ -22,7 +22,7 @@ pub fn VectorType(v: anytype) type {
     };
 }
 
-pub fn vec(v: anytype) VectorType(v) {
+pub fn vec(v: anytype) VectorType(@TypeOf(v)) {
     const len = @typeInfo(@TypeOf(v)).@"struct".fields.len;
     return switch (len) {
         2 => vec2.create(v[0], v[1]),

@@ -1,8 +1,7 @@
 const std = @import("std");
-const hy = @import("hyoga");
+const hy = @import("hyoga-lib");
+const imgui = @import("imgui");
 const math = hy.math;
-
-const Event = hy.Input.Event;
 
 const vec3 = math.vec3;
 const vec2 = math.vec2;
@@ -11,8 +10,8 @@ const mat4 = math.mat4;
 const ViewMatrix = math.Mat4;
 
 pub const Camera = struct {
-    input: *hy.Input,
-    window: *hy.Window,
+    input: *hy.runtime.Input,
+    window: *hy.runtime.Window,
 
     position: vec3.Vec3 = vec3.create(0, 0, 4),
     look_direction: vec3.Vec3 = vec3.create(0, 0, -1),
@@ -32,25 +31,26 @@ pub const Camera = struct {
 
     pub fn viewProj(self: Camera) ViewMatrix {
         const view = math.cam.lookTo(self.position, self.look_direction, vec3.y);
-        const persp = math.cam.perspectiveMatrix(self.fovy, self.window.aspect, self.z_near, self.z_far);
+        const persp = math.cam.perspectiveMatrix(self.fovy, self.window.aspect(), self.z_near, self.z_far);
         return math.mul(view, persp);
     }
 
-    pub fn registerInputs(self: *Camera) !void {
-        _ = try self.input.bindMouse(.{ .button = .motion }, translate, .{self});
-        _ = try self.input.bindMouse(.{ .button = .left }, lockMouse, .{ self, true });
-        _ = try self.input.bindMouse(.{ .button = .middle }, lockMouse, .{ self, true });
-        _ = try self.input.bindMouse(.{ .button = .left, .fire_on = .{ .up = true } }, lockMouse, .{ self, false });
-        _ = try self.input.bindMouse(.{ .button = .middle, .fire_on = .{ .up = true } }, lockMouse, .{ self, false });
-        _ = try self.input.bindMouse(.{ .button = .wheel }, zoom, .{self});
-        _ = try self.input.bindKey(.{ .button = .s, .fire_on = .{ .down = true, .held = true } }, pan, .{ self, vec2.create(-1, 0) });
-        _ = try self.input.bindKey(.{ .button = .d, .fire_on = .{ .down = true, .held = true } }, pan, .{ self, vec2.create(0, -1) });
-        _ = try self.input.bindKey(.{ .button = .f, .fire_on = .{ .down = true, .held = true } }, pan, .{ self, vec2.create(0, 1) });
-        _ = try self.input.bindKey(.{ .button = .g, .fire_on = .{ .down = true, .held = true } }, pan, .{ self, vec2.create(1, 0) });
+    pub fn registerInputs(self: *Camera, allocator: std.mem.Allocator) !void {
+        const lambda = hy.closure.create;
+        self.input.bindMouse(.{ .button = .wheel                              }, try lambda(zoom, .{self}, allocator));
+        self.input.bindMouse(.{ .button = .motion                             }, try lambda(translate, .{self}, allocator));
+        self.input.bindMouse(.{ .button = .left                               }, try lambda(lockMouse, .{ self, true }, allocator));
+        self.input.bindMouse(.{ .button = .left,   .fire_on = .{ .up = true } }, try lambda(lockMouse, .{ self, false }, allocator));
+        self.input.bindMouse(.{ .button = .middle                             }, try lambda(lockMouse, .{ self, true }, allocator));
+        self.input.bindMouse(.{ .button = .middle, .fire_on = .{ .up = true } }, try lambda(lockMouse, .{ self, false }, allocator));
+
+        self.input.bindKey(.{ .button = .s, .fire_on = .{ .down = true, .held = true } }, try lambda(pan, .{ self, vec2.create(-1, 0) }, allocator));
+        self.input.bindKey(.{ .button = .d, .fire_on = .{ .down = true, .held = true } }, try lambda(pan, .{ self, vec2.create(0, -1) }, allocator));
+        self.input.bindKey(.{ .button = .f, .fire_on = .{ .down = true, .held = true } }, try lambda(pan, .{ self, vec2.create(0, 1) }, allocator));
+        self.input.bindKey(.{ .button = .g, .fire_on = .{ .down = true, .held = true } }, try lambda(pan, .{ self, vec2.create(1, 0) }, allocator));
     }
 
     pub fn editor(self: *Camera) void {
-        const imgui = hy.UI.imgui;
         if (imgui.Begin("Camera", null, imgui.WindowFlag.always_auto_resize)) {
             _ = imgui.DragFloat3("Position", @ptrCast(&self.position));
             _ = imgui.SliderFloat("Near Plane", @ptrCast(&self.z_near), 0.1, 1000);
@@ -63,33 +63,34 @@ pub const Camera = struct {
     }
 };
 
-fn lockMouse(cam: *Camera, lock: bool, _: Event) void {
+fn lockMouse(cam: *Camera, lock: bool, _: ?*anyopaque) void {
     cam.window.setRelativeMouseMode(lock);
 }
 
-fn translate(cam: *Camera, event: Event) void {
+fn translate(cam: *Camera, event: ?*anyopaque) void {
+    const motion: *hy.event.MouseMotion = @ptrCast(@alignCast(event));
     // pan
     if (cam.input.queryMouse(.middle)) {
-        pan(cam, vec2.create(event.motion.xrel / 10, event.motion.yrel / 10), event);
+        pan(cam, vec2.create(motion.delta.x() / 10, motion.delta.y() / 10), event);
     }
 
     // change look
     if (cam.input.queryMouse(.left)) {
         var direction = cam.look_direction;
-        direction.rotate(vec3.y, -event.motion.xrel / 500);
-        direction.rotate(vec3.cross(direction, vec3.y), -event.motion.yrel / 500);
+        direction.rotate(vec3.y, -motion.delta.x() / 500);
+        direction.rotate(vec3.cross(direction, vec3.y), -motion.delta.y() / 500);
         cam.look_direction = direction;
     }
 }
 
-fn pan(cam: *Camera, dir: vec2.Vec2, _: hy.Input.Event) void {
+fn pan(cam: *Camera, dir: vec2.Vec2, _: ?*anyopaque) void {
     const right = vec3.cross(cam.look_direction, vec3.y);
     const up = vec3.cross(cam.look_direction, right);
     cam.position.add(vec3.mul(right, dir.x() / 5.0));
     cam.position.add(vec3.mul(up, dir.y() / 5.0));
 }
 
-fn zoom(ctx: ?*anyopaque, event: Event) void {
-    const cam: *Camera = @ptrCast(@alignCast(ctx.?));
-    cam.position.add(vec3.mul(cam.look_direction, event.wheel.y));
+fn zoom(cam: *Camera, event: ?*anyopaque) void {
+    const wheel: *hy.event.MouseWheel = @ptrCast(@alignCast(event));
+    cam.position.add(vec3.mul(cam.look_direction, wheel.delta));
 }
