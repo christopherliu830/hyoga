@@ -6,8 +6,8 @@ pub const Input = @import("input/Input.zig");
 pub const Strint = @import("strintern.zig");
 pub const UI = @import("graphics/ui.zig");
 pub const Gpu = @import("graphics/gpu.zig");
-pub const Game = @import("game.zig").World;
-pub const GameInterface = @import("game.zig").GameInterface;
+pub const Game = @import("world.zig").World;
+pub const GameInterface = @import("world.zig").GameInterface;
 pub const Loader = @import("graphics/loader.zig");
 pub const Window = @import("window.zig");
 

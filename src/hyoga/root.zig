@@ -9,8 +9,8 @@ pub const Input = @import("input/Input.zig");
 pub const Strint = @import("strintern.zig");
 pub const UI = @import("graphics/ui.zig");
 pub const Gpu = @import("graphics/gpu.zig");
-pub const World = @import("Game.zig").World;
-pub const GameInterface = @import("Game.zig").GameInterface;
+pub const World = @import("world.zig").World;
+pub const GameInterface = @import("world.zig").GameInterface;
 pub const Engine = @import("Engine.zig");
 
 pub fn init() *Engine {
