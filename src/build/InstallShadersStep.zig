@@ -43,6 +43,9 @@ pub fn init(b: *Build, options: Options) !*InstallShadersStep {
             .makeFn = make
         })
     };
+
+    try gatherDependencies(b, self, self.source_path, options.dest_path);
+
     return self;
 }
 
@@ -59,12 +62,96 @@ const ShaderInvocation = struct {
     args: []const []const u8,
 };
 
-fn make(step: *Step, step_opts: Step.MakeOptions) !void {
-    const self: *InstallShadersStep = @fieldParentPtr("step", step);
-    const b = self.builder;
+const InstallShaderStep = struct {
+    src: Build.LazyPath,
+    target: []const u8,
+    dest_prefix: []const u8,
+    step: Step,
 
-    const dest_prefix = b.getInstallPath(self.install_dir, self.dest_path);
-    const src_dir_path = self.source_path.getPath3(b, step);
+    fn make(step: *Step, _: Step.MakeOptions) !void {
+        const b = step.owner;
+        const self: *InstallShaderStep = @fieldParentPtr("step", step);
+        const src_path = self.src.getPath3(b, step);
+        const sub = src_path.sub_path;
+        const cwd = std.fs.cwd(); // default zig-out
+        const dest_dir = b.getInstallPath(.bin, self.dest_prefix);
+
+
+        var man = b.graph.cache.obtain();
+        defer man.deinit();
+        try step.addWatchInput(self.src);
+        _ = try man.addFilePath(src_path, null);
+
+        if (try step.cacheHit(&man)) {
+            step.result_cached = true;
+            return;
+        }
+
+        try cwd.makePath(dest_dir);
+
+        const shader_args: []const ShaderArgs = blk: {
+            if (std.mem.endsWith(u8, sub, ".vert.slang")) {
+                break :blk &.{
+                    .{
+                        .stage = "",
+                        .ext = ext_from_target.get(self.target).?,
+                        .entry = "vertexMain"
+                    },
+                };
+            } else if (std.mem.endsWith(u8, sub, ".frag.slang")) {
+                break :blk &.{
+                    .{
+                        .stage = "",
+                        .ext = ext_from_target.get(self.target).?,
+                        .entry = "fragmentMain",
+                    }
+                };
+            } else {
+                break :blk &.{
+                    .{
+                        .stage = ".vert",
+                        .ext = ext_from_target.get(self.target).?,
+                        .entry = "vertexMain"
+                    },
+                    .{
+                        .stage = ".frag",
+                        .ext = ext_from_target.get(self.target).?,
+                        .entry = "fragmentMain"
+                    }
+                };
+            }
+        };
+                    
+        for (shader_args) |opts| {
+            // eg. standard.vert.spv, standard.frag.spv
+            const out_basename = try std.mem.concat(b.allocator, u8, &.{std.fs.path.stem(src_path.sub_path), opts.stage, opts.ext});
+            // eg. shaders/standard.vert.spv
+            const out_path = b.pathJoin(&.{dest_dir, out_basename});
+            var argv_list = std.ArrayList([]const u8).init(b.allocator);
+            try argv_list.appendSlice(&.{
+                "slangc",
+                try src_path.toString(b.allocator),
+                "-matrix-layout-row-major",
+                "-entry", opts.entry,
+                "-fvk-use-entrypoint-name",
+                "-target", self.target,
+                "-o", out_path,
+            });
+
+            _ = try step.evalChildProcess(argv_list.items);
+        }
+
+        try step.writeManifest(&man);
+    }
+};
+
+fn make(_: *Build.Step, _: Step.MakeOptions) !void {
+
+}
+
+fn gatherDependencies(b: *Build, config: *InstallShadersStep, src: Build.LazyPath, dest_prefix: []const u8) !void {
+    const step = &config.step;
+    const src_dir_path = src.getPath3(b, step);
 
     var src_dir = src_dir_path.root_dir.handle.openDir(src_dir_path.subPathOrDot(), .{ .iterate = true }) catch |err| {
         return step.fail("unable to open source directory '{}': {s}", .{
@@ -72,12 +159,8 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
         });
     };
 
-    const needs_derived_path = try step.addDirectoryWatchInput(self.source_path);
-    if (needs_derived_path) try step.addDirectoryWatchInputFromPath(src_dir_path);
-
     defer src_dir.close();
 
-    var children = std.ArrayList(ShaderInvocation).init(b.allocator);
     var it = try src_dir.walk(b.allocator);
     while (try it.next()) |entry| {
         switch (entry.kind) {
@@ -92,88 +175,21 @@ fn make(step: *Step, step_opts: Step.MakeOptions) !void {
                 }
             },
             .file => if (std.mem.endsWith(u8, entry.path, ".slang")) {
-                const src_sub_path = try src_dir_path.join(b.allocator, entry.path);
-                const cwd = std.fs.cwd(); // default zig-out
-                try cwd.makePath(dest_prefix);
-
-                const shader_args: []const ShaderArgs = blk: {
-                    if (std.mem.endsWith(u8, entry.path, ".vert.slang")) {
-                        break :blk &.{
-                            .{ .stage = "", .ext = ext_from_target.get(self.target).?, .entry = "vertexMain", },
-                        };
-                    } else if (std.mem.endsWith(u8, entry.path, ".frag.slang")) {
-                        break :blk &.{
-                            .{ .stage = "", .ext = ext_from_target.get(self.target).?, .entry = "fragmentMain", }
-                        };
-                    } else {
-                        break :blk &.{
-                            .{ .stage = ".vert", .ext = ext_from_target.get(self.target).?, .entry = "vertexMain", },
-                            .{ .stage = ".frag", .ext = ext_from_target.get(self.target).?, .entry = "fragmentMain", }
-                        };
-                    }
+                const install = try b.allocator.create(InstallShaderStep);
+                install.* = .{
+                    .src = try src.join(b.allocator, entry.path),
+                    .dest_prefix = dest_prefix,
+                    .target = config.target,
+                    .step = Step.init(.{
+                        .id = .custom,
+                        .owner = b,
+                        .name = try std.mem.concat(b.allocator, u8, &.{"compile ", entry.path}),
+                        .makeFn = InstallShaderStep.make,
+                    })
                 };
-                   
-                for (shader_args) |opts| {
-                    // eg. standard.vert.spv, standard.frag.spv
-                    const out_basename = try std.mem.concat(b.allocator, u8, &.{std.fs.path.stem(entry.basename), opts.stage, opts.ext});
-                    // eg. shaders/standard.vert.spv
-                    const out_name = b.pathJoin(&.{dest_prefix, out_basename});
-
-                    const src_stat = try src_dir.statFile(entry.path);
-                    const dst_stat = cwd.statFile(out_name) catch null;
-
-                    if (self.always_generate or dst_stat == null or dst_stat.?.mtime < src_stat.mtime) {
-                        step_opts.progress_node.increaseEstimatedTotalItems(1);
-                        var argv_list = std.ArrayList([]const u8).init(b.allocator);
-                        try argv_list.appendSlice(&.{
-                            "slangc",
-                            "-matrix-layout-row-major",
-                            "-entry", opts.entry,
-                            "-fvk-use-entrypoint-name",
-                            try src_sub_path.toString(b.allocator), // Input file
-                            "-target", self.target,
-                            "-o", out_name,
-                        });
-
-                        if (self.profile.len > 0) {
-                            try argv_list.appendSlice(&.{"-profile", self.profile});
-                        }
-
-                        try step.handleChildProcUnsupported(null, argv_list.items);
-                        try Step.handleVerbose(step.owner, null, argv_list.items);
-
-                        const prog_node = step_opts.progress_node.start(out_basename, 1);
-                        var child = std.process.Child.init(argv_list.items, b.allocator);
-                        child.env_map = &b.graph.env_map;
-                        child.stdin_behavior = .Ignore;
-                        child.stdout_behavior = .Pipe;
-                        child.stderr_behavior = .Pipe;
-                        child.request_resource_usage_statistics = true;
-                        child.progress_node = prog_node;
-
-                        child.spawn() catch |err| return step.fail("failed to spawn slangc: {s}", .{ @errorName(err), });
-                        const invoc = try children.addOne();
-                        invoc.* = .{ 
-                            .process = child,
-                            .args = argv_list.items,
-                            .stderr = std.ArrayList(u8).init(b.allocator),
-                            .stdout = std.ArrayList(u8).init(b.allocator),
-                        };
-                    }
-                }
+                step.dependOn(&install.step);
             },
             else => {},
         }
     }
-
-    for (children.items) |*child| {
-        try child.process.collectOutput(&child.stdout, &child.stderr, 50 * 1024);
-        const term = child.process.wait() catch |err| return step.fail("failed to wait process: {s}", .{ @errorName(err), });
-        if (child.stderr.items.len > 0) {
-            try step.result_error_msgs.append(b.allocator, child.stderr.items);
-        }
-
-        try step.handleChildProcessTerm(term, null, child.args);
-    }
 }
-
