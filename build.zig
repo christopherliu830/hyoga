@@ -88,16 +88,14 @@ pub fn build(b: *std.Build) !void {
         .install_subdir = "assets",
     });
 
-    const install_shaders = try @import("src/build/InstallShadersStep.zig").init(b, .{ 
+    try @import("src/build/InstallShadersStep.zig").init(b, b.getInstallStep(), .{ 
         .install_dir = .bin,
         .always_generate = gen_shaders,
-        .source_path = b.path("shaders"),
+        .source_path = "shaders",
         .dest_path = "shaders",
         .target = "spirv",
         .profile = "spirv_1_3",
     });
-
-    b.getInstallStep().dependOn(&install_shaders.step);
 
     b.installDirectory(.{
         .source_dir = b.path("shaders"),
