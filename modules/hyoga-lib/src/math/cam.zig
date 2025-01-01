@@ -5,6 +5,7 @@ const mat4 = @import("mat4.zig");
 
 const math = std.math;
 
+// Gives Z range 0-1.
 pub inline fn perspectiveMatrix(fovy: f32, aspect: f32, z_near: f32, z_far: f32) mat4.Mat4 {
     var m: mat4.Mat4 = mat4.zero;
 

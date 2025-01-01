@@ -1,13 +1,13 @@
 const std = @import("std");
 const hy = @import("hyoga-lib");
 const imgui = @import("imgui");
-const math = hy.math;
+const hym = hy.math;
 
-const vec3 = math.vec3;
-const vec2 = math.vec2;
-const mat4 = math.mat4;
+const vec3 = hym.vec3;
+const vec2 = hym.vec2;
+const mat4 = hym.mat4;
 
-const ViewMatrix = math.Mat4;
+const ViewMatrix = hym.Mat4;
 
 pub const Camera = struct {
     input: *hy.runtime.Input,
@@ -29,10 +29,24 @@ pub const Camera = struct {
         };
     }
 
-    pub fn viewProj(self: Camera) ViewMatrix {
-        const view = math.cam.lookTo(self.position, self.look_direction, vec3.y);
-        const persp = math.cam.perspectiveMatrix(self.fovy, self.window.aspect(), self.z_near, self.z_far);
-        return math.mul(view, persp);
+    pub fn viewProj(self: *const Camera) ViewMatrix {
+        const view = hym.cam.lookTo(self.position, self.look_direction, vec3.y);
+        const dim = self.window.dimensions();
+        const aspect = dim.x() / dim.y();
+        const persp = hym.cam.perspectiveMatrix(self.fovy, aspect, self.z_near, self.z_far);
+        return hym.mul(view, persp);
+    }
+
+    pub fn worldRay(self: *const Camera) hym.Ray {
+        const inv = hym.mat4.inverse(self.viewProj());
+        var dims = self.input.queryMousePosition().div(self.window.dimensions()).mul(2).sub(1);
+        dims = dims.mul(hym.vec(.{1, -1}));
+        const world_end = hym.mul(hym.vec4.create(dims.x(), dims.y(), 1, 1), inv);
+        const end = hym.vec3.div(world_end.xyz(), world_end.w());
+        return .{
+            .origin = self.position,
+            .direction = end.sub(self.position).normal(),
+        };
     }
 
     pub fn registerInputs(self: *Camera, allocator: std.mem.Allocator) !void {
@@ -86,11 +100,11 @@ fn translate(cam: *Camera, event: ?*anyopaque) void {
 fn pan(cam: *Camera, dir: vec2.Vec2, _: ?*anyopaque) void {
     const right = vec3.cross(cam.look_direction, vec3.y);
     const up = vec3.cross(cam.look_direction, right);
-    cam.position.add(vec3.mul(right, dir.x() / 5.0));
-    cam.position.add(vec3.mul(up, dir.y() / 5.0));
+    cam.position = cam.position.add(vec3.mul(right, dir.x() / 5.0));
+    cam.position = cam.position.add(vec3.mul(up, dir.y() / 5.0));
 }
 
 fn zoom(cam: *Camera, event: ?*anyopaque) void {
     const wheel: *hy.event.MouseWheel = @ptrCast(@alignCast(event));
-    cam.position.add(vec3.mul(cam.look_direction, wheel.delta));
+    cam.position = cam.position.add(vec3.mul(cam.look_direction, wheel.delta));
 }

@@ -1,9 +1,11 @@
+const std = @import("std");
 const sdl = @import("sdl");
+const hy = @import("hyoga-lib");
+const hym = hy.math;
 
 const Window = @This();
 
 hdl: *sdl.Window,
-aspect: f32,
 
 /// Returns an SDL window handle.
 pub fn init() !Window {
@@ -18,12 +20,21 @@ pub fn init() !Window {
         sdl.log("Unable to create window: %s", sdl.getError());
         return error.SDLInitializationFailed;
     };
-    return .{ .hdl = instance, .aspect = 640 / 480 };
+    return .{ .hdl = instance };
 }
 
 pub fn deinit(window: Window) void {
     sdl.video.destroyWindow(window.hdl);
     sdl.init.quit();
+}
+
+pub fn dimensions(window: Window) hym.Vec2 {
+    var x: c_int = 0;
+    var y: c_int = 0;
+    if (!sdl.video.getWindowSizeInPixels(window.hdl, &x, &y)) {
+        std.log.err("Unable to get window size: {s}", .{ sdl.getError() });
+    }
+    return hym.vec2.create(@floatFromInt(x), @floatFromInt(y));
 }
 
 pub fn setRelativeMouseMode(self: Window, mode: bool) void {

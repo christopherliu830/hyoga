@@ -17,6 +17,7 @@ pub const Vec4 = struct {
     pub inline fn g(self: Vec4) f32 { return self.v[1]; }
     pub inline fn b(self: Vec4) f32 { return self.v[2]; }
     pub inline fn a(self: Vec4) f32 { return self.v[3]; }
+    pub inline fn xyz(self: Vec4) Vec3 { return vec3.create(self.v[0], self.v[1], self.v[2]); }
 
     pub inline fn dot(self: Vec4, other: Vec4) f32 {
         return root.dot(self, other);
@@ -65,11 +66,6 @@ pub const Vec4 = struct {
     pub inline fn clamp(self: *Vec4, min: f32, max: f32) void {
         self.v = root.clamp(self, min, max).v;
     }
-
-    pub inline fn xyz(v: Vec4) Vec3 {
-        return vec3.create(v.v[0], v.v[1], v.v[2]);
-    }
-
 };
 
 pub const zero: Vec4 = .{ .v = .{ 0, 0, 0, 0 } };
@@ -141,7 +137,7 @@ pub inline fn normal(v: Vec4) Vec4 {
 
 pub inline fn add(a: Vec4, b: anytype) Vec4 {
     const T = @TypeOf(b);
-    if (T == Vec4) return a.v + b.v;
+    if (T == Vec4) return .{ .v = a.v + b.v };
     switch (@typeInfo(T)) {
         .Float, .ComptimeFloat, .ComptimeInt, .Int => {
             return a.v + @as(Vec4, @splat(b));
@@ -152,7 +148,7 @@ pub inline fn add(a: Vec4, b: anytype) Vec4 {
 
 pub inline fn sub(a: Vec4, b: anytype) Vec4 {
     const T = @TypeOf(b);
-    if (T == Vec4) return a.v - b.v;
+    if (T == Vec4) return .{ .v = a.v - b.v };
     switch (@typeInfo(T)) {
         .float, .comptime_float, .comptime_int, .int => {
             return a.v - @as(Vec4, @splat(b));
@@ -175,7 +171,7 @@ pub inline fn mul(a: Vec4, b: anytype) Vec4 {
 
 pub inline fn div(a: Vec4, b: anytype) Vec4 {
     const T = @TypeOf(b);
-    if (T == Vec4) return a.v / b.v;
+    if (T == Vec4) return .{ .v = a.v / b.v };
     switch (@typeInfo(T)) {
         .float, .comptime_float, .comptime_int, .int => return a.v / b,
         else => @compileError("add not implemented for " ++ @typeName(T)),

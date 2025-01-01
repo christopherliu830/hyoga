@@ -33,6 +33,7 @@ pub const GameInterface = extern struct {
     shutdown: *const fn(*Engine, World) callconv(.C) void,
     update: *const fn (*Engine, World) callconv(.C) World,
     render: *const fn (*Engine, World) callconv(.C) void,
+    afterRender: ?*const fn (*Engine, World) callconv(.C) void = null,
     reload: *const fn (*Engine, World) callconv (.C) bool,
 };
 
@@ -81,7 +82,7 @@ export fn hygpuImportModel(gpu: *Gpu, path: [*:0]const u8, settings: Gpu.mdl.Imp
     };
 }
 
-export fn hygpuModelBounds(gpu: *Gpu, model: Gpu.ModelHandle) hy.math.Bounds {
+export fn hygpuModelBounds(gpu: *Gpu, model: Gpu.ModelHandle) hy.math.AxisAligned {
     if (gpu.models.get(model)) |m| {
         return m.bounds;
     } else |e| {
@@ -139,6 +140,10 @@ export fn hyioQueryMouse(input: *Input, button: hy.key.MouseButton) bool {
     return input.queryMouse(button);
 }
 
+export fn hyioQueryMousePosition(input: *Input) hy.math.Vec2 {
+    return input.queryMousePosition();
+}
+
 export fn hyioQueryKey(input: *Input, button: hy.key.Keycode) bool {
     return input.queryKey(button);
 }
@@ -170,6 +175,6 @@ export fn hywSetRelativeMouseMode(window: *Engine.Window, on_off: bool) void {
     window.setRelativeMouseMode(on_off);
 }
 
-export fn hywAspect(window: *Engine.Window) f32 {
-    return window.aspect;
+export fn hywDimensions(window: *Engine.Window) hy.math.Vec2 {
+    return window.dimensions();
 }

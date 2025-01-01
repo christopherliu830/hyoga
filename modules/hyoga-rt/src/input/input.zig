@@ -116,6 +116,13 @@ pub fn queryMouse(self: *Input, button: MouseButton) bool {
     return self.mouse_state.contains(button);
 }
 
+pub fn queryMousePosition(_: *Input) hy.math.Vec2 {
+    var x: f32 = 0;
+    var y: f32 = 0;
+    _ = sdl.mouse.getMouseState(&x, &y);
+    return hy.math.vec2.create(x, y);
+}
+
 pub fn post(self: *Input, key: types.Keycode, mods: types.Keymod, action: Action, event: sdl.events.Event) void {
     _ = mods;
     const callbacks = self.getKeyCallbacks(key) orelse return;

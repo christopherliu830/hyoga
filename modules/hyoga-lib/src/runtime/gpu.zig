@@ -2,8 +2,8 @@
 //! and must be manually kept in sync with the runtime datatypes!
 const std = @import("std");
 
-const math = @import("../math/hym.zig");
-const mat4 = @import("../math/mat4.zig");
+const math = @import("../math/math.zig");
+const mat4 = math.mat4;
 
 pub const Gpu = opaque {
     pub const importModel = hygpuImportModel;
@@ -79,7 +79,7 @@ pub const AddRenderableOptions = extern struct {
 };
 
 extern fn hygpuImportModel(*Gpu, [*:0]const u8, ImportSettings) ModelHandle;
-extern fn hygpuModelBounds(*Gpu, ModelHandle) math.Bounds;
+extern fn hygpuModelBounds(*Gpu, ModelHandle) math.AxisAligned;
 extern fn hygpuModelWaitLoad(*Gpu, ModelHandle, u64) bool;
 extern fn hygpuAddRenderable(*Gpu, AddRenderableOptions) RenderItemHandle;
 extern fn hygpuRemoveRenderable(*Gpu, RenderItemHandle) void;

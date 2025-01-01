@@ -3,6 +3,7 @@ const std = @import("std");
 const math = std.math;
 const vec3 = @import("vec3.zig");
 const vec4 = @import("vec4.zig");
+const Vec3 = vec3.Vec3;
 const Vec4 = vec4.Vec4;
 const f32x4 = @Vector(4, f32);
 const i32x4 = @Vector(4, i32);
@@ -11,16 +12,20 @@ const root = @This();
 
 pub const Mat4 = extern struct {
     m: [4]f32x4,
+
+    pub inline fn position(self: *const Mat4) Vec3 {
+        return vec3.create(self.m[3][0], self.m[3][1], self.m[3][2]);
+    }
 };
 
-pub const zero = Mat4{ .m = .{
+pub const zero = Mat4 { .m = .{
     .{ 0, 0, 0, 0 },
     .{ 0, 0, 0, 0 },
     .{ 0, 0, 0, 0 },
     .{ 0, 0, 0, 0 },
 } };
 
-pub const identity = Mat4{ .m = .{
+pub const identity = Mat4 { .m = .{
     .{ 1, 0, 0, 0 },
     .{ 0, 1, 0, 0 },
     .{ 0, 0, 1, 0 },
@@ -279,7 +284,7 @@ pub inline fn scale(v: vec3.Vec3) Mat4 {
 /// Spin around matrix's center point, i.e. a translation-independent
 /// rotation.
 pub inline fn spin(self: *Mat4, deg: f32, axis: vec3.Vec3) void {
-    const t = vec3.create(self.m[3][0], self.m[3][1], self.m[3][2]);
+    const t = self.m[3].xyz();
     self.translate(vec3.mul(t, -1));
     self.mul(rotation(deg, axis));
     self.translate(t);

@@ -1,6 +1,7 @@
 //! Helper for linking to runtime input system.
 const std = @import("std");
 const key = @import("../key.zig");
+const math = @import("../math/math.zig");
 const closure = @import("../closure.zig");
 
 pub const Input = opaque {
@@ -8,6 +9,7 @@ pub const Input = opaque {
     pub const bindMouse = hyioBindMouse;
     pub const bindKey = hyioBindKey;
     pub const queryMouse = hyioQueryMouse;
+    pub const queryMousePosition = hyioQueryMousePosition;
     pub const queryKey = hyioQueryKey;
 };
 
@@ -32,4 +34,5 @@ extern fn hyioReset(*Input) void;
 extern fn hyioBindMouse(*Input, BindMouseOptions, *closure.Runnable) void;
 extern fn hyioBindKey(*Input, BindKeyOptions, *closure.Runnable) void;
 extern fn hyioQueryMouse(*Input, key.MouseButton) bool;
+extern fn hyioQueryMousePosition(*Input) math.Vec2;
 extern fn hyioQueryKey(*Input, key.Keycode) bool;

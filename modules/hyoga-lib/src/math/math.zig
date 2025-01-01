@@ -1,11 +1,13 @@
 pub const bounds = @import("bounds.zig");
 pub const cam = @import("cam.zig");
 pub const mat4 = @import("mat4.zig");
+pub const ray = @import("ray.zig");
 pub const vec2 = @import("vec2.zig");
 pub const vec3 = @import("vec3.zig");
 pub const vec4 = @import("vec4.zig");
-pub const Bounds = bounds.Bounds;
+pub const AxisAligned = bounds.AxisAligned;
 pub const Mat4 = mat4.Mat4;
+pub const Ray = ray.Ray;
 pub const Vec2 = vec2.Vec2;
 pub const Vec3 = vec3.Vec3;
 pub const Vec4 = vec4.Vec4;

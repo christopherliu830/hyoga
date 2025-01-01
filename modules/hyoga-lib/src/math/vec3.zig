@@ -36,24 +36,13 @@ pub const Vec3 = extern struct {
         return root.normal(a);
     }
 
+    pub const add = root.add;
+    pub const sub = root.sub;
+    pub const mul = root.mul;
+    pub const div = root.div;
+
     pub inline fn cross(a: Vec3, b: Vec3) Vec3 {
         return root.cross(a, b);
-    }
-
-    pub inline fn add(a: *Vec3, b: anytype) void {
-        a.v = root.add(a.*, b).v;
-    }
-
-    pub inline fn sub(a: *Vec3, b: anytype) void {
-        a.v = root.sub(a.*, b).v;
-    }
-
-    pub inline fn mul(a: *Vec3, b: anytype) void {
-        a.v = root.mul(a.*, b).v;
-    }
-
-    pub inline fn div(a: *Vec3, b: anytype) void {
-        a.v = root.div(a.*, b).v;
     }
 
     pub inline fn rotate(a: *Vec3, axis: Vec3, amt: f32) void {
@@ -65,7 +54,7 @@ pub const Vec3 = extern struct {
     }
 
     pub inline fn append(v: Vec3, n: f32) Vec4 {
-        return Vec4.create(v.v[0], v.v[1], v.v[2], n);
+        return vec4.create(v.v[0], v.v[1], v.v[2], n);
     }
 
 };
@@ -135,7 +124,7 @@ pub inline fn cross(a: Vec3, b: Vec3) Vec3 {
 
 pub inline fn normalize(v: Vec3) void {
     const l = len(v);
-    if (l < math.floatEps(f32)) return zero;
+    if (l < math.floatEps(f32)) v = zero;
     v.v /= @splat(l);
 }
 
@@ -186,7 +175,7 @@ pub inline fn mul(a: Vec3, b: anytype) Vec3 {
 
 pub inline fn div(a: Vec3, b: anytype) Vec3 {
     const T = @TypeOf(b);
-    if (T == Vec3) return a.v / b.v;
+    if (T == Vec3) return .{ .v = a.v / b.v };
     return switch (@typeInfo(T)) {
         .float, .comptime_float, .comptime_int, .int => blk: {
             const bv: @TypeOf(a.v) = @splat(b);
@@ -224,11 +213,11 @@ pub inline fn rotate(v: Vec3, axis: Vec3, amt: f32) Vec3 {
 
     var v1 = mul(v, c);
     var v2 = cross(k, v);
-    v2.mul(s);
-    v1.add(v2);
+    v2 = v2.mul(s);
+    v1 = v1.add(v2);
 
     const v3 = mul(k, dot(k, v) * (1 - c));
-    v1.add(v3);
+    v1 = v1.add(v3);
 
     return v1;
 }

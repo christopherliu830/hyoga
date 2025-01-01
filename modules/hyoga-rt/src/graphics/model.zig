@@ -121,7 +121,7 @@ pub const Models = struct {
         const allocator = self.queue.tsa.allocator();
 
         // Process scene node tree into a big array of meshes
-        var bounds = hy.math.Bounds {
+        var bounds = hy.math.AxisAligned {
             .min = hy.math.vec3.zero,
             .max = hy.math.vec3.zero,
         };
@@ -196,7 +196,7 @@ pub const Models = struct {
 };
 
 pub const Model = struct {
-    bounds: hy.math.Bounds,
+    bounds: hy.math.AxisAligned,
     root_buffer: Buffer,
     children: []Mesh,
     transform: mat4.Mat4 = mat4.identity,
@@ -239,7 +239,7 @@ const ImportModel = struct {
         mesh: ?*ai.Mesh = null, // Current processing mesh
         scene: *ai.Scene, // Root scene
         materials: []mt.Handle, // Root materials
-        root_bounds: *hy.math.Bounds,
+        root_bounds: *hy.math.AxisAligned,
     };
 
     pub fn deepCopy(old: ImportModel, allocator: std.mem.Allocator) !ImportModel {

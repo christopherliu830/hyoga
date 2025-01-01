@@ -103,6 +103,8 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
         self.gpu.render(cmd, &game.scene) catch |err| std.log.err("[GPU] failed to finish render: {}", .{err});
         self.ui.render(cmd) catch |err| std.log.err("[UI] failed to finish render: {}", .{err});
         _ = self.gpu.submit(cmd);
+
+        if (gi.afterRender) |afterRender| afterRender(self, game);
     }
 
     @import("ztracy").FrameMark();

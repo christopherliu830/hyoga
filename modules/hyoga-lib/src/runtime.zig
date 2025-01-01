@@ -13,7 +13,7 @@ pub const Strint = strint;
 pub const Window = w.Window;
 pub const UI = ui;
 
-const math = @import("math/hym.zig");
+const math = @import("math/math.zig");
 const key = @import("key.zig");
 const closure = @import("closure.zig");
 
@@ -36,6 +36,7 @@ pub const GameInterface = extern struct {
     shutdown: *const fn(*Engine, World) callconv(.C) void,
     update: *const fn (*Engine, World) callconv(.C) World,
     render: *const fn (*Engine, World) callconv(.C) void,
+    afterRender: ?*const fn (*Engine, World) callconv(.C) void = null,
     reload: *const fn (*Engine, World) callconv (.C) bool,
 };
 

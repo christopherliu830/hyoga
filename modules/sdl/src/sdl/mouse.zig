@@ -109,7 +109,7 @@ pub const getMouseNameForID = SDL_GetMouseNameForID;
 pub extern fn SDL_GetMouseFocus() ?*Window;
 pub const getMouseFocus = SDL_GetMouseFocus;
 //pub extern fn SDL_GetMouseState(x: [*c]f32, y: [*c]f32) SDL_MouseButtonFlags;
-pub extern fn SDL_GetMouseState(x: [*c]f32, y: [*c]f32) MouseButtonFlags;
+pub extern fn SDL_GetMouseState(x: *f32, y: *f32) MouseButtonFlags;
 pub const getMouseState = SDL_GetMouseState;
 //pub extern fn SDL_GetGlobalMouseState(x: [*c]f32, y: [*c]f32) SDL_MouseButtonFlags;
 pub extern fn SDL_GetGlobalMouseState(x: [*c]f32, y: [*c]f32) MouseButtonFlags;

@@ -1,7 +1,7 @@
 pub const closure = @import("closure.zig");
 pub const event = @import("event.zig");
 pub const key = @import("key.zig");
-pub const math = @import("math/hym.zig");
+pub const math = @import("math/math.zig");
 pub const runtime = @import("runtime.zig");
 pub const slot_map = @import("slot_map.zig");
 pub const skip_map = @import("skip_map.zig");

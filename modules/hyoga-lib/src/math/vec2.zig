@@ -4,14 +4,14 @@ const math = @import("std").math;
 
 const root = @This();
 
-pub const Vec2 = struct {
+const vec3 = @import("vec3.zig");
+const Vec3 = vec3.Vec3;
+
+pub const Vec2 = extern struct {
     v: @Vector(2, f32),
 
     pub inline fn x(self: Vec2) f32 { return self.v[0]; }
-
     pub inline fn y(self: Vec2) f32 { return self.v[1]; }
-
-    pub inline fn z(self: Vec2) f32 { return self.v[2]; }
 
     pub inline fn dot(a: Vec2, b: Vec2) f32 {
         return root.dot(a, b);
@@ -37,21 +37,10 @@ pub const Vec2 = struct {
         return root.cross(a, b);
     }
 
-    pub inline fn add(a: *Vec2, b: anytype) void {
-        a.v = root.add(a, b).v;
-    }
-
-    pub inline fn sub(a: *Vec2, b: anytype) void {
-        a.v = root.sub(a, b).v;
-    }
-
-    pub inline fn mul(a: *Vec2, b: anytype) void {
-        a.v = root.mul(a, b).v;
-    }
-
-    pub inline fn div(a: *Vec2, b: anytype) void {
-        a.v = root.div(a, b).v;
-    }
+    pub const add = root.add;
+    pub const sub = root.sub;
+    pub const mul = root.mul;
+    pub const div = root.div;
 
     pub inline fn rotate(a: *Vec2, axis: Vec2, amt: f32) void {
         a.v = root.rotate(a, axis, amt).v;
@@ -59,6 +48,10 @@ pub const Vec2 = struct {
 
     pub inline fn clamp(a: *Vec2, min: f32, max: f32) void {
         a.v = root.clamp(a, min, max).v;
+    }
+
+    pub inline fn append(v: Vec2, n: f32) Vec3 {
+        return vec3.create(v.v[0], v.v[1], n);
     }
 
 };
@@ -130,44 +123,50 @@ pub inline fn normal(v: Vec2) Vec2 {
 
 pub inline fn add(a: Vec2, b: anytype) Vec2 {
     const T = @TypeOf(b);
-    if (T == Vec2) return a.v + b.v;
-    switch (@typeInfo(T)) {
-        .Float, .ComptimeFloat, .ComptimeInt, .Int => {
-            return a.v + @as(Vec2, @splat(b));
+    if (T == Vec2) return .{ .v = a.v + b.v };
+    return switch (@typeInfo(T)) {
+        .float, .comptime_float, .comptime_int, .int => blk: {
+            const bv: @TypeOf(a.v) = @splat(b);
+            break :blk .{ .v = a.v + bv };
         },
         else => @compileError("add not implemented for " ++ @typeName(T)),
-    }
+    };
 }
 
 pub inline fn sub(a: Vec2, b: anytype) Vec2 {
     const T = @TypeOf(b);
-    if (T == Vec2) return a.v - b.v;
-    switch (@typeInfo(T)) {
-        .Float, .ComptimeFloat, .ComptimeInt, .Int => {
-            return a.v - @as(Vec2, @splat(b));
+    if (T == Vec2) return .{ .v = a.v - b.v };
+    return switch (@typeInfo(T)) {
+        .float, .comptime_float, .comptime_int, .int => blk: {
+            const bv: @TypeOf(a.v) = @splat(b);
+            break :blk .{ .v = a.v - bv };
         },
         else => @compileError("add not implemented for " ++ @typeName(T)),
-    }
+    };
 }
 
 pub inline fn mul(a: Vec2, b: anytype) Vec2 {
     const T = @TypeOf(b);
-    if (T == Vec2) return a.v * b.v;
-    switch (@typeInfo(T)) {
-        .Float, .ComptimeFloat, .ComptimeInt, .Int => {
-            a.v * @as(Vec2, @splat(b));
+    if (T == Vec2) return .{ .v = a.v * b.v };
+    return switch (@typeInfo(T)) {
+        .float, .comptime_float, .comptime_int, .int => blk: {
+            const bv: @TypeOf(a.v) = @splat(b);
+            break :blk .{ .v = a.v * bv };
         },
         else => @compileError("add not implemented for " ++ @typeName(T)),
-    }
+    };
 }
 
 pub inline fn div(a: Vec2, b: anytype) Vec2 {
     const T = @TypeOf(b);
-    if (T == Vec2) return a.v / b.v;
-    switch (@typeInfo(T)) {
-        .Float, .ComptimeFloat, .ComptimeInt, .Int => return a.v / b,
+    if (T == Vec2) return .{ .v = a.v / b.v };
+    return switch (@typeInfo(T)) {
+        .float, .comptime_float, .comptime_int, .int => blk: {
+            const bv: @TypeOf(a.v) = @splat(b);
+            break :blk .{ .v = a.v / bv };
+        },
         else => @compileError("add not implemented for " ++ @typeName(T)),
-    }
+    };
 }
 
 pub inline fn scale_to(v: Vec2, l: f32) Vec2 {

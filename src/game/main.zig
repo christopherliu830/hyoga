@@ -13,7 +13,7 @@ const Self = @This();
 
 const Object = struct {
     transform: hym.Mat4,
-    bounds: hym.Bounds = .{},
+    bounds: hym.AxisAligned = .{},
     hdl: rt.gpu.RenderItemHandle = .invalid,
 };
 
@@ -95,11 +95,31 @@ fn shutdown(_: *hy.Engine, state: hy.World) callconv(.C) void {
 }
 
 // Called every loop iteration
-fn update(_: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
+fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
     const self: *Self = @ptrCast(@alignCast(pre.memory));
     var game = pre;
 
     game.scene.view_proj = self.camera.viewProj();
+
+    const ray = self.camera.worldRay();
+
+    var it = self.objects.iterator();
+    var i: u32 = 0;
+    while (it.next()) |cursor| : (i += 1) {
+        const object = cursor.unwrap();
+        const bounds = hym.AxisAligned {
+            .min = object.bounds.min.add(object.transform.position()),
+            .max = object.bounds.max.add(object.transform.position()),
+        };
+        const collide = ray.intersect(bounds, 1000);
+        if (collide) {
+            engine.gpu().selectRenderable(object.hdl);
+        }
+    }
+
+    it = self.objects.iterator();
+    var first = it.next().?.unwrap();
+    first.transform = hym.mat4.translation(hym.mat4.identity, ray.origin.add(ray.direction.mul(50)));
 
     if (self.ui_state.restart_requested) game.restart = true;
 
@@ -108,29 +128,16 @@ fn update(_: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
 
 // Only called on new frames
 fn render(engine: *hy.Engine, state: hy.World) callconv(.C) void {
-    const gpu = engine.gpu();
+    _ = engine;
     const self: *Self = @ptrCast(@alignCast(state.memory));
 
     ui.drawMainUI(&self.ui_state);
     self.ui_state.frame_time = @floatFromInt(state.frame_time);
     if (self.ui_state.windows.camera) self.camera.editor();
+}
 
-    if (imgui.Begin("Test", null, 0)) {
-        var it = self.objects.iterator();
-        var count: u32 = 0;
-        while (it.next()) |cursor| {
-            const object = cursor.unwrap();
-            imgui.PushIDPtr(object);
-            if (count % 10 > 0) imgui.SameLine();
-            if (imgui.ButtonEx("", .{ .x = 20, .y = 20 })) {
-                gpu.clearSelection();
-                gpu.selectRenderable(object.hdl);
-            }
-            imgui.PopID();
-            count += 1;
-        }
-    }
-    imgui.End();
+fn afterRender(engine: *hy.Engine, _: hy.World) callconv(.C) void {
+    engine.gpu().clearSelection();
 }
 
 fn reload(engine: *hy.Engine, game: hy.World) callconv(.C) bool {
@@ -154,6 +161,7 @@ export fn interface() hy.GameInterface {
         .shutdown = shutdown,
         .update = update,
         .render = render,
+        .afterRender = afterRender,
         .reload = reload,
     };
 }

@@ -43,7 +43,7 @@ pub const BufferHandle = packed union {
 /// This struct is sent to shaders as a uniform
 /// buffer and fields must be kept in sync.
 pub const GpuScene = extern struct {
-    view_proj: hym.Mat4,
+    view_proj: hym.Mat4, // RH, y-up view projection matrix. note that SDL_gpu flips viewports to ensure consistency among all backends.
     camera_world_pos: [3]f32,
     viewport_size_x: u32,
     light_dir: [3]f32,
@@ -380,7 +380,6 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
 
         self.window_state.prev_drawable_w = drawable_w;
         self.window_state.prev_drawable_h = drawable_h;
-        self.window_state.window.aspect = @as(f32, @floatFromInt(drawable_w)) / @as(f32, @floatFromInt(drawable_h));
 
         self.render_state.active_target = s;
         return cmd;
