@@ -91,7 +91,7 @@ pub fn build(b: *std.Build) !void {
     try @import("src/build/InstallShadersStep.zig").init(b, b.getInstallStep(), .{ 
         .install_dir = .bin,
         .always_generate = gen_shaders,
-        .source_path = "shaders",
+        .source_path = b.path("shaders"),
         .dest_path = "shaders",
         .target = "spirv",
         .profile = "spirv_1_3",

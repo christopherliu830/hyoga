@@ -45,10 +45,17 @@ pub const RenderList = struct {
 
     pub fn add(self: *RenderList, options: AddModelOptions) !RenderItemHandle {
         const q_model = blk: {
-            var model = try self.gpu.models.get(options.model);
+            var model = self.gpu.models.get(options.model)
+                catch null;
+                // catch |e| if (e != error.ModelEmpty) return e else null;
+
             if (options.time > 0) {
                 var timer = try std.time.Timer.start();
-                while (model == null and timer.read() < options.time) model = try self.gpu.models.get(options.model);
+                while (model == null and timer.read() < options.time) {
+                    model = self.gpu.models.get(options.model) 
+                        catch null;
+                        //catch |e| if (e != error.ModelEmpty) return e else null;
+                }
             }
             break :blk model;
         };

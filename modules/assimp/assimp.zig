@@ -223,16 +223,6 @@ pub const Node = extern struct {
     meshes: [*]u32,
     metadata: *anyopaque,
 };
-    // C_STRUCT aiString mName;
-    // C_STRUCT aiMatrix4x4 mTransformation;
-    // C_STRUCT aiNode* mParent;
-    // unsigned int mNumChildren;
-    // C_STRUCT aiNode** mChildren;
-    // unsigned int mNumMeshes;
-
-    // unsigned int* mMeshes;
-
-    // C_STRUCT aiMetadata* mMetaData;
 
 pub const Scene = extern struct {
     flags: u32,

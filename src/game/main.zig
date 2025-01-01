@@ -13,6 +13,7 @@ const Self = @This();
 
 const Object = struct {
     transform: hym.Mat4,
+    bounds: hym.Bounds = .{},
     hdl: rt.gpu.RenderItemHandle = .invalid,
 };
 
@@ -48,20 +49,24 @@ fn tryInit(engine: *hy.Engine) !hy.World {
             .pre_transform_vertices = true,
             .optimize_graph = true,
             .optimize_meshes = true,
+            .gen_bounding_boxes = true,
         }
     });
+
+    _ = gpu.modelWaitLoad(self.backpack_hdl, std.time.ns_per_s * 2);
 
     inline for (0..10) |y| {
         inline for (0..10) |x| {
             var object = (try self.objects.insert(undefined)).unwrap();
-            object.hdl = gpu.addRenderable(.{
-                .model = self.backpack_hdl,
-                .owner = &object.transform,
-                .time = 1 * std.time.ns_per_s,
-            });
-
-            object.transform = hym.mat4.identity;
-            object.transform = hym.mat4.translation(object.transform, hym.vec3.create(x * 10, 100 - y * 10,0));
+            object.* = .{
+                .hdl = gpu.addRenderable(.{
+                    .model = self.backpack_hdl,
+                    .owner = &object.transform,
+                    .time = 10 * std.time.ns_per_s,
+                }),
+                .transform = hym.mat4.translation(hym.mat4.identity, hym.vec3.create(x * 10, 100 - y * 10,0)),
+                .bounds = gpu.modelBounds(self.backpack_hdl),
+            };
         }
     }
 
@@ -120,8 +125,6 @@ fn render(engine: *hy.Engine, state: hy.World) callconv(.C) void {
             if (imgui.ButtonEx("", .{ .x = 20, .y = 20 })) {
                 gpu.clearSelection();
                 gpu.selectRenderable(object.hdl);
-                // engine.gpu.outlined.clearRetainingCapacity();
-                // engine.gpu.outlined.append(engine.gpa.allocator(), object.hdl) catch { std.debug.panic("model add fail", .{}); };
             }
             imgui.PopID();
             count += 1;
