@@ -9,7 +9,7 @@ const ext_from_target = std.StaticStringMap([]const u8).initComptime(.{
 });
 
 const Options = struct {
-    source_path: []const u8,
+    source_path: Build.LazyPath,
     install_dir: Build.InstallDir = .bin,
     dest_path: []const u8 = &.{},
     target: []const u8,
@@ -24,7 +24,8 @@ const ShaderArgs = struct {
 };
 
 pub fn init(b: *Build, step: *Step, options: Options) !void {
-    var src_dir = try std.fs.cwd().openDir(options.source_path, .{ .iterate = true });
+    const path = options.source_path.getPath3(b, step);
+    var src_dir = try std.fs.cwd().openDir(try path.toString(b.allocator), .{ .iterate = true });
     defer src_dir.close();
 
     var it = try src_dir.walk(b.allocator);
@@ -80,9 +81,10 @@ pub fn init(b: *Build, step: *Step, options: Options) !void {
                     const out_basename = try std.mem.concat(b.allocator, u8, &.{std.fs.path.stem(entry.path), args.stage, args.ext});
                     const name = try std.mem.concat(b.allocator, u8, &.{"compile ", entry.path});
                     const run = Step.Run.create(b, name);
-                    const input = b.pathJoin(&.{options.source_path, entry.path});
+                    const input = try options.source_path.join(b.allocator, entry.path);
+                    // ;b.pathJoin(&.{options.source_path, entry.path});
                     run.addArg("slangc");
-                    run.addFileArg(b.path(input));
+                    run.addFileArg(input);
                     run.addArgs(&.{
                         "-matrix-layout-row-major",
                         "-entry", args.entry,

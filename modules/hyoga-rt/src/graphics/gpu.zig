@@ -40,7 +40,6 @@ pub const BufferHandle = packed union {
     transfer: *sdl.gpu.Buffer,
 };
 
-
 /// This struct is sent to shaders as a uniform
 /// buffer and fields must be kept in sync.
 pub const GpuScene = extern struct {
@@ -156,7 +155,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .loader = loader,
         .strint = strint,
         .textures = tx.Textures.create(d, loader, strint, gpa),
-        .models = mdl.Models.create(loader, strint, gpa),
+        .models = try mdl.Models.create(loader, strint, gpa),
         .materials = try SlotMap(mt.Material).create(gpa, 1),
         .window_state = .{ .window = window },
         .renderables = try rbl.RenderList.init(self, gpa),
@@ -726,9 +725,10 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
 
 pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: mdl.ImportSettings) !mdl.Handle {
     const path_slice = std.mem.span(path);
-    var import = ai.importFile(path_slice, settings.post_process);
-    defer import.release();
     const allocator = self.arena.allocator();
+
+    var import = ai.importFile(path_slice, settings.post_process);
+    // Don't release the scene, it will be passed to models for read.
 
     var materials_array = try allocator.alloc(mt.Handle, import.num_materials);
 
@@ -755,14 +755,6 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: mdl.ImportSettings
                 if (import.getEmbeddedTexture(ai_tex_id.ptr)) |tex| {
                     _ = tex;
                     unreachable;
-                    // tex_id = try std.mem.concatWithSentinel(self.allocator, u8, &.{ path, ai_tex_id }, 0);
-                    // if (tex.height == 0) {
-                    //     const data = std.mem.sliceAsBytes(tex.pc_data[0..tex.width]);
-                    //     handle = try createTextureFromImageMemory(tex_id, data);
-                    // } else {
-                    //     const data = std.mem.sliceAsBytes(tex.pc_data[0 .. tex.width * tex.height]);
-                    //     handle = try createTextureFromMemory(tex_id, .{ .w = tex.width, .h = tex.height, .d = 4, .data = data, .format = .b8g8r8a8_unorm });
-                    // }
                 } else { // Texture is a relative path
                     tex_id = try std.fs.path.joinZ(self.arena.allocator(), &[_][]const u8{ 
                         std.fs.path.dirname(path_slice).?,
@@ -786,7 +778,7 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: mdl.ImportSettings
         materials_array[mat_index] = hdl;
     }
 
-    const model = try self.models.read(path_slice, materials_array, settings);
+    const model = try self.models.read(import, materials_array, settings);
     return model;
 }
 

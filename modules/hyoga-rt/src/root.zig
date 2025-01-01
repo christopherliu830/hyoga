@@ -1,3 +1,7 @@
+pub const std_options = std.Options {
+    .fmt_max_depth = 4, // printing struct { [4]@Vector(4, f32) } breaks with default max depth
+};
+
 const std = @import("std");
 const sdl = @import("sdl");
 const imgui = @import("imgui");
@@ -8,6 +12,7 @@ const math = hy.math;
 const Engine = @import("Engine.zig");
 const Input = Engine.Input;
 const Gpu = Engine.Gpu;
+
 
 pub const Scene = extern struct {
     view_proj: math.Mat4,
@@ -74,6 +79,19 @@ export fn hygpuImportModel(gpu: *Gpu, path: [*:0]const u8, settings: Gpu.mdl.Imp
         std.log.err("import model failure: {}", .{e});
         return Gpu.ModelHandle.invalid;
     };
+}
+
+export fn hygpuModelBounds(gpu: *Gpu, model: Gpu.ModelHandle) hy.math.Bounds {
+    if (gpu.models.get(model)) |m| {
+        return m.bounds;
+    } else |e| {
+        std.log.err("get model failure: {}", .{e});
+        return .{};
+    }
+}
+
+export fn hygpuModelWaitLoad(gpu: *Gpu, model: Gpu.ModelHandle, max: u64) bool {
+    return gpu.models.waitLoad(model, max);
 }
 
 export fn hygpuAddRenderable(gpu: *Gpu, options: Gpu.AddRenderableOptions) Gpu.RenderItemHandle {

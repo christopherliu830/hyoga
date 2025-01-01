@@ -2,10 +2,13 @@
 //! and must be manually kept in sync with the runtime datatypes!
 const std = @import("std");
 
+const math = @import("../math/hym.zig");
 const mat4 = @import("../math/mat4.zig");
 
 pub const Gpu = opaque {
     pub const importModel = hygpuImportModel;
+    pub const modelBounds = hygpuModelBounds;
+    pub const modelWaitLoad = hygpuModelWaitLoad;
     pub const addRenderable = hygpuAddRenderable;
     pub const removeRenderable = hygpuRemoveRenderable;
     pub const selectRenderable = hygpuSelectRenderable;
@@ -18,8 +21,8 @@ pub const RenderItemHandle = enum (u64) {
     _
 };
 
-pub const ModelHandle = enum (u32) {
-    invalid = std.math.maxInt(u32),
+pub const ModelHandle = enum (u64) {
+    invalid = 0,
 };
 
 pub const PostProcessSteps = packed struct (u32) {
@@ -76,6 +79,8 @@ pub const AddRenderableOptions = extern struct {
 };
 
 extern fn hygpuImportModel(*Gpu, [*:0]const u8, ImportSettings) ModelHandle;
+extern fn hygpuModelBounds(*Gpu, ModelHandle) math.Bounds;
+extern fn hygpuModelWaitLoad(*Gpu, ModelHandle, u64) bool;
 extern fn hygpuAddRenderable(*Gpu, AddRenderableOptions) RenderItemHandle;
 extern fn hygpuRemoveRenderable(*Gpu, RenderItemHandle) void;
 extern fn hygpuSelectRenderable(*Gpu, RenderItemHandle) void;
