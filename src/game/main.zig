@@ -18,8 +18,11 @@ const Object = struct {
 };
 
 gpa: std.heap.GeneralPurposeAllocator(.{}),
+arena: std.heap.ArenaAllocator,
 callback_arena: std.heap.ArenaAllocator,
-backpack_hdl: rt.gpu.ModelHandle = undefined,
+backpack_hdl: rt.gpu.ModelHandle = rt.gpu.ModelHandle.invalid,
+cube_model: rt.gpu.ModelHandle = rt.gpu.ModelHandle.invalid,
+cube: Object = undefined,
 objects: SkipMap(Object),
 ui_state: ui.State,
 camera: cam.Camera,
@@ -33,15 +36,16 @@ fn tryInit(engine: *hy.Engine) !hy.World {
     const self = try self_gpa.allocator().create(Self);
     self.* = .{
         .gpa = self_gpa,
-        .callback_arena = std.heap.ArenaAllocator.init(self_gpa.allocator()),
-        .objects = try SkipMap(Object).create(self_gpa.allocator(), .{}),
+        .arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
+        .callback_arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
+        .objects = try SkipMap(Object).create(self.gpa.allocator(), .{}),
         .ui_state = .{ .second_timer = try std.time.Timer.start() },
         .camera = .{ .input = engine.input(), .window = engine.window() },
     };
 
     const gpu = engine.gpu();
 
-    self.backpack_hdl = gpu.importModel("assets/backpack/backpack.obj", .{
+    self.backpack_hdl = gpu.modelImport("assets/backpack/backpack.obj", .{
         .transform = hym.mat4.identity,
         .post_process = .{
             .triangulate = true,
@@ -55,6 +59,8 @@ fn tryInit(engine: *hy.Engine) !hy.World {
 
     _ = gpu.modelWaitLoad(self.backpack_hdl, std.time.ns_per_s * 2);
 
+    self.cube_model = gpu.modelDupe(gpu.modelPrimitive(.cube), .{});
+
     inline for (0..10) |y| {
         inline for (0..10) |x| {
             var object = (try self.objects.insert(undefined)).unwrap();
@@ -64,11 +70,19 @@ fn tryInit(engine: *hy.Engine) !hy.World {
                     .owner = &object.transform,
                     .time = 10 * std.time.ns_per_s,
                 }),
-                .transform = hym.mat4.translation(hym.mat4.identity, hym.vec3.create(x * 10, 100 - y * 10,0)),
+                .transform = hym.mat4.translation(hym.mat4.identity, hym.vec3.create(x * 10, 90 - y * 10,0)),
                 .bounds = gpu.modelBounds(self.backpack_hdl),
             };
         }
     }
+
+    self.cube = .{
+        .transform = hym.mat4.translation(hym.mat4.identity, hym.vec3.create(0, 0, 10)),
+        .hdl = gpu.addRenderable(.{ 
+            .model = self.cube_model,
+            .owner = &self.cube.transform,
+        }),
+    };
 
     try self.camera.registerInputs(self.callback_arena.allocator());
     self.camera.position = hym.vec(.{50, 50, 50});
@@ -96,30 +110,59 @@ fn shutdown(_: *hy.Engine, state: hy.World) callconv(.C) void {
 
 // Called every loop iteration
 fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
-    const self: *Self = @ptrCast(@alignCast(pre.memory));
     var game = pre;
+    const self: *Self = @ptrCast(@alignCast(pre.memory));
 
     game.scene.view_proj = self.camera.viewProj();
 
     const ray = self.camera.worldRay();
+    const allocator = self.arena.allocator();
 
-    var it = self.objects.iterator();
-    var i: u32 = 0;
-    while (it.next()) |cursor| : (i += 1) {
-        const object = cursor.unwrap();
-        const bounds = hym.AxisAligned {
-            .min = object.bounds.min.add(object.transform.position()),
-            .max = object.bounds.max.add(object.transform.position()),
-        };
-        const collide = ray.intersect(bounds, 1000);
-        if (collide) {
-            engine.gpu().selectRenderable(object.hdl);
+    if (true) {
+        var boxes = allocator.alloc(hym.AxisAligned, self.objects.len) catch std.debug.panic("oom", .{});
+        var objects = allocator.alloc(*Object, self.objects.len) catch std.debug.panic("oom", .{});
+
+        {
+            var it = self.objects.iterator();
+            var i: u32 = 0;
+            while (it.next()) |cursor| : (i += 1) {
+                const object = cursor.unwrap();
+                const bounds = hym.AxisAligned {
+                    .min = object.bounds.min.add(object.transform.position()),
+                    .max = object.bounds.max.add(object.transform.position()),
+                };
+                boxes[i] = bounds;
+                objects[i] = object;
+            }
+        }
+
+        const packed_boxes = hym.Ray.pack(boxes, allocator) catch std.debug.panic("oom", .{});
+        const intersections = ray.intersectPacked(packed_boxes, 100, allocator) catch std.debug.panic("oom", .{});
+
+        for (objects, 0..) |object, i| {
+            const ixn = intersections[i];
+            if (ixn < 100) {
+                engine.gpu().selectRenderable(object.hdl);
+            }
+        }
+    } else {
+        var it = self.objects.iterator();
+        var i: u32 = 0;
+        while (it.next()) |cursor| : (i += 1) {
+            const object = cursor.unwrap();
+            const bounds = hym.AxisAligned {
+                .min = object.bounds.min.add(object.transform.position()),
+                .max = object.bounds.max.add(object.transform.position()),
+            };
+            var t: f32 = 1000;
+            ray.intersect(&.{ bounds }, (&t)[0..1]);
+            if (t < 1000) {
+                engine.gpu().selectRenderable(object.hdl);
+            }
         }
     }
 
-    it = self.objects.iterator();
-    var first = it.next().?.unwrap();
-    first.transform = hym.mat4.translation(hym.mat4.identity, ray.origin.add(ray.direction.mul(50)));
+    self.cube.transform = hym.mat4.translation(hym.mat4.identity, ray.origin.add(ray.direction.mul(50)));
 
     if (self.ui_state.restart_requested) game.restart = true;
 
@@ -131,13 +174,15 @@ fn render(engine: *hy.Engine, state: hy.World) callconv(.C) void {
     _ = engine;
     const self: *Self = @ptrCast(@alignCast(state.memory));
 
+    self.ui_state.frame_time = state.frame_time;
     ui.drawMainUI(&self.ui_state);
-    self.ui_state.frame_time = @floatFromInt(state.frame_time);
     if (self.ui_state.windows.camera) self.camera.editor();
 }
 
-fn afterRender(engine: *hy.Engine, _: hy.World) callconv(.C) void {
+fn afterRender(engine: *hy.Engine, world: hy.World) callconv(.C) void {
     engine.gpu().clearSelection();
+    const self: *Self = @ptrCast(@alignCast(world.memory));
+    _ = self.arena.reset(.retain_capacity);
 }
 
 fn reload(engine: *hy.Engine, game: hy.World) callconv(.C) bool {

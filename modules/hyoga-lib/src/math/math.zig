@@ -4,6 +4,7 @@ pub const mat4 = @import("mat4.zig");
 pub const ray = @import("ray.zig");
 pub const vec2 = @import("vec2.zig");
 pub const vec3 = @import("vec3.zig");
+pub const f32x3 = @Vector(3, f32);
 pub const vec4 = @import("vec4.zig");
 pub const AxisAligned = bounds.AxisAligned;
 pub const Mat4 = mat4.Mat4;

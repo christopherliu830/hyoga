@@ -19,7 +19,7 @@ pub const Renderable = struct {
     next: ?RenderItemHandle = null, // When models are imported as a group, support adds and removes via this link.
     mesh: mdl.Mesh,
     transform: mat4.Mat4 = mat4.identity, // Set on import and does not change.
-    parent_transform: ?*mat4.Mat4 = null,
+    parent_transform: *const mat4.Mat4 = &mat4.identity,
 };
 
 /// A wrapper around a list of renderables, in order to support
@@ -97,7 +97,7 @@ pub const RenderList = struct {
         const slice = try allocator.alloc(mat4.Mat4, self.items.capacity());
         for (self.items.entries.items, 0..) |entry, i| {
             switch(entry) {
-                .occupied => |val| slice[i] = mat4.mul((val.value.parent_transform orelse &mat4.identity).*, val.value.transform),
+                .occupied => |val| slice[i] = mat4.mul(val.value.parent_transform.*, val.value.transform),
                 .empty => continue,
             }
         }

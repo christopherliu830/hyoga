@@ -6,8 +6,10 @@ const math = @import("../math/math.zig");
 const mat4 = math.mat4;
 
 pub const Gpu = opaque {
-    pub const importModel = hygpuImportModel;
+    pub const modelImport = hygpuImportModel;
     pub const modelBounds = hygpuModelBounds;
+    pub const modelDupe = hygpuModelDupe;
+    pub const modelPrimitive = hygpuModelPrimitive;
     pub const modelWaitLoad = hygpuModelWaitLoad;
     pub const addRenderable = hygpuAddRenderable;
     pub const removeRenderable = hygpuRemoveRenderable;
@@ -23,6 +25,14 @@ pub const RenderItemHandle = enum (u64) {
 
 pub const ModelHandle = enum (u64) {
     invalid = 0,
+};
+
+pub const MaterialHandle = enum (u64) {
+    invalid = 0,
+};
+
+pub const PrimitiveShape = enum (u8) {
+    cube,
 };
 
 pub const PostProcessSteps = packed struct (u32) {
@@ -73,13 +83,20 @@ pub const ImportSettings = extern struct {
 
 // Time to wait for model load in nanoseconds.
 pub const AddRenderableOptions = extern struct {
-    owner: *mat4.Mat4,
+    owner: *const mat4.Mat4 = &mat4.identity,
     time: u64 = 0,
     model: ModelHandle,
 };
 
+
+pub const ModelDupeOptions = extern struct {
+    override_material: MaterialHandle = .invalid,
+};
+
 extern fn hygpuImportModel(*Gpu, [*:0]const u8, ImportSettings) ModelHandle;
 extern fn hygpuModelBounds(*Gpu, ModelHandle) math.AxisAligned;
+extern fn hygpuModelDupe(*Gpu, ModelHandle, ModelDupeOptions) ModelHandle;
+extern fn hygpuModelPrimitive(*Gpu, PrimitiveShape) ModelHandle;
 extern fn hygpuModelWaitLoad(*Gpu, ModelHandle, u64) bool;
 extern fn hygpuAddRenderable(*Gpu, AddRenderableOptions) RenderItemHandle;
 extern fn hygpuRemoveRenderable(*Gpu, RenderItemHandle) void;

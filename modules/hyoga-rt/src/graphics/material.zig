@@ -56,9 +56,12 @@ pub const MaterialInfo = struct {
 
 pub const MaterialReadOptions = struct {
     path: []const u8,
+
+    // Passed to build pipeline params
     format: ?sdl.gpu.TextureFormat = null,
     enable_depth: bool = true,
     enable_stencil: bool = true,
+    fill_mode: sdl.gpu.FillMode = .fill,
 };
 
 pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, arena: std.mem.Allocator) !MaterialTemplate {
@@ -77,12 +80,13 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, arena: std.mem.Allo
     defer gpu.device.releaseShader(frag_shader);
 
     const pipeline = gpu.buildPipeline(.{
-        .enable_depth = options.enable_depth,
-        .enable_stencil = options.enable_stencil,
         .format = options.format,
         .vert = vert_shader,
         .frag = frag_shader,
         .pass = info.pass,
+        .enable_depth = options.enable_depth,
+        .enable_stencil = options.enable_stencil,
+        .fill_mode = options.fill_mode,
     });
 
     var vert_textures: [4]?tx.TextureType = [_]?tx.TextureType { null } ** 4;

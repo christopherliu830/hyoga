@@ -77,6 +77,10 @@ pub inline fn create(i: f32, j: f32, k: f32) Vec3 {
     return .{ .v = .{ i, j, k }, };
 }
 
+pub inline fn splat(n: anytype) Vec3 {
+    return .{ .v = @as(@Vector(3, f32), @splat(n)) };
+}
+
 pub inline fn dot(a: Vec3, b: Vec3) f32 {
     return a.v[0] * b.v[0] + 
            a.v[1] * b.v[1] +

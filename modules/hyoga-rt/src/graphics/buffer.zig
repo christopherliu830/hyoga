@@ -82,8 +82,10 @@ pub const VertexIndexBuffer = struct {
             .size = vtx_size + idx_size,
         });
 
+        std.debug.assert(hdl != null);
+
         return .{
-            .hdl = hdl,
+            .hdl = hdl.?,
             .size = vtx_size + idx_size,
             .idx_start = vtx_size,
         };

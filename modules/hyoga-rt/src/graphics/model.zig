@@ -24,7 +24,7 @@ const ModelLoadJob = struct {
     dest_hdl: Handle,
     scene: *ai.Scene,
     mats: []mt.Handle,
-    settings: ImportSettings,
+    settings: Models.ImportSettings,
 
     const Result = struct {
         job: ModelLoadJob,
@@ -46,13 +46,14 @@ pub const Models = struct {
     strint: *Strint,
     loader: *Loader,
 
-    pub fn create(loader: *Loader, strint: *Strint, allocator: std.mem.Allocator) !Models {
+    pub fn create(loader: *Loader, strint: *Strint, allocator: std.mem.Allocator) Models {
         var m: Models = undefined;
         m.allocator = allocator;
         m.queue.init(allocator);
         m.strint = strint;
         m.loader = loader;
-        m.models = try SlotMap(?Model).create(allocator, 1);
+        m.models = SlotMap(?Model).create(allocator, 1) catch |e|
+            std.debug.panic("model create failure: {}", .{e});
         return m;
     }
 
@@ -64,7 +65,8 @@ pub const Models = struct {
             var it = self.models.iterator();
             while (it.next()) |q_entry| {
                 if (q_entry) |entry| {
-                    gpu.device.releaseBuffer(entry.root_buffer.hdl);
+                    std.debug.assert(entry.children.len > 0);
+                    gpu.device.releaseBuffer(entry.children[0].buffer.hdl);
                     self.allocator.free(entry.children);
                 }
             }
@@ -78,6 +80,31 @@ pub const Models = struct {
         if (ptr.* == null) return error.ModelNotLoaded;
         return &(ptr.*.?);
     }
+
+    pub fn add(self: *@This(), model: Model) Handle {
+        return self.models.insert(model) catch |e| std.debug.panic("add model failure: {}", .{e});
+    }
+
+    pub const DupeModelOptions = extern struct {
+        override_material: mt.Handle = mt.Handle.invalid,
+    };
+
+    pub fn dupe(self: *@This(), model: Handle, options: DupeModelOptions) !Handle {
+        var copy = (try self.get(model)).*;
+        const meshes = try self.allocator.dupe(Mesh, copy.children);
+        for (meshes) |*mesh| {
+            if (options.override_material.is_valid()) {
+                mesh.material = options.override_material;
+            }
+        }
+        copy.children = meshes;
+        return self.add(copy);
+    }
+
+    pub const ImportSettings = extern struct {
+        transform: mat4.Mat4 = mat4.identity,
+        post_process: ai.PostProcessSteps,
+    };
 
     /// This function will return a handle to an initially null slot in the models array.
     /// Once the model is finished loading, the handle's value will be set to the model
@@ -187,7 +214,6 @@ pub const Models = struct {
         queue.push(.{
             .job = job,
             .model = .{
-                .root_buffer = root_buffer,
                 .children = children,
                 .bounds = bounds,
             },
@@ -197,7 +223,6 @@ pub const Models = struct {
 
 pub const Model = struct {
     bounds: hy.math.AxisAligned,
-    root_buffer: Buffer,
     children: []Mesh,
     transform: mat4.Mat4 = mat4.identity,
 };
@@ -205,7 +230,6 @@ pub const Model = struct {
 pub const Mesh = struct {
     buffer: Buffer,
     material: mt.Handle = mt.Handle.invalid,
-
 };
 
 const ImportMesh = struct {
@@ -345,7 +369,3 @@ const ImportModel = struct {
     }
 };
 
-pub const ImportSettings = extern struct {
-    transform: mat4.Mat4 = mat4.identity,
-    post_process: ai.PostProcessSteps,
-};

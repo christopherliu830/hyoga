@@ -1,4 +1,5 @@
 pub const mdl = @import("model.zig");
+pub const primitives = @import("primitives.zig");
 
 const std = @import("std");
 const sdl = @import("sdl");
@@ -15,8 +16,6 @@ const hym_cam = hym.cam;
 const stb = @import("stb_image");
 const Window = @import("../window.zig");
 
-const cube = @import("primitives.zig").createCube();
-
 const buf = @import("buffer.zig");
 const tx = @import("texture.zig");
 const mt = @import("material.zig");
@@ -31,6 +30,7 @@ const World = @import("../root.zig").World;
 const Gpu = @This();
 
 pub const ModelHandle = mdl.Handle;
+pub const Models = mdl.Models;
 pub const RenderItemHandle = rbl.RenderItemHandle;
 pub const AddRenderableOptions = rbl.RenderList.AddModelOptions;
 
@@ -62,12 +62,13 @@ pub const PassType = enum {
 };
 
 pub const BuildPipelineParams = struct {
-    format: ?sdl.gpu.TextureFormat = null,
+    format: ?sdl.gpu.TextureFormat,
     vert: *sdl.gpu.Shader,
     frag: *sdl.gpu.Shader,
     pass: PassType,
-    enable_depth: bool = true,
-    enable_stencil: bool = true,
+    enable_depth: bool,
+    enable_stencil: bool,
+    fill_mode: sdl.gpu.FillMode,
 };
 
 const RenderState = struct {
@@ -77,9 +78,13 @@ const RenderState = struct {
     default_material: mt.MaterialTemplate,
     post_material: mt.MaterialTemplate,
     outline_material: mt.MaterialTemplate,
+    primitives_material: mt.Handle,
 
     default_texture: *sdl.gpu.Texture,
     black_texture: *sdl.gpu.Texture,
+    white_texture: *sdl.gpu.Texture,
+
+    cube: ModelHandle,
 
     sampler: *sdl.gpu.Sampler = undefined,
 
@@ -155,7 +160,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .loader = loader,
         .strint = strint,
         .textures = tx.Textures.create(d, loader, strint, gpa),
-        .models = try mdl.Models.create(loader, strint, gpa),
+        .models = mdl.Models.create(loader, strint, gpa),
         .materials = try SlotMap(mt.Material).create(gpa, 1),
         .window_state = .{ .window = window },
         .renderables = try rbl.RenderList.init(self, gpa),
@@ -169,10 +174,12 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .path = "shaders/standard",
         .enable_depth = true,
         .enable_stencil = false,
+        .fill_mode = .line,
     }, self.arena.allocator());
 
-    // Generate unloaded texture pattern
+    // Generate default assets
 
+    // Unloaded texture
     const texture = self.device.createTexture(&.{
         .format = .b8g8r8a8_unorm, 
         .height = 256,
@@ -186,16 +193,21 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
     var buffer: [256 * 256]u32 = [_]u32{0xffffffff} ** (256 * 256);
     const black = 0xff000000;
+    const white = 0xffffffff;
 
     for (0..256) |i| {
         for (0..256) |j| {
-            if ((i + j) % 2 == 0) {
+            if ((i + j) % 2 == 999) {
                 @memset(buffer[i * 256 + j .. i * 256 + j + 1], black);
+            }
+            else {
+                @memset(buffer[i * 256 + j .. i * 256 + j + 1], white);
             }
         }
     }
     try self.uploadToTexture(texture, 256, 256, &std.mem.toBytes(buffer));
 
+    // Black texture
     const black_texture = self.device.createTexture(&.{
         .format = .b8g8r8a8_unorm, 
         .height = 1,
@@ -206,12 +218,23 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .usage = .{ .sampler = true }
     }).?;
     self.device.setTextureName(black_texture, "black_tex");
-    try self.uploadToTexture(black_texture, 1, 1, &[4]u8{0, 0, 0, 0});
 
-    var w: c_int = 0;
-    var h: c_int = 0;
-    _ = sdl.video.getWindowSizeInPixels(window.hdl, &w, &h);
+    try self.uploadToTexture(black_texture, 1, 1, &[4]u8{1, 0, 0, 0});
 
+    const white_texture = self.device.createTexture(&.{
+        .format = .b8g8r8a8_unorm, 
+        .height = 1,
+        .width = 1,
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
+        .sample_count = .@"1",
+        .usage = .{ .sampler = true }
+    }).?;
+    self.device.setTextureName(white_texture, "white_tex");
+
+    try self.uploadToTexture(white_texture, 1, 1, &std.mem.toBytes([_]u32 {white}));
+
+    // Sampler
     const sampler_info = sdl.gpu.SamplerCreateInfo {
         .address_mode_u = .clamp_to_edge,
         .address_mode_v = .clamp_to_edge,
@@ -220,12 +243,42 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .mag_filter = .linear,
     };
 
+    const buf_cube = buf.VertexIndexBuffer.create(
+        self.device,
+        @sizeOf(@TypeOf(primitives.cube.vertices)),
+        @sizeOf(@TypeOf(primitives.cube.indices)),
+    );
+
+    std.debug.print("{}\n", .{ @sizeOf(@TypeOf(primitives.cube.vertices)), });
+    std.debug.print("{}\n", .{ @sizeOf(@TypeOf(primitives.cube.indices)), });
+    try self.uploadToBuffer(buf_cube.hdl, 0, &std.mem.toBytes(primitives.cube));
+
+    const cube_material = try self.materials.insert(mt.Material.fromTemplate(material, tx.TextureSet.initFull(.{ .target = white_texture })));
+
+    const cube_mesh = try self.gpa.alloc(mdl.Mesh, 1);
+    cube_mesh[0] = .{
+        .buffer = buf_cube,
+        .material = cube_material,
+    };
+    const cube = mdl.Model {
+        .children = cube_mesh,
+        .transform = mat4.identity,
+        .bounds = primitives.Cube.bounds,
+    };
+
+    const hdl_cube = self.models.add(cube);
+
+
     const quad_mat_template = try mt.readFromPath(self, .{
         .path = "shaders/post_process",
         .enable_depth = false,
         .enable_stencil = false,
     }, self.gpa);
     
+    var w: c_int = 0;
+    var h: c_int = 0;
+    _ = sdl.video.getWindowSizeInPixels(window.hdl, &w, &h);
+
     self.render_state = .{
         .forward_pass = passes.Forward.init(self.device, .{
             .name = "standard",
@@ -243,6 +296,9 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .default_material = material,
         .default_texture = texture,
         .black_texture = black_texture,
+        .white_texture = white_texture,
+
+        .cube = hdl_cube,
 
         .post_material = quad_mat_template,
 
@@ -252,6 +308,8 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
             .enable_stencil = false,
             .format = .r8_unorm,
         }, self.gpa),
+
+        .primitives_material = cube_material,
 
         .sampler = self.device.createSampler(&sampler_info).?,
         .obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 256, "Object Mats"),
@@ -703,6 +761,7 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
         .depth_stencil_state = depth_stencil_state,
         .multisample_state = .{ .sample_count = sample_count },
         .primitive_type = .trianglelist,
+        .rasterizer_state = .{ .fill_mode = params.fill_mode },
         .vertex_shader = params.vert,
         .fragment_shader = params.frag,
         .vertex_input_state = .{
@@ -722,7 +781,7 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
     return pipeline;
 }
 
-pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: mdl.ImportSettings) !mdl.Handle {
+pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSettings) !ModelHandle {
     const path_slice = std.mem.span(path);
     const allocator = self.arena.allocator();
 
@@ -781,7 +840,8 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: mdl.ImportSettings
     return model;
 }
 
-pub fn addMaterial(self: *Gpu, material: mt.Material) !mt.Handle {
-    std.debug.assert(material.textures.len > 0);
-    return self.materials.insert(material);
+pub fn getPrimitive(self: *Gpu, shape: primitives.Shape) ModelHandle {
+    return switch (shape) {
+        .cube => return self.render_state.cube,
+    };
 }

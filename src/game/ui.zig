@@ -10,11 +10,12 @@ const Windows = struct {
     perf: bool = false,
 
 };
+
 pub const State = struct {
     second_timer: std.time.Timer, // Timer that ticks every second
     windows: Windows = .{},
-    frame_time: f64 = 0,
-    drawn_frame_time: f64 = 0,
+    frame_time: u64 = 0,
+    drawn_frame_time: u64 = 0,
     frame_times: [frames_slice_len]f64 = [_]f64{0} ** frames_slice_len,
     current_frame_time_idx: u8 = 0,
     restart_requested: bool = false, 
@@ -55,9 +56,10 @@ pub fn drawMainUI(state: *State) void {
 
     if (state.windows.perf) {
         if (ui.Begin("Performance", &state.windows.perf, 0)) {
-            const fps: f64 = 1 / (state.drawn_frame_time);
+            const frame_time = timeAsFloat(state.drawn_frame_time);
+            const fps: f64 = 1000 / frame_time;
             ui.Text("Frame time: %.2fms (%.1f)fps", 
-                state.drawn_frame_time,
+                frame_time,
                 fps);
             drawFrametimePlot(state);
         }
@@ -67,7 +69,7 @@ pub fn drawMainUI(state: *State) void {
 
 pub fn drawFrametimePlot(state: *State) void {
     var times: [frames_slice_len]f64 = undefined;
-    const new_time: f64 = state.frame_time;
+    const new_time = timeAsFloat(state.drawn_frame_time);
     state.frame_times[state.current_frame_time_idx] = new_time;
 
     const back_len = (frames_slice_len - state.current_frame_time_idx);
@@ -86,4 +88,8 @@ pub fn drawFrametimePlot(state: *State) void {
     }
 
     state.current_frame_time_idx = (state.current_frame_time_idx + 1) % frames_slice_len;
+}
+
+fn timeAsFloat(time: u64) f64 {
+    return @as(f64, @floatFromInt(time)) / std.time.ns_per_ms;
 }

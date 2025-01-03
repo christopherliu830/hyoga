@@ -75,7 +75,7 @@ export fn hyeWindow(engine: *Engine) *Engine.Window {
     return &engine.window;
 }
 
-export fn hygpuImportModel(gpu: *Gpu, path: [*:0]const u8, settings: Gpu.mdl.ImportSettings) Gpu.ModelHandle {
+export fn hygpuImportModel(gpu: *Gpu, path: [*:0]const u8, settings: Gpu.Models.ImportSettings) Gpu.ModelHandle {
     return gpu.importModel(path, settings) catch |e| {
         std.log.err("import model failure: {}", .{e});
         return Gpu.ModelHandle.invalid;
@@ -89,6 +89,17 @@ export fn hygpuModelBounds(gpu: *Gpu, model: Gpu.ModelHandle) hy.math.AxisAligne
         std.log.err("get model failure: {}", .{e});
         return .{};
     }
+}
+
+export fn hygpuModelDupe(gpu: *Gpu, model: Gpu.ModelHandle, options: Gpu.Models.DupeModelOptions) Gpu.ModelHandle {
+    return gpu.models.dupe(model, options) catch |e| {
+        std.log.err("dupe model failure: {}", .{e});
+        return Gpu.ModelHandle.invalid;
+    };
+}
+
+export fn hygpuModelPrimitive(gpu: *Gpu, shape: Gpu.primitives.Shape) Gpu.ModelHandle {
+    return gpu.getPrimitive(shape);
 }
 
 export fn hygpuModelWaitLoad(gpu: *Gpu, model: Gpu.ModelHandle, max: u64) bool {
@@ -119,6 +130,7 @@ export fn hygpuDeselectRenderable(gpu: *Gpu, item: Gpu.RenderItemHandle) void {
 export fn hygpuClearSelection(gpu: *Gpu) void {
     gpu.outlined.clearRetainingCapacity();
 }
+
 
 export fn hyioReset(input: *Input) void {
     input.reset();

@@ -28,6 +28,8 @@ pub fn SkipMap(comptime T: type) type {
 
 pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
     return struct {
+        const Self = @This();
+
         pub const Cursor = struct {
             group: *Group,
             element: *Slot,
@@ -74,8 +76,6 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                 return ret;
             }
         };
-
-        const Self = @This();
 
         const Stride = std.meta.Int(.unsigned, @alignOf(T) * 8); 
 
@@ -309,7 +309,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
         groups: GroupList,
         open_groups_head: ?*Group = null,
         total_capacity: usize = 0,
-        total_size: usize = 0,
+        len: usize = 0,
         block_capacity: Size = 8,
         max_block_capacity: Size = @min(std.math.maxInt(Size) - 1, 8192), 
         allocator: std.mem.Allocator,
@@ -339,7 +339,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
 
         pub fn iterator(self: *Self) Iterator {
             // Not initialized, return a dummy iterator
-            if (self.total_size == 0) { 
+            if (self.len == 0) { 
                 return Iterator {
                     .end = @ptrCast(@alignCast(self)),
                     .cursor = .{
@@ -370,7 +370,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                 tail.element = tail.element.right(1);
                 tail.skip = tail.skip.right(1);
                 group.size += 1;
-                self.total_size += 1;
+                self.len += 1;
 
                 return self.groups.head.?;
             } 
@@ -378,7 +378,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             // Insert into an open group
             else if (self.open_groups_head) |group| {
                 group.size += 1;
-                self.total_size += 1;
+                self.len += 1;
 
                 const idx = group.free_list_head.unwrap().?;
                 const slot = &group.elements[idx];
@@ -445,7 +445,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                 tail.element.* = .{ .data = value };
                 tail.element = tail.element.right(1);
                 tail.skip = tail.skip.right(1);
-                self.total_size += 1;
+                self.len += 1;
                 tail.group.size += 1;
                 return cursor;
             }
@@ -461,7 +461,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                 tail.element.* = .{ .data = value };
                 tail.group.size += 1;
                 self.total_capacity += group.capacity;
-                self.total_size += 1;
+                self.len += 1;
 
                 const cursor = tail.*;
 
@@ -473,11 +473,11 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
         }
 
         pub fn remove(self: *Self, cursor: Cursor) void {
-            std.debug.assert(self.total_size != 0);
+            std.debug.assert(self.len != 0);
             std.debug.assert(cursor.element != self.groups.tail.?.element);
             std.debug.assert(cursor.skip.value == 0);
 
-            self.total_size -= 1;
+            self.len -= 1;
             const group = cursor.group;
             group.size -= 1;
 
