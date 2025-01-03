@@ -52,10 +52,6 @@ const HotLibrary = struct {
 
     pub fn reload(self: *HotLibrary) !void {
         const dest_file = try self.createFilename(self.version);
-
-        const path = std.fs.cwd().realpathAlloc(self.allocator, ".");
-        std.debug.print("{!s}\n", .{path});
-        std.debug.print("{s}\n", .{self.src});
         const file = try std.fs.cwd().openFile(self.src, .{});
         defer file.close();
         const src_stat = try file.stat();

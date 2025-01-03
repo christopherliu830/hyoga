@@ -59,10 +59,12 @@ fn tryInit(engine: *hy.Engine) !hy.World {
 
     _ = gpu.modelWaitLoad(self.backpack_hdl, std.time.ns_per_s * 2);
 
-    self.cube_model = gpu.modelDupe(gpu.modelPrimitive(.cube), .{});
+    const bounds = gpu.modelBounds(self.backpack_hdl);
 
-    inline for (0..10) |y| {
-        inline for (0..10) |x| {
+    for (0..10) |y| {
+        for (0..10) |x| {
+            const fx: f32 = @floatFromInt(x);
+            const fy: f32 = @floatFromInt(y);
             var object = (try self.objects.insert(undefined)).unwrap();
             object.* = .{
                 .hdl = gpu.addRenderable(.{
@@ -70,19 +72,11 @@ fn tryInit(engine: *hy.Engine) !hy.World {
                     .owner = &object.transform,
                     .time = 10 * std.time.ns_per_s,
                 }),
-                .transform = hym.mat4.translation(hym.mat4.identity, hym.vec3.create(x * 10, 90 - y * 10,0)),
-                .bounds = gpu.modelBounds(self.backpack_hdl),
+                .transform = hym.mat4.translation(hym.mat4.identity, hym.vec3.create(fx * 10, 90 - fy * 10,0)),
+                .bounds = bounds,
             };
         }
     }
-
-    self.cube = .{
-        .transform = hym.mat4.translation(hym.mat4.identity, hym.vec3.create(0, 0, 10)),
-        .hdl = gpu.addRenderable(.{ 
-            .model = self.cube_model,
-            .owner = &self.cube.transform,
-        }),
-    };
 
     try self.camera.registerInputs(self.callback_arena.allocator());
     self.camera.position = hym.vec(.{50, 50, 50});
@@ -118,6 +112,7 @@ fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
     const ray = self.camera.worldRay();
     const allocator = self.arena.allocator();
 
+    // Check performance difference
     if (true) {
         var boxes = allocator.alloc(hym.AxisAligned, self.objects.len) catch std.debug.panic("oom", .{});
         var objects = allocator.alloc(*Object, self.objects.len) catch std.debug.panic("oom", .{});
@@ -162,8 +157,6 @@ fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
         }
     }
 
-    self.cube.transform = hym.mat4.translation(hym.mat4.identity, ray.origin.add(ray.direction.mul(50)));
-
     if (self.ui_state.restart_requested) game.restart = true;
 
     return game;
@@ -174,8 +167,8 @@ fn render(engine: *hy.Engine, state: hy.World) callconv(.C) void {
     _ = engine;
     const self: *Self = @ptrCast(@alignCast(state.memory));
 
-    self.ui_state.frame_time = state.frame_time;
     ui.drawMainUI(&self.ui_state);
+    self.ui_state.frame_time = state.frame_time;
     if (self.ui_state.windows.camera) self.camera.editor();
 }
 

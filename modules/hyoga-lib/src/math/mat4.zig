@@ -16,6 +16,18 @@ pub const Mat4 = extern struct {
     pub inline fn position(self: *const Mat4) Vec3 {
         return vec3.create(self.m[3][0], self.m[3][1], self.m[3][2]);
     }
+
+    pub inline fn scale(self: *const Mat4, s: Vec3) Mat4 {
+        return root.mul(self.*, root.scale(s));
+    }
+
+    pub inline fn mul(self: *const Mat4, other: Mat4) Mat4 {
+        return root.mul(self.*, other);
+    }
+
+    pub inline fn translate(self: *const Mat4, other: Vec3) Mat4 {
+        return root.translation(self.*, other);
+    }
 };
 
 pub const zero = Mat4 { .m = .{

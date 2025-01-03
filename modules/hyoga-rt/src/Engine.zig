@@ -105,10 +105,11 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
         _ = self.gpu.submit(cmd);
 
         if (gi.afterRender) |afterRender| afterRender(self, game);
-    }
+    } 
+
+    game.frame_time = self.timer.lap();
 
     @import("ztracy").FrameMark();
-    game.frame_time = self.timer.lap();
     return game;
 }
 

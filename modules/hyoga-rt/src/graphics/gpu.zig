@@ -249,8 +249,6 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         @sizeOf(@TypeOf(primitives.cube.indices)),
     );
 
-    std.debug.print("{}\n", .{ @sizeOf(@TypeOf(primitives.cube.vertices)), });
-    std.debug.print("{}\n", .{ @sizeOf(@TypeOf(primitives.cube.indices)), });
     try self.uploadToBuffer(buf_cube.hdl, 0, &std.mem.toBytes(primitives.cube));
 
     const cube_material = try self.materials.insert(mt.Material.fromTemplate(material, tx.TextureSet.initFull(.{ .target = white_texture })));
@@ -267,7 +265,6 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
     };
 
     const hdl_cube = self.models.add(cube);
-
 
     const quad_mat_template = try mt.readFromPath(self, .{
         .path = "shaders/post_process",
@@ -312,7 +309,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .primitives_material = cube_material,
 
         .sampler = self.device.createSampler(&sampler_info).?,
-        .obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 256, "Object Mats"),
+        .obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 512, "Object Mats"),
         .active_target = null,
     };
 
@@ -418,15 +415,11 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
     var drawable_w: u32 = undefined;
     var drawable_h: u32 = undefined;
 
-    const acquire = @import("ztracy").ZoneN(@src(), "acquireCommandBuffer");
     const cmd = self.device.acquireCommandBuffer() orelse {
         std.log.err("could not acquire command buffer", .{});
         return error.SDLError;
     };
-    acquire.End();
 
-    const acquireSwapchainTexture = @import("ztracy").ZoneN(@src(), "acquireSwapchainTexture");
-    defer acquireSwapchainTexture.End();
     var swapchain: ?*sdl.gpu.Texture = null;
     if (!cmd.acquireSwapchainTexture(self.window_state.window.hdl, &swapchain, &drawable_w, &drawable_h)) {
         std.log.err("Could not acquire swapchain texture", .{});
@@ -443,7 +436,10 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
         return cmd;
     } else {
         // No swapchain was acquired, probably too many frames in flight.
-        _ = cmd.cancel();
+        if (!cmd.cancel()) {
+            std.log.err("could not cancel command buffer", .{});
+            return error.SDLError;
+        }
         return null;
     }
 }

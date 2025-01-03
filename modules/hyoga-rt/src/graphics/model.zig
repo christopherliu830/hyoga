@@ -148,9 +148,12 @@ pub const Models = struct {
         const allocator = self.queue.tsa.allocator();
 
         // Process scene node tree into a big array of meshes
+        const min = -std.math.floatMax(f32);
+        const max = std.math.floatMax(f32);
+
         var bounds = hy.math.AxisAligned {
-            .min = hy.math.vec3.zero,
-            .max = hy.math.vec3.zero,
+            .min = hy.math.vec(.{max, max, max}),
+            .max = hy.math.vec(.{min, min, min}),
         };
 
         var in_model: ImportModel = .{
@@ -297,28 +300,17 @@ const ImportModel = struct {
         const node = params.node;
         try self.meshes.ensureTotalCapacity(params.allocator, node.num_meshes);
         for (node.meshes[0..node.num_meshes]) |idx_mesh| {
-            const mesh = params.scene.meshes[idx_mesh];
+            const in_mesh = params.scene.meshes[idx_mesh];
 
             var sub = params;
-            sub.mesh = mesh;
-            try self.meshes.append(params.allocator, try self.processMesh(sub));
+            sub.mesh = in_mesh;
 
-            const a = mesh.aabb.min;
-            const b = mesh.aabb.max;
-            const c = params.root_bounds.min;
-            const d = params.root_bounds.max;
-            const min_x = @min(@min(a.x, b.x), c.x());
-            const min_y = @min(@min(a.y, b.y), c.y());
-            const min_z = @min(@min(a.z, b.z), c.z());
-            const max_x = @max(@max(a.x, b.x), d.x());
-            const max_y = @max(@max(a.y, b.y), d.y());
-            const max_z = @max(@max(a.z, b.z), d.z());
-            params.root_bounds.min = hy.math.vec3.create(min_x, min_y, min_z);
-            params.root_bounds.max = hy.math.vec3.create(max_x, max_y, max_z);
+            const mesh = try self.processMesh(sub);
+            try self.meshes.append(params.allocator, mesh);
+
 
             errdefer self.deinit();
         }
-
 
         for (node.children[0..node.num_children]) |child| {
             var sub = params;
@@ -364,6 +356,22 @@ const ImportModel = struct {
                 out_mesh.indices.append(params.allocator, @intCast(idx)) catch unreachable;
             }
         }
+
+        const a = in_mesh.aabb.min;
+        const b = in_mesh.aabb.max;
+        const c = params.root_bounds.min;
+        const d = params.root_bounds.max;
+
+        const min_x = @min(@min(a.x, b.x), c.x());
+        const min_y = @min(@min(a.y, b.y), c.y());
+        const min_z = @min(@min(a.z, b.z), c.z());
+
+        const max_x = @max(@max(a.x, b.x), d.x());
+        const max_y = @max(@max(a.y, b.y), d.y());
+        const max_z = @max(@max(a.z, b.z), d.z());
+
+        params.root_bounds.min = hy.math.vec3.create(min_x, min_y, min_z);
+        params.root_bounds.max = hy.math.vec3.create(max_x, max_y, max_z);
 
         return out_mesh;
     }

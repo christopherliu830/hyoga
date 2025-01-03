@@ -173,7 +173,7 @@ pub const Bone = extern struct { };
 
 pub const AnimMesh = extern struct { };
 
-pub const MorphingMethod = enum (c_int) { 
+pub const MorphingMethod = enum (u32) { 
     unknown,
     vertex_blend,
     morph_normalized,
@@ -181,7 +181,6 @@ pub const MorphingMethod = enum (c_int) {
 };
 
 pub const Mesh = extern struct {
-
     primitive_types: u32,
     num_vertices: u32,
     num_faces: u32,
@@ -198,9 +197,10 @@ pub const Mesh = extern struct {
     material_index: u32,
     name: String,
     num_anim_meshes: u32,
+    anim_meshes: [*][*]AnimMesh,
     method: MorphingMethod,
     aabb: AABB,
-    texture_coords_names: *[*]String,
+    texture_coords_names: ?*[*]String,
 };
 
 pub const Animation = extern struct { };
