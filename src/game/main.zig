@@ -45,17 +45,7 @@ fn tryInit(engine: *hy.Engine) !hy.World {
 
     const gpu = engine.gpu();
 
-    self.backpack_hdl = gpu.modelImport("assets/backpack/backpack.obj", .{
-        .transform = hym.mat4.identity,
-        .post_process = .{
-            .triangulate = true,
-            .split_large_meshes = true,
-            .pre_transform_vertices = true,
-            .optimize_graph = true,
-            .optimize_meshes = true,
-            .gen_bounding_boxes = true,
-        }
-    });
+    self.backpack_hdl = gpu.modelImport("assets/backpack/backpack.obj", .{});
 
     _ = gpu.modelWaitLoad(self.backpack_hdl, std.time.ns_per_s * 2);
 
@@ -168,7 +158,7 @@ fn render(engine: *hy.Engine, state: hy.World) callconv(.C) void {
     const self: *Self = @ptrCast(@alignCast(state.memory));
 
     ui.drawMainUI(&self.ui_state);
-    self.ui_state.frame_time = state.frame_time;
+    self.ui_state.frame_time = state.render_delta_time;
     if (self.ui_state.windows.camera) self.camera.editor();
 }
 

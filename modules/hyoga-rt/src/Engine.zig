@@ -23,6 +23,7 @@ gpu: *Gpu,
 ui: UI,
 loader: Loader,
 timer: std.time.Timer,
+render_timer: std.time.Timer,
 
 pub fn init() !*Engine {
     var self_gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
@@ -38,7 +39,8 @@ pub fn init() !*Engine {
         .gpu = try Gpu.init(&self.window, &self.loader, &self.strint, self.gpa.allocator()),
         .ui = try UI.init(.{.gpu = self.gpu, .window = &self.window, .allocator = self.gpa.allocator()}),
         .loader = undefined,
-        .timer = try std.time.Timer.start(),
+        .timer = std.time.Timer.start() catch unreachable,
+        .render_timer = std.time.Timer.start() catch unreachable,
     };
 
     try self.loader.init(self.gpa.allocator());
@@ -105,10 +107,10 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
         _ = self.gpu.submit(cmd);
 
         if (gi.afterRender) |afterRender| afterRender(self, game);
+        game.render_delta_time = self.render_timer.lap();
     } 
 
-    game.frame_time = self.timer.lap();
-
+    game.update_delta_time = self.timer.lap();
     @import("ztracy").FrameMark();
     return game;
 }

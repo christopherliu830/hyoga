@@ -27,7 +27,8 @@ pub const World = extern struct {
     quit: bool = false,
     restart: bool = false,
     scene: Scene,
-    frame_time: u64 = 0,
+    render_delta_time: u64 = 0,
+    update_delta_time: u64 = 0,
     memory: *anyopaque,
 };
 

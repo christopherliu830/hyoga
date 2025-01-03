@@ -58,7 +58,6 @@ pub fn drawMainUI(state: *State) void {
         if (ui.Begin("Performance", &state.windows.perf, 0)) {
             const frame_time = timeAsFloat(state.drawn_frame_time);
             const fps: f64 = 1000 / frame_time;
-            ui.Text("time ns: %d", state.drawn_frame_time);
             ui.Text("Frame time: %.2fms (%.1f)fps", 
                 frame_time,
                 fps);
@@ -70,7 +69,7 @@ pub fn drawMainUI(state: *State) void {
 
 pub fn drawFrametimePlot(state: *State) void {
     var times: [frames_slice_len]f64 = undefined;
-    const new_time = timeAsFloat(state.drawn_frame_time);
+    const new_time = timeAsFloat(state.frame_time);
     state.frame_times[state.current_frame_time_idx] = new_time;
 
     const back_len = (frames_slice_len - state.current_frame_time_idx);
