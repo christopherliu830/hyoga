@@ -123,6 +123,7 @@ const ShaderType = enum { vertex, fragment };
 device: *sdl.gpu.Device,
 gpa: std.mem.Allocator,
 arena: std.heap.ArenaAllocator,
+buffer_allocator: buf.BufferAllocator,
 loader: *Loader,
 swapchain_target_desc: sdl.gpu.ColorTargetDescription,
 frames: u32 = 0,
@@ -155,15 +156,16 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
     self.* = .{
         .gpa = gpa,
         .arena = std.heap.ArenaAllocator.init(gpa),
+        .buffer_allocator = buf.BufferAllocator.init(d, .{ .vertex = true, .index = true }, self.gpa),
         .device = d,
         .swapchain_target_desc = .{ .format = d.getSwapchainTextureFormat(window.hdl) },
         .loader = loader,
         .strint = strint,
-        .textures = tx.Textures.create(d, loader, strint, gpa),
-        .models = mdl.Models.create(loader, strint, gpa),
-        .materials = try SlotMap(mt.Material).create(gpa, 1),
+        .textures = tx.Textures.create(d, loader, strint, self.gpa),
+        .models = mdl.Models.create(loader, strint, self.gpa),
+        .materials = try SlotMap(mt.Material).create(self.gpa, 1),
         .window_state = .{ .window = window },
-        .renderables = try rbl.RenderList.init(self, gpa),
+        .renderables = try rbl.RenderList.init(self, self.gpa),
         .outlined = .{},
     };
 

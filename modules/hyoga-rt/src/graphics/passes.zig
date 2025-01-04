@@ -133,6 +133,7 @@ pub const Forward = struct {
     pub fn depthStencilTexture(self: Forward) ?*sdl.gpu.Texture { return (self.ds_target orelse return null).texture; }
 };
 
+/// Final render to offscreen triangle
 pub const BlitPass = struct {
     device: *sdl.gpu.Device,
     quad: Renderable,
@@ -140,18 +141,18 @@ pub const BlitPass = struct {
 
     pub fn init(gpu: *Gpu, device: *sdl.gpu.Device) BlitPass {
         const Verts = extern struct {
-            v: [16]f32,
-            i: [6]u32,
+            v: [12]f32,
+            i: [3]u32,
         };
 
+        // Triangle that will be clipped
         const verts = Verts { 
             .v = .{
-                -1, -1, 0, 1,
-                -1, 1,  0, 0,
-                1,  -1, 1, 1,
-                1,  1,  1, 0,
+                -3,  -1,  -1,  1,
+                 1,   3,   1, -1,
+                 1,  -1,   1,  1,
             }, 
-            .i = .{ 0, 3, 1, 0, 2, 3, }
+            .i = .{ 0, 1, 2 }
         };
 
         const quad_buffer = device.createBuffer(&.{
@@ -168,7 +169,7 @@ pub const BlitPass = struct {
                     .buffer = .{
                         .hdl = quad_buffer,
                         .size = @sizeOf(Verts),
-                        .idx_start = @sizeOf(f32) * 16,
+                        .idx_start = @sizeOf(f32) * 12,
                     },
                     .material = undefined,
                 },

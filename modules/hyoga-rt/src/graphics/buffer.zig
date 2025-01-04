@@ -15,13 +15,13 @@ pub const BufferAllocator = struct {
 
     const BufNode = std.SinglyLinkedList(Buf).Node;
 
-    fn init(device: sdl.gpu.Device,
+    pub fn init(device: *sdl.gpu.Device,
             usage: sdl.gpu.BufferUsageFlags,
             allocator: std.mem.Allocator) BufferAllocator {
         return .{
             .device = device,
             .usage = usage,
-            .allocator = allocator,
+            .node_allocator = allocator,
         };
     }
 
@@ -43,7 +43,7 @@ pub const BufferAllocator = struct {
         return node;
     }
 
-    fn alloc(self: *BufferAllocator, n: u32) ?Buffer {
+    pub fn alloc(self: *BufferAllocator, n: u32) ?Buffer {
         var cur_node = if (self.buffer_list.first) |first_node|
             first_node
         else

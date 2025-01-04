@@ -78,6 +78,7 @@ pub const ImportSettings = extern struct {
         .pre_transform_vertices = true,
         .optimize_graph = true,
         .optimize_meshes = true,
+        .gen_bounding_boxes = true,
     },
 };
 
