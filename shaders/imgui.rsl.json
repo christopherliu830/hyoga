@@ -1,13 +1,6 @@
 {
     "pass": 2,
-    "vert": {
-        "uniforms": {
-            "mvp": 0
-        }
-    },
     "frag": {
-        "samplers": {
-            "diffuse": 0
-        }
+        "samplers": ["diffuse"]
     }
 }

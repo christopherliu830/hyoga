@@ -11,7 +11,7 @@ struct VOut {
 }
 
 [vk::binding(0, 1)]
-ConstantBuffer<Scene> scene: register(b0);
+ConstantBuffer<float4x4> hy_view_projection_matrix;
 
 [vk::binding(0, 0)]
 StructuredBuffer<float4x4> objects: register(b1);
@@ -20,7 +20,7 @@ StructuredBuffer<float4x4> objects: register(b1);
 VOut vertexMain(Vertex input, int instance_id: SV_InstanceID) {
     VOut output;
     float4x4 model = objects[instance_id];
-    output.position = mul(float4(input.position, 1), mul(model, scene.view_proj));
+    output.position = mul(float4(input.position, 1), mul(model, hy_view_projection_matrix));
     output.vert_world_pos = vec3(model * vec4(input.position, 1));
     output.color = float3(1, 1, 1);
     output.normal = mul(input.normal, adjugate(model));

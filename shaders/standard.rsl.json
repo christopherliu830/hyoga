@@ -1,10 +1,18 @@
 {
     "pass": 0,
-    "vert": { },
+    "vert": {
+        "uniforms": [
+            "hy_view_projection_matrix"
+        ]
+    },
     "frag": {
-        "samplers": {
-            "diffuse": 0,
-            "specular": 1
-        }
+        "uniforms": [
+            "hy_camera_world_position",
+            "hy_light_direction"
+        ],
+        "samplers": [
+            "diffuse",
+            "specular"
+        ]
     }
 }

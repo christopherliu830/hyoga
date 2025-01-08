@@ -23,9 +23,9 @@ Sampler2D tex_diffuse;
 Sampler2D tex_mask;
 
 [vk::binding(0, 3)]
-ConstantBuffer<Scene> scene;
+ConstantBuffer<float4> hy_viewport_size;
 
-float neighborDepthDelta(int w, int h, float2 uv) {
+float neighborDepthDelta(float w, float h, float2 uv) {
     float2 uvCenter = uv;
     float2 uv_t = uv + float2(0, -1.0/h);
     float2 uv_r = uv + float2(1.0/w, 0);
@@ -50,7 +50,7 @@ float neighborDepthDelta(int w, int h, float2 uv) {
 float4 fragmentMain(VOut input): SV_Target {
 
     // outline
-    float delta = neighborDepthDelta(scene.viewport_size_x, scene.viewport_size_y, input.uv); 
+    float delta = neighborDepthDelta(hy_viewport_size.x, hy_viewport_size.y, input.uv); 
 
     return tex_diffuse.Sample(input.uv) + float4(delta, delta, delta, 1);
 }

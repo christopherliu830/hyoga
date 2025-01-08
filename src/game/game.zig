@@ -26,11 +26,7 @@ objects: SkipMap(Object),
 ui_state: ui.State,
 camera: cam.Camera,
 
-fn init(engine: *hy.Engine) callconv(.C) hy.World {
-    return tryInit(engine) catch |e| std.debug.panic("init failure: {}", .{e});
-}
-
-fn tryInit(engine: *hy.Engine) !hy.World {
+pub fn init(engine: *hy.Engine) !hy.World {
     var self_gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const self = try self_gpa.allocator().create(Self);
     self.* = .{
@@ -84,13 +80,7 @@ fn tryInit(engine: *hy.Engine) !hy.World {
     };
 }
 
-fn shutdown(_: *hy.Engine, state: hy.World) callconv(.C) void {
-    const ptr = @as(*u32, @ptrCast(@alignCast(state.memory)));
-    std.heap.page_allocator.destroy(ptr);
-}
-
-// Called every loop iteration
-fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
+pub fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
     var game = pre;
     const self: *Self = @ptrCast(@alignCast(pre.memory));
 
@@ -119,11 +109,12 @@ fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
         }
 
         const packed_boxes = hym.Ray.pack(boxes, allocator) catch std.debug.panic("oom", .{});
-        const intersections = ray.intersectPacked(packed_boxes, 100, allocator) catch std.debug.panic("oom", .{});
+        const intersections = ray.intersectPacked(packed_boxes, 1000, allocator) catch std.debug.panic("oom", .{});
 
         for (objects, 0..) |object, i| {
             const ixn = intersections[i];
-            if (ixn < 100) {
+            if (ixn < 1000) {
+                std.debug.print("hit\n", .{});
                 engine.gpu().selectRenderable(object.hdl);
             }
         }
@@ -150,7 +141,7 @@ fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
 }
 
 // Only called on new frames
-fn render(engine: *hy.Engine, state: hy.World) callconv(.C) void {
+pub fn render(engine: *hy.Engine, state: hy.World) callconv(.C) void {
     _ = engine;
     const self: *Self = @ptrCast(@alignCast(state.memory));
 
@@ -159,34 +150,15 @@ fn render(engine: *hy.Engine, state: hy.World) callconv(.C) void {
     if (self.ui_state.windows.camera) self.camera.editor();
 }
 
-fn afterRender(engine: *hy.Engine, world: hy.World) callconv(.C) void {
+pub fn afterRender(engine: *hy.Engine, world: hy.World) callconv(.C) void {
     engine.gpu().clearSelection();
     const self: *Self = @ptrCast(@alignCast(world.memory));
     _ = self.arena.reset(.retain_capacity);
 }
 
-fn reload(engine: *hy.Engine, game: hy.World) callconv(.C) bool {
-    tryReload(engine, game) catch |err| {
-        std.log.err("Failed reload: {}", .{err});
-        return false;
-    };
-    return true;
-}
-
-fn tryReload(engine: *hy.Engine, game: hy.World) !void {
+pub fn reload(engine: *hy.Engine, game: hy.World) !void {
     const ptr = @as(*Self, @ptrCast(@alignCast(game.memory)));
     engine.input().reset();
     _ = ptr.callback_arena.reset(.retain_capacity);
     try ptr.camera.registerInputs(ptr.callback_arena.allocator());
-}
-
-export fn interface() hy.GameInterface {
-    return .{
-        .init = init,
-        .shutdown = shutdown,
-        .update = update,
-        .render = render,
-        .afterRender = afterRender,
-        .reload = reload,
-    };
 }

@@ -121,6 +121,15 @@ const RenderCommand = struct {
 
 const ShaderType = enum { vertex, fragment };
 
+const Uniform = union(enum) {
+    u32: u32,
+    f32: f32,
+    f32x3: [3]f32,
+    f32x4: [4]f32,
+    mat4x4: [4][4]f32,
+    buffer: *sdl.gpu.Buffer,
+};
+
 device: *sdl.gpu.Device,
 gpa: std.mem.Allocator,
 arena: std.heap.ArenaAllocator,
@@ -137,6 +146,7 @@ speed: f32 = 1,
 textures: tx.Textures,
 models: mdl.Models,
 materials: SlotMap(mt.Material),
+uniforms: std.StringHashMapUnmanaged(Uniform),
 
 pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allocator) !*Gpu {
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
@@ -168,6 +178,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .window_state = .{ .window = window },
         .renderables = try rbl.RenderList.init(self, self.gpa),
         .outlined = .{},
+        .uniforms = .empty,
     };
 
     try sdlsc.init();
@@ -178,7 +189,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .enable_depth = true,
         .enable_stencil = false,
         .fill_mode = .fill,
-    }, self.arena.allocator());
+    }, self.gpa);
 
     // Generate default assets
 
@@ -251,9 +262,6 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
     const cube = try self.createModel(&primitives.cube.vertices, &primitives.cube.indices, white_material);
     const quad = try self.createModel(&primitives.quad.vertices, &primitives.quad.indices, white_material);
-
-    std.debug.print("{}\n", .{primitives.cube});
-    std.debug.print("{}\n", .{primitives.quad});
 
     const quad_mat_template = try mt.readFromPath(self, .{
         .path = "shaders/post_process",
@@ -430,8 +438,18 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
 pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
+    const arena = self.arena.allocator();
 
-    const render_pack = try self.renderables.pack(self.arena.allocator());
+    try self.uniforms.put(self.gpa, "hy_view_projection_matrix", .{ .mat4x4 = scene.view_proj.m });
+    try self.uniforms.put(self.gpa, "hy_camera_world_position", .{ .f32x3 = scene.camera_world_pos.v });
+    try self.uniforms.put(self.gpa, "hy_light_direction", .{ .f32x3 = scene.light_dir.v });
+    try self.uniforms.put(self.gpa, "hy_viewport_size", .{ .@"f32x4" = .{ 
+        @floatFromInt(self.window_state.prev_drawable_w),
+        @floatFromInt(self.window_state.prev_drawable_h),
+        0, 0 }});
+    try self.uniforms.put(self.gpa, "hy_renderables", .{ .buffer = self.render_state.obj_buf.hdl });
+
+    const render_pack = try self.renderables.packAll(arena);
     const transforms = render_pack.transforms;
     try self.uploadToBuffer(self.render_state.obj_buf.hdl, 0, std.mem.sliceAsBytes(transforms));
 
@@ -443,28 +461,30 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     }) catch unreachable;
 
     // Render selected objects as mask for outline
-    const mask: ?passes.Forward = 
-        if (self.outlined.keys().len > 0) 
-            passes.Forward.init(self.device, .{
+    const mask: ?passes.Forward = blk: {
+        if (self.outlined.keys().len == 0) {
+            break :blk null;
+        } else {
+            const mask = passes.Forward.init(self.device, .{
                 .name = "mask",
                 .dest_format = .r8_unorm,
                 .dest_usage = .{ .color_target = true, .sampler = true },
                 .dest_tex_width = @intCast(self.window_state.prev_drawable_w),
                 .dest_tex_height = @intCast(self.window_state.prev_drawable_h),
-            })
-        else 
-            null;
+            });
 
-    defer if (mask != null) mask.?.deinit();
-    if (mask) |m| {
-        self.doPass(.{
-            .cmd = cmd,
-            .scene = scene.*,
-            .material = mt.Material.fromTemplate(self.render_state.outline_material, .{}),
-            .targets = m.targets(),
-            .items = .{ .handles = self.outlined.keys() },
-        }) catch unreachable;
-    }
+            self.doPass(.{
+                .cmd = cmd,
+                .scene = scene.*,
+                .material = mt.Material.fromTemplate(self.render_state.outline_material, .{}),
+                .targets = mask.targets(),
+                .items = .{ .handles = self.outlined.keys() },
+            }) catch unreachable;
+
+            break :blk mask;
+        }
+    };
+    defer if (mask) |m| m.deinit();
 
     self.doPass(.{
         .cmd = cmd,
@@ -521,15 +541,6 @@ pub fn doPass(self: *Gpu, job: PassInfo) !void {
 
     var last_pipeline: ?*sdl.gpu.GraphicsPipeline = null;
 
-    const render_scene = GpuScene {
-        .view_proj = job.scene.view_proj,
-        .camera_world_pos = job.scene.camera_world_pos.v,
-        .viewport_size_x = @intCast(self.window_state.prev_drawable_w),
-        .light_dir = job.scene.light_dir.v,
-        .viewport_size_y = @intCast(self.window_state.prev_drawable_h),
-    };
-
-    job.cmd.pushVertexUniformData(0, &render_scene, @sizeOf(GpuScene));
 
     switch(job.items) {
         .renderables => |items| for (items, 0..) |item, i| {
@@ -549,7 +560,7 @@ pub fn doPass(self: *Gpu, job: PassInfo) !void {
             var total_instances_rendered: u32 = 0;
             for(0..pack.len) |i| {
                 const mesh = pack.meshes[i];
-                try self.doPassInstanced(pass, total_instances_rendered, pack.instance_counts[i], mesh);
+                try self.doPassInstanced(&job, pass, total_instances_rendered, pack.instance_counts[i], mesh);
                 total_instances_rendered += pack.instance_counts[i];
             }
         }
@@ -557,6 +568,7 @@ pub fn doPass(self: *Gpu, job: PassInfo) !void {
 }
 
 fn doPassInstanced(self: *Gpu,
+                   job: *const PassInfo,
                    pass: *sdl.gpu.RenderPass,
                    num_first_instance: u32,
                    num_instances: u32,
@@ -586,11 +598,27 @@ fn doPassInstanced(self: *Gpu,
     }) |opt| {
 
         const program_def = opt[0];
+        const pushUniform = opt[1];
         const pushSampler = opt[2];
         const pushStorageBuffer = opt[3];
 
         if (program_def.num_storage_buffers > 0) {
             pushStorageBuffer(pass, 0, &[1]*sdl.gpu.Buffer{ self.render_state.obj_buf.hdl }, 1); 
+        }
+
+        for (program_def.uniforms, 0..) |uniform_name, i| {
+            if (self.uniforms.get(uniform_name)) |value| {
+                const idx: u32 = @intCast(i);
+                switch(value) {
+                    .@"u32" => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .@"f32" => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .f32x3  => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .f32x4  => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .mat4x4 => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .buffer => unreachable, 
+                    // else => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data))),
+                }
+            }
         }
 
         for (program_def.textures, 0..) |needed_tex_type, i| {
@@ -921,4 +949,8 @@ pub fn getPrimitive(self: *Gpu, shape: primitives.Shape) ModelHandle {
         .cube => return self.render_state.cube,
         .quad => return self.render_state.quad,
     };
+}
+
+pub fn selectRenderable(self: *Gpu, handle: rbl.RenderItemHandle) void {
+    self.outlined.put(self.gpa, handle, {});
 }

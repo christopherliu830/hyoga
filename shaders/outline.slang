@@ -12,14 +12,14 @@ struct VOut {
 StructuredBuffer<float4x4> objects;
 
 [vk::binding(0, 1)]
-ConstantBuffer<Scene> scene;
+ConstantBuffer<float4x4> hy_view_projection_matrix;
 
 [shader("vertex")]
 VOut vertexMain(Vertex in, int instance_id: SV_InstanceID)
 {
     float4x4 model = objects[instance_id];
     VOut out;
-    out.position = mul(float4(in.position, 1), mul(model, scene.view_proj));
+    out.position = mul(float4(in.position, 1), mul(model, hy_view_projection_matrix));
     return out;
 }
 

@@ -1,5 +1,8 @@
 {
     "pass": 0,
-    "vert": {},
-    "frag": {}
+    "vert": {
+        "uniforms": [
+            "hy_view_projection_matrix"
+        ]
+    }
 }

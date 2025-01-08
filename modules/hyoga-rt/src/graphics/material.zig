@@ -36,22 +36,20 @@ pub const ShaderDefinition = struct {
     num_storage_textures: u32 = 0,
     num_storage_buffers: u32 = 0,
     num_uniform_buffers: u32 = 0,
-    uniform_location_mvp: ?u8 = null,
-    uniform_location_lighting: ?u8 = null,
-    uniform_location_window: ?u8 = null,
+    uniforms: [][]const u8,
     textures: [4]?tx.TextureType = [_]?tx.TextureType{ null } ** 4,
 };
 
 // Specification for the resource JSON
-pub const MaterialInfo = struct {
+pub const MaterialSpec = struct {
     pub const ProgramInfo = struct {
-        uniforms: ?std.json.ArrayHashMap(u8) = null,
-        samplers: ?std.json.ArrayHashMap(u8) = null,
+        uniforms: ?[][]const u8 = null,
+        samplers: ?[][]const u8 = null,
     };
 
     pass: Gpu.PassType,
-    vert: ProgramInfo,
-    frag: ProgramInfo, 
+    vert: ?ProgramInfo = null,
+    frag: ?ProgramInfo = null, 
 };
 
 pub const MaterialReadOptions = struct {
@@ -64,8 +62,11 @@ pub const MaterialReadOptions = struct {
     fill_mode: sdl.gpu.FillMode = .fill,
 };
 
-pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, arena: std.mem.Allocator) !MaterialTemplate {
+pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.Allocator) !MaterialTemplate {
     const path = options.path;
+    var arena_allocator = std.heap.ArenaAllocator.init(allocator);
+    defer arena_allocator.deinit();
+    const arena = arena_allocator.allocator();
 
     const info = loadMaterialInfo(path, arena) catch |err| {
         std.debug.panic("Could not read material json: {s}: {}", .{path, err});
@@ -91,34 +92,47 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, arena: std.mem.Allo
 
     var vert_textures: [4]?tx.TextureType = [_]?tx.TextureType { null } ** 4;
     var frag_textures: [4]?tx.TextureType = [_]?tx.TextureType { null } ** 4;
+    var vert_uniforms: [][]const u8 = &.{};
+    var frag_uniforms: [][]const u8 = &.{};
 
     inline for (.{
-        .{ info.vert.samplers, &vert_textures }, 
-        .{ info.frag.samplers, &frag_textures },
-    }) |x| {
+        .{ info.vert, &vert_textures, &vert_uniforms }, 
+        .{ info.frag, &frag_textures, &frag_uniforms },
+    }) |opts| {
+        const prog = opts[0];
+        const prog_uniforms = opts[2];
         // Convert specified requested samplers in JSON to an array of enum values
-        if (x[0]) |samplers| {
-            var it = samplers.map.iterator();
-            while (it.next()) |entry| {
-                var tex_type: ?tx.TextureType = undefined;
-                inline for (@typeInfo(tx.TextureType).@"enum".fields) |field| {
-                    if (std.mem.eql(u8, entry.key_ptr.*, field.name)) {
-                        tex_type = @enumFromInt(field.value);
-                        break;
+        if (prog != null) {
+            if (prog.?.samplers) |samplers| {
+                for (samplers, 0..) |name, i| {
+                    var tex_type: ?tx.TextureType = undefined;
+
+                    inline for (@typeInfo(tx.TextureType).@"enum".fields) |field| {
+                        if (std.mem.eql(u8, name, field.name)) {
+                            tex_type = @enumFromInt(field.value);
+                            break;
+                        }
                     }
-                }
 
-                if (tex_type == null) {
-                    std.debug.panic("Invalid RSL for {s}: Requested shader of type {s}", .{
-                        options.path,
-                        entry.key_ptr.*
-                    });
-                }
+                    if (tex_type == null) {
+                        std.debug.panic("Invalid RSL for {s}: Requested invalid texture of type {s}", .{
+                            options.path,
+                            name
+                        });
+                    }
 
-                x[1][entry.value_ptr.*] = tex_type;
+                    opts[1][i] = tex_type;
+                }
+            }
+            if (prog.?.uniforms) |uniforms| {
+                prog_uniforms.* = try allocator.alloc([]const u8, uniforms.len);
+                for (uniforms, 0..) |uniform, i| {
+                    prog_uniforms.*[i] = try allocator.dupe(u8, uniform);
+                }
             }
         }
     }
+
 
     return MaterialTemplate {
         .pipeline = pipeline,
@@ -127,6 +141,7 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, arena: std.mem.Allo
             .num_storage_textures = vert_info.num_storage_textures,
             .num_storage_buffers = vert_info.num_storage_buffers,
             .num_uniform_buffers = vert_info.num_uniform_buffers,
+            .uniforms = vert_uniforms,
             .textures = vert_textures,
         },
         .frag_program_def = .{
@@ -134,17 +149,18 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, arena: std.mem.Allo
             .num_storage_textures = frag_info.num_storage_textures,
             .num_storage_buffers = frag_info.num_storage_buffers,
             .num_uniform_buffers = frag_info.num_uniform_buffers,
+            .uniforms = frag_uniforms,
             .textures = frag_textures,
         },
     };
 }
 
-pub fn loadMaterialInfo(path: []const u8, arena: std.mem.Allocator) !MaterialInfo {
+pub fn loadMaterialInfo(path: []const u8, arena: std.mem.Allocator) !MaterialSpec {
     const info_path = try std.mem.concat(arena, u8, &.{path, ".rsl.json"});
     const info_file = try std.fs.cwd().openFile(info_path, .{});
     const info_bytes = try info_file.readToEndAlloc(arena, 1024 * 16);
     info_file.close();
-    return try std.json.parseFromSliceLeaky(MaterialInfo, arena, info_bytes, .{});
+    return try std.json.parseFromSliceLeaky(MaterialSpec, arena, info_bytes, .{});
 }
 
 pub fn loadShader(device: *sdl.gpu.Device,

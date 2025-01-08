@@ -14,7 +14,7 @@ pub fn build(b: *std.Build) !void {
 
     const game_lib = b.addSharedLibrary(.{
         .name = "game",
-        .root_source_file = b.path("src/game/main.zig"),
+        .root_source_file = b.path("src/game/root.zig"),
         .target = target,
         .optimize = optimize,
     });

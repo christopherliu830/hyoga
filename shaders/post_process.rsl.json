@@ -2,12 +2,9 @@
     "pass": 1,
     "vert": { },
     "frag": {
-        "uniforms": {
-            "window": 0
-        },
-        "samplers": {
-            "diffuse": 0,
-            "mask": 1
-        }
+        "samplers": ["diffuse", "mask"],
+        "uniforms": [
+            "hy_viewport_size"
+        ]
     }
 }
