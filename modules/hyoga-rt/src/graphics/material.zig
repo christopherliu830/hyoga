@@ -40,8 +40,9 @@ pub const ShaderDefinition = struct {
     num_storage_textures: u32 = 0,
     num_storage_buffers: u32 = 0,
     num_uniform_buffers: u32 = 0,
-    uniforms: [max_uniform_limit]Strint.ID,
     textures: [4]?tx.TextureType = [_]?tx.TextureType{ null } ** 4,
+    storage_buffers: [max_uniform_limit]Strint.ID,
+    uniforms: [max_uniform_limit]Strint.ID,
 };
 
 // Specification for the resource JSON
@@ -49,6 +50,7 @@ pub const MaterialSpec = struct {
     pub const ProgramInfo = struct {
         uniforms: ?[][]const u8 = null,
         samplers: ?[][]const u8 = null,
+        storage_buffers: ?[][]const u8 = null,
     };
 
     pass: Gpu.PassType,
@@ -98,13 +100,17 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
     var frag_textures: [4]?tx.TextureType = [_]?tx.TextureType { null } ** 4;
     var vert_uniforms: [max_uniform_limit]Strint.ID = empty_uniform_array;
     var frag_uniforms: [max_uniform_limit]Strint.ID = empty_uniform_array;
+    var vert_storages: [max_uniform_limit]Strint.ID = empty_uniform_array;
+    var frag_storages: [max_uniform_limit]Strint.ID = empty_uniform_array;
 
     inline for (.{
-        .{ info.vert, &vert_textures, &vert_uniforms }, 
-        .{ info.frag, &frag_textures, &frag_uniforms },
+        .{ info.vert, &vert_textures, &vert_uniforms, &vert_storages }, 
+        .{ info.frag, &frag_textures, &frag_uniforms, &frag_storages },
     }) |opts| {
         const prog = opts[0];
+        const prog_textures = opts[1];
         const prog_uniforms = opts[2];
+        const prog_storages = opts[3];
         // Convert specified requested samplers in JSON to an array of enum values
         if (prog != null) {
             if (prog.?.samplers) |samplers| {
@@ -125,13 +131,19 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
                         });
                     }
 
-                    opts[1][i] = tex_type;
+                    prog_textures[i] = tex_type;
                 }
             }
             if (prog.?.uniforms) |uniforms| {
                 for (uniforms, 0..) |uniform, i| {
                     const id = try gpu.strint.from(uniform);
-                    prog_uniforms.*[i] = id;
+                    prog_uniforms[i] = id;
+                }
+            }
+            if (prog.?.storage_buffers) |storages| {
+                for (storages, 0..) |storage, i| {
+                    const id = try gpu.strint.from(storage);
+                    prog_storages[i] = id;
                 }
             }
         }
@@ -145,16 +157,18 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
             .num_storage_textures = vert_info.num_storage_textures,
             .num_storage_buffers = vert_info.num_storage_buffers,
             .num_uniform_buffers = vert_info.num_uniform_buffers,
-            .uniforms = vert_uniforms,
             .textures = vert_textures,
+            .storage_buffers = vert_storages,
+            .uniforms = vert_uniforms,
         },
         .frag_program_def = .{
             .num_samplers = frag_info.num_samplers,
             .num_storage_textures = frag_info.num_storage_textures,
             .num_storage_buffers = frag_info.num_storage_buffers,
             .num_uniform_buffers = frag_info.num_uniform_buffers,
-            .uniforms = frag_uniforms,
             .textures = frag_textures,
+            .storage_buffers = vert_storages,
+            .uniforms = frag_uniforms,
         },
     };
 }

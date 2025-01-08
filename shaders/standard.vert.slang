@@ -10,16 +10,17 @@ struct VOut {
     float2 uv;
 }
 
+[vk::binding(0, 0)]
+StructuredBuffer<float4x4> hy_all_renderables: register(b1);
+
 [vk::binding(0, 1)]
 ConstantBuffer<float4x4> hy_view_projection_matrix;
 
-[vk::binding(0, 0)]
-StructuredBuffer<float4x4> objects: register(b1);
 
 [shader("vertex")]
 VOut vertexMain(Vertex input, int instance_id: SV_InstanceID) {
     VOut output;
-    float4x4 model = objects[instance_id];
+    float4x4 model = hy_all_renderables[instance_id];
     output.position = mul(float4(input.position, 1), mul(model, hy_view_projection_matrix));
     output.vert_world_pos = vec3(model * vec4(input.position, 1));
     output.color = float3(1, 1, 1);

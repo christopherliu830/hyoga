@@ -164,7 +164,7 @@ pub const RenderList = struct {
             const handle = handles[i];
             const renderable = renderables[i];
             try handle_map.put(allocator, handle, @intCast(i));
-            transforms[i] = renderable.parent_transform.*.mul(renderable.transform);
+            transforms[i] = renderable.transform.mul(renderable.parent_transform.*);
 
             if (dst != 0 and renderable.eql(renderables[i-1])) {
                 instance_counts[dst-1] += 1;
