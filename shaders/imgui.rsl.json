@@ -1,6 +1,6 @@
 {
     "pass": 2,
-    "frag": {
+    "fragment": {
         "samplers": ["diffuse"]
     }
 }

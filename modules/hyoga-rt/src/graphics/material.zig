@@ -54,8 +54,8 @@ pub const MaterialSpec = struct {
     };
 
     pass: Gpu.PassType,
-    vert: ?ProgramInfo = null,
-    frag: ?ProgramInfo = null, 
+    vertex: ?ProgramInfo = null,
+    fragment: ?ProgramInfo = null, 
 };
 
 pub const MaterialReadOptions = struct {
@@ -104,8 +104,8 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
     var frag_storages: [max_uniform_limit]Strint.ID = empty_uniform_array;
 
     inline for (.{
-        .{ info.vert, &vert_textures, &vert_uniforms, &vert_storages }, 
-        .{ info.frag, &frag_textures, &frag_uniforms, &frag_storages },
+        .{ info.vertex, &vert_textures, &vert_uniforms, &vert_storages }, 
+        .{ info.fragment, &frag_textures, &frag_uniforms, &frag_storages },
     }) |opts| {
         const prog = opts[0];
         const prog_textures = opts[1];

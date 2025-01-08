@@ -1,7 +1,6 @@
 {
     "pass": 1,
-    "vert": { },
-    "frag": {
+    "fragment": {
         "samplers": ["diffuse", "mask"],
         "uniforms": [
             "hy_viewport_size"

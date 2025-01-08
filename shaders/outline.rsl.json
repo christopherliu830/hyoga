@@ -1,6 +1,6 @@
 {
     "pass": 0,
-    "vert": {
+    "vertex": {
         "storage_buffers": [
             "hy_selected_renderables"
         ],

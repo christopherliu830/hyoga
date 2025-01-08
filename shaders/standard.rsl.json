@@ -1,6 +1,6 @@
 {
     "pass": 0,
-    "vert": {
+    "vertex": {
         "storage_buffers": [
             "hy_all_renderables"
         ],
@@ -8,7 +8,7 @@
             "hy_view_projection_matrix"
         ]
     },
-    "frag": {
+    "fragment": {
         "uniforms": [
             "hy_camera_world_position",
             "hy_light_direction"
