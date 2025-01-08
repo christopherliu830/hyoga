@@ -45,7 +45,7 @@ fn tryInit(engine: *hy.Engine) !hy.World {
 
     const gpu = engine.gpu();
 
-    self.backpack_hdl = gpu.modelImport("assets/backpack/backpack.obj", .{});
+    self.backpack_hdl = gpu.modelPrimitive(.quad);
 
     _ = gpu.modelWaitLoad(self.backpack_hdl, std.time.ns_per_s * 2);
 

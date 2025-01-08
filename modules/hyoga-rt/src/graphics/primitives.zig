@@ -5,6 +5,7 @@ const Vertex = @import("vertex.zig").Vertex;
 
 pub const Shape = enum (u8) {
     cube,
+    quad,
 };
 
 pub const Cube = struct {
@@ -85,4 +86,45 @@ pub const cube: Cube = blk: {
     };
 
     break :blk c;
+};
+
+pub const Quad = struct {
+    vertices: [4]Vertex,
+    indices: [6]u32,
+    pub const bounds = hym.AxisAligned {
+        .min = hym.vec3.create(-0.5, -0.5, 0),
+        .max = hym.vec3.create(0.5, 0.5, 0),
+    };
+};
+
+pub const quad: Quad = blk: {
+
+    const pos = [4][3]f32 {
+        .{-0.5, -0.5, 0},
+        .{-0.5,  0.5, 0},
+        .{ 0.5, -0.5, 0},
+        .{ 0.5,  0.5, 0},
+    };
+
+    const uvs = [4][2]f32 {
+        .{0, 1},
+        .{0, 0},
+        .{1, 1},
+        .{1, 0},
+    };
+
+    var verts: [4]Vertex = undefined;
+
+    for (0..4) |i| {
+        verts[i] = .{
+            .pos = pos[i],
+            .normal = .{0, 0, 1},
+            .uv = uvs[i]
+        };
+    }
+
+    break :blk .{
+        .vertices = verts,
+        .indices = .{0, 1, 3, 0, 3, 2},
+    };
 };

@@ -85,6 +85,7 @@ const RenderState = struct {
     white_texture: *sdl.gpu.Texture,
 
     cube: ModelHandle,
+    quad: ModelHandle,
 
     sampler: *sdl.gpu.Sampler = undefined,
 
@@ -176,7 +177,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .path = "shaders/standard",
         .enable_depth = true,
         .enable_stencil = false,
-        .fill_mode = .line,
+        .fill_mode = .fill,
     }, self.arena.allocator());
 
     // Generate default assets
@@ -245,28 +246,14 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .mag_filter = .linear,
     };
 
-    const buf_cube = buf.VertexIndexBuffer.create(
-        self.device,
-        @sizeOf(@TypeOf(primitives.cube.vertices)),
-        @sizeOf(@TypeOf(primitives.cube.indices)),
-    );
+    const white_material = try self.materials.insert(
+        mt.Material.fromTemplate(material, tx.TextureSet.initFull(.{ .target = white_texture })));
 
-    try self.uploadToBuffer(buf_cube.hdl, 0, &std.mem.toBytes(primitives.cube));
+    const cube = try self.createModel(&primitives.cube.vertices, &primitives.cube.indices, white_material);
+    const quad = try self.createModel(&primitives.quad.vertices, &primitives.quad.indices, white_material);
 
-    const cube_material = try self.materials.insert(mt.Material.fromTemplate(material, tx.TextureSet.initFull(.{ .target = white_texture })));
-
-    const cube_mesh = try self.gpa.alloc(mdl.Mesh, 1);
-    cube_mesh[0] = .{
-        .buffer = buf_cube,
-        .material = cube_material,
-    };
-    const cube = mdl.Model {
-        .children = cube_mesh,
-        .transform = mat4.identity,
-        .bounds = primitives.Cube.bounds,
-    };
-
-    const hdl_cube = self.models.add(cube);
+    std.debug.print("{}\n", .{primitives.cube});
+    std.debug.print("{}\n", .{primitives.quad});
 
     const quad_mat_template = try mt.readFromPath(self, .{
         .path = "shaders/post_process",
@@ -297,7 +284,8 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .black_texture = black_texture,
         .white_texture = white_texture,
 
-        .cube = hdl_cube,
+        .cube = cube,
+        .quad = quad,
 
         .post_material = quad_mat_template,
 
@@ -308,7 +296,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
             .format = .r8_unorm,
         }, self.gpa),
 
-        .primitives_material = cube_material,
+        .primitives_material = white_material,
 
         .sampler = self.device.createSampler(&sampler_info).?,
         .obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 512, "Object Mats"),
@@ -322,13 +310,6 @@ pub fn shutdown(self: *Gpu) void {
     sdlsc.quit();
 
     self.device.releaseWindow(self.window_state.window.hdl);
-
-    {
-        var it = self.renderables.iterator();
-        while (it.next()) |obj| {
-            self.device.releaseBuffer(obj.mesh.buffer.hdl);
-        }
-    }
 
     self.textures.deinit();
     self.models.deinit();
@@ -838,8 +819,36 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSetti
     return model;
 }
 
+pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, material: mt.Handle) !ModelHandle {
+    const buffer = buf.VertexIndexBuffer.create(
+        self.device,
+        @intCast(@sizeOf(Vertex) * verts.len),
+        @intCast(@sizeOf(u32) * indices.len),
+    );
+
+    try self.uploadToBuffer(buffer.hdl, buffer.offset, std.mem.sliceAsBytes(verts));
+    try self.uploadToBuffer(buffer.hdl, buffer.idx_start, std.mem.sliceAsBytes(indices));
+
+    const mesh = try self.gpa.create(mdl.Mesh);
+    errdefer self.gpa.destroy(mesh);
+
+    mesh.* = .{
+        .buffer = buffer,
+        .material = material,
+    };
+
+    const model = mdl.Model {
+        .children = mesh[0..1],
+        .transform = mat4.identity,
+        .bounds = primitives.Cube.bounds,
+    };
+
+    return self.models.add(model);
+}
+
 pub fn getPrimitive(self: *Gpu, shape: primitives.Shape) ModelHandle {
     return switch (shape) {
         .cube => return self.render_state.cube,
+        .quad => return self.render_state.quad,
     };
 }

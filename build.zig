@@ -19,9 +19,9 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    const runner = b.addExecutable(.{
+    const exe = b.addExecutable(.{
         .name = "run",
-        .root_source_file = b.path("src/runner/runner.zig"),
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -58,8 +58,8 @@ pub fn build(b: *std.Build) !void {
     game_lib.root_module.addImport("ztracy", ztracy.module("root"));
     game_lib.linkLibrary(rt.artifact("hyrt"));
 
-    runner.root_module.addImport("hyoga-lib", lib.module("hyoga-lib"));
-    runner.linkLibrary(rt.artifact("hyrt"));
+    exe.root_module.addImport("hyoga-lib", lib.module("hyoga-lib"));
+    exe.linkLibrary(rt.artifact("hyrt"));
 
     const exe_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/game/main.zig"),
@@ -72,7 +72,7 @@ pub fn build(b: *std.Build) !void {
     const game_dll = b.addInstallArtifact(game_lib, .{ .dest_dir = .{ .override = .bin }});
     b.getInstallStep().dependOn(&game_dll.step);
 
-    b.installArtifact(runner);
+    b.installArtifact(exe);
 
     b.installArtifact(rt.artifact("hyrt")); // Needed for ZLS to work
 
@@ -104,7 +104,8 @@ pub fn build(b: *std.Build) !void {
         .install_subdir = "shaders"
     });
 
-    const run_cmd = b.addRunArtifact(runner);
+
+    const run_cmd = b.addRunArtifact(exe);
     run_cmd.setCwd(std.Build.LazyPath {.cwd_relative = b.getInstallPath(.bin, ".")});
 
     run_cmd.step.dependOn(b.getInstallStep());
@@ -118,5 +119,20 @@ pub fn build(b: *std.Build) !void {
 
     const hot_reload_step = b.step("reload", "build game.dll only");
     hot_reload_step.dependOn(&game_dll.step);
+
+    // Language server
+
+    const exe_check = b.addExecutable(.{
+        .name = "run",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    exe_check.root_module.addImport("hyoga-lib", lib.module("hyoga-lib"));
+    exe_check.linkLibrary(rt.artifact("hyrt"));
+
+    const check = b.step("check", "check if run compiles");
+    check.dependOn(&exe_check.step);
 }
 

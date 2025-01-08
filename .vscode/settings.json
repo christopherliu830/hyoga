@@ -10,6 +10,12 @@
         "sdl_shadercross.h": "c"
     },
     "[zig]": {
-        "editor.formatOnSave": false
-    }
+        "editor.formatOnSave": false,
+    },
+    "zig.zls.inlayHintsShowBuiltin": false, 
+    "zig.zls.inlayHintsHideRedundantParamNames": false,
+    "zig.zls.inlayHintsShowParameterName": false,
+    "zig.zls.inlayHintsShowVariableTypeHints": false,
+    "zig.zls.inlayHintsShowStructLiteralFieldType": false,
+    "zig.zls.enableBuildOnSave": true,
 }

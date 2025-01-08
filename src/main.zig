@@ -4,9 +4,9 @@ const std = @import("std");
 const builtin = @import("builtin");
 const hy = @import("hyoga-lib");
 
-const HotLibrary = struct {
+const HotReloader = struct {
     lib: ?std.DynLib = null,
-    interface: ?hy.GameInterface = null,
+    interface: hy.GameInterface,
     last_write_time: i128 = 0,
     allocator: std.mem.Allocator,
     name: []const u8,
@@ -14,23 +14,27 @@ const HotLibrary = struct {
     current_dst: []const u8 = &.{},
     version: u32 = 1,
 
-    pub fn create(name: []const u8, allocator: std.mem.Allocator) !HotLibrary {
+    pub fn link(name: []const u8, allocator: std.mem.Allocator) !HotReloader {
         const src_format_string = switch(builtin.os.tag) {
             .windows => "{s}.dll",
             .macos => "./lib{s}.dylib",
             else => unreachable,
         };
-        const lib: HotLibrary = .{
+
+        var lib: HotReloader = .{
             .allocator = allocator,
             .name = name,
+            .interface = undefined,
             .src = try std.fmt.allocPrint(allocator, src_format_string, .{name}),
         };
+        try lib.reload();
+
         return lib;
     }
 
     /// Returns the fresh interface if the library was updated.
     /// On error or stale dll, returns null.
-    pub fn update(self: *HotLibrary) ?hy.GameInterface {
+    pub fn update(self: *HotReloader) ?hy.GameInterface {
         if (!(self.isStale() catch return null)) {
             return null;
         } else {
@@ -42,7 +46,7 @@ const HotLibrary = struct {
         }
     }
 
-    pub fn isStale(self: *HotLibrary) !bool {
+    pub fn isStale(self: *HotReloader) !bool {
         const st_lib = std.fs.cwd().statFile(self.src) catch |err| switch(err) {
             error.FileNotFound => return true,
             else => return err,
@@ -50,7 +54,7 @@ const HotLibrary = struct {
         return st_lib.mtime > self.last_write_time;
     }
 
-    pub fn reload(self: *HotLibrary) !void {
+    pub fn reload(self: *HotReloader) !void {
         const dest_file = try self.createFilename(self.version);
         const file = try std.fs.cwd().openFile(self.src, .{});
         defer file.close();
@@ -84,18 +88,18 @@ const HotLibrary = struct {
         }
     }
 
-    pub fn unload(self: *HotLibrary, path: []const u8) !void {
+    pub fn unload(self: *HotReloader, path: []const u8) !void {
         self.lib.?.close();
         try std.fs.cwd().deleteFile(path);
         self.lib = null;
     }
 
-    pub fn createFilename(self: *HotLibrary, version: u32) ![]const u8 {
+    pub fn createFilename(self: *HotReloader, version: u32) ![]const u8 {
         const lib_basename = std.fs.path.stem(self.name);
         return try std.fmt.allocPrint(self.allocator, format_string, .{lib_basename, version});
     }
 
-    pub fn shutdown(self: *HotLibrary) void {
+    pub fn shutdown(self: *HotReloader) void {
         self.allocator.free(self.src);
         self.allocator.free(self.current_dst);
     }
@@ -112,35 +116,27 @@ pub fn main() !void {
     const allocator = gpa.allocator();
     var arena = std.heap.ArenaAllocator.init(allocator);
 
-    var lib = try HotLibrary.create("game", arena.allocator());
-    try lib.reload();
+    var game = try HotReloader.link("game", arena.allocator());
 
-    var game: hy.World = undefined;
-    while (!game.quit) {
-        game = try run(&lib, &arena);
-    }
-}
+    var world: hy.World = undefined;
 
-pub fn run(lib: *HotLibrary, arena: *std.heap.ArenaAllocator) !hy.World {
     const engine = hy.runtime.init();
     defer engine.shutdown();
 
-    var gi = lib.interface.?;
-    var game = gi.init(engine);
+    while (!world.quit) {
 
-    _ = &game;
+        var gi = game.interface;
+        world = gi.init(engine);
 
-    while (!game.restart and !game.quit) {
+        while (!world.restart and !world.quit) {
+            world = engine.update(world, gi);
 
-        game = engine.update(game, gi);
+            if (game.update()) |new_interface| {
+                gi = new_interface;
+                _ = gi.reload(engine, world);
+            }
 
-        if (lib.update()) |new_interface| {
-            gi = new_interface;
-            _ = gi.reload(engine, game);
+            _ = arena.reset(.retain_capacity);
         }
-
-        _ = arena.reset(.retain_capacity);
     }
-
-    return game;
 }

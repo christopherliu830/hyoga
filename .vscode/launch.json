@@ -21,41 +21,11 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/zig-out/bin/run.exe",
-            "args": [],
-            "stopAtEntry": false,
             "cwd": "${workspaceRoot}/zig-out/bin",
-            "environment": [],
-            "console": "internalConsole"
-        },
-        {
-            "name": "(Windows) Debug Build Runner",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "zig",
-            "args": ["build"],
-            "stopAtEntry": false,
-            "cwd": "${workspaceRoot}",
-            "environment": [],
-            "console": "externalTerminal"
-        },
-        {
-            "name" : "Debug Test",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceRoot}/zig-out/debug/test.exe",
-            "cwd": "${workspaceRoot}",
-            "preLaunchTask": "Build Test"
-        },
-        {
-            "name" : "Debug Benchmark",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/zig-out/bin/benchmarks.exe",
             "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceRoot}",
             "environment": [],
-            "console": "externalTerminal"
-        }
+            "console": "internalConsole",
+            "preLaunchTask": "${defaultBuildTask}"
+        },
     ]
 }
