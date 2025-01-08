@@ -153,6 +153,10 @@ pub fn SlotMap(comptime T: type) type {
             };
         }
 
+        pub fn slots(self: *const SlotMap(T)) []Slot(T) {
+            return self.entries.items;
+        }
+
         /// Caller is responsible for freeing the returned slice.
         pub fn toSlice(self: *SlotMap(T), allocator: std.mem.Allocator) ![]T {
             var items = try allocator.alloc(T, self.len);

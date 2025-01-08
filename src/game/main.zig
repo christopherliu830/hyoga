@@ -20,7 +20,6 @@ const Object = struct {
 gpa: std.heap.GeneralPurposeAllocator(.{}),
 arena: std.heap.ArenaAllocator,
 callback_arena: std.heap.ArenaAllocator,
-backpack_hdl: rt.gpu.ModelHandle = rt.gpu.ModelHandle.invalid,
 cube_model: rt.gpu.ModelHandle = rt.gpu.ModelHandle.invalid,
 cube: Object = undefined,
 objects: SkipMap(Object),
@@ -45,11 +44,9 @@ fn tryInit(engine: *hy.Engine) !hy.World {
 
     const gpu = engine.gpu();
 
-    self.backpack_hdl = gpu.modelPrimitive(.quad);
-
-    _ = gpu.modelWaitLoad(self.backpack_hdl, std.time.ns_per_s * 2);
-
-    const bounds = gpu.modelBounds(self.backpack_hdl);
+    const cube = gpu.modelPrimitive(.cube);
+    const quad = gpu.modelPrimitive(.quad);
+    const bounds = gpu.modelBounds(quad);
 
     for (0..10) |y| {
         for (0..10) |x| {
@@ -58,7 +55,7 @@ fn tryInit(engine: *hy.Engine) !hy.World {
             var object = (try self.objects.insert(undefined)).unwrap();
             object.* = .{
                 .hdl = gpu.addRenderable(.{
-                    .model = self.backpack_hdl,
+                    .model = if ((y + x) % 2 == 0) quad else cube,
                     .owner = &object.transform,
                     .time = 10 * std.time.ns_per_s,
                 }),

@@ -15,11 +15,31 @@ const RenderItems = SlotMap(Renderable);
 
 pub const RenderItemHandle = RenderItems.Handle;
 
+pub const PackedRenderables = struct {
+    transforms: []mat4.Mat4,
+    meshes: []mdl.Mesh,
+    instance_counts: []u32,
+    len: u32,
+};
+
 pub const Renderable = struct {
     next: ?RenderItemHandle = null, // When models are imported as a group, support adds and removes via this link.
     mesh: mdl.Mesh,
     transform: mat4.Mat4 = mat4.identity, // Set on import and does not change.
     parent_transform: *const mat4.Mat4 = &mat4.identity,
+
+    pub fn lessThan(_: void, lhs: Renderable, rhs: Renderable) bool {
+        if (lhs.mesh.buffer.eql(rhs.mesh.buffer))
+            return lhs.mesh.material.index < rhs.mesh.material.index
+        else
+            return @as(usize, @intFromPtr(lhs.mesh.buffer.hdl)) < 
+                   @as(usize, @intFromPtr(rhs.mesh.buffer.hdl));
+    }
+
+    pub fn eql(lhs: Renderable, rhs: Renderable) bool {
+        return lhs.mesh.buffer.eql(rhs.mesh.buffer) and
+            lhs.mesh.material.index == rhs.mesh.material.index;
+    }
 };
 
 /// A wrapper around a list of renderables, in order to support
@@ -93,15 +113,48 @@ pub const RenderList = struct {
     } 
 
     /// Caller must free the returned slice.
-    pub fn prepare(self: *RenderList, allocator: std.mem.Allocator) ![]mat4.Mat4 {
-        const slice = try allocator.alloc(mat4.Mat4, self.items.capacity());
-        for (self.items.entries.items, 0..) |entry, i| {
-            switch(entry) {
-                .occupied => |val| slice[i] = mat4.mul(val.value.parent_transform.*, val.value.transform),
-                .empty => continue,
+    pub fn pack(self: *RenderList, allocator: std.mem.Allocator) !PackedRenderables {
+        const slice = try allocator.alloc(Renderable, self.items.len);
+        defer allocator.free(slice);
+
+        const transforms = try allocator.alloc(mat4.Mat4, self.items.len);
+        errdefer allocator.free(transforms);
+        const material_ids = try allocator.alloc(mt.Handle, self.items.len);
+        errdefer allocator.free(material_ids);
+        const meshes = try allocator.alloc(mdl.Mesh, self.items.len);
+        errdefer allocator.free(meshes);
+        const instance_counts = try allocator.alloc(u32, self.items.len);
+        errdefer allocator.free(instance_counts);
+
+        {
+            var i: u32 = 0;
+            var it = self.items.iterator();
+            while (it.next()) |item|: (i += 1) {
+                slice[i] = item;
             }
         }
-        return slice;
+
+        std.sort.heap(Renderable, slice, {}, Renderable.lessThan);
+
+        var dst: u32 = 0;
+        for (0..self.items.len) |i| {
+            transforms[i] = slice[i].parent_transform.*.mul(slice[i].transform);
+
+            if (dst != 0 and slice[i].eql(slice[i-1])) {
+                instance_counts[dst-1] += 1;
+            } else {
+                meshes[dst] = slice[i].mesh;
+                instance_counts[dst] = 1;
+                dst += 1;
+            }
+        }
+
+        return .{
+            .transforms = transforms,
+            .meshes = meshes,
+            .instance_counts = instance_counts,
+            .len = dst,
+        };
     }
 };
 

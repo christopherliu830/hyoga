@@ -94,6 +94,12 @@ pub const VertexIndexBuffer = struct {
     pub inline fn idxCount(self: VertexIndexBuffer) u32 {
         return (self.size - self.idx_start) / @sizeOf(u32);
     }
+
+    pub fn eql(lhs: VertexIndexBuffer, rhs: VertexIndexBuffer) bool {
+        return lhs.hdl == rhs.hdl and
+               lhs.offset == rhs.offset and
+               lhs.idx_start == rhs.idx_start;
+    }
 };
 
 pub const TransferBuffer = struct {
