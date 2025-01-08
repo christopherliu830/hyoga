@@ -6,6 +6,10 @@ const Gpu = @import("gpu.zig");
 const tx = @import("texture.zig");
 const Mat4 = @import("hyoga-lib").math.Mat4;
 const Vec3 = @import("hyoga-lib").math.Vec3;
+const Strint = @import("../strintern.zig");
+
+const max_uniform_limit = 8;
+const empty_uniform_array = [_]Strint.ID { .invalid } ** 8;
 
 pub const Handle = SlotMap(Material).Handle;
 
@@ -36,7 +40,7 @@ pub const ShaderDefinition = struct {
     num_storage_textures: u32 = 0,
     num_storage_buffers: u32 = 0,
     num_uniform_buffers: u32 = 0,
-    uniforms: [][]const u8,
+    uniforms: [max_uniform_limit]Strint.ID,
     textures: [4]?tx.TextureType = [_]?tx.TextureType{ null } ** 4,
 };
 
@@ -92,8 +96,8 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
 
     var vert_textures: [4]?tx.TextureType = [_]?tx.TextureType { null } ** 4;
     var frag_textures: [4]?tx.TextureType = [_]?tx.TextureType { null } ** 4;
-    var vert_uniforms: [][]const u8 = &.{};
-    var frag_uniforms: [][]const u8 = &.{};
+    var vert_uniforms: [max_uniform_limit]Strint.ID = empty_uniform_array;
+    var frag_uniforms: [max_uniform_limit]Strint.ID = empty_uniform_array;
 
     inline for (.{
         .{ info.vert, &vert_textures, &vert_uniforms }, 
@@ -125,9 +129,9 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
                 }
             }
             if (prog.?.uniforms) |uniforms| {
-                prog_uniforms.* = try allocator.alloc([]const u8, uniforms.len);
                 for (uniforms, 0..) |uniform, i| {
-                    prog_uniforms.*[i] = try allocator.dupe(u8, uniform);
+                    const id = try gpu.strint.from(uniform);
+                    prog_uniforms.*[i] = id;
                 }
             }
         }

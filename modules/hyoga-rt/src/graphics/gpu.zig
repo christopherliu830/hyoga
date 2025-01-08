@@ -34,6 +34,30 @@ pub const Models = mdl.Models;
 pub const RenderItemHandle = rbl.RenderItemHandle;
 pub const AddRenderableOptions = rbl.RenderList.AddModelOptions;
 
+/// These constant strings are declared in each shader's resource manifest
+/// in order to bind SSBOs and uniforms.
+pub const StringIDs = struct {
+    all_renderables: Strint.ID,
+    selected_renderables: Strint.ID,
+    view_projection: Strint.ID,
+    camera_world_position: Strint.ID,
+    light_direction: Strint.ID,
+    viewport_size: Strint.ID,
+
+    pub fn init(strint: *Strint) !@This() {
+        return .{
+            // Storage buffers
+            .all_renderables          = try strint.from("hy_all_renderables"),
+            .selected_renderables     = try strint.from("hy_selected_renderables"),
+            // Uniform buffers
+            .view_projection          = try strint.from("hy_view_projection_matrix" ),
+            .camera_world_position    = try strint.from("hy_camera_world_position"),
+            .light_direction          = try strint.from("hy_light_direction"),
+            .viewport_size            = try strint.from("hy_viewport_size"),
+        };
+    }
+};
+
 
 pub const BufferHandle = packed union {
     buffer: *sdl.gpu.Buffer,
@@ -146,7 +170,8 @@ speed: f32 = 1,
 textures: tx.Textures,
 models: mdl.Models,
 materials: SlotMap(mt.Material),
-uniforms: std.StringHashMapUnmanaged(Uniform),
+uniforms: std.AutoHashMapUnmanaged(Strint.ID, Uniform),
+ids: StringIDs,
 
 pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allocator) !*Gpu {
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
@@ -179,6 +204,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .renderables = try rbl.RenderList.init(self, self.gpa),
         .outlined = .{},
         .uniforms = .empty,
+        .ids = try StringIDs.init(self.strint),
     };
 
     try sdlsc.init();
@@ -440,14 +466,13 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     defer zone.End();
     const arena = self.arena.allocator();
 
-    try self.uniforms.put(self.gpa, "hy_view_projection_matrix", .{ .mat4x4 = scene.view_proj.m });
-    try self.uniforms.put(self.gpa, "hy_camera_world_position", .{ .f32x3 = scene.camera_world_pos.v });
-    try self.uniforms.put(self.gpa, "hy_light_direction", .{ .f32x3 = scene.light_dir.v });
-    try self.uniforms.put(self.gpa, "hy_viewport_size", .{ .@"f32x4" = .{ 
-        @floatFromInt(self.window_state.prev_drawable_w),
-        @floatFromInt(self.window_state.prev_drawable_h),
-        0, 0 }});
-    try self.uniforms.put(self.gpa, "hy_renderables", .{ .buffer = self.render_state.obj_buf.hdl });
+    try self.uniforms.put(self.gpa, self.ids.view_projection,       .{ .mat4x4 = scene.view_proj.m });
+    try self.uniforms.put(self.gpa, self.ids.camera_world_position, .{ .f32x3 = scene.camera_world_pos.v });
+    try self.uniforms.put(self.gpa, self.ids.light_direction,       .{ .f32x3 = scene.light_dir.v });
+    try self.uniforms.put(self.gpa, self.ids.viewport_size,         .{ .@"f32x4" = .{ @floatFromInt(self.window_state.prev_drawable_w),
+                                                                                      @floatFromInt(self.window_state.prev_drawable_h),
+                                                                                      0, 0 }});
+    try self.uniforms.put(self.gpa, self.ids.all_renderables, .{ .buffer = self.render_state.obj_buf.hdl });
 
     const render_pack = try self.renderables.packAll(arena);
     const transforms = render_pack.transforms;
