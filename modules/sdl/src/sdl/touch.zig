@@ -2,18 +2,18 @@ pub const TouchID = u32;
 
 pub const FingerID = u32;
 
-pub const DeviceType = enum (c_uint) {
-	invalid = -1,
-	direct = 0,
-	indirect_absolute = 1,
-	indirect_relative = 2,
+pub const DeviceType = enum(c_uint) {
+    invalid = -1,
+    direct = 0,
+    indirect_absolute = 1,
+    indirect_relative = 2,
 };
 
 pub const Finger = extern struct {
-	id: FingerID = @import("std").mem.zeroes(FingerID),
-	x: f32 = @import("std").mem.zeroes(f32),
-	y: f32 = @import("std").mem.zeroes(f32),
-	pressure: f32 = @import("std").mem.zeroes(f32),
+    id: FingerID = @import("std").mem.zeroes(FingerID),
+    x: f32 = @import("std").mem.zeroes(f32),
+    y: f32 = @import("std").mem.zeroes(f32),
+    pressure: f32 = @import("std").mem.zeroes(f32),
 };
 
 pub extern fn SDL_GetTouchDevices(count: [*c]c_int) [*c]TouchID;

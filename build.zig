@@ -69,7 +69,7 @@ pub fn build(b: *std.Build) !void {
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
-    const game_dll = b.addInstallArtifact(game_lib, .{ .dest_dir = .{ .override = .bin }});
+    const game_dll = b.addInstallArtifact(game_lib, .{ .dest_dir = .{ .override = .bin } });
     b.getInstallStep().dependOn(&game_dll.step);
 
     b.installArtifact(exe);
@@ -88,7 +88,7 @@ pub fn build(b: *std.Build) !void {
         .install_subdir = "assets",
     });
 
-    try @import("src/build/InstallShadersStep.zig").init(b, b.getInstallStep(), .{ 
+    try @import("src/build/InstallShadersStep.zig").init(b, b.getInstallStep(), .{
         .install_dir = .bin,
         .always_generate = gen_shaders,
         .source_path = b.path("shaders"),
@@ -97,16 +97,10 @@ pub fn build(b: *std.Build) !void {
         .profile = "spirv_1_3",
     });
 
-    b.installDirectory(.{
-        .source_dir = b.path("shaders"),
-        .install_dir = .bin,
-        .include_extensions = &.{ ".rsl.json" },
-        .install_subdir = "shaders"
-    });
-
+    b.installDirectory(.{ .source_dir = b.path("shaders"), .install_dir = .bin, .include_extensions = &.{".rsl.json"}, .install_subdir = "shaders" });
 
     const run_cmd = b.addRunArtifact(exe);
-    run_cmd.setCwd(std.Build.LazyPath {.cwd_relative = b.getInstallPath(.bin, ".")});
+    run_cmd.setCwd(std.Build.LazyPath{ .cwd_relative = b.getInstallPath(.bin, ".") });
 
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| run_cmd.addArgs(args);
@@ -135,4 +129,3 @@ pub fn build(b: *std.Build) !void {
     const check = b.step("check", "check if run compiles");
     check.dependOn(&exe_check.step);
 }
-

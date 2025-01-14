@@ -41,7 +41,7 @@ pub const Textures = struct {
     queue: Loader.Queue(TextureLoadJob),
     textures: std.AutoHashMapUnmanaged(Strint.ID, *sdl.gpu.Texture) = .{},
     strint: *Strint,
-    image_loader: stbi, 
+    image_loader: stbi,
 
     pub fn create(device: *sdl.gpu.Device, loader: *Loader, strint: *Strint, allocator: std.mem.Allocator) Textures {
         var t: Textures = undefined;
@@ -72,7 +72,7 @@ pub const Textures = struct {
 
     pub fn read(self: *@This(), path: [:0]const u8) !Handle {
         const copy = try self.allocator.dupeZ(u8, path);
-        // readTexture(&self.queue, self, copy); 
+        // readTexture(&self.queue, self, copy);
         try self.loader.run(&self.queue, readTexture, .{ self, copy });
         return self.strint.from(path);
     }
@@ -81,7 +81,7 @@ pub const Textures = struct {
         while (self.queue.pop()) |entry| {
             const tex_strint = try self.strint.from(entry.path);
             self.allocator.free(entry.path);
-            try self.textures.put(self.allocator,tex_strint, entry.target);
+            try self.textures.put(self.allocator, tex_strint, entry.target);
         }
     }
 
@@ -134,7 +134,6 @@ pub const Textures = struct {
         copy_pass.end();
 
         if (cmd.submitAndAcquireFence()) |fence| {
-
             if (!device.waitForFences(true, &[_]*sdl.gpu.Fence{fence}, 1)) @panic("Could not wait for fence");
             queue.push(.{
                 .path = pathZ,
@@ -143,7 +142,5 @@ pub const Textures = struct {
 
             device.releaseFence(fence);
         } else @panic("Could not submit command buffer");
-
     }
 };
-

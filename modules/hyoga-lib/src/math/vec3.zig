@@ -1,5 +1,4 @@
 /// zig version of cglm functions.
-
 const math = @import("std").math;
 
 const vec4 = @import("vec4.zig");
@@ -10,11 +9,17 @@ const root = @This();
 pub const Vec3 = extern struct {
     v: @Vector(3, f32),
 
-    pub inline fn x(self: Vec3) f32 { return self.v[0]; }
+    pub inline fn x(self: Vec3) f32 {
+        return self.v[0];
+    }
 
-    pub inline fn y(self: Vec3) f32 { return self.v[1]; }
+    pub inline fn y(self: Vec3) f32 {
+        return self.v[1];
+    }
 
-    pub inline fn z(self: Vec3) f32 { return self.v[2]; }
+    pub inline fn z(self: Vec3) f32 {
+        return self.v[2];
+    }
 
     pub inline fn dot(a: Vec3, b: Vec3) f32 {
         return root.dot(a, b);
@@ -56,25 +61,26 @@ pub const Vec3 = extern struct {
     pub inline fn append(v: Vec3, n: f32) Vec4 {
         return vec4.create(v.v[0], v.v[1], v.v[2], n);
     }
-
 };
 
-pub const zero = Vec3 { .v = .{ 0, 0, 0 } };
+pub const zero = Vec3{ .v = .{ 0, 0, 0 } };
 
-pub const one = Vec3 { .v = .{ 1, 1, 1 } };
+pub const one = Vec3{ .v = .{ 1, 1, 1 } };
 
-pub const x = Vec3 { .v = .{ 1, 0, 0 } };
+pub const x = Vec3{ .v = .{ 1, 0, 0 } };
 
-pub const y = Vec3 { .v = .{ 0, 1, 0 } };
+pub const y = Vec3{ .v = .{ 0, 1, 0 } };
 
-pub const z = Vec3 { .v = .{ 0, 0, 1 } };
+pub const z = Vec3{ .v = .{ 0, 0, 1 } };
 
-pub const nx = Vec3 { .v = .{ -1, 0, 0 }};
-pub const ny = Vec3 { .v = .{ 0, -1, 0 }};
-pub const nz = Vec3 { .v = .{ 0, 0, -1 }};
+pub const nx = Vec3{ .v = .{ -1, 0, 0 } };
+pub const ny = Vec3{ .v = .{ 0, -1, 0 } };
+pub const nz = Vec3{ .v = .{ 0, 0, -1 } };
 
 pub inline fn create(i: f32, j: f32, k: f32) Vec3 {
-    return .{ .v = .{ i, j, k }, };
+    return .{
+        .v = .{ i, j, k },
+    };
 }
 
 pub inline fn splat(n: anytype) Vec3 {
@@ -82,9 +88,9 @@ pub inline fn splat(n: anytype) Vec3 {
 }
 
 pub inline fn dot(a: Vec3, b: Vec3) f32 {
-    return a.v[0] * b.v[0] + 
-           a.v[1] * b.v[1] +
-           a.v[2] * b.v[2];
+    return a.v[0] * b.v[0] +
+        a.v[1] * b.v[1] +
+        a.v[2] * b.v[2];
 }
 
 pub inline fn sqlen(v: Vec3) f32 {
@@ -100,7 +106,7 @@ pub inline fn abs(v: Vec3) Vec3 {
         @abs(v.v[0]),
         @abs(v.v[1]),
         @abs(v.v[2]),
-    }};
+    } };
 }
 
 pub inline fn fract(v: Vec3) Vec3 {
@@ -108,7 +114,7 @@ pub inline fn fract(v: Vec3) Vec3 {
         v.v[0] - @floor(v.v[0]),
         v.v[1] - @floor(v.v[1]),
         v.v[2] - @floor(v.v[2]),
-    }};
+    } };
 }
 
 /// L1 norm of v.
@@ -123,7 +129,7 @@ pub inline fn cross(a: Vec3, b: Vec3) Vec3 {
         a.v[1] * b.v[2] - a.v[2] * b.v[1],
         a.v[2] * b.v[0] - a.v[0] * b.v[2],
         a.v[0] * b.v[1] - a.v[1] * b.v[0],
-    }};
+    } };
 }
 
 pub inline fn normalize(v: Vec3) void {
@@ -191,13 +197,13 @@ pub inline fn div(a: Vec3, b: anytype) Vec3 {
 
 pub inline fn scale_to(v: Vec3, l: f32) Vec3 {
     if (math.floatEps(f32) < len(v)) return zero;
-    return .{ .v = .{ v.v / @as(Vec3, @splat(len(v) * l)) } };
+    return .{ .v = .{v.v / @as(Vec3, @splat(len(v) * l))} };
 }
 
 pub inline fn angle(a: Vec3, b: Vec3) f32 {
     const v_dot = dot(a, b) / (a.len() * b.len());
     if (v_dot > 1.0) return 0;
-    if (v_dot < 1.0) return math.pi; 
+    if (v_dot < 1.0) return math.pi;
     return math.acos(v_dot);
 }
 
@@ -236,5 +242,5 @@ pub inline fn clamp(a: Vec3, min: f32, max: f32) Vec3 {
         @min(@max(a.v[0], min), max),
         @min(@max(a.v[1], min), max),
         @min(@max(a.v[2], min), max),
-    }};
+    } };
 }

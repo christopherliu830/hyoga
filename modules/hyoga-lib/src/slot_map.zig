@@ -33,14 +33,14 @@ pub fn SlotMap(comptime T: type) type {
             pub inline fn index(self: *ValidItemsIterator) u32 {
                 return self.next_index - 1;
             }
-            
+
             pub fn nextPtr(self: *ValidItemsIterator) ?*T {
                 const i = self.next_index;
                 if (i < 0 or i >= self.arena.len) return null;
 
                 while (self.next_index < self.arena.len) {
                     var slot = self.arena.entries.items[self.next_index];
-                    switch(slot) {
+                    switch (slot) {
                         .occupied => |*val| {
                             self.next_index += 1;
                             return &val.value;
@@ -60,7 +60,7 @@ pub fn SlotMap(comptime T: type) type {
 
                 while (self.next_index < self.arena.len) {
                     const slot = self.arena.entries.items[self.next_index];
-                    switch(slot) {
+                    switch (slot) {
                         .occupied => |val| {
                             self.next_index += 1;
                             return val.value;
@@ -79,9 +79,11 @@ pub fn SlotMap(comptime T: type) type {
             generation: u32 = 0,
             index: u32 = 0,
 
-            pub const invalid = SlotMap(T).Handle { .generation = 0, .index = 0 };
+            pub const invalid = SlotMap(T).Handle{ .generation = 0, .index = 0 };
 
-            pub fn is_valid(self: SlotMap(T).Handle) bool { return self.generation != 0; }
+            pub fn is_valid(self: SlotMap(T).Handle) bool {
+                return self.generation != 0;
+            }
         };
 
         len: u32,
@@ -128,7 +130,6 @@ pub fn SlotMap(comptime T: type) type {
                     break :blk &val.value;
                 },
             };
-            
         }
 
         pub fn at(self: SlotMap(T), idx: u32) !*T {
@@ -147,7 +148,7 @@ pub fn SlotMap(comptime T: type) type {
         }
 
         pub fn iterator(self: *SlotMap(T)) ValidItemsIterator {
-            return ValidItemsIterator {
+            return ValidItemsIterator{
                 .arena = self,
                 .next_index = 0,
             };
@@ -162,9 +163,9 @@ pub fn SlotMap(comptime T: type) type {
             var items = try allocator.alloc(T, self.len);
             var it = self.iterator();
             var i: u32 = 0;
-            while (it.next()) |item|: (i += 1) {
+            while (it.next()) |item| : (i += 1) {
                 items[i] = item;
-            } 
+            }
             return items;
         }
 

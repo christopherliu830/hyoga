@@ -45,7 +45,9 @@ string_bytes: std.ArrayListUnmanaged(u8) = .{},
 map: std.HashMapUnmanaged(u32, void, IndexContext, std.hash_map.default_max_load_percentage) = .{},
 
 pub fn init(in_allocator: std.mem.Allocator) Self {
-    return .{ .arena = std.heap.ArenaAllocator.init(in_allocator), };
+    return .{
+        .arena = std.heap.ArenaAllocator.init(in_allocator),
+    };
 }
 
 pub fn shutdown(self: *Self) void {
@@ -53,7 +55,7 @@ pub fn shutdown(self: *Self) void {
 }
 
 pub fn from(self: *Self, str: []const u8) !ID {
-    if (self.map.getEntryAdapted(str, SliceAdapter { .parent = self })) |entry| {
+    if (self.map.getEntryAdapted(str, SliceAdapter{ .parent = self })) |entry| {
         return .{ .value = entry.key_ptr.* };
     }
 
@@ -62,8 +64,8 @@ pub fn from(self: *Self, str: []const u8) !ID {
 
     // Manually add a sentinel to work with runtime-generated non-sentinel strings
     // and for compatibility
-    if (self.string_bytes.items[self.string_bytes.items.len - 1] != 0) try self.string_bytes.append(self.arena.allocator(), 0); 
-    try self.map.putContext(self.arena.allocator(), index, {}, IndexContext { .parent = self }); 
+    if (self.string_bytes.items[self.string_bytes.items.len - 1] != 0) try self.string_bytes.append(self.arena.allocator(), 0);
+    try self.map.putContext(self.arena.allocator(), index, {}, IndexContext{ .parent = self });
     return .{ .value = index };
 }
 

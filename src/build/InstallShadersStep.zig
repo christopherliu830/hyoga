@@ -46,40 +46,23 @@ pub fn init(b: *Build, step: *Step, options: Options) !void {
                 const shader_args: []const ShaderArgs = blk: {
                     if (std.mem.endsWith(u8, src_name, ".vert.slang")) {
                         break :blk &.{
-                            .{
-                                .stage = "",
-                                .ext = ext_from_target.get(options.target).?,
-                                .entry = "vertexMain"
-                            },
+                            .{ .stage = "", .ext = ext_from_target.get(options.target).?, .entry = "vertexMain" },
                         };
                     } else if (std.mem.endsWith(u8, src_name, ".frag.slang")) {
-                        break :blk &.{
-                            .{
-                                .stage = "",
-                                .ext = ext_from_target.get(options.target).?,
-                                .entry = "fragmentMain",
-                            }
-                        };
+                        break :blk &.{.{
+                            .stage = "",
+                            .ext = ext_from_target.get(options.target).?,
+                            .entry = "fragmentMain",
+                        }};
                     } else {
-                        break :blk &.{
-                            .{
-                                .stage = ".vert",
-                                .ext = ext_from_target.get(options.target).?,
-                                .entry = "vertexMain"
-                            },
-                            .{
-                                .stage = ".frag",
-                                .ext = ext_from_target.get(options.target).?,
-                                .entry = "fragmentMain"
-                            }
-                        };
+                        break :blk &.{ .{ .stage = ".vert", .ext = ext_from_target.get(options.target).?, .entry = "vertexMain" }, .{ .stage = ".frag", .ext = ext_from_target.get(options.target).?, .entry = "fragmentMain" } };
                     }
                 };
 
                 for (shader_args) |args| {
                     // eg. standard.vert.spv, standard.frag.spv
-                    const out_basename = try std.mem.concat(b.allocator, u8, &.{std.fs.path.stem(entry.path), args.stage, args.ext});
-                    const name = try std.mem.concat(b.allocator, u8, &.{"compile ", entry.path});
+                    const out_basename = try std.mem.concat(b.allocator, u8, &.{ std.fs.path.stem(entry.path), args.stage, args.ext });
+                    const name = try std.mem.concat(b.allocator, u8, &.{ "compile ", entry.path });
                     const run = Step.Run.create(b, name);
                     const input = try options.source_path.join(b.allocator, entry.path);
                     // ;b.pathJoin(&.{options.source_path, entry.path});
@@ -87,12 +70,14 @@ pub fn init(b: *Build, step: *Step, options: Options) !void {
                     run.addFileArg(input);
                     run.addArgs(&.{
                         "-matrix-layout-row-major",
-                        "-entry", args.entry,
+                        "-entry",
+                        args.entry,
                         "-fvk-use-entrypoint-name",
-                        "-target", options.target,
+                        "-target",
+                        options.target,
                     });
                     const out = run.captureStdOut();
-                    const install_file_name = b.pathJoin(&.{options.dest_path, out_basename});
+                    const install_file_name = b.pathJoin(&.{ options.dest_path, out_basename });
                     const install = Step.InstallFile.create(b, out, .bin, install_file_name);
                     install.step.dependOn(&run.step);
                     step.dependOn(&install.step);

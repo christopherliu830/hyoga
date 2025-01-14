@@ -7,7 +7,7 @@ const has_crc32 = std.Target.x86.featureSetHas(builtin.cpu.features, .crc32);
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{ });
+    const optimize = b.standardOptimizeOption(.{});
 
     const imgui = b.addModule("imgui", .{
         .target = target,
@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
     });
 
     imgui.addIncludePath(b.path("imgui"));
-    
+
     imgui.addCSourceFiles(.{
         .files = &.{
             "dcimgui.cpp",
@@ -49,5 +49,4 @@ pub fn build(b: *std.Build) void {
     });
 
     implot.addImport("imgui", imgui);
-
 }

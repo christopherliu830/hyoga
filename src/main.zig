@@ -15,7 +15,7 @@ const HotReloader = struct {
     version: u32 = 1,
 
     pub fn link(name: []const u8, allocator: std.mem.Allocator) !HotReloader {
-        const src_format_string = switch(builtin.os.tag) {
+        const src_format_string = switch (builtin.os.tag) {
             .windows => "{s}.dll",
             .macos => "./lib{s}.dylib",
             else => unreachable,
@@ -47,7 +47,7 @@ const HotReloader = struct {
     }
 
     pub fn isStale(self: *HotReloader) !bool {
-        const st_lib = std.fs.cwd().statFile(self.src) catch |err| switch(err) {
+        const st_lib = std.fs.cwd().statFile(self.src) catch |err| switch (err) {
             error.FileNotFound => return true,
             else => return err,
         };
@@ -70,7 +70,7 @@ const HotReloader = struct {
 
         var new_lib = try std.DynLib.open(dest_file);
 
-        if (new_lib.lookup(*const fn() callconv(.C) hy.GameInterface, "interface")) |interface| {
+        if (new_lib.lookup(*const fn () callconv(.C) hy.GameInterface, "interface")) |interface| {
             std.log.info("hot reload triggered", .{});
 
             self.interface = interface();
@@ -96,7 +96,7 @@ const HotReloader = struct {
 
     pub fn createFilename(self: *HotReloader, version: u32) ![]const u8 {
         const lib_basename = std.fs.path.stem(self.name);
-        return try std.fmt.allocPrint(self.allocator, format_string, .{lib_basename, version});
+        return try std.fmt.allocPrint(self.allocator, format_string, .{ lib_basename, version });
     }
 
     pub fn shutdown(self: *HotReloader) void {
@@ -104,7 +104,7 @@ const HotReloader = struct {
         self.allocator.free(self.current_dst);
     }
 
-    const format_string = switch(builtin.os.tag) {
+    const format_string = switch (builtin.os.tag) {
         .windows => "{s}{}.dll",
         .macos => "lib{s}{}.dylib",
         else => unreachable,
@@ -112,7 +112,7 @@ const HotReloader = struct {
 };
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}) {};
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     var arena = std.heap.ArenaAllocator.init(allocator);
 
@@ -124,7 +124,6 @@ pub fn main() !void {
     defer engine.shutdown();
 
     while (!world.quit) {
-
         var gi = game.interface;
         world = gi.init(engine);
 

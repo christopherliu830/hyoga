@@ -1,4 +1,4 @@
-pub const std_options = std.Options {
+pub const std_options = std.Options{
     .fmt_max_depth = 4, // printing struct { [4]@Vector(4, f32) } breaks with default max depth
 };
 
@@ -12,7 +12,6 @@ const math = hy.math;
 const Engine = @import("Engine.zig");
 const Input = Engine.Input;
 const Gpu = Engine.Gpu;
-
 
 pub const Scene = extern struct {
     view_proj: math.Mat4,
@@ -30,12 +29,12 @@ pub const World = extern struct {
 };
 
 pub const GameInterface = extern struct {
-    init: *const fn(*Engine) callconv(.C) World,
-    shutdown: *const fn(*Engine, World) callconv(.C) void,
+    init: *const fn (*Engine) callconv(.C) World,
+    shutdown: *const fn (*Engine, World) callconv(.C) void,
     update: *const fn (*Engine, World) callconv(.C) World,
     render: *const fn (*Engine, World) callconv(.C) void,
     afterRender: ?*const fn (*Engine, World) callconv(.C) void = null,
-    reload: *const fn (*Engine, World) callconv (.C) bool,
+    reload: *const fn (*Engine, World) callconv(.C) bool,
 };
 
 pub fn init() *Engine {
@@ -131,7 +130,6 @@ export fn hygpuDeselectRenderable(gpu: *Gpu, item: Gpu.RenderItemHandle) void {
 export fn hygpuClearSelection(gpu: *Gpu) void {
     gpu.outlined.clearRetainingCapacity();
 }
-
 
 export fn hyioReset(input: *Input) void {
     input.reset();

@@ -15,4 +15,3 @@ pub const GpuScene = extern struct {
     viewport_size_y: u16,
     light_dir: Vec3,
 };
-

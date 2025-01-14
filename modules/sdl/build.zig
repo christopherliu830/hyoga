@@ -1,12 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-pub const GpuBackend = enum {
-    none,
-    direct3d12,
-    vulkan,
-    metal
-};
+pub const GpuBackend = enum { none, direct3d12, vulkan, metal };
 
 pub const Options = struct {
     target: std.Build.ResolvedTarget,
@@ -36,7 +31,7 @@ pub fn build(b: *std.Build) !void {
 
     const dll_wf = b.addNamedWriteFiles("dlls");
 
-    switch(builtin.target.os.tag) {
+    switch (builtin.target.os.tag) {
         .windows => {
             sdl.addIncludePath(b.path("include"));
             sdl.addLibraryPath(b.path("lib/windows"));
@@ -74,6 +69,6 @@ pub fn build(b: *std.Build) !void {
     sdl_shadercross.addImport("sdl", sdl);
     sdl_shadercross.addCSourceFile(.{
         .file = b.path("src/sdl_shadercross/SDL_shadercross.c"),
-        .flags = &.{ if (dxc_enabled) "-DSDL_SHADERCROSS_DXC" else "" },
+        .flags = &.{if (dxc_enabled) "-DSDL_SHADERCROSS_DXC" else ""},
     });
 }

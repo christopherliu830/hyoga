@@ -33,12 +33,12 @@ pub const World = extern struct {
 };
 
 pub const GameInterface = extern struct {
-    init: *const fn(*Engine) callconv(.C) World,
-    shutdown: *const fn(*Engine, World) callconv(.C) void,
+    init: *const fn (*Engine) callconv(.C) World,
+    shutdown: *const fn (*Engine, World) callconv(.C) void,
     update: *const fn (*Engine, World) callconv(.C) World,
     render: *const fn (*Engine, World) callconv(.C) void,
     afterRender: ?*const fn (*Engine, World) callconv(.C) void = null,
-    reload: *const fn (*Engine, World) callconv (.C) bool,
+    reload: *const fn (*Engine, World) callconv(.C) bool,
 };
 
 pub const Engine = opaque {

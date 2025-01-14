@@ -9,15 +9,33 @@ const Vec3 = vec3.Vec3;
 pub const Vec4 = struct {
     v: @Vector(4, f32),
 
-    pub inline fn x(self: Vec4) f32 { return self.v[0]; }
-    pub inline fn y(self: Vec4) f32 { return self.v[1]; }
-    pub inline fn z(self: Vec4) f32 { return self.v[2]; }
-    pub inline fn w(self: Vec4) f32 { return self.v[3]; }
-    pub inline fn r(self: Vec4) f32 { return self.v[0]; }
-    pub inline fn g(self: Vec4) f32 { return self.v[1]; }
-    pub inline fn b(self: Vec4) f32 { return self.v[2]; }
-    pub inline fn a(self: Vec4) f32 { return self.v[3]; }
-    pub inline fn xyz(self: Vec4) Vec3 { return vec3.create(self.v[0], self.v[1], self.v[2]); }
+    pub inline fn x(self: Vec4) f32 {
+        return self.v[0];
+    }
+    pub inline fn y(self: Vec4) f32 {
+        return self.v[1];
+    }
+    pub inline fn z(self: Vec4) f32 {
+        return self.v[2];
+    }
+    pub inline fn w(self: Vec4) f32 {
+        return self.v[3];
+    }
+    pub inline fn r(self: Vec4) f32 {
+        return self.v[0];
+    }
+    pub inline fn g(self: Vec4) f32 {
+        return self.v[1];
+    }
+    pub inline fn b(self: Vec4) f32 {
+        return self.v[2];
+    }
+    pub inline fn a(self: Vec4) f32 {
+        return self.v[3];
+    }
+    pub inline fn xyz(self: Vec4) Vec3 {
+        return vec3.create(self.v[0], self.v[1], self.v[2]);
+    }
 
     pub inline fn dot(self: Vec4, other: Vec4) f32 {
         return root.dot(self, other);

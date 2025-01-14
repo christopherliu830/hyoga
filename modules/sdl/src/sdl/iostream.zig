@@ -7,13 +7,13 @@ const PropertiesID = @import("properties.zig").PropertiesID;
 //pub const SDL_IO_STATUS_READONLY: c_int = 4;
 //pub const SDL_IO_STATUS_WRITEONLY: c_int = 5;
 //pub const enum_SDL_IOStatus = c_uint;
-pub const IOStatus = enum (c_uint) {
-	io_status_ready,
-	io_status_error,
-	io_status_eof,
-	io_status_not_ready,
-	io_status_readonly,
-	io_status_writeonly,
+pub const IOStatus = enum(c_uint) {
+    io_status_ready,
+    io_status_error,
+    io_status_eof,
+    io_status_not_ready,
+    io_status_readonly,
+    io_status_writeonly,
 };
 
 //pub const SDL_IOStatus = enum_SDL_IOStatus;
@@ -21,30 +21,30 @@ pub const IOStatus = enum (c_uint) {
 //pub const SDL_IO_SEEK_CUR: c_int = 1;
 //pub const SDL_IO_SEEK_END: c_int = 2;
 //pub const enum_SDL_IOWhence = c_uint;
-pub const IOWhence = enum (c_uint) {
-	io_seek_set,
-	io_seek_cur,
-	io_seek_end,
+pub const IOWhence = enum(c_uint) {
+    io_seek_set,
+    io_seek_cur,
+    io_seek_end,
 };
 
 //pub const SDL_IOWhence = enum_SDL_IOWhence;
 //pub const struct_SDL_IOStreamInterface = extern struct {
 pub const IOStreamInterface = extern struct {
-//    version: Uint32 = @import("std").mem.zeroes(Uint32),
+    //    version: Uint32 = @import("std").mem.zeroes(Uint32),
     version: u32,
-//    size: ?*const fn (?*anyopaque) callconv(.C) Sint64 = @import("std").mem.zeroes(?*const fn (?*anyopaque) callconv(.C) Sint64),
+    //    size: ?*const fn (?*anyopaque) callconv(.C) Sint64 = @import("std").mem.zeroes(?*const fn (?*anyopaque) callconv(.C) Sint64),
     size: ?*const fn (?*anyopaque) callconv(.C) i64,
-//    seek: ?*const fn (?*anyopaque, Sint64, SDL_IOWhence) callconv(.C) Sint64 = @import("std").mem.zeroes(?*const fn (?*anyopaque, Sint64, SDL_IOWhence) callconv(.C) Sint64),
+    //    seek: ?*const fn (?*anyopaque, Sint64, SDL_IOWhence) callconv(.C) Sint64 = @import("std").mem.zeroes(?*const fn (?*anyopaque, Sint64, SDL_IOWhence) callconv(.C) Sint64),
     seek: ?*const fn (?*anyopaque, i64, IOWhence) callconv(.C) i64,
-//    read: ?*const fn (?*anyopaque, ?*anyopaque, usize, [*c]SDL_IOStatus) callconv(.C) usize = @import("std").mem.zeroes(?*const fn (?*anyopaque, ?*anyopaque, usize, [*c]SDL_IOStatus) callconv(.C) usize),
+    //    read: ?*const fn (?*anyopaque, ?*anyopaque, usize, [*c]SDL_IOStatus) callconv(.C) usize = @import("std").mem.zeroes(?*const fn (?*anyopaque, ?*anyopaque, usize, [*c]SDL_IOStatus) callconv(.C) usize),
     read: ?*const fn (?*anyopaque, ?*anyopaque, usize, [*c]IOStatus) callconv(.C) usize,
-//    write: ?*const fn (?*anyopaque, ?*const anyopaque, usize, [*c]SDL_IOStatus) callconv(.C) usize = @import("std").mem.zeroes(?*const fn (?*anyopaque, ?*const anyopaque, usize, [*c]SDL_IOStatus) callconv(.C) usize),
+    //    write: ?*const fn (?*anyopaque, ?*const anyopaque, usize, [*c]SDL_IOStatus) callconv(.C) usize = @import("std").mem.zeroes(?*const fn (?*anyopaque, ?*const anyopaque, usize, [*c]SDL_IOStatus) callconv(.C) usize),
     write: ?*const fn (?*anyopaque, ?*const anyopaque, usize, [*c]IOStatus) callconv(.C) usize,
-//    flush: ?*const fn (?*anyopaque, [*c]SDL_IOStatus) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, [*c]SDL_IOStatus) callconv(.C) SDL_bool),
+    //    flush: ?*const fn (?*anyopaque, [*c]SDL_IOStatus) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, [*c]SDL_IOStatus) callconv(.C) SDL_bool),
     flush: ?*const fn (?*anyopaque, [*c]IOStatus) callconv(.C) bool,
-//    close: ?*const fn (?*anyopaque) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque) callconv(.C) SDL_bool),
+    //    close: ?*const fn (?*anyopaque) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque) callconv(.C) SDL_bool),
     close: ?*const fn (?*anyopaque) callconv(.C) bool,
-//};
+    //};
 };
 //pub const SDL_IOStreamInterface = struct_SDL_IOStreamInterface;
 //// ./include/SDL3/SDL_stdinc.h:561:42: warning: ignoring StaticAssert declaration

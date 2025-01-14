@@ -11,10 +11,7 @@ const EGLConfig = unreachable;
 const EGLAttrib = unreachable;
 const EGLint = unreachable;
 
-const Point = extern struct {
-	x: i32,
-	y: i32
-};
+const Point = extern struct { x: i32, y: i32 };
 
 //pub const SDL_DisplayID = Uint32;
 pub const DisplayID = u32;
@@ -24,10 +21,10 @@ pub const WindowID = u32;
 //pub const SDL_SYSTEM_THEME_LIGHT: c_int = 1;
 //pub const SDL_SYSTEM_THEME_DARK: c_int = 2;
 //pub const enum_SDL_SystemTheme = c_uint;
-pub const SystemTheme = enum (c_uint) {
-	unknown,
-	light,
-	dark,
+pub const SystemTheme = enum(c_uint) {
+    unknown,
+    light,
+    dark,
 };
 
 //pub const SDL_SystemTheme = enum_SDL_SystemTheme;
@@ -37,25 +34,25 @@ pub const DisplayModeData = opaque {};
 //pub const SDL_DisplayModeData = struct_SDL_DisplayModeData;
 //pub const struct_SDL_DisplayMode = extern struct {
 pub const DisplayMode = extern struct {
-//    displayID: SDL_DisplayID = @import("std").mem.zeroes(SDL_DisplayID),
-	displayid: DisplayID = @import("std").mem.zeroes(DisplayID),
-//    format: SDL_PixelFormat = @import("std").mem.zeroes(SDL_PixelFormat),
-	format: PixelFormat = @import("std").mem.zeroes(PixelFormat),
-//    w: c_int = @import("std").mem.zeroes(c_int),
-	w: c_int = @import("std").mem.zeroes(c_int),
-//    h: c_int = @import("std").mem.zeroes(c_int),
-	h: c_int = @import("std").mem.zeroes(c_int),
-//    pixel_density: f32 = @import("std").mem.zeroes(f32),
-	pixel_density: f32 = @import("std").mem.zeroes(f32),
-//    refresh_rate: f32 = @import("std").mem.zeroes(f32),
-	refresh_rate: f32 = @import("std").mem.zeroes(f32),
-//    refresh_rate_numerator: c_int = @import("std").mem.zeroes(c_int),
-	refresh_rate_numerator: c_int = @import("std").mem.zeroes(c_int),
-//    refresh_rate_denominator: c_int = @import("std").mem.zeroes(c_int),
-	refresh_rate_denominator: c_int = @import("std").mem.zeroes(c_int),
-//    internal: ?*SDL_DisplayModeData = @import("std").mem.zeroes(?*SDL_DisplayModeData),
-	internal: ?*DisplayModeData = @import("std").mem.zeroes(?*DisplayModeData),
-//};
+    //    displayID: SDL_DisplayID = @import("std").mem.zeroes(SDL_DisplayID),
+    displayid: DisplayID = @import("std").mem.zeroes(DisplayID),
+    //    format: SDL_PixelFormat = @import("std").mem.zeroes(SDL_PixelFormat),
+    format: PixelFormat = @import("std").mem.zeroes(PixelFormat),
+    //    w: c_int = @import("std").mem.zeroes(c_int),
+    w: c_int = @import("std").mem.zeroes(c_int),
+    //    h: c_int = @import("std").mem.zeroes(c_int),
+    h: c_int = @import("std").mem.zeroes(c_int),
+    //    pixel_density: f32 = @import("std").mem.zeroes(f32),
+    pixel_density: f32 = @import("std").mem.zeroes(f32),
+    //    refresh_rate: f32 = @import("std").mem.zeroes(f32),
+    refresh_rate: f32 = @import("std").mem.zeroes(f32),
+    //    refresh_rate_numerator: c_int = @import("std").mem.zeroes(c_int),
+    refresh_rate_numerator: c_int = @import("std").mem.zeroes(c_int),
+    //    refresh_rate_denominator: c_int = @import("std").mem.zeroes(c_int),
+    refresh_rate_denominator: c_int = @import("std").mem.zeroes(c_int),
+    //    internal: ?*SDL_DisplayModeData = @import("std").mem.zeroes(?*SDL_DisplayModeData),
+    internal: ?*DisplayModeData = @import("std").mem.zeroes(?*DisplayModeData),
+    //};
 };
 //pub const SDL_DisplayMode = struct_SDL_DisplayMode;
 //pub const SDL_ORIENTATION_UNKNOWN: c_int = 0;
@@ -64,12 +61,12 @@ pub const DisplayMode = extern struct {
 //pub const SDL_ORIENTATION_PORTRAIT: c_int = 3;
 //pub const SDL_ORIENTATION_PORTRAIT_FLIPPED: c_int = 4;
 //pub const enum_SDL_DisplayOrientation = c_uint;
-pub const DisplayOrientation = enum (c_uint) {
-	orientation_unknown,
-	orientation_landscape,
-	orientation_landscape_flipped,
-	orientation_portrait,
-	orientation_portrait_flipped,
+pub const DisplayOrientation = enum(c_uint) {
+    orientation_unknown,
+    orientation_landscape,
+    orientation_landscape_flipped,
+    orientation_portrait,
+    orientation_portrait_flipped,
 };
 
 //pub const SDL_DisplayOrientation = enum_SDL_DisplayOrientation;
@@ -78,43 +75,43 @@ pub const Window = opaque {};
 
 //pub const SDL_Window = struct_SDL_Window;
 //pub const SDL_WindowFlags = Uint64;
-pub const WindowFlags = packed struct (u64) {
-	fullscreen: bool = false,
-	opengl: bool = false,
-	occluded: bool = false,
-	hidden: bool = false,
-	borderless: bool = false,
-	resizeable: bool = false,
-	minimized: bool = false,
-	maximized: bool = false,
-	mouse_grabbed: bool = false,
-	input_focus: bool = false,
-	mouse_focus: bool = false,
-	external: bool = false,
-	modal: bool = false,
-	high_pixel_density: bool = false,
-	mouse_capture: bool = false,
-	mouse_relative_mode: bool = false,
-	always_on_top: bool = false,
-	utility: bool = false,
-	tooltip: bool = false,
-	popup_menu: bool = false,
-	keyboard_grabbed: bool = false,
-	vulkan: bool = false,
-	metal: bool = false,
-	transparent: bool = false,
-	not_focusable: bool = false,
-	_padding: u39 = 0,
+pub const WindowFlags = packed struct(u64) {
+    fullscreen: bool = false,
+    opengl: bool = false,
+    occluded: bool = false,
+    hidden: bool = false,
+    borderless: bool = false,
+    resizeable: bool = false,
+    minimized: bool = false,
+    maximized: bool = false,
+    mouse_grabbed: bool = false,
+    input_focus: bool = false,
+    mouse_focus: bool = false,
+    external: bool = false,
+    modal: bool = false,
+    high_pixel_density: bool = false,
+    mouse_capture: bool = false,
+    mouse_relative_mode: bool = false,
+    always_on_top: bool = false,
+    utility: bool = false,
+    tooltip: bool = false,
+    popup_menu: bool = false,
+    keyboard_grabbed: bool = false,
+    vulkan: bool = false,
+    metal: bool = false,
+    transparent: bool = false,
+    not_focusable: bool = false,
+    _padding: u39 = 0,
 };
 
 //pub const SDL_FLASH_CANCEL: c_int = 0;
 //pub const SDL_FLASH_BRIEFLY: c_int = 1;
 //pub const SDL_FLASH_UNTIL_FOCUSED: c_int = 2;
 //pub const enum_SDL_FlashOperation = c_uint;
-pub const FlashOperation = enum (c_uint) {
-	flash_cancel,
-	flash_briefly,
-	flash_until_focused,
+pub const FlashOperation = enum(c_uint) {
+    flash_cancel,
+    flash_briefly,
+    flash_until_focused,
 };
 
 //pub const SDL_FlashOperation = enum_SDL_FlashOperation;
@@ -160,35 +157,35 @@ pub const EGLIntArrayCallback = ?*const fn () callconv(.C) [*c]EGLint;
 //pub const SDL_GL_FLOATBUFFERS: c_int = 26;
 //pub const SDL_GL_EGL_PLATFORM: c_int = 27;
 //pub const enum_SDL_GLattr = c_uint;
-pub const GLattr = enum (c_uint) {
-	gl_red_size,
-	gl_green_size,
-	gl_blue_size,
-	gl_alpha_size,
-	gl_buffer_size,
-	gl_doublebuffer,
-	gl_depth_size,
-	gl_stencil_size,
-	gl_accum_red_size,
-	gl_accum_green_size,
-	gl_accum_blue_size,
-	gl_accum_alpha_size,
-	gl_stereo,
-	gl_multisamplebuffers,
-	gl_multisamplesamples,
-	gl_accelerated_visual,
-	gl_retained_backing,
-	gl_context_major_version,
-	gl_context_minor_version,
-	gl_context_flags,
-	gl_context_profile_mask,
-	gl_share_with_current_context,
-	gl_framebuffer_srgb_capable,
-	gl_context_release_behavior,
-	gl_context_reset_notification,
-	gl_context_no_error,
-	gl_floatbuffers,
-	gl_egl_platform,
+pub const GLattr = enum(c_uint) {
+    gl_red_size,
+    gl_green_size,
+    gl_blue_size,
+    gl_alpha_size,
+    gl_buffer_size,
+    gl_doublebuffer,
+    gl_depth_size,
+    gl_stencil_size,
+    gl_accum_red_size,
+    gl_accum_green_size,
+    gl_accum_blue_size,
+    gl_accum_alpha_size,
+    gl_stereo,
+    gl_multisamplebuffers,
+    gl_multisamplesamples,
+    gl_accelerated_visual,
+    gl_retained_backing,
+    gl_context_major_version,
+    gl_context_minor_version,
+    gl_context_flags,
+    gl_context_profile_mask,
+    gl_share_with_current_context,
+    gl_framebuffer_srgb_capable,
+    gl_context_release_behavior,
+    gl_context_reset_notification,
+    gl_context_no_error,
+    gl_floatbuffers,
+    gl_egl_platform,
 };
 
 //pub const SDL_GLattr = enum_SDL_GLattr;
@@ -196,10 +193,10 @@ pub const GLattr = enum (c_uint) {
 //pub const SDL_GL_CONTEXT_PROFILE_COMPATIBILITY: c_int = 2;
 //pub const SDL_GL_CONTEXT_PROFILE_ES: c_int = 4;
 //pub const enum_SDL_GLprofile = c_uint;
-pub const GLprofile = enum (c_uint) {
-	gl_context_profile_core = 1,
-	gl_context_profile_compatibility = 2,
-	gl_context_profile_es = 4,
+pub const GLprofile = enum(c_uint) {
+    gl_context_profile_core = 1,
+    gl_context_profile_compatibility = 2,
+    gl_context_profile_es = 4,
 };
 
 //pub const SDL_GLprofile = enum_SDL_GLprofile;
@@ -208,29 +205,29 @@ pub const GLprofile = enum (c_uint) {
 //pub const SDL_GL_CONTEXT_ROBUST_ACCESS_FLAG: c_int = 4;
 //pub const SDL_GL_CONTEXT_RESET_ISOLATION_FLAG: c_int = 8;
 //pub const enum_SDL_GLcontextFlag = c_uint;
-pub const GLcontextFlag = enum (c_uint) {
-	gl_context_debug_flag = 1,
-	gl_context_forward_compatible_flag = 2,
-	gl_context_robust_access_flag = 4,
-	gl_context_reset_isolation_flag = 8,
+pub const GLcontextFlag = enum(c_uint) {
+    gl_context_debug_flag = 1,
+    gl_context_forward_compatible_flag = 2,
+    gl_context_robust_access_flag = 4,
+    gl_context_reset_isolation_flag = 8,
 };
 
 //pub const SDL_GLcontextFlag = enum_SDL_GLcontextFlag;
 //pub const SDL_GL_CONTEXT_RELEASE_BEHAVIOR_NONE: c_int = 0;
 //pub const SDL_GL_CONTEXT_RELEASE_BEHAVIOR_FLUSH: c_int = 1;
 //pub const enum_SDL_GLcontextReleaseFlag = c_uint;
-pub const GLcontextReleaseFlag = enum (c_uint) {
-	gl_context_release_behavior_none,
-	gl_context_release_behavior_flush,
+pub const GLcontextReleaseFlag = enum(c_uint) {
+    gl_context_release_behavior_none,
+    gl_context_release_behavior_flush,
 };
 
 //pub const SDL_GLcontextReleaseFlag = enum_SDL_GLcontextReleaseFlag;
 //pub const SDL_GL_CONTEXT_RESET_NO_NOTIFICATION: c_int = 0;
 //pub const SDL_GL_CONTEXT_RESET_LOSE_CONTEXT: c_int = 1;
 //pub const enum_SDL_GLContextResetNotification = c_uint;
-pub const GLContextResetNotification = enum (c_uint) {
-	gl_context_reset_no_notification,
-	gl_context_reset_lose_context,
+pub const GLContextResetNotification = enum(c_uint) {
+    gl_context_reset_no_notification,
+    gl_context_reset_lose_context,
 };
 
 //pub const SDL_GLContextResetNotification = enum_SDL_GLContextResetNotification;
@@ -491,17 +488,17 @@ pub const showWindowSystemMenu = SDL_ShowWindowSystemMenu;
 //pub const SDL_HITTEST_RESIZE_BOTTOMLEFT: c_int = 8;
 //pub const SDL_HITTEST_RESIZE_LEFT: c_int = 9;
 //pub const enum_SDL_HitTestResult = c_uint;
-pub const HitTestResult = enum (c_uint) {
-	hittest_normal = 0,
-	hittest_draggable = 1,
-	hittest_resize_topleft = 2,
-	hittest_resize_top = 3,
-	hittest_resize_topright = 4,
-	hittest_resize_right = 5,
-	hittest_resize_bottomright = 6,
-	hittest_resize_bottom = 7,
-	hittest_resize_bottomleft = 8,
-	hittest_resize_left = 9,
+pub const HitTestResult = enum(c_uint) {
+    hittest_normal = 0,
+    hittest_draggable = 1,
+    hittest_resize_topleft = 2,
+    hittest_resize_top = 3,
+    hittest_resize_topright = 4,
+    hittest_resize_right = 5,
+    hittest_resize_bottomright = 6,
+    hittest_resize_bottom = 7,
+    hittest_resize_bottomleft = 8,
+    hittest_resize_left = 9,
 };
 
 //pub const SDL_HitTestResult = enum_SDL_HitTestResult;

@@ -33,8 +33,8 @@ pub const Renderable = struct {
         if (lhs.mesh.buffer.eql(rhs.mesh.buffer))
             return lhs.mesh.material.index < rhs.mesh.material.index
         else
-            return @as(usize, @intFromPtr(lhs.mesh.buffer.hdl)) < 
-                   @as(usize, @intFromPtr(rhs.mesh.buffer.hdl));
+            return @as(usize, @intFromPtr(lhs.mesh.buffer.hdl)) <
+                @as(usize, @intFromPtr(rhs.mesh.buffer.hdl));
     }
 
     pub fn eql(lhs: Renderable, rhs: Renderable) bool {
@@ -69,22 +69,20 @@ pub const RenderList = struct {
 
     pub const AddModelOptions = extern struct {
         owner: *mat4.Mat4,
-        time: u64, 
+        time: u64,
         model: ModelHandle,
     };
 
     pub fn add(self: *RenderList, options: AddModelOptions) !RenderItemHandle {
         const q_model = blk: {
-            var model = self.gpu.models.get(options.model)
-                catch null;
-                // catch |e| if (e != error.ModelEmpty) return e else null;
+            var model = self.gpu.models.get(options.model) catch null;
+            // catch |e| if (e != error.ModelEmpty) return e else null;
 
             if (options.time > 0) {
                 var timer = try std.time.Timer.start();
                 while (model == null and timer.read() < options.time) {
-                    model = self.gpu.models.get(options.model) 
-                        catch null;
-                        //catch |e| if (e != error.ModelEmpty) return e else null;
+                    model = self.gpu.models.get(options.model) catch null;
+                    //catch |e| if (e != error.ModelEmpty) return e else null;
                 }
             }
             break :blk model;
@@ -93,7 +91,7 @@ pub const RenderList = struct {
         if (q_model) |model| {
             var head: ?RenderItemHandle = null;
             for (model.children) |mesh| {
-                const renderable = Renderable {
+                const renderable = Renderable{
                     .mesh = mesh,
                     .transform = model.transform,
                     .parent_transform = options.owner,
@@ -120,7 +118,7 @@ pub const RenderList = struct {
 
     pub inline fn iterator(self: *RenderList) Iterator {
         return self.items.iterator();
-    } 
+    }
 
     /// Caller must free the returned slice.
     pub fn pack(self: *RenderList, handles: []RenderItemHandle, allocator: std.mem.Allocator) !PackedRenderables {
@@ -157,7 +155,7 @@ pub const RenderList = struct {
         var handle_map: std.AutoHashMapUnmanaged(RenderItemHandle, u32) = .{};
         errdefer handle_map.deinit(allocator);
 
-        std.sort.heapContext(0, handles.len, SwapContext { .renderables = renderables, .handles = handles });
+        std.sort.heapContext(0, handles.len, SwapContext{ .renderables = renderables, .handles = handles });
 
         var dst: u32 = 0;
         for (0..handles.len) |i| {
@@ -166,8 +164,8 @@ pub const RenderList = struct {
             try handle_map.put(allocator, handle, @intCast(i));
             transforms[i] = renderable.transform.mul(renderable.parent_transform.*);
 
-            if (dst != 0 and renderable.eql(renderables[i-1])) {
-                instance_counts[dst-1] += 1;
+            if (dst != 0 and renderable.eql(renderables[i - 1])) {
+                instance_counts[dst - 1] += 1;
             } else {
                 meshes[dst] = renderable.mesh;
                 instance_counts[dst] = 1;
@@ -185,9 +183,10 @@ pub const RenderList = struct {
     }
 
     pub fn packAll(self: *RenderList, allocator: std.mem.Allocator) !PackedRenderables {
-        const handles = try allocator.alloc(RenderItemHandle, self.items.len); 
-        for (0..self.items.len) |i| { handles[i] = self.items.handle_at(@intCast(i)) catch unreachable; }
+        const handles = try allocator.alloc(RenderItemHandle, self.items.len);
+        for (0..self.items.len) |i| {
+            handles[i] = self.items.handle_at(@intCast(i)) catch unreachable;
+        }
         return try self.pack(handles, allocator);
     }
 };
-

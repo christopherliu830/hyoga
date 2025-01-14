@@ -18,25 +18,22 @@ pub const Gpu = opaque {
     pub const clearSelection = hygpuClearSelection;
 };
 
-pub const RenderItemHandle = enum (u64) {
-    invalid = 0,
-    _
-};
+pub const RenderItemHandle = enum(u64) { invalid = 0, _ };
 
-pub const ModelHandle = enum (u64) {
+pub const ModelHandle = enum(u64) {
     invalid = 0,
 };
 
-pub const MaterialHandle = enum (u64) {
+pub const MaterialHandle = enum(u64) {
     invalid = 0,
 };
 
-pub const PrimitiveShape = enum (u8) {
+pub const PrimitiveShape = enum(u8) {
     cube,
     quad,
 };
 
-pub const PostProcessSteps = packed struct (u32) {
+pub const PostProcessSteps = packed struct(u32) {
     calc_tangent_space: bool = false,
     join_identical_vertices: bool = false,
     make_left_handed: bool = false,
@@ -58,14 +55,14 @@ pub const PostProcessSteps = packed struct (u32) {
     gen_uv_coords: bool = false,
     transform_uv_coords: bool = false,
     find_instances: bool = false,
-    optimize_meshes : bool = false,
-    optimize_graph : bool = false,
+    optimize_meshes: bool = false,
+    optimize_graph: bool = false,
     flip_uvs: bool = false,
-    flip_winding_order : bool = false,
-    split_by_bone_count : bool = false,
-    debone : bool = false,
+    flip_winding_order: bool = false,
+    split_by_bone_count: bool = false,
+    debone: bool = false,
     global_scale: bool = false,
-    embed_textures : bool = false,
+    embed_textures: bool = false,
     force_gen_normals: bool = false,
     drop_normals: bool = false,
     gen_bounding_boxes: bool = false,
@@ -90,7 +87,6 @@ pub const AddRenderableOptions = extern struct {
     model: ModelHandle,
 };
 
-
 pub const ModelDupeOptions = extern struct {
     override_material: MaterialHandle = .invalid,
 };
@@ -105,4 +101,3 @@ extern fn hygpuRemoveRenderable(*Gpu, RenderItemHandle) void;
 extern fn hygpuSelectRenderable(*Gpu, RenderItemHandle) void;
 extern fn hygpuDeselectRenderable(*Gpu, RenderItemHandle) void;
 extern fn hygpuClearSelection(*Gpu) void;
-

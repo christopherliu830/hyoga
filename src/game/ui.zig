@@ -8,7 +8,6 @@ const frames_slice_len = 128;
 const Windows = struct {
     camera: bool = false,
     perf: bool = false,
-
 };
 
 pub const State = struct {
@@ -18,7 +17,7 @@ pub const State = struct {
     drawn_frame_time: u64 = 0,
     frame_times: [frames_slice_len]f64 = [_]f64{0} ** frames_slice_len,
     current_frame_time_idx: u8 = 0,
-    restart_requested: bool = false, 
+    restart_requested: bool = false,
 
     pub fn create() !State {
         return .{
@@ -38,7 +37,6 @@ pub fn drawMainUI(state: *State) void {
         if (ui.BeginMenu("File")) {
             if (ui.MenuItem("Restart")) {
                 state.restart_requested = true;
-
             }
             ui.EndMenu();
         }
@@ -58,9 +56,7 @@ pub fn drawMainUI(state: *State) void {
         if (ui.Begin("Performance", &state.windows.perf, 0)) {
             const frame_time = timeAsFloat(state.drawn_frame_time);
             const fps: f64 = 1000 / frame_time;
-            ui.Text("Frame time: %.2fms (%.1f)fps", 
-                frame_time,
-                fps);
+            ui.Text("Frame time: %.2fms (%.1f)fps", frame_time, fps);
             drawFrametimePlot(state);
         }
         ui.End();
@@ -74,10 +70,10 @@ pub fn drawFrametimePlot(state: *State) void {
 
     const back_len = (frames_slice_len - state.current_frame_time_idx);
 
-    for(state.current_frame_time_idx..frames_slice_len, 0..) |time, i| {
+    for (state.current_frame_time_idx..frames_slice_len, 0..) |time, i| {
         times[i] = state.frame_times[time];
-    } 
-    for(0..state.current_frame_time_idx, back_len..) |time, i| {
+    }
+    for (0..state.current_frame_time_idx, back_len..) |time, i| {
         times[i] = state.frame_times[time];
     }
 

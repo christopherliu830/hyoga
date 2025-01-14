@@ -13,11 +13,7 @@ pub const HINT_MAX_TEXTURE_LEN = 9;
 
 pub const Return = u32;
 
-pub const Vector3 = extern struct {
-    x: f32,
-    y: f32,
-    z: f32
-};
+pub const Vector3 = extern struct { x: f32, y: f32, z: f32 };
 
 pub const Color4 = extern struct {
     r: f32,
@@ -27,10 +23,22 @@ pub const Color4 = extern struct {
 };
 
 pub const Matrix4x4 = extern struct {
-    a1: f32, a2: f32, a3: f32, a4: f32,
-    b1: f32, b2: f32, b3: f32, b4: f32,
-    c1: f32, c2: f32, c3: f32, c4: f32,
-    d1: f32, d2: f32, d3: f32, d4: f32,
+    a1: f32,
+    a2: f32,
+    a3: f32,
+    a4: f32,
+    b1: f32,
+    b2: f32,
+    b3: f32,
+    b4: f32,
+    c1: f32,
+    c2: f32,
+    c3: f32,
+    c4: f32,
+    d1: f32,
+    d2: f32,
+    d3: f32,
+    d4: f32,
 };
 
 pub const String = extern struct {
@@ -45,13 +53,7 @@ pub const AABB = extern struct {
 
 // --------- MATERIAL ------------
 
-pub const PropertyTypeInfo = enum (u32) {
-    float,
-    double,
-    string,
-    integer,
-    buffer
-};
+pub const PropertyTypeInfo = enum(u32) { float, double, string, integer, buffer };
 
 pub const MaterialProperty = extern struct {
     key: String,
@@ -60,44 +62,17 @@ pub const MaterialProperty = extern struct {
     data_length: u32,
     type: PropertyTypeInfo,
     data: [*]const u8,
-}; 
+};
 
 // ---- TEXTURE ----
 
-pub const TextureType = enum (u32) {
-    none,
-    diffuse,
-    specular,
-    ambient,
-    emissive,
-    height,
-    normals,
-    shininess,
-    opacity,
-    displacement,
-    lightmap,
-    reflection,
-    base_color,
-    normal_camera,
-    emission_color,
-    metalness,
-    diffuse_roughness,
-    ambient_occlusion,
-    unknown,
-    sheen,
-    clearcoat,
-    transmission,
-    maya_base,
-    maya_specular,
-    maya_specular_color,
-    maya_specular_roughness
-};
+pub const TextureType = enum(u32) { none, diffuse, specular, ambient, emissive, height, normals, shininess, opacity, displacement, lightmap, reflection, base_color, normal_camera, emission_color, metalness, diffuse_roughness, ambient_occlusion, unknown, sheen, clearcoat, transmission, maya_base, maya_specular, maya_specular_color, maya_specular_roughness };
 
-pub const TextureMapping = opaque { };
+pub const TextureMapping = opaque {};
 
-pub const TextureOp = opaque { };
+pub const TextureOp = opaque {};
 
-pub const MapMode = opaque { };
+pub const MapMode = opaque {};
 
 pub const Texel = extern struct {
     b: u8,
@@ -111,7 +86,7 @@ pub const Texture = extern struct {
     height: u32,
     ach_format_hint: [HINT_MAX_TEXTURE_LEN]u8,
     pc_data: [*]Texel, // format is always ARGB8888
-    file_name: String
+    file_name: String,
 };
 
 pub const Material = extern struct {
@@ -132,16 +107,7 @@ pub const Material = extern struct {
     };
 
     pub fn getTexture(self: *Material, info: GetTextureInfo) Return {
-        return aiGetMaterialTexture(self,
-                                    info.tex_type,
-                                    info.index,
-                                    info.path,
-                                    info.mapping,
-                                    info.uv_index,
-                                    info.blend,
-                                    info.op,
-                                    info.map_mode,
-                                    info.flags);
+        return aiGetMaterialTexture(self, info.tex_type, info.index, info.path, info.mapping, info.uv_index, info.blend, info.op, info.map_mode, info.flags);
     }
 
     pub const getTextureCount = aiGetMaterialTextureCount;
@@ -149,18 +115,7 @@ pub const Material = extern struct {
 
 extern fn aiGetMaterialTextureCount(mat: *Material, tex_type: TextureType) u32;
 
-
-extern fn aiGetMaterialTexture(mat: *Material, 
-        tex_type: TextureType,
-        index: u32,
-        path: *String,
-        mapping: ?*TextureMapping,
-        uv_index: ?*u32,
-        blend: ?*f32,
-        op: ?*TextureOp,
-        map_mode: ?*MapMode,
-        flags: ?*u32) Return;
-
+extern fn aiGetMaterialTexture(mat: *Material, tex_type: TextureType, index: u32, path: *String, mapping: ?*TextureMapping, uv_index: ?*u32, blend: ?*f32, op: ?*TextureOp, map_mode: ?*MapMode, flags: ?*u32) Return;
 
 // ----------- MESH ------------
 
@@ -169,11 +124,11 @@ pub const Face = extern struct {
     indices: [*]u32,
 };
 
-pub const Bone = extern struct { };
+pub const Bone = extern struct {};
 
-pub const AnimMesh = extern struct { };
+pub const AnimMesh = extern struct {};
 
-pub const MorphingMethod = enum (u32) { 
+pub const MorphingMethod = enum(u32) {
     unknown,
     vertex_blend,
     morph_normalized,
@@ -203,15 +158,13 @@ pub const Mesh = extern struct {
     texture_coords_names: ?*[*]String,
 };
 
-pub const Animation = extern struct { };
+pub const Animation = extern struct {};
 
+pub const Light = opaque {};
 
+pub const Camera = opaque {};
 
-pub const Light = opaque { };
-
-pub const Camera = opaque { };
-
-pub const Skeleton = opaque { };
+pub const Skeleton = opaque {};
 
 pub const Node = extern struct {
     name: String,
@@ -246,7 +199,7 @@ pub const Scene = extern struct {
 
     // Internal, do not touch
     _private: *u8,
-    
+
     pub fn release(self: *Scene) void {
         aiReleaseImport(self);
     }
@@ -254,7 +207,7 @@ pub const Scene = extern struct {
     pub const getEmbeddedTexture = aiGetEmbeddedTexture;
 };
 
-pub const PostProcessSteps = packed struct (u32) {
+pub const PostProcessSteps = packed struct(u32) {
     calc_tangent_space: bool = false,
     join_identical_vertices: bool = false,
     make_left_handed: bool = false,
@@ -276,14 +229,14 @@ pub const PostProcessSteps = packed struct (u32) {
     gen_uv_coords: bool = false,
     transform_uv_coords: bool = false,
     find_instances: bool = false,
-    optimize_meshes : bool = false,
-    optimize_graph : bool = false,
+    optimize_meshes: bool = false,
+    optimize_graph: bool = false,
     flip_uvs: bool = false,
-    flip_winding_order : bool = false,
-    split_by_bone_count : bool = false,
-    debone : bool = false,
+    flip_winding_order: bool = false,
+    split_by_bone_count: bool = false,
+    debone: bool = false,
     global_scale: bool = false,
-    embed_textures : bool = false,
+    embed_textures: bool = false,
     force_gen_normals: bool = false,
     drop_normals: bool = false,
     gen_bounding_boxes: bool = false,

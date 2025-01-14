@@ -1,26 +1,26 @@
 const PropertiesID = @import("properties.zig").PropertiesID;
 const IOStream = @import("iostream.zig").IOStream;
 
-pub const Format = enum (c_uint) {
-	unknown = 0,
-	u8 = 8,
-	s8 = 32776,
-	s16le = 32784,
-	s16be = 36880,
-	s32le = 32800,
-	s32be = 36896,
-	f32le = 33056,
-	f32be = 37152,
-	s16 = 32784,
-	s32 = 32800,
-	f32 = 33056,
+pub const Format = enum(c_uint) {
+    unknown = 0,
+    u8 = 8,
+    s8 = 32776,
+    s16le = 32784,
+    s16be = 36880,
+    s32le = 32800,
+    s32be = 36896,
+    f32le = 33056,
+    f32be = 37152,
+    s16 = 32784,
+    s32 = 32800,
+    f32 = 33056,
 };
 
 pub const DeviceID = u32;
 pub const Spec = extern struct {
-	format: Format = @import("std").mem.zeroes(Format),
-	channels: c_int = @import("std").mem.zeroes(c_int),
-	freq: c_int = @import("std").mem.zeroes(c_int),
+    format: Format = @import("std").mem.zeroes(Format),
+    channels: c_int = @import("std").mem.zeroes(c_int),
+    freq: c_int = @import("std").mem.zeroes(c_int),
 };
 pub const Stream = opaque {};
 

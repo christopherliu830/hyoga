@@ -59,8 +59,12 @@ pub fn shutdown() void {
     bd.gpu.device.releaseSampler(bd.sampler);
     bd.gpu.device.releaseTexture(bd.font_texture);
     bd.gpu.device.releaseGraphicsPipeline(bd.pipeline);
-    if (bd.buf_vertex) |buf| { bd.gpu.device.releaseBuffer(buf);}
-    if (bd.buf_index) |buf| { bd.gpu.device.releaseBuffer(buf); }
+    if (bd.buf_vertex) |buf| {
+        bd.gpu.device.releaseBuffer(buf);
+    }
+    if (bd.buf_index) |buf| {
+        bd.gpu.device.releaseBuffer(buf);
+    }
 
     bd.allocator.destroy(bd);
 }
@@ -74,10 +78,10 @@ pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
 
     var arena = std.heap.ArenaAllocator.init(bd.allocator);
     defer arena.deinit();
-    const vert_shader = try mt.loadShader(bd.gpu.device, .vertex, "shaders/imgui", null, arena.allocator()); 
+    const vert_shader = try mt.loadShader(bd.gpu.device, .vertex, "shaders/imgui", null, arena.allocator());
     defer bd.gpu.device.releaseShader(vert_shader);
 
-    const frag_shader = try mt.loadShader(bd.gpu.device, .fragment, "shaders/imgui", null, arena.allocator()); 
+    const frag_shader = try mt.loadShader(bd.gpu.device, .fragment, "shaders/imgui", null, arena.allocator());
     defer bd.gpu.device.releaseShader(frag_shader);
 
     const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{.{
@@ -108,7 +112,7 @@ pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
         },
     };
 
-    const color_target_desc = [_]sdl.gpu.ColorTargetDescription {.{ 
+    const color_target_desc = [_]sdl.gpu.ColorTargetDescription{.{
         .format = bd.gpu.device.getSwapchainTextureFormat(bd.window),
         .blend_state = .{
             .enable_blend = true,
@@ -121,7 +125,7 @@ pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
         },
     }};
 
-    const pipeline = sdl.gpu.GraphicsPipelineCreateInfo {
+    const pipeline = sdl.gpu.GraphicsPipelineCreateInfo{
         .target_info = .{
             .num_color_targets = 1,
             .color_target_descriptions = &color_target_desc,
@@ -160,9 +164,7 @@ pub fn createPipeline() !*sdl.gpu.GraphicsPipeline {
 pub fn createDeviceObjects() !void {
     const bd = getBackendData().?;
     bd.pipeline = try createPipeline();
-    bd.color_target = sdl.gpu.ColorTargetInfo {
-
-    };
+    bd.color_target = sdl.gpu.ColorTargetInfo{};
     bd.font_texture = try createFontsTexture();
     bd.sampler = try createSampler();
 }
@@ -215,9 +217,9 @@ pub fn createSampler() *sdl.gpu.Sampler {
 pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !void {
     const bd = getBackendData().?;
 
-    const color_target = [1]sdl.gpu.ColorTargetInfo {.{
+    const color_target = [1]sdl.gpu.ColorTargetInfo{.{
         .texture = bd.gpu.render_state.active_target.?,
-        .clear_color = .{ .r = 0, .g = 0, .b = 0, .a = 0},
+        .clear_color = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
         .load_op = .load,
         .store_op = .store,
         .cycle = false,
@@ -240,10 +242,7 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
             if (bd.buf_vertex != null) bd.gpu.device.releaseBuffer(bd.buf_vertex.?);
             const new_vtx_size: u32 = @intCast((draw_data.TotalVtxCount + 5000) * @sizeOf(imgui.DrawVert));
 
-            const vtx_buf_info = sdl.gpu.BufferCreateInfo {
-                .usage = .{ .vertex = true },
-                .size = new_vtx_size
-            };
+            const vtx_buf_info = sdl.gpu.BufferCreateInfo{ .usage = .{ .vertex = true }, .size = new_vtx_size };
 
             const buf_vertex = bd.gpu.device.createBuffer(&vtx_buf_info).?;
             bd.buf_vertex = buf_vertex;
@@ -254,7 +253,7 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
             // create index buffer
             if (bd.buf_index != null) bd.gpu.device.releaseBuffer(bd.buf_index.?);
             const new_idx_size: u32 = @intCast((draw_data.TotalIdxCount + 10000) * @sizeOf(imgui.DrawIdx));
-            const idx_buf_info = sdl.gpu.BufferCreateInfo {
+            const idx_buf_info = sdl.gpu.BufferCreateInfo{
                 .usage = .{ .index = true },
                 .size = new_idx_size,
             };
@@ -264,10 +263,7 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
         }
 
         // create transfer buffer
-        const buf_transfer_desc = sdl.gpu.TransferBufferCreateInfo {
-            .size = bd.size_buf_vertex + bd.size_buf_index,
-            .usage = .upload
-        };
+        const buf_transfer_desc = sdl.gpu.TransferBufferCreateInfo{ .size = bd.size_buf_vertex + bd.size_buf_index, .usage = .upload };
         const buf_transfer = bd.gpu.device.createTransferBuffer(&buf_transfer_desc).?;
         defer bd.gpu.device.releaseTransferBuffer(buf_transfer);
 
@@ -278,14 +274,14 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
         var idx_mapped_ptr: [*]imgui.DrawIdx = @alignCast(@ptrCast(ptr + bd.size_buf_vertex));
 
         const len: usize = @intCast(draw_data.CmdListsCount);
-        for(0..len) |cmd_list_idx| {
+        for (0..len) |cmd_list_idx| {
             const cmd_list = draw_data.CmdLists.Data[cmd_list_idx];
             const vtx_size: usize = @intCast(cmd_list.vtx_buffer.Size);
             const idx_size: usize = @intCast(cmd_list.idx_buffer.Size);
-            for(0..vtx_size) |vtx| {
+            for (0..vtx_size) |vtx| {
                 vtx_mapped_ptr[vtx] = cmd_list.vtx_buffer.Data[vtx];
             }
-            for(0..idx_size) |idx| {
+            for (0..idx_size) |idx| {
                 idx_mapped_ptr[idx] = cmd_list.idx_buffer.Data[idx];
             }
             vtx_mapped_ptr += vtx_size;
@@ -297,12 +293,12 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
         const cpass = copy_cmd.beginCopyPass().?;
         defer cpass.end();
 
-        const vtx_src = sdl.gpu.TransferBufferLocation {
+        const vtx_src = sdl.gpu.TransferBufferLocation{
             .transfer_buffer = buf_transfer,
             .offset = 0,
         };
 
-        const vtx_dst = sdl.gpu.BufferRegion {
+        const vtx_dst = sdl.gpu.BufferRegion{
             .buffer = bd.buf_vertex,
             .offset = 0,
             .size = bd.size_buf_vertex,
@@ -310,12 +306,12 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
 
         cpass.uploadToBuffer(&vtx_src, &vtx_dst, false);
 
-        const idx_src = sdl.gpu.TransferBufferLocation {
+        const idx_src = sdl.gpu.TransferBufferLocation{
             .transfer_buffer = buf_transfer,
             .offset = bd.size_buf_vertex,
         };
 
-        const idx_dst = sdl.gpu.BufferRegion {
+        const idx_dst = sdl.gpu.BufferRegion{
             .buffer = bd.buf_index,
             .offset = 0,
             .size = bd.size_buf_index,
@@ -334,13 +330,13 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
     var global_idx_offset: c_uint = 0;
 
     if (draw_data.CmdListsCount > 0) {
-        for(draw_data.CmdLists.Data[0..@intCast(draw_data.CmdLists.Size)]) |cmd_list| {
-            for(cmd_list.cmd_buffer.Data[0..@intCast(cmd_list.cmd_buffer.Size)]) |pcmd| {
-                var clip_min = imgui.Vec2 {
+        for (draw_data.CmdLists.Data[0..@intCast(draw_data.CmdLists.Size)]) |cmd_list| {
+            for (cmd_list.cmd_buffer.Data[0..@intCast(cmd_list.cmd_buffer.Size)]) |pcmd| {
+                var clip_min = imgui.Vec2{
                     .x = (pcmd.clip_rect.x - clip_off.x) * clip_scale.x,
                     .y = (pcmd.clip_rect.y - clip_off.y) * clip_scale.y,
                 };
-                var clip_max = imgui.Vec2 {
+                var clip_max = imgui.Vec2{
                     .x = (pcmd.clip_rect.z - clip_off.x) * clip_scale.x,
                     .y = (pcmd.clip_rect.w - clip_off.y) * clip_scale.y,
                 };
@@ -351,31 +347,26 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
                 clip_max.y = @min(clip_max.y, fb_height);
                 if (clip_max.x <= clip_min.x or clip_max.y <= clip_min.y) continue;
 
-                const scissor = sdl.gpu.Rect {
+                const scissor = sdl.gpu.Rect{
                     .x = @intFromFloat(clip_min.x),
                     .y = @intFromFloat(clip_min.y),
                     .w = @intFromFloat(clip_max.x - clip_min.x),
                     .h = @intFromFloat(clip_max.y - clip_min.y),
                 };
                 pass.setScissor(&scissor);
-                const binding = [_]sdl.gpu.TextureSamplerBinding {.{
+                const binding = [_]sdl.gpu.TextureSamplerBinding{.{
                     .sampler = bd.sampler,
                     .texture = bd.font_texture,
                 }};
                 pass.bindFragmentSamplers(0, &binding, 1);
-                pass.drawIndexedPrimitives(
-                    pcmd.elem_count,
-                    1,
-                    @intCast(pcmd.idx_offset + global_idx_offset),
-                    @intCast(pcmd.vtx_offset + global_vtx_offset),
-                    0);
+                pass.drawIndexedPrimitives(pcmd.elem_count, 1, @intCast(pcmd.idx_offset + global_idx_offset), @intCast(pcmd.vtx_offset + global_vtx_offset), 0);
             }
             global_vtx_offset += if (cmd_list.*.vtx_buffer.Size > 0) @intCast(cmd_list.*.vtx_buffer.Size) else unreachable;
             global_idx_offset += if (cmd_list.*.idx_buffer.Size > 0) @intCast(cmd_list.*.idx_buffer.Size) else unreachable;
         }
     }
 
-    const scissor = sdl.gpu.Rect {
+    const scissor = sdl.gpu.Rect{
         .x = 0,
         .y = 0,
         .w = @intFromFloat(fb_width),
@@ -391,11 +382,8 @@ pub fn setupRenderState(cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.Rende
 
     render_pass.bindGraphicsPipeline(bd.*.pipeline);
     if (draw_data.*.TotalVtxCount > 0) {
-        const vertex_buffers = [1]sdl.gpu.BufferBinding {.{ 
-            .buffer = bd.*.buf_vertex,
-            .offset = 0
-        }};
-        const index_buffers = [1]sdl.gpu.BufferBinding {.{ 
+        const vertex_buffers = [1]sdl.gpu.BufferBinding{.{ .buffer = bd.*.buf_vertex, .offset = 0 }};
+        const index_buffers = [1]sdl.gpu.BufferBinding{.{
             .buffer = bd.*.buf_index,
             .offset = 0,
         }};
@@ -408,11 +396,11 @@ pub fn setupRenderState(cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.Rende
         const r = draw_data.DisplayPos.x + draw_data.DisplaySize.x;
         const t = draw_data.DisplayPos.y;
         const b = draw_data.DisplayPos.y + draw_data.DisplaySize.y;
-        const proj = [16]f32 {
-                2/(r-l),           0,  0,  0,
-                        0,     2/(t-b),  0,  0,
-                        0,           0, -1,  0,
-            (r+l)/(l-r), (t+b)/(b-t),  0,  1, 
+        const proj = [16]f32{
+            2 / (r - l),       0,                 0,  0,
+            0,                 2 / (t - b),       0,  0,
+            0,                 0,                 -1, 0,
+            (r + l) / (l - r), (t + b) / (b - t), 0,  1,
         };
         // const proj = [4][4]f32 {
         //     .{     2/(r-l),           0,  0,  (r+l)/(l-r) },
@@ -421,7 +409,7 @@ pub fn setupRenderState(cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.Rende
         //     .{           0,           0,  0,            1 },
         // };
 
-        const viewport= sdl.gpu.Viewport {
+        const viewport = sdl.gpu.Viewport{
             .x = 0,
             .y = 0,
             .w = fb_width,

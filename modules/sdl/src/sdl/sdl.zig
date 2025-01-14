@@ -18,5 +18,5 @@ pub const Window = video.Window;
 extern fn SDL_GetError() [*:0]const u8;
 pub const getError = SDL_GetError;
 
-extern fn SDL_Log(fmt: [*c] const u8, ...) void;
+extern fn SDL_Log(fmt: [*c]const u8, ...) void;
 pub const log = SDL_Log;

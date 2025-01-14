@@ -27,17 +27,16 @@ render_timer: std.time.Timer,
 
 pub fn init() !*Engine {
     var self_gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
-    var self = self_gpa.allocator().create(Engine)
-        catch std.debug.panic("out of memory", .{});
+    var self = self_gpa.allocator().create(Engine) catch std.debug.panic("out of memory", .{});
 
     self.* = .{
         .gpa = self_gpa,
         .arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
         .strint = Strint.init(self.arena.allocator()),
         .input = try Input.init(self.gpa.allocator()),
-        .window = try Window.init(), 
+        .window = try Window.init(),
         .gpu = try Gpu.init(&self.window, &self.loader, &self.strint, self.gpa.allocator()),
-        .ui = try UI.init(.{.gpu = self.gpu, .window = &self.window, .allocator = self.gpa.allocator()}),
+        .ui = try UI.init(.{ .gpu = self.gpu, .window = &self.window, .allocator = self.gpa.allocator() }),
         .loader = undefined,
         .timer = std.time.Timer.start() catch unreachable,
         .render_timer = std.time.Timer.start() catch unreachable,
@@ -70,7 +69,7 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
     var event: sdl.events.Event = undefined;
 
     while (sdl.events.poll(&event)) {
-        self.ui.processEvent(event) catch |err| 
+        self.ui.processEvent(event) catch |err|
             std.log.err("[UI] processEvent failure: {}", .{err});
 
         if (!self.ui.wantsKeyboard()) self.input.updateKeyboard(event);
@@ -108,10 +107,9 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
 
         if (gi.afterRender) |afterRender| afterRender(self, game);
         game.render_delta_time = self.render_timer.lap();
-    } 
+    }
 
     game.update_delta_time = self.timer.lap();
     @import("ztracy").FrameMark();
     return game;
 }
-

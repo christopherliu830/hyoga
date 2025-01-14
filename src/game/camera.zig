@@ -40,7 +40,7 @@ pub const Camera = struct {
     pub fn worldRay(self: *const Camera) hym.Ray {
         const inv = hym.mat4.inverse(self.viewProj());
         var dims = self.input.queryMousePosition().div(self.window.dimensions()).mul(2).sub(1);
-        dims = dims.mul(hym.vec(.{1, -1}));
+        dims = dims.mul(hym.vec(.{ 1, -1 }));
         const world_end = hym.mul(hym.vec4.create(dims.x(), dims.y(), 1, 1), inv);
         const end = hym.vec3.div(world_end.xyz(), world_end.w());
         return .{
@@ -51,11 +51,11 @@ pub const Camera = struct {
 
     pub fn registerInputs(self: *Camera, allocator: std.mem.Allocator) !void {
         const lambda = hy.closure.create;
-        self.input.bindMouse(.{ .button = .wheel                              }, try lambda(zoom, .{self}, allocator));
-        self.input.bindMouse(.{ .button = .motion                             }, try lambda(translate, .{self}, allocator));
-        self.input.bindMouse(.{ .button = .left                               }, try lambda(lockMouse, .{ self, true }, allocator));
-        self.input.bindMouse(.{ .button = .left,   .fire_on = .{ .up = true } }, try lambda(lockMouse, .{ self, false }, allocator));
-        self.input.bindMouse(.{ .button = .middle                             }, try lambda(lockMouse, .{ self, true }, allocator));
+        self.input.bindMouse(.{ .button = .wheel }, try lambda(zoom, .{self}, allocator));
+        self.input.bindMouse(.{ .button = .motion }, try lambda(translate, .{self}, allocator));
+        self.input.bindMouse(.{ .button = .left }, try lambda(lockMouse, .{ self, true }, allocator));
+        self.input.bindMouse(.{ .button = .left, .fire_on = .{ .up = true } }, try lambda(lockMouse, .{ self, false }, allocator));
+        self.input.bindMouse(.{ .button = .middle }, try lambda(lockMouse, .{ self, true }, allocator));
         self.input.bindMouse(.{ .button = .middle, .fire_on = .{ .up = true } }, try lambda(lockMouse, .{ self, false }, allocator));
 
         self.input.bindKey(.{ .button = .s, .fire_on = .{ .down = true, .held = true } }, try lambda(pan, .{ self, vec2.create(-1, 0) }, allocator));

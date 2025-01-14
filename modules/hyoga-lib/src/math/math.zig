@@ -13,7 +13,6 @@ pub const Vec2 = vec2.Vec2;
 pub const Vec3 = vec3.Vec3;
 pub const Vec4 = vec4.Vec4;
 
-
 pub fn VectorType(comptime v: type) type {
     const len = @typeInfo(v).@"struct".fields.len;
     return switch (len) {

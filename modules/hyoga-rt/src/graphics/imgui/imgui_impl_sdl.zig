@@ -32,7 +32,6 @@ pub const ImplData = struct {
     // bool                    WantUpdateGamepadsList;
 };
 
-
 pub fn initForD3d(window: *sdl.Window) void {
     init(window);
 }
@@ -107,16 +106,16 @@ pub fn shutdown() void {
     //TODO: free clipboard
 
     imgui.DestroyPlatformWindows();
-    for(bd.mouse_cursors) |cursor| {
+    for (bd.mouse_cursors) |cursor| {
         sdl.mouse.destroyCursor(cursor);
     }
     //TODO: reset gamepad
 
     io.BackendPlatformName = null;
     io.BackendPlatformUserData = null;
-    io.BackendFlags &= ~(@as(c_int, imgui.BackendFlag.has_mouse_cursors) | 
-                         @as(c_int, imgui.BackendFlag.has_set_mouse_pos) | 
-                         @as(c_int, imgui.BackendFlag.platform_has_viewports));
+    io.BackendFlags &= ~(@as(c_int, imgui.BackendFlag.has_mouse_cursors) |
+        @as(c_int, imgui.BackendFlag.has_set_mouse_pos) |
+        @as(c_int, imgui.BackendFlag.platform_has_viewports));
 
     bd.allocator.destroy(bd);
 }
@@ -135,7 +134,7 @@ fn platformSetImeData(_: *imgui.Context, viewport: ?*imgui.Viewport, data: ?*img
         _ = sdl.keyboard.stopTextInput(bd.ime_window);
     }
     if (data.?.WantVisible) {
-        const r = sdl.rect.Rect {
+        const r = sdl.rect.Rect{
             .x = @intFromFloat(data.?.InputPos.x - viewport.?.Pos.x),
             .y = @intFromFloat(data.?.InputPos.y - viewport.?.Pos.y),
             .w = 1,
@@ -151,10 +150,11 @@ fn setupPlatformHandles(viewport: *imgui.Viewport, window: *sdl.video.Window) vo
     viewport.PlatformHandle = @ptrFromInt(sdl.video.getWindowID(window));
     if (builtin.os.tag == .windows) {
         viewport.PlatformHandleRaw = sdl.c.SDL_GetPointerProperty(sdl.video.getWindowProperties(window), sdl.c.SDL_PROP_WINDOW_WIN32_HWND_POINTER, null);
-    } if (builtin.os.tag == .macos) {
+    }
+    if (builtin.os.tag == .macos) {
         viewport.PlatformHandleRaw = sdl.c.SDL_GetPointerProperty(sdl.video.getWindowProperties(window), sdl.c.SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, null);
     }
-}    
+}
 
 pub fn processEvent(event: *const sdl.events.Event) !bool {
     const bd = getBackendData() orelse return error.NotInitialized;
@@ -166,7 +166,7 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
                 return false;
             }
 
-            var mouse_pos = imgui.Vec2 { .x = event.motion.x, .y = event.motion.y };
+            var mouse_pos = imgui.Vec2{ .x = event.motion.x, .y = event.motion.y };
             if (io.ConfigFlags & imgui.ConfigFlag.viewports_enable != 0) {
                 var window_x: c_int = undefined;
                 var window_y: c_int = undefined;
@@ -198,11 +198,21 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             }
 
             var mouse_button: i32 = -1;
-            if (event.button.button == sdl.mouse.button_left) { mouse_button = 0; }
-            if (event.button.button == sdl.mouse.button_right) { mouse_button = 1; }
-            if (event.button.button == sdl.mouse.button_middle) { mouse_button = 2; }
-            if (event.button.button == sdl.mouse.button_x1) { mouse_button = 3; }
-            if (event.button.button == sdl.mouse.button_x2) { mouse_button = 4; }
+            if (event.button.button == sdl.mouse.button_left) {
+                mouse_button = 0;
+            }
+            if (event.button.button == sdl.mouse.button_right) {
+                mouse_button = 1;
+            }
+            if (event.button.button == sdl.mouse.button_middle) {
+                mouse_button = 2;
+            }
+            if (event.button.button == sdl.mouse.button_x1) {
+                mouse_button = 3;
+            }
+            if (event.button.button == sdl.mouse.button_x2) {
+                mouse_button = 4;
+            }
             if (mouse_button == -1) {
                 return false;
             }
@@ -221,8 +231,7 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             imgui.ImGuiIO_AddInputCharactersUTF8(io, event.text.text);
             return true;
         },
-        sdl.events.type.key_down,
-        sdl.events.type.key_up => {
+        sdl.events.type.key_down, sdl.events.type.key_up => {
             if (getViewportForWindowID(event.key.windowID) == null) {
                 return false;
             }
@@ -230,11 +239,7 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             const key = keyEventToImGuiKey(event.key.key, event.key.scancode);
             imgui.ImGuiIO_AddKeyEvent(io, key, event.type == sdl.events.type.key_down);
         },
-        sdl.events.type.display_orientation,
-        sdl.events.type.display_added,
-        sdl.events.type.display_removed,
-        sdl.events.type.display_moved,
-        sdl.events.type.display_content_scale_changed => {
+        sdl.events.type.display_orientation, sdl.events.type.display_added, sdl.events.type.display_removed, sdl.events.type.display_moved, sdl.events.type.display_content_scale_changed => {
             bd.want_update_monitors = true;
             return true;
         },
@@ -253,17 +258,14 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             bd.mouse_pending_leave_frame = imgui.GetFrameCount() + 1;
             return true;
         },
-        sdl.events.type.window_focus_gained,
-        sdl.events.type.window_focus_lost => {
+        sdl.events.type.window_focus_gained, sdl.events.type.window_focus_lost => {
             if (getViewportForWindowID(event.window.windowID) == null) {
                 return false;
             }
             imgui.ImGuiIO_AddFocusEvent(io, event.type == sdl.events.type.window_focus_gained);
             return true;
         },
-        sdl.events.type.window_close_requested,
-        sdl.events.type.window_moved,
-        sdl.events.type.window_resized => {
+        sdl.events.type.window_close_requested, sdl.events.type.window_moved, sdl.events.type.window_resized => {
             const viewport = getViewportForWindowID(event.window.windowID) orelse return false;
             if (event.type == sdl.events.type.window_close_requested) {
                 viewport.PlatformRequestClose = true;
@@ -276,8 +278,7 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             }
             return true;
         },
-        sdl.events.type.gamepad_added,
-        sdl.events.type.gamepad_removed => {
+        sdl.events.type.gamepad_added, sdl.events.type.gamepad_removed => {
             bd.want_update_gamepads_list = true;
             return true;
         },
@@ -366,7 +367,7 @@ fn updateMonitors() void {
         io.Monitors.Capacity = display_count;
     }
 
-    for(displays[0..len], 0..len) |display, i| {
+    for (displays[0..len], 0..len) |display, i| {
         var rect: sdl.rect.Rect = undefined;
         _ = sdl.video.getDisplayBounds(display, &rect);
         var x: f32 = @floatFromInt(rect.x);
@@ -374,7 +375,7 @@ fn updateMonitors() void {
         var w: f32 = @floatFromInt(rect.w);
         var h: f32 = @floatFromInt(rect.h);
 
-        var monitor = imgui.PlatformMonitor {
+        var monitor = imgui.PlatformMonitor{
             .MainPos = .{ .x = x, .y = y },
             .MainSize = .{ .x = w, .y = h },
             .WorkPos = .{ .x = x, .y = y },
@@ -450,7 +451,7 @@ fn updateKeyModifiers(sdl_key_mods: sdl.keycode.Keymod) void {
 }
 
 inline fn keyEventToImGuiKey(keycode: sdl.keycode.Keycode, scancode: sdl.scancode.Scancode) imgui.Key {
-    const code: ?imgui.Key = switch(scancode) {
+    const code: ?imgui.Key = switch (scancode) {
         sdl.scancode.kp_0 => .keypad0,
         sdl.scancode.kp_1 => .keypad1,
         sdl.scancode.kp_2 => .keypad2,
@@ -466,8 +467,8 @@ inline fn keyEventToImGuiKey(keycode: sdl.keycode.Keycode, scancode: sdl.scancod
         sdl.scancode.kp_multiply => .keypad_multiply,
         sdl.scancode.kp_minus => .keypad_subtract,
         sdl.scancode.kp_plus => .keypad_add,
-        sdl.scancode.kp_enter  => .keypad_enter,
-        sdl.scancode.kp_equals  => .keypad_equal,
+        sdl.scancode.kp_enter => .keypad_enter,
+        sdl.scancode.kp_equals => .keypad_equal,
         else => null,
     };
     return code orelse switch (keycode) {

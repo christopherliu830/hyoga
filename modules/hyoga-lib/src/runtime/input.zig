@@ -13,7 +13,7 @@ pub const Input = opaque {
     pub const queryKey = hyioQueryKey;
 };
 
-pub const InputFlags = packed struct (u8) {
+pub const InputFlags = packed struct(u8) {
     up: bool = false,
     down: bool = false,
     held: bool = false,

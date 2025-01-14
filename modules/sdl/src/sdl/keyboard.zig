@@ -64,16 +64,16 @@ pub const startTextInput = SDL_StartTextInput;
 //pub const SDL_TEXTINPUT_TYPE_NUMBER_PASSWORD_HIDDEN: c_int = 7;
 //pub const SDL_TEXTINPUT_TYPE_NUMBER_PASSWORD_VISIBLE: c_int = 8;
 //pub const enum_SDL_TextInputType = c_uint;
-pub const TextInputType = enum (c_uint) {
-	text,
-	text_name,
-	text_email,
-	text_username,
-	text_password_hidden,
-	text_password_visible,
-	number,
-	number_password_hidden,
-	number_password_visible,
+pub const TextInputType = enum(c_uint) {
+    text,
+    text_name,
+    text_email,
+    text_username,
+    text_password_hidden,
+    text_password_visible,
+    number,
+    number_password_hidden,
+    number_password_visible,
 };
 
 //pub const SDL_TextInputType = enum_SDL_TextInputType;
@@ -82,11 +82,11 @@ pub const TextInputType = enum (c_uint) {
 //pub const SDL_CAPITALIZE_WORDS: c_int = 2;
 //pub const SDL_CAPITALIZE_LETTERS: c_int = 3;
 //pub const enum_SDL_Capitalization = c_uint;
-pub const Capitalization = enum (c_uint) {
-	none,
-	sentences,
-	words,
-	letters,
+pub const Capitalization = enum(c_uint) {
+    none,
+    sentences,
+    words,
+    letters,
 };
 
 //pub const SDL_Capitalization = enum_SDL_Capitalization;

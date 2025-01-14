@@ -83,7 +83,7 @@ pub fn shutdown(_: *UI) void {
 
 pub fn useState(self: *UI) void {
     imgui.SetCurrentContext(self.context);
-    imgui.SetAllocatorFunctions(self.alloc_fn,self.free_fn,self.user_data);
+    imgui.SetAllocatorFunctions(self.alloc_fn, self.free_fn, self.user_data);
     implot.setCurrentContext(self.implot_context);
 }
 

@@ -21,18 +21,18 @@ pub const JoystickID = u32;
 //pub const SDL_JOYSTICK_TYPE_THROTTLE: c_int = 9;
 //pub const SDL_JOYSTICK_TYPE_COUNT: c_int = 10;
 //pub const enum_SDL_JoystickType = c_uint;
-pub const JoystickType = enum (c_uint) {
-	unknown,
-	gamepad,
-	wheel,
-	arcade_stick,
-	flight_stick,
-	dance_pad,
-	guitar,
-	drum_kit,
-	arcade_pad,
-	throttle,
-	count,
+pub const JoystickType = enum(c_uint) {
+    unknown,
+    gamepad,
+    wheel,
+    arcade_stick,
+    flight_stick,
+    dance_pad,
+    guitar,
+    drum_kit,
+    arcade_pad,
+    throttle,
+    count,
 };
 
 //pub const SDL_JoystickType = enum_SDL_JoystickType;
@@ -42,11 +42,11 @@ pub const JoystickType = enum (c_uint) {
 //pub const SDL_JOYSTICK_CONNECTION_WIRELESS: c_int = 2;
 //pub const enum_SDL_JoystickConnectionState = c_int;
 //pub const SDL_JoystickConnectionState = enum_SDL_JoystickConnectionState;
-pub const JoystickConnectionState = enum (c_uint) {
-	invalid = -1,
-	unknown = 0,
-	wired = 1,
-	wireless = 2,
+pub const JoystickConnectionState = enum(c_uint) {
+    invalid = -1,
+    unknown = 0,
+    wired = 1,
+    wireless = 2,
 };
 //pub extern fn SDL_LockJoysticks() void;
 pub extern fn SDL_LockJoysticks() void;
@@ -95,77 +95,77 @@ pub extern fn SDL_GetJoystickFromPlayerIndex(player_index: c_int) ?*Joystick;
 pub const getJoystickFromPlayerIndex = SDL_GetJoystickFromPlayerIndex;
 //pub const struct_SDL_VirtualJoystickTouchpadDesc = extern struct {
 pub const VirtualJoystickTouchpadDesc = extern struct {
-//    nfingers: Uint16 = @import("std").mem.zeroes(Uint16),
-	nfingers: u16 = @import("std").mem.zeroes(u16),
-//    padding: [3]Uint16 = @import("std").mem.zeroes([3]Uint16),
-	padding: [3]u16 = @import("std").mem.zeroes([3]u16),
-//};
+    //    nfingers: Uint16 = @import("std").mem.zeroes(Uint16),
+    nfingers: u16 = @import("std").mem.zeroes(u16),
+    //    padding: [3]Uint16 = @import("std").mem.zeroes([3]Uint16),
+    padding: [3]u16 = @import("std").mem.zeroes([3]u16),
+    //};
 };
 //pub const SDL_VirtualJoystickTouchpadDesc = struct_SDL_VirtualJoystickTouchpadDesc;
 //pub const struct_SDL_VirtualJoystickSensorDesc = extern struct {
 pub const VirtualJoystickSensorDesc = extern struct {
-//    type: SDL_SensorType = @import("std").mem.zeroes(SDL_SensorType),
-	type: SensorType = @import("std").mem.zeroes(SensorType),
-//    rate: f32 = @import("std").mem.zeroes(f32),
-	rate: f32 = @import("std").mem.zeroes(f32),
-//};
+    //    type: SDL_SensorType = @import("std").mem.zeroes(SDL_SensorType),
+    type: SensorType = @import("std").mem.zeroes(SensorType),
+    //    rate: f32 = @import("std").mem.zeroes(f32),
+    rate: f32 = @import("std").mem.zeroes(f32),
+    //};
 };
 //pub const SDL_VirtualJoystickSensorDesc = struct_SDL_VirtualJoystickSensorDesc;
 //pub const struct_SDL_VirtualJoystickDesc = extern struct {
 pub const VirtualJoystickDesc = extern struct {
-//    version: Uint32 = @import("std").mem.zeroes(Uint32),
-	version: u32 = @import("std").mem.zeroes(u32),
-//    type: Uint16 = @import("std").mem.zeroes(Uint16),
-	type: u16 = @import("std").mem.zeroes(u16),
-//    padding: Uint16 = @import("std").mem.zeroes(Uint16),
-	padding: u16 = @import("std").mem.zeroes(u16),
-//    vendor_id: Uint16 = @import("std").mem.zeroes(Uint16),
-	vendor_id: u16 = @import("std").mem.zeroes(u16),
-//    product_id: Uint16 = @import("std").mem.zeroes(Uint16),
-	product_id: u16 = @import("std").mem.zeroes(u16),
-//    naxes: Uint16 = @import("std").mem.zeroes(Uint16),
-	naxes: u16 = @import("std").mem.zeroes(u16),
-//    nbuttons: Uint16 = @import("std").mem.zeroes(Uint16),
-	nbuttons: u16 = @import("std").mem.zeroes(u16),
-//    nballs: Uint16 = @import("std").mem.zeroes(Uint16),
-	nballs: u16 = @import("std").mem.zeroes(u16),
-//    nhats: Uint16 = @import("std").mem.zeroes(Uint16),
-	nhats: u16 = @import("std").mem.zeroes(u16),
-//    ntouchpads: Uint16 = @import("std").mem.zeroes(Uint16),
-	ntouchpads: u16 = @import("std").mem.zeroes(u16),
-//    nsensors: Uint16 = @import("std").mem.zeroes(Uint16),
-	nsensors: u16 = @import("std").mem.zeroes(u16),
-//    padding2: [2]Uint16 = @import("std").mem.zeroes([2]Uint16),
-	padding2: [2]u16 = @import("std").mem.zeroes([2]u16),
-//    button_mask: Uint32 = @import("std").mem.zeroes(Uint32),
-	button_mask: u32 = @import("std").mem.zeroes(u32),
-//    axis_mask: Uint32 = @import("std").mem.zeroes(Uint32),
-	axis_mask: u32 = @import("std").mem.zeroes(u32),
-//    name: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
-	name: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
-//    touchpads: [*c]const SDL_VirtualJoystickTouchpadDesc = @import("std").mem.zeroes([*c]const SDL_VirtualJoystickTouchpadDesc),
-	touchpads: [*c]const VirtualJoystickTouchpadDesc = @import("std").mem.zeroes([*c]const VirtualJoystickTouchpadDesc),
-//    sensors: [*c]const SDL_VirtualJoystickSensorDesc = @import("std").mem.zeroes([*c]const SDL_VirtualJoystickSensorDesc),
-	sensors: [*c]const VirtualJoystickSensorDesc = @import("std").mem.zeroes([*c]const VirtualJoystickSensorDesc),
-//    userdata: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
-	userdata: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
-//    Update: ?*const fn (?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*anyopaque) callconv(.C) void),
-	update: ?*const fn (?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*anyopaque) callconv(.C) void),
-//    SetPlayerIndex: ?*const fn (?*anyopaque, c_int) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*anyopaque, c_int) callconv(.C) void),
-	setplayerindex: ?*const fn (?*anyopaque, c_int) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*anyopaque, c_int) callconv(.C) void),
-//    Rumble: ?*const fn (?*anyopaque, Uint16, Uint16) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, Uint16, Uint16) callconv(.C) SDL_bool),
-	rumble: ?*const fn (?*anyopaque, u16, u16) callconv(.C) bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, u16, u16) callconv(.C) bool),
-//    RumbleTriggers: ?*const fn (?*anyopaque, Uint16, Uint16) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, Uint16, Uint16) callconv(.C) SDL_bool),
-	rumbletriggers: ?*const fn (?*anyopaque, u16, u16) callconv(.C) bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, u16, u16) callconv(.C) bool),
-//    SetLED: ?*const fn (?*anyopaque, Uint8, Uint8, Uint8) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, Uint8, Uint8, Uint8) callconv(.C) SDL_bool),
-	setled: ?*const fn (?*anyopaque, u8, u8, u8) callconv(.C) bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, u8, u8, u8) callconv(.C) bool),
-//    SendEffect: ?*const fn (?*anyopaque, ?*const anyopaque, c_int) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, ?*const anyopaque, c_int) callconv(.C) SDL_bool),
-	sendeffect: ?*const fn (?*anyopaque, ?*const anyopaque, c_int) callconv(.C) bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, ?*const anyopaque, c_int) callconv(.C) bool),
-//    SetSensorsEnabled: ?*const fn (?*anyopaque, SDL_bool) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, SDL_bool) callconv(.C) SDL_bool),
-	setsensorsenabled: ?*const fn (?*anyopaque, bool) callconv(.C) bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, bool) callconv(.C) bool),
-//    Cleanup: ?*const fn (?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*anyopaque) callconv(.C) void),
-	cleanup: ?*const fn (?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*anyopaque) callconv(.C) void),
-//};
+    //    version: Uint32 = @import("std").mem.zeroes(Uint32),
+    version: u32 = @import("std").mem.zeroes(u32),
+    //    type: Uint16 = @import("std").mem.zeroes(Uint16),
+    type: u16 = @import("std").mem.zeroes(u16),
+    //    padding: Uint16 = @import("std").mem.zeroes(Uint16),
+    padding: u16 = @import("std").mem.zeroes(u16),
+    //    vendor_id: Uint16 = @import("std").mem.zeroes(Uint16),
+    vendor_id: u16 = @import("std").mem.zeroes(u16),
+    //    product_id: Uint16 = @import("std").mem.zeroes(Uint16),
+    product_id: u16 = @import("std").mem.zeroes(u16),
+    //    naxes: Uint16 = @import("std").mem.zeroes(Uint16),
+    naxes: u16 = @import("std").mem.zeroes(u16),
+    //    nbuttons: Uint16 = @import("std").mem.zeroes(Uint16),
+    nbuttons: u16 = @import("std").mem.zeroes(u16),
+    //    nballs: Uint16 = @import("std").mem.zeroes(Uint16),
+    nballs: u16 = @import("std").mem.zeroes(u16),
+    //    nhats: Uint16 = @import("std").mem.zeroes(Uint16),
+    nhats: u16 = @import("std").mem.zeroes(u16),
+    //    ntouchpads: Uint16 = @import("std").mem.zeroes(Uint16),
+    ntouchpads: u16 = @import("std").mem.zeroes(u16),
+    //    nsensors: Uint16 = @import("std").mem.zeroes(Uint16),
+    nsensors: u16 = @import("std").mem.zeroes(u16),
+    //    padding2: [2]Uint16 = @import("std").mem.zeroes([2]Uint16),
+    padding2: [2]u16 = @import("std").mem.zeroes([2]u16),
+    //    button_mask: Uint32 = @import("std").mem.zeroes(Uint32),
+    button_mask: u32 = @import("std").mem.zeroes(u32),
+    //    axis_mask: Uint32 = @import("std").mem.zeroes(Uint32),
+    axis_mask: u32 = @import("std").mem.zeroes(u32),
+    //    name: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
+    name: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
+    //    touchpads: [*c]const SDL_VirtualJoystickTouchpadDesc = @import("std").mem.zeroes([*c]const SDL_VirtualJoystickTouchpadDesc),
+    touchpads: [*c]const VirtualJoystickTouchpadDesc = @import("std").mem.zeroes([*c]const VirtualJoystickTouchpadDesc),
+    //    sensors: [*c]const SDL_VirtualJoystickSensorDesc = @import("std").mem.zeroes([*c]const SDL_VirtualJoystickSensorDesc),
+    sensors: [*c]const VirtualJoystickSensorDesc = @import("std").mem.zeroes([*c]const VirtualJoystickSensorDesc),
+    //    userdata: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
+    userdata: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
+    //    Update: ?*const fn (?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*anyopaque) callconv(.C) void),
+    update: ?*const fn (?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*anyopaque) callconv(.C) void),
+    //    SetPlayerIndex: ?*const fn (?*anyopaque, c_int) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*anyopaque, c_int) callconv(.C) void),
+    setplayerindex: ?*const fn (?*anyopaque, c_int) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*anyopaque, c_int) callconv(.C) void),
+    //    Rumble: ?*const fn (?*anyopaque, Uint16, Uint16) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, Uint16, Uint16) callconv(.C) SDL_bool),
+    rumble: ?*const fn (?*anyopaque, u16, u16) callconv(.C) bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, u16, u16) callconv(.C) bool),
+    //    RumbleTriggers: ?*const fn (?*anyopaque, Uint16, Uint16) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, Uint16, Uint16) callconv(.C) SDL_bool),
+    rumbletriggers: ?*const fn (?*anyopaque, u16, u16) callconv(.C) bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, u16, u16) callconv(.C) bool),
+    //    SetLED: ?*const fn (?*anyopaque, Uint8, Uint8, Uint8) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, Uint8, Uint8, Uint8) callconv(.C) SDL_bool),
+    setled: ?*const fn (?*anyopaque, u8, u8, u8) callconv(.C) bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, u8, u8, u8) callconv(.C) bool),
+    //    SendEffect: ?*const fn (?*anyopaque, ?*const anyopaque, c_int) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, ?*const anyopaque, c_int) callconv(.C) SDL_bool),
+    sendeffect: ?*const fn (?*anyopaque, ?*const anyopaque, c_int) callconv(.C) bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, ?*const anyopaque, c_int) callconv(.C) bool),
+    //    SetSensorsEnabled: ?*const fn (?*anyopaque, SDL_bool) callconv(.C) SDL_bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, SDL_bool) callconv(.C) SDL_bool),
+    setsensorsenabled: ?*const fn (?*anyopaque, bool) callconv(.C) bool = @import("std").mem.zeroes(?*const fn (?*anyopaque, bool) callconv(.C) bool),
+    //    Cleanup: ?*const fn (?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*anyopaque) callconv(.C) void),
+    cleanup: ?*const fn (?*anyopaque) callconv(.C) void = @import("std").mem.zeroes(?*const fn (?*anyopaque) callconv(.C) void),
+    //};
 };
 //pub const SDL_VirtualJoystickDesc = struct_SDL_VirtualJoystickDesc;
 //// ./include/SDL3/SDL_stdinc.h:561:42: warning: ignoring StaticAssert declaration

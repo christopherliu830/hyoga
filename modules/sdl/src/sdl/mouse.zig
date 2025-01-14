@@ -78,7 +78,6 @@ pub const MouseWheelDirection = enum(c_uint) {
     mousewheel_flipped,
 };
 
-
 //pub const SDL_MouseWheelDirection = enum_SDL_MouseWheelDirection;
 //pub const SDL_MouseButtonFlags = Uint32;
 pub const button_left = 1;

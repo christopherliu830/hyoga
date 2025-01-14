@@ -1,45 +1,45 @@
 //pub const struct_SDL_Point = extern struct {
 pub const Point = extern struct {
-//    x: c_int = @import("std").mem.zeroes(c_int),
-	x: c_int = @import("std").mem.zeroes(c_int),
-//    y: c_int = @import("std").mem.zeroes(c_int),
-	y: c_int = @import("std").mem.zeroes(c_int),
-//};
+    //    x: c_int = @import("std").mem.zeroes(c_int),
+    x: c_int = @import("std").mem.zeroes(c_int),
+    //    y: c_int = @import("std").mem.zeroes(c_int),
+    y: c_int = @import("std").mem.zeroes(c_int),
+    //};
 };
 //pub const SDL_Point = struct_SDL_Point;
 //pub const struct_SDL_FPoint = extern struct {
 pub const FPoint = extern struct {
-//    x: f32 = @import("std").mem.zeroes(f32),
-	x: f32 = @import("std").mem.zeroes(f32),
-//    y: f32 = @import("std").mem.zeroes(f32),
-	y: f32 = @import("std").mem.zeroes(f32),
-//};
+    //    x: f32 = @import("std").mem.zeroes(f32),
+    x: f32 = @import("std").mem.zeroes(f32),
+    //    y: f32 = @import("std").mem.zeroes(f32),
+    y: f32 = @import("std").mem.zeroes(f32),
+    //};
 };
 //pub const SDL_FPoint = struct_SDL_FPoint;
 //pub const struct_SDL_Rect = extern struct {
 pub const Rect = extern struct {
-//    x: c_int = @import("std").mem.zeroes(c_int),
-	x: c_int = @import("std").mem.zeroes(c_int),
-//    y: c_int = @import("std").mem.zeroes(c_int),
-	y: c_int = @import("std").mem.zeroes(c_int),
-//    w: c_int = @import("std").mem.zeroes(c_int),
-	w: c_int = @import("std").mem.zeroes(c_int),
-//    h: c_int = @import("std").mem.zeroes(c_int),
-	h: c_int = @import("std").mem.zeroes(c_int),
-//};
+    //    x: c_int = @import("std").mem.zeroes(c_int),
+    x: c_int = @import("std").mem.zeroes(c_int),
+    //    y: c_int = @import("std").mem.zeroes(c_int),
+    y: c_int = @import("std").mem.zeroes(c_int),
+    //    w: c_int = @import("std").mem.zeroes(c_int),
+    w: c_int = @import("std").mem.zeroes(c_int),
+    //    h: c_int = @import("std").mem.zeroes(c_int),
+    h: c_int = @import("std").mem.zeroes(c_int),
+    //};
 };
 //pub const SDL_Rect = struct_SDL_Rect;
 //pub const struct_SDL_FRect = extern struct {
 pub const FRect = extern struct {
-//    x: f32 = @import("std").mem.zeroes(f32),
-	x: f32 = @import("std").mem.zeroes(f32),
-//    y: f32 = @import("std").mem.zeroes(f32),
-	y: f32 = @import("std").mem.zeroes(f32),
-//    w: f32 = @import("std").mem.zeroes(f32),
-	w: f32 = @import("std").mem.zeroes(f32),
-//    h: f32 = @import("std").mem.zeroes(f32),
-	h: f32 = @import("std").mem.zeroes(f32),
-//};
+    //    x: f32 = @import("std").mem.zeroes(f32),
+    x: f32 = @import("std").mem.zeroes(f32),
+    //    y: f32 = @import("std").mem.zeroes(f32),
+    y: f32 = @import("std").mem.zeroes(f32),
+    //    w: f32 = @import("std").mem.zeroes(f32),
+    w: f32 = @import("std").mem.zeroes(f32),
+    //    h: f32 = @import("std").mem.zeroes(f32),
+    h: f32 = @import("std").mem.zeroes(f32),
+    //};
 };
 //pub const SDL_FRect = struct_SDL_FRect;
 //pub inline fn SDL_RectToFRect(arg_rect: [*c]const SDL_Rect, arg_frect: [*c]SDL_FRect) void {

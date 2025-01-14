@@ -9,7 +9,7 @@ const Vec3 = @import("hyoga-lib").math.Vec3;
 const Strint = @import("../strintern.zig");
 
 const max_uniform_limit = 8;
-const empty_uniform_array = [_]Strint.ID { .invalid } ** 8;
+const empty_uniform_array = [_]Strint.ID{.invalid} ** 8;
 
 pub const Handle = SlotMap(Material).Handle;
 
@@ -26,12 +26,7 @@ pub const Material = struct {
     textures: tx.TextureSet,
 
     pub fn fromTemplate(template: MaterialTemplate, textures: tx.TextureSet) Material {
-        return Material {
-            .pipeline = template.pipeline,
-            .vert_program_def = template.vert_program_def,
-            .frag_program_def = template.frag_program_def,
-            .textures = textures
-        };
+        return Material{ .pipeline = template.pipeline, .vert_program_def = template.vert_program_def, .frag_program_def = template.frag_program_def, .textures = textures };
     }
 };
 
@@ -40,7 +35,7 @@ pub const ShaderDefinition = struct {
     num_storage_textures: u32 = 0,
     num_storage_buffers: u32 = 0,
     num_uniform_buffers: u32 = 0,
-    textures: [4]?tx.TextureType = [_]?tx.TextureType{ null } ** 4,
+    textures: [4]?tx.TextureType = [_]?tx.TextureType{null} ** 4,
     storage_buffers: [max_uniform_limit]Strint.ID,
     uniforms: [max_uniform_limit]Strint.ID,
 };
@@ -55,7 +50,7 @@ pub const MaterialSpec = struct {
 
     pass: Gpu.PassType,
     vertex: ?ProgramInfo = null,
-    fragment: ?ProgramInfo = null, 
+    fragment: ?ProgramInfo = null,
 };
 
 pub const MaterialReadOptions = struct {
@@ -75,7 +70,7 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
     const arena = arena_allocator.allocator();
 
     const info = loadMaterialInfo(path, arena) catch |err| {
-        std.debug.panic("Could not read material json: {s}: {}", .{path, err});
+        std.debug.panic("Could not read material json: {s}: {}", .{ path, err });
     };
 
     var vert_info: sdlsc.GraphicsShaderMetadata = undefined;
@@ -96,15 +91,15 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
         .fill_mode = options.fill_mode,
     });
 
-    var vert_textures: [4]?tx.TextureType = [_]?tx.TextureType { null } ** 4;
-    var frag_textures: [4]?tx.TextureType = [_]?tx.TextureType { null } ** 4;
+    var vert_textures: [4]?tx.TextureType = [_]?tx.TextureType{null} ** 4;
+    var frag_textures: [4]?tx.TextureType = [_]?tx.TextureType{null} ** 4;
     var vert_uniforms: [max_uniform_limit]Strint.ID = empty_uniform_array;
     var frag_uniforms: [max_uniform_limit]Strint.ID = empty_uniform_array;
     var vert_storages: [max_uniform_limit]Strint.ID = empty_uniform_array;
     var frag_storages: [max_uniform_limit]Strint.ID = empty_uniform_array;
 
     inline for (.{
-        .{ info.vertex, &vert_textures, &vert_uniforms, &vert_storages }, 
+        .{ info.vertex, &vert_textures, &vert_uniforms, &vert_storages },
         .{ info.fragment, &frag_textures, &frag_uniforms, &frag_storages },
     }) |opts| {
         const prog = opts[0];
@@ -125,10 +120,7 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
                     }
 
                     if (tex_type == null) {
-                        std.debug.panic("Invalid RSL for {s}: Requested invalid texture of type {s}", .{
-                            options.path,
-                            name
-                        });
+                        std.debug.panic("Invalid RSL for {s}: Requested invalid texture of type {s}", .{ options.path, name });
                     }
 
                     prog_textures[i] = tex_type;
@@ -149,8 +141,7 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
         }
     }
 
-
-    return MaterialTemplate {
+    return MaterialTemplate{
         .pipeline = pipeline,
         .vert_program_def = .{
             .num_samplers = vert_info.num_samplers,
@@ -174,25 +165,20 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
 }
 
 pub fn loadMaterialInfo(path: []const u8, arena: std.mem.Allocator) !MaterialSpec {
-    const info_path = try std.mem.concat(arena, u8, &.{path, ".rsl.json"});
+    const info_path = try std.mem.concat(arena, u8, &.{ path, ".rsl.json" });
     const info_file = try std.fs.cwd().openFile(info_path, .{});
     const info_bytes = try info_file.readToEndAlloc(arena, 1024 * 16);
     info_file.close();
     return try std.json.parseFromSliceLeaky(MaterialSpec, arena, info_bytes, .{});
 }
 
-pub fn loadShader(device: *sdl.gpu.Device,
-                  stage: sdl.gpu.ShaderStage,
-                  path: []const u8, out_info:
-                  ?*sdlsc.GraphicsShaderMetadata,
-                  arena: std.mem.Allocator) !*sdl.gpu.Shader
-{
-    const full_path = switch(stage) {
-        .vertex => try std.mem.concat(arena, u8, &.{path, ".vert.spv"}),
-        .fragment => try std.mem.concat(arena, u8, &.{path, ".frag.spv"}),
+pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []const u8, out_info: ?*sdlsc.GraphicsShaderMetadata, arena: std.mem.Allocator) !*sdl.gpu.Shader {
+    const full_path = switch (stage) {
+        .vertex => try std.mem.concat(arena, u8, &.{ path, ".vert.spv" }),
+        .fragment => try std.mem.concat(arena, u8, &.{ path, ".frag.spv" }),
     };
-    
-    const sdlsc_stage: sdlsc.ShaderStage = switch(stage) {
+
+    const sdlsc_stage: sdlsc.ShaderStage = switch (stage) {
         .vertex => .vertex,
         .fragment => .fragment,
     };
@@ -204,7 +190,7 @@ pub fn loadShader(device: *sdl.gpu.Device,
     var info = try sdlsc.reflectGraphicsSpirv(code);
     if (out_info) |ptr| {
         ptr.* = info;
-    } 
+    }
 
     return try sdlsc.compileGraphicsShaderFromSpirv(device, sdlsc_stage, .{
         .bytecode = code,

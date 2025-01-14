@@ -1,4 +1,3 @@
-
 const InitFlags = u32;
 
 pub const Flag = struct {

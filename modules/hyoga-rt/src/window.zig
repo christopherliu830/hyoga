@@ -14,8 +14,8 @@ pub fn init() !Window {
         return error.SDLInitializationFailed;
     }
 
-    const instance = sdl.video.createWindow("My Game Window", 640, 480, .{ 
-        .resizeable = true, 
+    const instance = sdl.video.createWindow("My Game Window", 640, 480, .{
+        .resizeable = true,
     }) orelse {
         sdl.log("Unable to create window: %s", sdl.getError());
         return error.SDLInitializationFailed;
@@ -32,7 +32,7 @@ pub fn dimensions(window: Window) hym.Vec2 {
     var x: c_int = 0;
     var y: c_int = 0;
     if (!sdl.video.getWindowSizeInPixels(window.hdl, &x, &y)) {
-        std.log.err("Unable to get window size: {s}", .{ sdl.getError() });
+        std.log.err("Unable to get window size: {s}", .{sdl.getError()});
     }
     return hym.vec2.create(@floatFromInt(x), @floatFromInt(y));
 }
@@ -40,4 +40,3 @@ pub fn dimensions(window: Window) hym.Vec2 {
 pub fn setRelativeMouseMode(self: Window, mode: bool) void {
     _ = sdl.mouse.setWindowRelativeMouseMode(self.hdl, mode);
 }
-

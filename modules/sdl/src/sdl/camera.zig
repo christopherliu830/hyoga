@@ -8,17 +8,17 @@ pub const CameraID = u32;
 pub const Camera = opaque {};
 
 pub const CameraSpec = extern struct {
-	format: PixelFormat = @import("std").mem.zeroes(PixelFormat),
-	colorspace: Colorspace = @import("std").mem.zeroes(Colorspace),
-	width: c_int = @import("std").mem.zeroes(c_int),
-	height: c_int = @import("std").mem.zeroes(c_int),
-	framerate_numerator: c_int = @import("std").mem.zeroes(c_int),
-	framerate_denominator: c_int = @import("std").mem.zeroes(c_int),
+    format: PixelFormat = @import("std").mem.zeroes(PixelFormat),
+    colorspace: Colorspace = @import("std").mem.zeroes(Colorspace),
+    width: c_int = @import("std").mem.zeroes(c_int),
+    height: c_int = @import("std").mem.zeroes(c_int),
+    framerate_numerator: c_int = @import("std").mem.zeroes(c_int),
+    framerate_denominator: c_int = @import("std").mem.zeroes(c_int),
 };
-pub const CameraPosition = enum (c_uint) {
-	unknown,
-	front_facing,
-	back_facing,
+pub const CameraPosition = enum(c_uint) {
+    unknown,
+    front_facing,
+    back_facing,
 };
 
 pub extern fn SDL_GetNumCameraDrivers() c_int;

@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const RunProto = *const fn(*Runnable, ctx: ?*anyopaque) void;
+pub const RunProto = *const fn (*Runnable, ctx: ?*anyopaque) void;
 pub const Runnable = struct { runFn: RunProto };
 
 pub fn create(comptime handler: anytype, args: anytype, allocator: std.mem.Allocator) !*Runnable {
@@ -19,4 +19,3 @@ pub fn create(comptime handler: anytype, args: anytype, allocator: std.mem.Alloc
     closure.* = .{ .arguments = args };
     return &closure.runnable;
 }
-

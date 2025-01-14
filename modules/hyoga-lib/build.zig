@@ -20,4 +20,3 @@ pub fn build(b: *std.Build) !void {
     const test_step = b.step("test", "run unit tests");
     test_step.dependOn(&run_tests.step);
 }
-

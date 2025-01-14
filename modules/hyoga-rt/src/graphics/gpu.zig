@@ -47,17 +47,16 @@ pub const StringIDs = struct {
     pub fn init(strint: *Strint) !@This() {
         return .{
             // Storage buffers
-            .all_renderables          = try strint.from("hy_all_renderables"),
-            .selected_renderables     = try strint.from("hy_selected_renderables"),
+            .all_renderables = try strint.from("hy_all_renderables"),
+            .selected_renderables = try strint.from("hy_selected_renderables"),
             // Uniform buffers
-            .view_projection          = try strint.from("hy_view_projection_matrix" ),
-            .camera_world_position    = try strint.from("hy_camera_world_position"),
-            .light_direction          = try strint.from("hy_light_direction"),
-            .viewport_size            = try strint.from("hy_viewport_size"),
+            .view_projection = try strint.from("hy_view_projection_matrix"),
+            .camera_world_position = try strint.from("hy_camera_world_position"),
+            .light_direction = try strint.from("hy_light_direction"),
+            .viewport_size = try strint.from("hy_viewport_size"),
         };
     }
 };
-
 
 pub const BufferHandle = packed union {
     buffer: *sdl.gpu.Buffer,
@@ -67,7 +66,7 @@ pub const BufferHandle = packed union {
 /// This struct is sent to shaders as a uniform
 /// buffer and fields must be kept in sync.
 pub const GpuScene = extern struct {
-    view_proj: hym.Mat4, 
+    view_proj: hym.Mat4,
     camera_world_pos: [3]f32,
     viewport_size_x: u32,
     light_dir: [3]f32,
@@ -221,15 +220,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
     // Generate default assets
 
     // Unloaded texture
-    const texture = self.device.createTexture(&.{
-        .format = .b8g8r8a8_unorm, 
-        .height = 256,
-        .width = 256,
-        .layer_count_or_depth = 1,
-        .num_levels = 1,
-        .sample_count = .@"1",
-        .usage = .{ .sampler = true }
-    }).?;
+    const texture = self.device.createTexture(&.{ .format = .b8g8r8a8_unorm, .height = 256, .width = 256, .layer_count_or_depth = 1, .num_levels = 1, .sample_count = .@"1", .usage = .{ .sampler = true } }).?;
     self.device.setTextureName(texture, "null_tex");
 
     var buffer: [256 * 256]u32 = [_]u32{0xffffffff} ** (256 * 256);
@@ -240,8 +231,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         for (0..256) |j| {
             if ((i + j) % 2 == 999) {
                 @memset(buffer[i * 256 + j .. i * 256 + j + 1], black);
-            }
-            else {
+            } else {
                 @memset(buffer[i * 256 + j .. i * 256 + j + 1], white);
             }
         }
@@ -249,34 +239,18 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
     try self.uploadToTexture(texture, 256, 256, &std.mem.toBytes(buffer));
 
     // Black texture
-    const black_texture = self.device.createTexture(&.{
-        .format = .b8g8r8a8_unorm, 
-        .height = 1,
-        .width = 1,
-        .layer_count_or_depth = 1,
-        .num_levels = 1,
-        .sample_count = .@"1",
-        .usage = .{ .sampler = true }
-    }).?;
+    const black_texture = self.device.createTexture(&.{ .format = .b8g8r8a8_unorm, .height = 1, .width = 1, .layer_count_or_depth = 1, .num_levels = 1, .sample_count = .@"1", .usage = .{ .sampler = true } }).?;
     self.device.setTextureName(black_texture, "black_tex");
 
-    try self.uploadToTexture(black_texture, 1, 1, &[4]u8{1, 0, 0, 0});
+    try self.uploadToTexture(black_texture, 1, 1, &[4]u8{ 1, 0, 0, 0 });
 
-    const white_texture = self.device.createTexture(&.{
-        .format = .b8g8r8a8_unorm, 
-        .height = 1,
-        .width = 1,
-        .layer_count_or_depth = 1,
-        .num_levels = 1,
-        .sample_count = .@"1",
-        .usage = .{ .sampler = true }
-    }).?;
+    const white_texture = self.device.createTexture(&.{ .format = .b8g8r8a8_unorm, .height = 1, .width = 1, .layer_count_or_depth = 1, .num_levels = 1, .sample_count = .@"1", .usage = .{ .sampler = true } }).?;
     self.device.setTextureName(white_texture, "white_tex");
 
-    try self.uploadToTexture(white_texture, 1, 1, &std.mem.toBytes([_]u32 {white}));
+    try self.uploadToTexture(white_texture, 1, 1, &std.mem.toBytes([_]u32{white}));
 
     // Sampler
-    const sampler_info = sdl.gpu.SamplerCreateInfo {
+    const sampler_info = sdl.gpu.SamplerCreateInfo{
         .address_mode_u = .clamp_to_edge,
         .address_mode_v = .clamp_to_edge,
         .address_mode_w = .clamp_to_edge,
@@ -284,8 +258,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .mag_filter = .linear,
     };
 
-    const white_material = try self.materials.insert(
-        mt.Material.fromTemplate(material, tx.TextureSet.initFull(.{ .target = white_texture })));
+    const white_material = try self.materials.insert(mt.Material.fromTemplate(material, tx.TextureSet.initFull(.{ .target = white_texture })));
 
     const cube = try self.createModel(&primitives.cube.vertices, &primitives.cube.indices, white_material);
     const quad = try self.createModel(&primitives.quad.vertices, &primitives.quad.indices, white_material);
@@ -295,7 +268,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .enable_depth = false,
         .enable_stencil = false,
     }, self.gpa);
-    
+
     var w: c_int = 0;
     var h: c_int = 0;
     _ = sdl.video.getWindowSizeInPixels(window.hdl, &w, &h);
@@ -381,7 +354,7 @@ pub fn uploadToBuffer(self: *Gpu, buffer: *sdl.gpu.Buffer, offset: u32, data: []
         .offset = 0,
     };
 
-    const dst_region = sdl.gpu.BufferRegion {
+    const dst_region = sdl.gpu.BufferRegion{
         .buffer = buffer,
         .offset = offset,
         .size = @intCast(data.len),
@@ -468,25 +441,18 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     defer zone.End();
     const arena = self.arena.allocator();
 
-    try self.uniforms.put(self.gpa, self.ids.view_projection,       .{ .mat4x4 = scene.view_proj.m });
+    try self.uniforms.put(self.gpa, self.ids.view_projection, .{ .mat4x4 = scene.view_proj.m });
     try self.uniforms.put(self.gpa, self.ids.camera_world_position, .{ .f32x3 = scene.camera_world_pos.v });
-    try self.uniforms.put(self.gpa, self.ids.light_direction,       .{ .f32x3 = scene.light_dir.v });
-    try self.uniforms.put(self.gpa, self.ids.viewport_size,         .{ .@"f32x4" = .{ @floatFromInt(self.window_state.prev_drawable_w),
-                                                                                      @floatFromInt(self.window_state.prev_drawable_h),
-                                                                                      0, 0 }});
-    try self.uniforms.put(self.gpa, self.ids.all_renderables,       .{ .buffer = self.render_state.obj_buf.hdl });
-    try self.uniforms.put(self.gpa, self.ids.selected_renderables,  .{ .buffer = self.render_state.selected_obj_buf.hdl });
+    try self.uniforms.put(self.gpa, self.ids.light_direction, .{ .f32x3 = scene.light_dir.v });
+    try self.uniforms.put(self.gpa, self.ids.viewport_size, .{ .f32x4 = .{ @floatFromInt(self.window_state.prev_drawable_w), @floatFromInt(self.window_state.prev_drawable_h), 0, 0 } });
+    try self.uniforms.put(self.gpa, self.ids.all_renderables, .{ .buffer = self.render_state.obj_buf.hdl });
+    try self.uniforms.put(self.gpa, self.ids.selected_renderables, .{ .buffer = self.render_state.selected_obj_buf.hdl });
 
     const render_pack = try self.renderables.packAll(arena);
     const transforms = render_pack.transforms;
     try self.uploadToBuffer(self.render_state.obj_buf.hdl, 0, std.mem.sliceAsBytes(transforms));
 
-    self.doPass(.{
-        .cmd = cmd,
-        .scene = scene.*,
-        .targets = self.render_state.forward_pass.targets(),
-        .items = .{ .pack = render_pack }
-    }) catch unreachable;
+    self.doPass(.{ .cmd = cmd, .scene = scene.*, .targets = self.render_state.forward_pass.targets(), .items = .{ .pack = render_pack } }) catch unreachable;
 
     // Render selected objects as mask for outline
     const mask: ?passes.Forward = blk: {
@@ -574,7 +540,7 @@ pub fn doPass(self: *Gpu, job: PassInfo) !void {
 
     var last_pipeline: ?*sdl.gpu.GraphicsPipeline = null;
 
-    switch(job.items) {
+    switch (job.items) {
         .renderables => |items| for (items, 0..) |item, i| {
             try self.draw(&job, pass, @intCast(i), 1, item.mesh, &last_pipeline);
         },
@@ -590,24 +556,16 @@ pub fn doPass(self: *Gpu, job: PassInfo) !void {
         },
         .pack => |pack| {
             var total_instances_rendered: u32 = 0;
-            for(0..pack.len) |i| {
+            for (0..pack.len) |i| {
                 const mesh = pack.meshes[i];
-                try self.draw(&job, pass, total_instances_rendered,
-                                         pack.instance_counts[i], mesh, &last_pipeline);
+                try self.draw(&job, pass, total_instances_rendered, pack.instance_counts[i], mesh, &last_pipeline);
                 total_instances_rendered += pack.instance_counts[i];
             }
-        }
+        },
     }
 }
 
-fn draw(self: *Gpu,
-                   job: *const PassInfo,
-                   pass: *sdl.gpu.RenderPass,
-                   num_first_instance: u32,
-                   num_instances: u32,
-                   mesh: mdl.Mesh,
-                   last_pipeline: *?*sdl.gpu.GraphicsPipeline) !void {
-
+fn draw(self: *Gpu, job: *const PassInfo, pass: *sdl.gpu.RenderPass, num_first_instance: u32, num_instances: u32, mesh: mdl.Mesh, last_pipeline: *?*sdl.gpu.GraphicsPipeline) !void {
     const zone = @import("ztracy").ZoneN(@src(), "RenderInstanced");
     defer zone.End();
 
@@ -620,20 +578,19 @@ fn draw(self: *Gpu,
     }
 
     inline for (.{
-        .{ 
-            material.vert_program_def, 
-            sdl.gpu.CommandBuffer.pushVertexUniformData, 
+        .{
+            material.vert_program_def,
+            sdl.gpu.CommandBuffer.pushVertexUniformData,
             sdl.gpu.RenderPass.bindVertexSamplers,
             sdl.gpu.RenderPass.bindVertexStorageBuffers,
         },
-        .{ 
+        .{
             material.frag_program_def,
             sdl.gpu.CommandBuffer.pushFragmentUniformData,
             sdl.gpu.RenderPass.bindFragmentSamplers,
             sdl.gpu.RenderPass.bindFragmentStorageBuffers,
         },
     }) |opt| {
-
         const program_def = opt[0];
         const pushUniform = opt[1];
         const pushSampler = opt[2];
@@ -641,20 +598,20 @@ fn draw(self: *Gpu,
 
         for (program_def.storage_buffers, 0..) |storage_buffer_name, i| {
             if (self.uniforms.get(storage_buffer_name)) |value| {
-                pushStorageBuffer(pass, @intCast(i), &[_]*sdl.gpu.Buffer{ value.buffer }, 1); 
+                pushStorageBuffer(pass, @intCast(i), &[_]*sdl.gpu.Buffer{value.buffer}, 1);
             }
         }
 
         for (program_def.uniforms, 0..) |uniform_name, i| {
             if (self.uniforms.get(uniform_name)) |value| {
                 const idx: u32 = @intCast(i);
-                switch(value) {
-                    .@"u32" => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
-                    .@"f32" => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
-                    .f32x3  => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
-                    .f32x4  => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                switch (value) {
+                    .u32 => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .f32 => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .f32x3 => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .f32x4 => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
                     .mat4x4 => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
-                    .buffer => unreachable, 
+                    .buffer => unreachable,
                 }
             }
         }
@@ -664,16 +621,11 @@ fn draw(self: *Gpu,
             const tex_id = material.textures.get(needed_tex_type.?).?;
             const texture: *sdl.gpu.Texture = blk: {
                 if (tex_id.target) |target| break :blk target;
-                if (tex_id.handle) |handle| break :blk self.textures.get(handle) 
-                    catch self.render_state.default_texture
-                    orelse self.render_state.default_texture;
+                if (tex_id.handle) |handle| break :blk self.textures.get(handle) catch self.render_state.default_texture orelse self.render_state.default_texture;
                 std.debug.panic("[GPU] Textures must have a handle or direct target defined", .{});
             };
 
-            const binding = [_]sdl.gpu.TextureSamplerBinding{.{
-                .sampler = self.render_state.sampler,
-                .texture = texture
-            }};
+            const binding = [_]sdl.gpu.TextureSamplerBinding{.{ .sampler = self.render_state.sampler, .texture = texture }};
 
             pushSampler(pass, @intCast(i), &binding, 1);
         }
@@ -774,7 +726,7 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
         },
     };
 
-    const stencil_state = sdl.gpu.StencilOpState {
+    const stencil_state = sdl.gpu.StencilOpState{
         .compare_op = .always,
         .depth_fail_op = .keep,
         .fail_op = .keep,
@@ -847,7 +799,7 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSetti
             const count = ai_material.getTextureCount(tex_type);
             for (0..count) |i| {
                 var str: ai.String = undefined;
-                _ = ai_material.getTexture(ai.Material.GetTextureInfo {
+                _ = ai_material.getTexture(ai.Material.GetTextureInfo{
                     .tex_type = tex_type,
                     .index = @intCast(i),
                     .path = &str,
@@ -861,10 +813,7 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSetti
                     _ = tex;
                     unreachable;
                 } else { // Texture is a relative path
-                    tex_id = try std.fs.path.joinZ(self.arena.allocator(), &[_][]const u8{ 
-                        std.fs.path.dirname(path_slice).?,
-                        ai_tex_id
-                    });
+                    tex_id = try std.fs.path.joinZ(self.arena.allocator(), &[_][]const u8{ std.fs.path.dirname(path_slice).?, ai_tex_id });
                     handle = try self.textures.read(tex_id);
                 }
 
@@ -905,7 +854,7 @@ pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, mate
         .material = material,
     };
 
-    const model = mdl.Model {
+    const model = mdl.Model{
         .children = mesh[0..1],
         .transform = mat4.identity,
         .bounds = primitives.Cube.bounds,

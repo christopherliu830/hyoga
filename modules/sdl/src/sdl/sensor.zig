@@ -15,15 +15,15 @@ pub const SensorID = u32;
 //pub const SDL_SENSOR_ACCEL_R: c_int = 5;
 //pub const SDL_SENSOR_GYRO_R: c_int = 6;
 //pub const enum_SDL_SensorType = c_int;
-pub const SensorType = enum (c_uint) {
-	sensor_invalid = -1,
-	sensor_unknown = 0,
-	sensor_accel = 1,
-	sensor_gyro = 2,
-	sensor_accel_l = 3,
-	sensor_gyro_l = 4,
-	sensor_accel_r = 5,
-	sensor_gyro_r = 6,
+pub const SensorType = enum(c_uint) {
+    sensor_invalid = -1,
+    sensor_unknown = 0,
+    sensor_accel = 1,
+    sensor_gyro = 2,
+    sensor_accel_l = 3,
+    sensor_gyro_l = 4,
+    sensor_accel_r = 5,
+    sensor_gyro_r = 6,
 };
 
 //pub const SDL_SensorType = enum_SDL_SensorType;

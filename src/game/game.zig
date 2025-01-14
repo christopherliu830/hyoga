@@ -55,15 +55,15 @@ pub fn init(engine: *hy.Engine) !hy.World {
                     .owner = &object.transform,
                     .time = 10 * std.time.ns_per_s,
                 }),
-                .transform = hym.mat4.translation(hym.mat4.identity, hym.vec3.create(fx * 10, 90 - fy * 10,0)),
+                .transform = hym.mat4.translation(hym.mat4.identity, hym.vec3.create(fx * 10, 90 - fy * 10, 0)),
                 .bounds = bounds,
             };
         }
     }
 
     try self.camera.registerInputs(self.callback_arena.allocator());
-    self.camera.position = hym.vec(.{50, 50, 50});
-    self.camera.look_direction = hym.vec(.{0, 0, -1});
+    self.camera.position = hym.vec(.{ 50, 50, 50 });
+    self.camera.look_direction = hym.vec(.{ 0, 0, -1 });
 
     const ui_state = engine.ui().getGlobalState();
 
@@ -72,7 +72,7 @@ pub fn init(engine: *hy.Engine) !hy.World {
 
     return .{
         .scene = .{
-            .light_dir = hym.vec(.{0, -1, -0.5}),
+            .light_dir = hym.vec(.{ 0, -1, -0.5 }),
             .view_proj = self.camera.viewProj(),
             .camera_world_pos = self.camera.position,
         },
@@ -99,7 +99,7 @@ pub fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
             var i: u32 = 0;
             while (it.next()) |cursor| : (i += 1) {
                 const object = cursor.unwrap();
-                const bounds = hym.AxisAligned {
+                const bounds = hym.AxisAligned{
                     .min = object.bounds.min.add(object.transform.position()),
                     .max = object.bounds.max.add(object.transform.position()),
                 };
@@ -123,12 +123,12 @@ pub fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
         var i: u32 = 0;
         while (it.next()) |cursor| : (i += 1) {
             const object = cursor.unwrap();
-            const bounds = hym.AxisAligned {
+            const bounds = hym.AxisAligned{
                 .min = object.bounds.min.add(object.transform.position()),
                 .max = object.bounds.max.add(object.transform.position()),
             };
             var t: f32 = 1000;
-            ray.intersect(&.{ bounds }, (&t)[0..1]);
+            ray.intersect(&.{bounds}, (&t)[0..1]);
             if (t < 1000) {
                 engine.gpu().selectRenderable(object.hdl);
             }

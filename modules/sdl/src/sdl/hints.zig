@@ -2,10 +2,10 @@
 //pub const SDL_HINT_NORMAL: c_int = 1;
 //pub const SDL_HINT_OVERRIDE: c_int = 2;
 //pub const enum_SDL_HintPriority = c_uint;
-pub const Priority = enum (c_uint) {
-	default,
-	normal,
-	override,
+pub const Priority = enum(c_uint) {
+    default,
+    normal,
+    override,
 };
 
 //pub const SDL_HintPriority = enum_SDL_HintPriority;

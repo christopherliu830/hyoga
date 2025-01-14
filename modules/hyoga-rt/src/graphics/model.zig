@@ -112,7 +112,7 @@ pub const Models = struct {
     pub fn read(self: *@This(), scene: *ai.Scene, mats: []mt.Handle, import: ImportSettings) !Handle {
         const hdl = try self.models.insert(null);
 
-        const job = ModelLoadJob {
+        const job = ModelLoadJob{
             .dest_hdl = hdl,
             .allocator = self.allocator,
             .scene = scene,
@@ -120,7 +120,7 @@ pub const Models = struct {
             .settings = import,
         };
 
-        try self.loader.run(&self.queue, doRead, .{self, job});
+        try self.loader.run(&self.queue, doRead, .{ self, job });
 
         return hdl;
     }
@@ -151,9 +151,9 @@ pub const Models = struct {
         const min = -std.math.floatMax(f32);
         const max = std.math.floatMax(f32);
 
-        var bounds = hy.math.AxisAligned {
-            .min = hy.math.vec(.{max, max, max}),
-            .max = hy.math.vec(.{min, min, min}),
+        var bounds = hy.math.AxisAligned{
+            .min = hy.math.vec(.{ max, max, max }),
+            .max = hy.math.vec(.{ min, min, min }),
         };
 
         var in_model: ImportModel = .{
@@ -183,7 +183,7 @@ pub const Models = struct {
             .size = vtx_buf_size + idx_buf_size,
         }).?;
 
-        const root_buffer = Buffer {
+        const root_buffer = Buffer{
             .hdl = hdl,
             .size = vtx_buf_size + idx_buf_size,
             .idx_start = vtx_buf_size,
@@ -198,10 +198,8 @@ pub const Models = struct {
         for (in_model.meshes.items, 0..) |mesh, i| {
             const mesh_vbuf_size = mesh.vertices.items.len * @sizeOf(Vertex);
             const mesh_ibuf_size = mesh.indices.items.len * @sizeOf(u32);
-            gpu.uploadToBuffer(root_buffer.hdl, @intCast(buf_offset), std.mem.sliceAsBytes(mesh.vertices.items))
-                catch std.debug.panic("model load error");
-            gpu.uploadToBuffer(root_buffer.hdl, @intCast(buf_offset + root_buffer.idx_start), std.mem.sliceAsBytes(mesh.indices.items))
-                catch std.debug.panic("model load error");
+            gpu.uploadToBuffer(root_buffer.hdl, @intCast(buf_offset), std.mem.sliceAsBytes(mesh.vertices.items)) catch std.debug.panic("model load error");
+            gpu.uploadToBuffer(root_buffer.hdl, @intCast(buf_offset + root_buffer.idx_start), std.mem.sliceAsBytes(mesh.indices.items)) catch std.debug.panic("model load error");
             children[i] = .{
                 .buffer = .{
                     .hdl = hdl,
@@ -254,7 +252,7 @@ const ImportModel = struct {
     transform: mat4.Mat4 = mat4.identity,
 
     pub fn deinit(self: ImportModel, allocator: std.mem.Allocator) void {
-        for (self.meshes.items) |*mesh| { 
+        for (self.meshes.items) |*mesh| {
             mesh.deinit(allocator);
         }
         allocator.free(self.meshes.allocatedSlice());
@@ -308,7 +306,6 @@ const ImportModel = struct {
             const mesh = try self.processMesh(sub);
             try self.meshes.append(params.allocator, mesh);
 
-
             errdefer self.deinit();
         }
 
@@ -323,7 +320,7 @@ const ImportModel = struct {
     fn processMesh(model: *ImportModel, params: ProcessModelParams) !ImportMesh {
         const in_mesh = params.mesh.?;
 
-        var out_mesh = ImportMesh { .material = params.materials[in_mesh.material_index] };
+        var out_mesh = ImportMesh{ .material = params.materials[in_mesh.material_index] };
         try out_mesh.vertices.ensureTotalCapacity(params.allocator, in_mesh.num_vertices);
         model.total_vertex_count += in_mesh.num_vertices;
 
@@ -376,4 +373,3 @@ const ImportModel = struct {
         return out_mesh;
     }
 };
-

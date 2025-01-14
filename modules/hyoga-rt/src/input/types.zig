@@ -5,7 +5,7 @@ pub const Keymod = hy.Keymod;
 pub const Keycode = hy.Keycode;
 
 pub fn fromSdl(keycode: sdl.keycode.Keycode) Keycode {
-    return switch(keycode) {
+    return switch (keycode) {
         sdl.keycode.unknown => .unknown,
         sdl.keycode.@"return" => .@"return",
         sdl.keycode.escape => .escape,
@@ -130,7 +130,7 @@ pub fn fromSdl(keycode: sdl.keycode.Keycode) Keycode {
         sdl.keycode.f13 => .f13,
         sdl.keycode.f14 => .f14,
         sdl.keycode.f15 => .f15,
-        sdl.keycode.@"f16" => .@"f16",
+        sdl.keycode.f16 => .f16,
         sdl.keycode.f17 => .f17,
         sdl.keycode.f18 => .f18,
         sdl.keycode.f19 => .f19,

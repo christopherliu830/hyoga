@@ -127,7 +127,7 @@ pub const Keycode = enum {
     f13,
     f14,
     f15,
-    @"f16",
+    f16,
     f17,
     f18,
     f19,
@@ -254,7 +254,7 @@ pub const Keycode = enum {
     endcall,
 };
 
-pub const MouseButton = enum (u8) {
+pub const MouseButton = enum(u8) {
     left, // m1
     right, // m2
     middle, // m3
@@ -279,4 +279,3 @@ pub const mod_ctrl = mod_lctrl | mod_rctrl;
 pub const mod_shift = mod_lshift | mod_rshift;
 pub const mod_alt = mod_lalt | mod_ralt;
 pub const mod_gui = mod_lgui | mod_rgui;
-

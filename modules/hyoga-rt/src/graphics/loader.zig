@@ -41,7 +41,7 @@ pub fn Queue(comptime T: type) type {
                 const data = node.data;
                 self.allocator().destroy(node);
                 return data;
-            } 
+            }
             return null;
         }
 
@@ -67,7 +67,7 @@ pub fn allocator(self: *Loader) std.mem.Allocator {
     return self.tsa.allocator();
 }
 
-// Start a function that will eventually add a node to 
+// Start a function that will eventually add a node to
 // the queue that is passed in.
 pub fn run(self: *Loader, queue: anytype, comptime func: anytype, args: anytype) !void {
     // Verify type

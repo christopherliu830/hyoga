@@ -31,7 +31,7 @@ pub const Forward = struct {
     };
 
     pub fn init(device: *sdl.gpu.Device, options: ForwardOptions) Forward {
-        const tex_info = sdl.gpu.TextureCreateInfo {
+        const tex_info = sdl.gpu.TextureCreateInfo{
             .type = .@"2d",
             .format = options.dest_format,
             .usage = options.dest_usage,
@@ -73,7 +73,7 @@ pub const Forward = struct {
                 const depth_tex = device.createTexture(&ds_tex_info);
                 device.setTextureName(depth_tex, options.name.ptr);
 
-                break :blk sdl.gpu.DepthStencilTargetInfo {
+                break :blk sdl.gpu.DepthStencilTargetInfo{
                     .clear_depth = 1,
                     .clear_stencil = if (options.stencil_enabled) 1 else 0,
                     .load_op = .clear,
@@ -85,7 +85,6 @@ pub const Forward = struct {
                 };
             }
         };
-
 
         return .{
             .device = device,
@@ -129,8 +128,12 @@ pub const Forward = struct {
         }
     }
 
-    pub fn texture(self: Forward) *sdl.gpu.Texture { return self.target.texture; }
-    pub fn depthStencilTexture(self: Forward) ?*sdl.gpu.Texture { return (self.ds_target orelse return null).texture; }
+    pub fn texture(self: Forward) *sdl.gpu.Texture {
+        return self.target.texture;
+    }
+    pub fn depthStencilTexture(self: Forward) ?*sdl.gpu.Texture {
+        return (self.ds_target orelse return null).texture;
+    }
 };
 
 /// Final render to offscreen triangle
@@ -146,14 +149,11 @@ pub const BlitPass = struct {
         };
 
         // Triangle that will be clipped
-        const verts = Verts { 
-            .v = .{
-                -3,  -1,  -1,  1,
-                 1,   3,   1, -1,
-                 1,  -1,   1,  1,
-            }, 
-            .i = .{ 0, 1, 2 }
-        };
+        const verts = Verts{ .v = .{
+            -3, -1, -1, 1,
+            1,  3,  1,  -1,
+            1,  -1, 1,  1,
+        }, .i = .{ 0, 1, 2 } };
 
         const quad_buffer = device.createBuffer(&.{
             .size = @sizeOf(Verts),
@@ -162,25 +162,21 @@ pub const BlitPass = struct {
 
         try gpu.uploadToBuffer(quad_buffer, 0, &std.mem.toBytes(verts));
 
-        return .{
-            .device = device,
-            .quad = .{
-                .mesh = .{
-                    .buffer = .{
-                        .hdl = quad_buffer,
-                        .size = @sizeOf(Verts),
-                        .idx_start = @sizeOf(f32) * 12,
-                    },
-                    .material = undefined,
+        return .{ .device = device, .quad = .{
+            .mesh = .{
+                .buffer = .{
+                    .hdl = quad_buffer,
+                    .size = @sizeOf(Verts),
+                    .idx_start = @sizeOf(f32) * 12,
                 },
+                .material = undefined,
             },
-            .target = .{
-                .texture = undefined,
-                .load_op = .clear,
-                .store_op = .store,
-                .cycle = false,
-            }
-        };
+        }, .target = .{
+            .texture = undefined,
+            .load_op = .clear,
+            .store_op = .store,
+            .cycle = false,
+        } };
     }
 
     pub fn deinit(self: BlitPass) void {

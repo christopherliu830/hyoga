@@ -18,8 +18,7 @@ pub const AxisAligned = extern struct {
     }
 
     pub fn invalid(self: AxisAligned) bool {
-        return self.min.v == .{f32_max, f32_max, f32_max} and
-               self.max.v == .{f32_min, f32_min, f32_min};
+        return self.min.v == .{ f32_max, f32_max, f32_max } and
+            self.max.v == .{ f32_min, f32_min, f32_min };
     }
 };
-

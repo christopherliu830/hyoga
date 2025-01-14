@@ -3,7 +3,7 @@
 const sdl = @import("sdl");
 const std = @import("std");
 
-pub const Error = error {
+pub const Error = error{
     InitFailure,
     ShaderCompileFailure,
     ShaderTranspileFailure,
@@ -27,15 +27,15 @@ pub fn init() Error!void {
 }
 
 /// De-initializes SDL_gpu_shadercross
-/// 
+///
 /// \threadsafety This should only be called once, from a single thread.
-/// 
+///
 pub const quit = SDL_ShaderCross_Quit;
 
 /// Get the supported shader formats that SPIRV cross-compilation can output
-/// 
+///
 /// \threadsafety It is safe to call this function from any thread.
-/// 
+///
 pub const getSpirvShaderFormats = SDL_ShaderCross_GetSPIRVShaderFormats;
 
 pub const Spirv = struct {
@@ -53,10 +53,9 @@ pub const Hlsl = struct {
     defines: []HlslDefine = &.{},
 };
 
-
 pub fn transpileFromSpirv(to: ShaderLanguage, stage: ShaderStage, spirv: Spirv) [:0]const u8 {
     var ptr: [*]const u8 = undefined;
-    const info = SpirvInfo {
+    const info = SpirvInfo{
         .bytecode = spirv.bytecode.ptr,
         .size = spirv.bytecode.len,
         .entrypoint = spirv.entrypoint,
@@ -65,7 +64,7 @@ pub fn transpileFromSpirv(to: ShaderLanguage, stage: ShaderStage, spirv: Spirv) 
         .name = spirv.name,
         .props = spirv.props,
     };
-    switch(to) {
+    switch (to) {
         .hlsl => ptr = SDL_ShaderCross_TranspileHLSLFromSPIRV(&info),
         .msl => ptr = SDL_ShaderCross_TranspileMSLFromSPIRV(&info),
         else => @compileError("Transpilation languages not supported"),
@@ -73,7 +72,7 @@ pub fn transpileFromSpirv(to: ShaderLanguage, stage: ShaderStage, spirv: Spirv) 
     return std.mem.span(ptr);
 }
 
-/// Compile bytecode 
+/// Compile bytecode
 ///
 /// You must SDL_free the returned buffer once you are done with it.
 ///
@@ -81,7 +80,7 @@ pub fn compileFromSpirv(to: ShaderLanguage, stage: ShaderStage, spirv: Spirv) []
     var size: *usize = undefined;
     var ptr: [*]const u8 = undefined;
 
-    const info = SpirvInfo {
+    const info = SpirvInfo{
         .bytecode = spirv.bytecode.ptr,
         .size = spirv.bytecode.len,
         .entrypoint = spirv.entrypoint,
@@ -91,7 +90,7 @@ pub fn compileFromSpirv(to: ShaderLanguage, stage: ShaderStage, spirv: Spirv) []
         .props = spirv.props,
     };
 
-    switch(to) {
+    switch (to) {
         .dxbc => ptr = SDL_ShaderCross_CompileDXBCFromSPIRV(&info, &size),
         .msl => ptr = SDL_ShaderCross_CompileDXILFromSPIRV(&info, &size),
         else => @compileError("Compilation to language not supported"),
@@ -100,7 +99,7 @@ pub fn compileFromSpirv(to: ShaderLanguage, stage: ShaderStage, spirv: Spirv) []
 }
 
 pub fn compileGraphicsShaderFromSpirv(device: *sdl.gpu.Device, stage: ShaderStage, spirv: Spirv, metadata: *GraphicsShaderMetadata) Error!*sdl.gpu.Shader {
-    const info = SpirvInfo {
+    const info = SpirvInfo{
         .bytecode = spirv.bytecode.ptr,
         .size = spirv.bytecode.len,
         .entrypoint = spirv.entrypoint,
@@ -109,15 +108,14 @@ pub fn compileGraphicsShaderFromSpirv(device: *sdl.gpu.Device, stage: ShaderStag
         .name = spirv.name,
         .props = spirv.props,
     };
-    return SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(device, &info, metadata)
-        orelse {
-            std.log.err("Error compiling shader from spirv: {s}", .{sdl.getError()});
-            return Error.ShaderCompileFailure;
-        };
+    return SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(device, &info, metadata) orelse {
+        std.log.err("Error compiling shader from spirv: {s}", .{sdl.getError()});
+        return Error.ShaderCompileFailure;
+    };
 }
 
 pub fn compileComputePipelineFromSpirv(device: *sdl.gpu.Device, stage: ShaderStage, spirv: Spirv, metadata: *GraphicsShaderMetadata) Error!*sdl.gpu.Shader {
-    const info = SpirvInfo {
+    const info = SpirvInfo{
         .bytecode = spirv.bytecode.ptr,
         .size = spirv.bytecode.len,
         .entrypoint = spirv.entrypoint,
@@ -127,11 +125,10 @@ pub fn compileComputePipelineFromSpirv(device: *sdl.gpu.Device, stage: ShaderSta
         .props = spirv.props,
     };
 
-    return SDL_ShaderCross_CompileComputePipelineFromSPIRV(device, &info, metadata)
-        orelse {
-            std.log.err("Error compiling shader from spirv: {s}", .{sdl.getError()});
-            return Error.ShaderCompileFailure;
-        };
+    return SDL_ShaderCross_CompileComputePipelineFromSPIRV(device, &info, metadata) orelse {
+        std.log.err("Error compiling shader from spirv: {s}", .{sdl.getError()});
+        return Error.ShaderCompileFailure;
+    };
 }
 
 pub fn reflectGraphicsSpirv(bytecode: []const u8) Error!GraphicsShaderMetadata {
@@ -152,7 +149,7 @@ pub fn compileFromHlsl(to: ShaderLanguage, stage: ShaderStage, hlsl: Hlsl) []con
     var size: *usize = undefined;
     var ptr: [*]const u8 = undefined;
 
-    const info = HlslInfo {
+    const info = HlslInfo{
         .source = hlsl.source,
         .entrypoint = hlsl.entrypoint,
         .include_dir = hlsl.include_dir,
@@ -162,7 +159,7 @@ pub fn compileFromHlsl(to: ShaderLanguage, stage: ShaderStage, hlsl: Hlsl) []con
         .props = hlsl.props,
     };
 
-    switch(to) {
+    switch (to) {
         .dxbc => ptr = SDL_ShaderCross_CompileDXBCFromHLSL(&info, &size),
         .msl => ptr = SDL_ShaderCross_CompileDXILFromHLSL(&info, &size),
         .spirv => ptr = SDL_ShaderCross_CompileSPIRVFromHLSL(&info, &size),
@@ -172,7 +169,7 @@ pub fn compileFromHlsl(to: ShaderLanguage, stage: ShaderStage, hlsl: Hlsl) []con
 }
 
 pub fn compileGraphicsShaderFromHlsl(device: *sdl.gpu.Device, stage: ShaderStage, hlsl: Hlsl, metadata: *GraphicsShaderMetadata) *sdl.gpu.Shader {
-    const info = HlslInfo {
+    const info = HlslInfo{
         .source = hlsl.source,
         .entrypoint = hlsl.entrypoint,
         .include_dir = hlsl.include_dir,
@@ -185,7 +182,7 @@ pub fn compileGraphicsShaderFromHlsl(device: *sdl.gpu.Device, stage: ShaderStage
 }
 
 pub fn compileComputePipelineFromHlsl(device: *sdl.gpu.Device, hlsl: Hlsl, metadata: *GraphicsShaderMetadata) *sdl.gpu.ComputePipeline {
-    const info = HlslInfo {
+    const info = HlslInfo{
         .source = hlsl.source,
         .entrypoint = hlsl.entrypoint,
         .include_dir = hlsl.include_dir,
@@ -199,11 +196,7 @@ pub fn compileComputePipelineFromHlsl(device: *sdl.gpu.Device, hlsl: Hlsl, metad
 
 // Begin bindings
 
-pub const ShaderStage = enum (c_int) {
-    vertex,
-    fragment,
-    compute
-};
+pub const ShaderStage = enum(c_int) { vertex, fragment, compute };
 
 pub const GraphicsShaderMetadata = extern struct {
     num_samplers: u32,
@@ -231,7 +224,7 @@ pub const SpirvInfo = extern struct {
     shader_stage: ShaderStage,
     enable_debug: bool,
     name: ?[*]const u8,
-    props: sdl.PropertiesID, 
+    props: sdl.PropertiesID,
 };
 
 pub const HlslDefine = extern struct {
@@ -247,9 +240,8 @@ pub const HlslInfo = extern struct {
     shader_stage: ShaderStage,
     enable_debug: bool,
     name: ?*const u8,
-    props: sdl.PropertiesID, 
+    props: sdl.PropertiesID,
 };
-
 
 extern fn SDL_ShaderCross_Init() bool;
 
@@ -261,15 +253,13 @@ extern fn SDL_ShaderCross_TranspileMSLFromSPIRV(info: *const SpirvInfo) [*:0]u8;
 extern fn SDL_ShaderCross_TranspileHLSLFromSPIRV(info: *const SpirvInfo) [*:0]u8;
 extern fn SDL_ShaderCross_CompileDXBCFromSPIRV(info: *const SpirvInfo, size: *usize) [*:0]u8;
 extern fn SDL_ShaderCross_CompileDXILFromSPIRV(info: *const SpirvInfo, size: *usize) [*:0]u8;
-extern fn SDL_ShaderCross_CompileGraphicsShaderFromSPIRV( device: *sdl.gpu.Device, info: *const SpirvInfo, info: *GraphicsShaderMetadata) ?*sdl.gpu.Shader;
-extern fn SDL_ShaderCross_CompileComputePipelineFromSPIRV( device: *sdl.gpu.Device, info: *SpirvInfo, metadata: *ComputePipelineMetadata) ?*sdl.gpu.ComputePipeline;
-extern fn SDL_ShaderCross_ReflectGraphicsSPIRV( bytecode: [*]const u8, bytecode_size: usize, info: *GraphicsShaderMetadata) bool;
-extern fn SDL_ShaderCross_ReflectComputeSPIRV( bytecode: [*]const u8, bytecode_size: usize, info: *ComputePipelineMetadata) bool;
+extern fn SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(device: *sdl.gpu.Device, info: *const SpirvInfo, info: *GraphicsShaderMetadata) ?*sdl.gpu.Shader;
+extern fn SDL_ShaderCross_CompileComputePipelineFromSPIRV(device: *sdl.gpu.Device, info: *SpirvInfo, metadata: *ComputePipelineMetadata) ?*sdl.gpu.ComputePipeline;
+extern fn SDL_ShaderCross_ReflectGraphicsSPIRV(bytecode: [*]const u8, bytecode_size: usize, info: *GraphicsShaderMetadata) bool;
+extern fn SDL_ShaderCross_ReflectComputeSPIRV(bytecode: [*]const u8, bytecode_size: usize, info: *ComputePipelineMetadata) bool;
 extern fn SDL_ShaderCross_GetHLSLShaderFormats() sdl.gpu.ShaderFormat;
 extern fn SDL_ShaderCross_CompileDXBCFromHLSL(info: *const HlslInfo, size: *usize) [*]u8;
 extern fn SDL_ShaderCross_CompileDXILFromHLSL(info: *const HlslInfo, size: *usize) [*]u8;
 extern fn SDL_ShaderCross_CompileSPIRVFromHLSL(info: *const HlslInfo, size: *usize) [*]u8;
 extern fn SDL_ShaderCross_CompileGraphicsShaderFromHLSL(device: *sdl.gpu.Device, info: *const HlslInfo, metadata: *GraphicsShaderMetadata) ?*sdl.gpu.Shader;
 extern fn SDL_ShaderCross_CompileComputePipelineFromHLSL(device: *sdl.gpu.Device, info: *const HlslInfo, metadata: *ComputePipelineMetadata) ?*sdl.gpu.ComputePipeline;
-
-

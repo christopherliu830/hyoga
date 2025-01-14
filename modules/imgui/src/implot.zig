@@ -1,13 +1,13 @@
 const imgui = @import("imgui");
 
-pub const Context=  opaque {};
+pub const Context = opaque {};
 
 pub const Point = extern struct {
     x: f64,
     y: f64,
 };
 
-pub const Axis = enum (c_int) {
+pub const Axis = enum(c_int) {
     x1,
     x2,
     x3,
@@ -17,17 +17,10 @@ pub const Axis = enum (c_int) {
     count,
 };
 
-pub const Getter = *const fn(data: ?*anyopaque, idx: i32, point: ?*Point) ?*anyopaque;
+pub const Getter = *const fn (data: ?*anyopaque, idx: i32, point: ?*Point) ?*anyopaque;
 
-pub const Flags = packed struct (c_int) {
-
-    pub const CanvasOnly = Flags { 
-        .no_title = true, 
-        .no_legend = true,
-        .no_menus = true,
-        .no_box_select = true,
-        .no_mouse_text = true
-    };
+pub const Flags = packed struct(c_int) {
+    pub const CanvasOnly = Flags{ .no_title = true, .no_legend = true, .no_menus = true, .no_box_select = true, .no_mouse_text = true };
 
     no_title: bool = false,
     no_legend: bool = false,
@@ -41,10 +34,15 @@ pub const Flags = packed struct (c_int) {
     _: u23 = 0,
 };
 
-pub const AxisFlags = packed struct (c_int) {
-    pub const lock = AxisFlags { .lock_min = true, .lock_max = true};
-    pub const no_decoration = AxisFlags { .no_label = true, .no_grid_lines = true, .no_tick_marks = true, .no_tick_labels = true, };
-    pub const aux_default = AxisFlags { .no_grid_lines = true, .opposite = true };
+pub const AxisFlags = packed struct(c_int) {
+    pub const lock = AxisFlags{ .lock_min = true, .lock_max = true };
+    pub const no_decoration = AxisFlags{
+        .no_label = true,
+        .no_grid_lines = true,
+        .no_tick_marks = true,
+        .no_tick_labels = true,
+    };
+    pub const aux_default = AxisFlags{ .no_grid_lines = true, .opposite = true };
     no_label: bool = false,
     no_grid_lines: bool = false,
     no_tick_marks: bool = false,
@@ -63,12 +61,12 @@ pub const AxisFlags = packed struct (c_int) {
     lock_max: bool = false,
 };
 
-pub const BarsFlags = enum (c_int) {
+pub const BarsFlags = enum(c_int) {
     none = 0,
     horizontal = 1 << 10,
 };
 
-pub const Cond = enum (c_int) {
+pub const Cond = enum(c_int) {
     none = @intFromEnum(imgui.Cond.none),
     always = @intFromEnum(imgui.Cond.always),
     once = @intFromEnum(imgui.Cond.once),
@@ -119,7 +117,7 @@ pub extern fn ImPlot_PlotBars_S64PtrInt(label_id: [*]const u8, values: [*]const 
 pub extern fn ImPlot_PlotBars_U64PtrInt(label_id: [*]const u8, values: [*]const imgui.U64, count: i32, bar_size: f64, shift: f64, flags: BarsFlags, offset: i32, stride: i32) void;
 
 pub const PlotBarsOptions = struct {
-    bar_size: f32 = 0.67, 
+    bar_size: f32 = 0.67,
     shift: f32 = 0,
     flags: BarsFlags = .none,
     offset: i32 = 0,
@@ -127,45 +125,45 @@ pub const PlotBarsOptions = struct {
 };
 
 pub fn plotBars(label_id: [*]const u8, values: anytype, options: PlotBarsOptions) void {
-    switch(@typeInfo(@TypeOf(values))) {
+    switch (@typeInfo(@TypeOf(values))) {
         .pointer => |ptr| {
             if (ptr.size != .Slice) @panic("plot bars must take a slice type");
-            switch(@typeInfo(ptr.child)) {
+            switch (@typeInfo(ptr.child)) {
                 .int => |int| {
                     if (int.signedness == .signed) {
-                        switch(int.bits) {
-                            8 => ImPlot_PlotBars_S8PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits/8),
-                            16 => ImPlot_PlotBars_S16PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits/8),
-                            32 => ImPlot_PlotBars_S32PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits/8),
-                            64 => ImPlot_PlotBars_S64PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits/8),
+                        switch (int.bits) {
+                            8 => ImPlot_PlotBars_S8PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits / 8),
+                            16 => ImPlot_PlotBars_S16PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits / 8),
+                            32 => ImPlot_PlotBars_S32PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits / 8),
+                            64 => ImPlot_PlotBars_S64PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits / 8),
                             else => unreachable,
                         }
                     } else {
-                        switch(int.bits) {
-                            8 => ImPlot_PlotBars_U8PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits/8),
-                            16 => ImPlot_PlotBars_U16PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits/8),
-                            32 => ImPlot_PlotBars_U32PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits/8),
-                            64 => ImPlot_PlotBars_U64PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits/8),
+                        switch (int.bits) {
+                            8 => ImPlot_PlotBars_U8PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits / 8),
+                            16 => ImPlot_PlotBars_U16PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits / 8),
+                            32 => ImPlot_PlotBars_U32PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits / 8),
+                            64 => ImPlot_PlotBars_U64PtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse int.bits / 8),
                             else => unreachable,
                         }
                     }
                 },
 
                 .float => |float| {
-                    switch(float.bits) {
-                        32 => ImPlot_PlotBars_FloatPtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse float.bits/8),
-                        64 => ImPlot_PlotBars_doublePtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse float.bits/8),
-                        else => @panic("invalid float size")
+                    switch (float.bits) {
+                        32 => ImPlot_PlotBars_FloatPtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse float.bits / 8),
+                        64 => ImPlot_PlotBars_doublePtrInt(label_id, values.ptr, @intCast(values.len), options.bar_size, options.shift, options.flags, options.offset, options.stride orelse float.bits / 8),
+                        else => @panic("invalid float size"),
                     }
                 },
 
                 else => @panic("plotBars must take a slice type"),
-            } 
+            }
         },
         else => @panic("plotBars must take a slice type"),
     }
 }
-                
+
 pub extern fn ImPlot_PlotBars_FloatPtrFloatPtr(label_id: [*]const u8, x: *const f32, y: *const f32, count: i32, flags: BarsFlags, offset: i32, stride: i32) void;
 
 pub extern fn ImPlot_PlotBars_doublePtrdoublePtr(label_id: [*]const u8, x: *const f64, y: *const f64, count: i32, flags: BarsFlags, offset: i32, stride: i32) void;

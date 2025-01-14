@@ -1,8 +1,8 @@
 const std = @import("std");
 const sdl = @import("sdl");
- 
+
 pub const BufferAllocator = struct {
-    device: *sdl.gpu.Device, 
+    device: *sdl.gpu.Device,
     usage: sdl.gpu.BufferUsageFlags,
     buffer_list: std.SinglyLinkedList(Buf) = .{},
     node_allocator: std.mem.Allocator,
@@ -15,9 +15,7 @@ pub const BufferAllocator = struct {
 
     const BufNode = std.SinglyLinkedList(Buf).Node;
 
-    pub fn init(device: *sdl.gpu.Device,
-            usage: sdl.gpu.BufferUsageFlags,
-            allocator: std.mem.Allocator) BufferAllocator {
+    pub fn init(device: *sdl.gpu.Device, usage: sdl.gpu.BufferUsageFlags, allocator: std.mem.Allocator) BufferAllocator {
         return .{
             .device = device,
             .usage = usage,
@@ -27,17 +25,12 @@ pub const BufferAllocator = struct {
 
     fn createNode(self: *BufferAllocator, prev_len: u32, min_size: u32) ?*BufNode {
         const len = (prev_len + min_size) + (prev_len + min_size) / 2;
-        const buf = self.device.createBuffer(&.{
-            .size = len,
-            .usage = self.usage
-        })
-            orelse return null;
-        const node = self.node_allocator.create(BufNode)
-            catch return null;
+        const buf = self.device.createBuffer(&.{ .size = len, .usage = self.usage }) orelse return null;
+        const node = self.node_allocator.create(BufNode) catch return null;
         node.* = .{ .data = .{
             .hdl = buf,
             .size = len,
-        }};
+        } };
         self.buffer_list.prepend(node);
         self.end_index = 0;
         return node;
@@ -97,8 +90,8 @@ pub const VertexIndexBuffer = struct {
 
     pub fn eql(lhs: VertexIndexBuffer, rhs: VertexIndexBuffer) bool {
         return lhs.hdl == rhs.hdl and
-               lhs.offset == rhs.offset and
-               lhs.idx_start == rhs.idx_start;
+            lhs.offset == rhs.offset and
+            lhs.idx_start == rhs.idx_start;
     }
 };
 
@@ -108,10 +101,7 @@ pub const TransferBuffer = struct {
     size: u32,
 
     pub fn create(device: *sdl.gpu.Device, size: u32) !TransferBuffer {
-        return device.createTransferBuffer(&.{
-            .usage = .upload,
-            .size = size
-        }) orelse {
+        return device.createTransferBuffer(&.{ .usage = .upload, .size = size }) orelse {
             return error.BufferCreateFailure;
         };
     }

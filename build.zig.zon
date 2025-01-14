@@ -2,10 +2,18 @@
     .name = "hyoga",
     .version = "0.0.0",
     .dependencies = .{
-        .hyoga_lib = .{ .path = "modules/hyoga-lib", },
-        .hyoga_rt = .{ .path = "modules/hyoga-rt", },
-        .imgui = .{ .path = "modules/imgui", },
-        .ztracy = .{ .path = "modules/ztracy", },
+        .hyoga_lib = .{
+            .path = "modules/hyoga-lib",
+        },
+        .hyoga_rt = .{
+            .path = "modules/hyoga-rt",
+        },
+        .imgui = .{
+            .path = "modules/imgui",
+        },
+        .ztracy = .{
+            .path = "modules/ztracy",
+        },
     },
-    .paths = .{ "" },
+    .paths = .{""},
 }

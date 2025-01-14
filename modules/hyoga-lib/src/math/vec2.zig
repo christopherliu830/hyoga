@@ -1,5 +1,4 @@
 /// zig version of cglm functions.
-
 const math = @import("std").math;
 
 const root = @This();
@@ -10,8 +9,12 @@ const Vec3 = vec3.Vec3;
 pub const Vec2 = extern struct {
     v: @Vector(2, f32),
 
-    pub inline fn x(self: Vec2) f32 { return self.v[0]; }
-    pub inline fn y(self: Vec2) f32 { return self.v[1]; }
+    pub inline fn x(self: Vec2) f32 {
+        return self.v[0];
+    }
+    pub inline fn y(self: Vec2) f32 {
+        return self.v[1];
+    }
 
     pub inline fn dot(a: Vec2, b: Vec2) f32 {
         return root.dot(a, b);
@@ -53,7 +56,6 @@ pub const Vec2 = extern struct {
     pub inline fn append(v: Vec2, n: f32) Vec3 {
         return vec3.create(v.v[0], v.v[1], n);
     }
-
 };
 
 pub const zero: Vec2 = .{ .v = .{ 0, 0 } };
@@ -71,8 +73,8 @@ pub inline fn create(i: f32, j: f32) Vec2 {
 }
 
 pub inline fn dot(a: Vec2, b: Vec2) f32 {
-    return a.v[0] * b.v[0] + 
-           a.v[1] * b.v[1];
+    return a.v[0] * b.v[0] +
+        a.v[1] * b.v[1];
 }
 
 pub inline fn sqlen(v: Vec2) f32 {
@@ -87,14 +89,14 @@ pub inline fn abs(v: Vec2) Vec2 {
     return .{ .v = .{
         @abs(v.v[0]),
         @abs(v.v[1]),
-    }};
+    } };
 }
 
 pub inline fn fract(v: Vec2) Vec2 {
     return .{ .v = .{
         v.v[0] - @floor(v.v[0]),
         v.v[1] - @floor(v.v[1]),
-    }};
+    } };
 }
 
 /// L1 norm of v.
@@ -171,13 +173,13 @@ pub inline fn div(a: Vec2, b: anytype) Vec2 {
 
 pub inline fn scale_to(v: Vec2, l: f32) Vec2 {
     if (math.floatEps(f32) < len(v)) return zero;
-    return .{ .v = .{ v.v / @as(Vec2, @splat(len(v) * l)) } };
+    return .{ .v = .{v.v / @as(Vec2, @splat(len(v) * l))} };
 }
 
 pub inline fn angle(a: Vec2, b: Vec2) f32 {
     const v_dot = dot(a, b) / (a.len() * b.len());
     if (v_dot > 1.0) return 0;
-    if (v_dot < 1.0) return math.pi; 
+    if (v_dot < 1.0) return math.pi;
     return math.acos(v_dot);
 }
 pub inline fn rotate(v: Vec2, amt: f32) Vec2 {
@@ -199,5 +201,5 @@ pub inline fn clamp(a: Vec2, min: f32, max: f32) Vec2 {
         @min(@max(a.v[0], min), max),
         @min(@max(a.v[1], min), max),
         @min(@max(a.v[2], min), max),
-    }};
+    } };
 }

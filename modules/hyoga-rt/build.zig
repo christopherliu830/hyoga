@@ -5,7 +5,7 @@ pub const GpuDriver = enum {
     vulkan,
     direct3d12,
     metal,
-}; 
+};
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -31,20 +31,14 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("src/root.zig"),
     });
 
-    const hylib = b.dependency("hyoga_lib", .{
-        .target = target,
-        .optimize = optimize
-    });
-
+    const hylib = b.dependency("hyoga_lib", .{ .target = target, .optimize = optimize });
 
     const imgui = b.dependency("imgui", .{
         .target = target,
         .optimize = optimize,
     });
 
-    const stb_image = b.dependency("stb_image", .{ 
-        .target = target
-    });
+    const stb_image = b.dependency("stb_image", .{ .target = target });
 
     const sdl = b.dependency("sdl", .{
         .target = target,
@@ -52,10 +46,7 @@ pub fn build(b: *std.Build) !void {
         .dxc = dxc,
     });
 
-    const assimp = b.dependency("assimp", .{
-        .target = target,
-        .optimize = optimize
-    });
+    const assimp = b.dependency("assimp", .{ .target = target, .optimize = optimize });
 
     const ztracy = b.dependency("ztracy", .{
         .target = target,
@@ -64,7 +55,9 @@ pub fn build(b: *std.Build) !void {
         .enable_fibers = true,
     });
 
-    if (enable_tracy) { rt.linkLibrary(ztracy.artifact("tracy")); }
+    if (enable_tracy) {
+        rt.linkLibrary(ztracy.artifact("tracy"));
+    }
 
     rt.root_module.addImport("assimp", assimp.module("root"));
     rt.root_module.addImport("hyoga-lib", hylib.module("hyoga-lib"));
@@ -82,4 +75,3 @@ pub fn build(b: *std.Build) !void {
     _ = wf.addCopyDirectory(assimp.namedWriteFiles("dlls").getDirectory(), ".", .{});
     _ = wf.addCopyDirectory(sdl.namedWriteFiles("dlls").getDirectory(), ".", .{});
 }
-

@@ -1,18 +1,18 @@
 //pub const enum_SDL_PixelType = c_uint;
-pub const PixelType = enum (c_uint) {
-	sdlunknown,
-	sdlindex1,
-	sdlindex4,
-	sdlindex8,
-	sdlpacked8,
-	sdlpacked16,
-	sdlpacked32,
-	sdlarrayu8,
-	sdlarrayu16,
-	sdlarrayu32,
-	sdlarrayf16,
-	sdlarrayf32,
-	sdlindex2,
+pub const PixelType = enum(c_uint) {
+    sdlunknown,
+    sdlindex1,
+    sdlindex4,
+    sdlindex8,
+    sdlpacked8,
+    sdlpacked16,
+    sdlpacked32,
+    sdlarrayu8,
+    sdlarrayu16,
+    sdlarrayu32,
+    sdlarrayf16,
+    sdlarrayf32,
+    sdlindex2,
 };
 
 //pub const SDL_PixelType = enum_SDL_PixelType;
@@ -20,10 +20,10 @@ pub const PixelType = enum (c_uint) {
 //pub const SDL_BITMAPORDER_4321: c_int = 1;
 //pub const SDL_BITMAPORDER_1234: c_int = 2;
 //pub const enum_SDL_BitmapOrder = c_uint;
-pub const BitmapOrder = enum (c_uint) {
-	sdlnone,
-	sdl4321,
-	sdl1234,
+pub const BitmapOrder = enum(c_uint) {
+    sdlnone,
+    sdl4321,
+    sdl1234,
 };
 
 //pub const SDL_BitmapOrder = enum_SDL_BitmapOrder;
@@ -37,16 +37,16 @@ pub const BitmapOrder = enum (c_uint) {
 //pub const SDL_PACKEDORDER_ABGR: c_int = 7;
 //pub const SDL_PACKEDORDER_BGRA: c_int = 8;
 //pub const enum_SDL_PackedOrder = c_uint;
-pub const PackedOrder = enum (c_uint) {
-	sdlnone,
-	sdlxrgb,
-	sdlrgbx,
-	sdlargb,
-	sdlrgba,
-	sdlxbgr,
-	sdlbgrx,
-	sdlabgr,
-	sdlbgra,
+pub const PackedOrder = enum(c_uint) {
+    sdlnone,
+    sdlxrgb,
+    sdlrgbx,
+    sdlargb,
+    sdlrgba,
+    sdlxbgr,
+    sdlbgrx,
+    sdlabgr,
+    sdlbgra,
 };
 
 //pub const SDL_PackedOrder = enum_SDL_PackedOrder;
@@ -58,14 +58,14 @@ pub const PackedOrder = enum (c_uint) {
 //pub const SDL_ARRAYORDER_BGRA: c_int = 5;
 //pub const SDL_ARRAYORDER_ABGR: c_int = 6;
 //pub const enum_SDL_ArrayOrder = c_uint;
-pub const ArrayOrder = enum (c_uint) {
-	sdlnone,
-	sdlrgb,
-	sdlrgba,
-	sdlargb,
-	sdlbgr,
-	sdlbgra,
-	sdlabgr,
+pub const ArrayOrder = enum(c_uint) {
+    sdlnone,
+    sdlrgb,
+    sdlrgba,
+    sdlargb,
+    sdlbgr,
+    sdlbgra,
+    sdlabgr,
 };
 
 //pub const SDL_ArrayOrder = enum_SDL_ArrayOrder;
@@ -79,16 +79,16 @@ pub const ArrayOrder = enum (c_uint) {
 //pub const SDL_PACKEDLAYOUT_2101010: c_int = 7;
 //pub const SDL_PACKEDLAYOUT_1010102: c_int = 8;
 //pub const enum_SDL_PackedLayout = c_uint;
-pub const PackedLayout = enum (c_uint) {
-	sdlnone,
-	sdl332,
-	sdl4444,
-	sdl1555,
-	sdl5551,
-	sdl565,
-	sdl8888,
-	sdl2101010,
-	sdl1010102,
+pub const PackedLayout = enum(c_uint) {
+    sdlnone,
+    sdl332,
+    sdl4444,
+    sdl1555,
+    sdl5551,
+    sdl565,
+    sdl8888,
+    sdl2101010,
+    sdl1010102,
 };
 
 //pub const SDL_PackedLayout = enum_SDL_PackedLayout;
@@ -157,71 +157,71 @@ pub const PackedLayout = enum (c_uint) {
 //pub const SDL_PIXELFORMAT_P010: c_int = 808530000;
 //pub const SDL_PIXELFORMAT_EXTERNAL_OES: c_int = 542328143;
 //pub const enum_SDL_PixelFormat = c_uint;
-pub const PixelFormat = enum (c_uint) {
-	sdlunknown = 0,
-	sdlindex1lsb = 286261504,
-	sdlindex1msb = 287310080,
-	sdlindex2lsb = 470811136,
-	sdlindex2msb = 471859712,
-	sdlindex4lsb = 303039488,
-	sdlindex4msb = 304088064,
-	sdlindex8 = 318769153,
-	sdlrgb332 = 336660481,
-	sdlxrgb4444 = 353504258,
-	sdlxbgr4444 = 357698562,
-	sdlxrgb1555 = 353570562,
-	sdlxbgr1555 = 357764866,
-	sdlargb4444 = 355602434,
-	sdlrgba4444 = 356651010,
-	sdlabgr4444 = 359796738,
-	sdlbgra4444 = 360845314,
-	sdlargb1555 = 355667970,
-	sdlrgba5551 = 356782082,
-	sdlabgr1555 = 359862274,
-	sdlbgra5551 = 360976386,
-	sdlrgb565 = 353701890,
-	sdlbgr565 = 357896194,
-	sdlrgb24 = 386930691,
-	sdlbgr24 = 390076419,
-	sdlxrgb8888 = 370546692,
-	sdlrgbx8888 = 371595268,
-	sdlxbgr8888 = 374740996,
-	sdlbgrx8888 = 375789572,
-	sdlargb8888 = 372645892,
-	sdlrgba8888 = 373694468,
-	sdlabgr8888 = 376840196,
-	sdlbgra8888 = 377888772,
-	sdlxrgb2101010 = 370614276,
-	sdlxbgr2101010 = 374808580,
-	sdlargb2101010 = 372711428,
-	sdlabgr2101010 = 376905732,
-	sdlrgb48 = 403714054,
-	sdlbgr48 = 406859782,
-	sdlrgba64 = 404766728,
-	sdlargb64 = 405815304,
-	sdlbgra64 = 407912456,
-	sdlabgr64 = 408961032,
-	sdlrgb48_float = 437268486,
-	sdlbgr48_float = 440414214,
-	sdlrgba64_float = 438321160,
-	sdlargb64_float = 439369736,
-	sdlbgra64_float = 441466888,
-	sdlabgr64_float = 442515464,
-	sdlrgb96_float = 454057996,
-	sdlbgr96_float = 457203724,
-	sdlrgba128_float = 455114768,
-	sdlargb128_float = 456163344,
-	sdlbgra128_float = 458260496,
-	sdlabgr128_float = 459309072,
-	sdlyv12 = 842094169,
-	sdliyuv = 1448433993,
-	sdlyuy2 = 844715353,
-	sdluyvy = 1498831189,
-	sdlyvyu = 1431918169,
-	sdlnv12 = 842094158,
-	sdlnv21 = 825382478,
-	sdlp010 = 808530000,
-	sdlexternal_oes = 542328143,
+pub const PixelFormat = enum(c_uint) {
+    sdlunknown = 0,
+    sdlindex1lsb = 286261504,
+    sdlindex1msb = 287310080,
+    sdlindex2lsb = 470811136,
+    sdlindex2msb = 471859712,
+    sdlindex4lsb = 303039488,
+    sdlindex4msb = 304088064,
+    sdlindex8 = 318769153,
+    sdlrgb332 = 336660481,
+    sdlxrgb4444 = 353504258,
+    sdlxbgr4444 = 357698562,
+    sdlxrgb1555 = 353570562,
+    sdlxbgr1555 = 357764866,
+    sdlargb4444 = 355602434,
+    sdlrgba4444 = 356651010,
+    sdlabgr4444 = 359796738,
+    sdlbgra4444 = 360845314,
+    sdlargb1555 = 355667970,
+    sdlrgba5551 = 356782082,
+    sdlabgr1555 = 359862274,
+    sdlbgra5551 = 360976386,
+    sdlrgb565 = 353701890,
+    sdlbgr565 = 357896194,
+    sdlrgb24 = 386930691,
+    sdlbgr24 = 390076419,
+    sdlxrgb8888 = 370546692,
+    sdlrgbx8888 = 371595268,
+    sdlxbgr8888 = 374740996,
+    sdlbgrx8888 = 375789572,
+    sdlargb8888 = 372645892,
+    sdlrgba8888 = 373694468,
+    sdlabgr8888 = 376840196,
+    sdlbgra8888 = 377888772,
+    sdlxrgb2101010 = 370614276,
+    sdlxbgr2101010 = 374808580,
+    sdlargb2101010 = 372711428,
+    sdlabgr2101010 = 376905732,
+    sdlrgb48 = 403714054,
+    sdlbgr48 = 406859782,
+    sdlrgba64 = 404766728,
+    sdlargb64 = 405815304,
+    sdlbgra64 = 407912456,
+    sdlabgr64 = 408961032,
+    sdlrgb48_float = 437268486,
+    sdlbgr48_float = 440414214,
+    sdlrgba64_float = 438321160,
+    sdlargb64_float = 439369736,
+    sdlbgra64_float = 441466888,
+    sdlabgr64_float = 442515464,
+    sdlrgb96_float = 454057996,
+    sdlbgr96_float = 457203724,
+    sdlrgba128_float = 455114768,
+    sdlargb128_float = 456163344,
+    sdlbgra128_float = 458260496,
+    sdlabgr128_float = 459309072,
+    sdlyv12 = 842094169,
+    sdliyuv = 1448433993,
+    sdlyuy2 = 844715353,
+    sdluyvy = 1498831189,
+    sdlyvyu = 1431918169,
+    sdlnv12 = 842094158,
+    sdlnv21 = 825382478,
+    sdlp010 = 808530000,
+    sdlexternal_oes = 542328143,
 };
 
 //pub const SDL_PixelFormat = enum_SDL_PixelFormat;
@@ -229,10 +229,10 @@ pub const PixelFormat = enum (c_uint) {
 //pub const SDL_COLOR_TYPE_RGB: c_int = 1;
 //pub const SDL_COLOR_TYPE_YCBCR: c_int = 2;
 //pub const enum_SDL_ColorType = c_uint;
-pub const ColorType = enum (c_uint) {
-	sdl_color_type_unknown,
-	sdl_color_type_rgb,
-	sdl_color_type_ycbcr,
+pub const ColorType = enum(c_uint) {
+    sdl_color_type_unknown,
+    sdl_color_type_rgb,
+    sdl_color_type_ycbcr,
 };
 
 //pub const SDL_ColorType = enum_SDL_ColorType;
@@ -240,10 +240,10 @@ pub const ColorType = enum (c_uint) {
 //pub const SDL_COLOR_RANGE_LIMITED: c_int = 1;
 //pub const SDL_COLOR_RANGE_FULL: c_int = 2;
 //pub const enum_SDL_ColorRange = c_uint;
-pub const ColorRange = enum (c_uint) {
-	sdl_color_range_unknown,
-	sdl_color_range_limited,
-	sdl_color_range_full,
+pub const ColorRange = enum(c_uint) {
+    sdl_color_range_unknown,
+    sdl_color_range_limited,
+    sdl_color_range_full,
 };
 
 //pub const SDL_ColorRange = enum_SDL_ColorRange;
@@ -262,21 +262,21 @@ pub const ColorRange = enum (c_uint) {
 //pub const SDL_COLOR_PRIMARIES_EBU3213: c_int = 22;
 //pub const SDL_COLOR_PRIMARIES_CUSTOM: c_int = 31;
 //pub const enum_SDL_ColorPrimaries = c_uint;
-pub const ColorPrimaries = enum (c_uint) {
-	sdl_color_primaries_unknown = 0,
-	sdl_color_primaries_bt709 = 1,
-	sdl_color_primaries_unspecified = 2,
-	sdl_color_primaries_bt470m = 4,
-	sdl_color_primaries_bt470bg = 5,
-	sdl_color_primaries_bt601 = 6,
-	sdl_color_primaries_smpte240 = 7,
-	sdl_color_primaries_generic_film = 8,
-	sdl_color_primaries_bt2020 = 9,
-	sdl_color_primaries_xyz = 10,
-	sdl_color_primaries_smpte431 = 11,
-	sdl_color_primaries_smpte432 = 12,
-	sdl_color_primaries_ebu3213 = 22,
-	sdl_color_primaries_custom = 31,
+pub const ColorPrimaries = enum(c_uint) {
+    sdl_color_primaries_unknown = 0,
+    sdl_color_primaries_bt709 = 1,
+    sdl_color_primaries_unspecified = 2,
+    sdl_color_primaries_bt470m = 4,
+    sdl_color_primaries_bt470bg = 5,
+    sdl_color_primaries_bt601 = 6,
+    sdl_color_primaries_smpte240 = 7,
+    sdl_color_primaries_generic_film = 8,
+    sdl_color_primaries_bt2020 = 9,
+    sdl_color_primaries_xyz = 10,
+    sdl_color_primaries_smpte431 = 11,
+    sdl_color_primaries_smpte432 = 12,
+    sdl_color_primaries_ebu3213 = 22,
+    sdl_color_primaries_custom = 31,
 };
 
 //pub const SDL_ColorPrimaries = enum_SDL_ColorPrimaries;
@@ -300,26 +300,26 @@ pub const ColorPrimaries = enum (c_uint) {
 //pub const SDL_TRANSFER_CHARACTERISTICS_HLG: c_int = 18;
 //pub const SDL_TRANSFER_CHARACTERISTICS_CUSTOM: c_int = 31;
 //pub const enum_SDL_TransferCharacteristics = c_uint;
-pub const TransferCharacteristics = enum (c_uint) {
-	sdl_transfer_characteristics_unknown = 0,
-	sdl_transfer_characteristics_bt709 = 1,
-	sdl_transfer_characteristics_unspecified = 2,
-	sdl_transfer_characteristics_gamma22 = 4,
-	sdl_transfer_characteristics_gamma28 = 5,
-	sdl_transfer_characteristics_bt601 = 6,
-	sdl_transfer_characteristics_smpte240 = 7,
-	sdl_transfer_characteristics_linear = 8,
-	sdl_transfer_characteristics_log100 = 9,
-	sdl_transfer_characteristics_log100_sqrt10 = 10,
-	sdl_transfer_characteristics_iec61966 = 11,
-	sdl_transfer_characteristics_bt1361 = 12,
-	sdl_transfer_characteristics_srgb = 13,
-	sdl_transfer_characteristics_bt2020_10bit = 14,
-	sdl_transfer_characteristics_bt2020_12bit = 15,
-	sdl_transfer_characteristics_pq = 16,
-	sdl_transfer_characteristics_smpte428 = 17,
-	sdl_transfer_characteristics_hlg = 18,
-	sdl_transfer_characteristics_custom = 31,
+pub const TransferCharacteristics = enum(c_uint) {
+    sdl_transfer_characteristics_unknown = 0,
+    sdl_transfer_characteristics_bt709 = 1,
+    sdl_transfer_characteristics_unspecified = 2,
+    sdl_transfer_characteristics_gamma22 = 4,
+    sdl_transfer_characteristics_gamma28 = 5,
+    sdl_transfer_characteristics_bt601 = 6,
+    sdl_transfer_characteristics_smpte240 = 7,
+    sdl_transfer_characteristics_linear = 8,
+    sdl_transfer_characteristics_log100 = 9,
+    sdl_transfer_characteristics_log100_sqrt10 = 10,
+    sdl_transfer_characteristics_iec61966 = 11,
+    sdl_transfer_characteristics_bt1361 = 12,
+    sdl_transfer_characteristics_srgb = 13,
+    sdl_transfer_characteristics_bt2020_10bit = 14,
+    sdl_transfer_characteristics_bt2020_12bit = 15,
+    sdl_transfer_characteristics_pq = 16,
+    sdl_transfer_characteristics_smpte428 = 17,
+    sdl_transfer_characteristics_hlg = 18,
+    sdl_transfer_characteristics_custom = 31,
 };
 
 //pub const SDL_TransferCharacteristics = enum_SDL_TransferCharacteristics;
@@ -339,22 +339,22 @@ pub const TransferCharacteristics = enum (c_uint) {
 //pub const SDL_MATRIX_COEFFICIENTS_ICTCP: c_int = 14;
 //pub const SDL_MATRIX_COEFFICIENTS_CUSTOM: c_int = 31;
 //pub const enum_SDL_MatrixCoefficients = c_uint;
-pub const MatrixCoefficients = enum (c_uint) {
-	sdl_matrix_coefficients_identity = 0,
-	sdl_matrix_coefficients_bt709 = 1,
-	sdl_matrix_coefficients_unspecified = 2,
-	sdl_matrix_coefficients_fcc = 4,
-	sdl_matrix_coefficients_bt470bg = 5,
-	sdl_matrix_coefficients_bt601 = 6,
-	sdl_matrix_coefficients_smpte240 = 7,
-	sdl_matrix_coefficients_ycgco = 8,
-	sdl_matrix_coefficients_bt2020_ncl = 9,
-	sdl_matrix_coefficients_bt2020_cl = 10,
-	sdl_matrix_coefficients_smpte2085 = 11,
-	sdl_matrix_coefficients_chroma_derived_ncl = 12,
-	sdl_matrix_coefficients_chroma_derived_cl = 13,
-	sdl_matrix_coefficients_ictcp = 14,
-	sdl_matrix_coefficients_custom = 31,
+pub const MatrixCoefficients = enum(c_uint) {
+    sdl_matrix_coefficients_identity = 0,
+    sdl_matrix_coefficients_bt709 = 1,
+    sdl_matrix_coefficients_unspecified = 2,
+    sdl_matrix_coefficients_fcc = 4,
+    sdl_matrix_coefficients_bt470bg = 5,
+    sdl_matrix_coefficients_bt601 = 6,
+    sdl_matrix_coefficients_smpte240 = 7,
+    sdl_matrix_coefficients_ycgco = 8,
+    sdl_matrix_coefficients_bt2020_ncl = 9,
+    sdl_matrix_coefficients_bt2020_cl = 10,
+    sdl_matrix_coefficients_smpte2085 = 11,
+    sdl_matrix_coefficients_chroma_derived_ncl = 12,
+    sdl_matrix_coefficients_chroma_derived_cl = 13,
+    sdl_matrix_coefficients_ictcp = 14,
+    sdl_matrix_coefficients_custom = 31,
 };
 
 //pub const SDL_MatrixCoefficients = enum_SDL_MatrixCoefficients;
@@ -363,11 +363,11 @@ pub const MatrixCoefficients = enum (c_uint) {
 //pub const SDL_CHROMA_LOCATION_CENTER: c_int = 2;
 //pub const SDL_CHROMA_LOCATION_TOPLEFT: c_int = 3;
 //pub const enum_SDL_ChromaLocation = c_uint;
-pub const ChromaLocation = enum (c_uint) {
-	sdl_chroma_location_none,
-	sdl_chroma_location_left,
-	sdl_chroma_location_center,
-	sdl_chroma_location_topleft,
+pub const ChromaLocation = enum(c_uint) {
+    sdl_chroma_location_none,
+    sdl_chroma_location_left,
+    sdl_chroma_location_center,
+    sdl_chroma_location_topleft,
 };
 
 //pub const SDL_ChromaLocation = enum_SDL_ChromaLocation;
@@ -383,95 +383,95 @@ pub const ChromaLocation = enum (c_uint) {
 //pub const SDL_COLORSPACE_BT2020_LIMITED: c_int = 554706441;
 //pub const SDL_COLORSPACE_BT2020_FULL: c_int = 571483657;
 //pub const enum_SDL_Colorspace = c_uint;
-pub const Colorspace = enum (c_uint) {
-	sdlunknown = 0,
-	sdlsrgb = 301991328,
-	sdlsrgb_linear = 301991168,
-	sdlhdr10 = 301999616,
-	sdljpeg = 570426566,
-	sdlbt601_limited = 554703046,
-	sdlbt601_full = 571480262,
-	sdlbt709_limited = 554697761,
-	sdlbt709_full = 571474977,
-	sdlbt2020_limited = 554706441,
-	sdlbt2020_full = 571483657,
+pub const Colorspace = enum(c_uint) {
+    sdlunknown = 0,
+    sdlsrgb = 301991328,
+    sdlsrgb_linear = 301991168,
+    sdlhdr10 = 301999616,
+    sdljpeg = 570426566,
+    sdlbt601_limited = 554703046,
+    sdlbt601_full = 571480262,
+    sdlbt709_limited = 554697761,
+    sdlbt709_full = 571474977,
+    sdlbt2020_limited = 554706441,
+    sdlbt2020_full = 571483657,
 };
 
 //pub const SDL_Colorspace = enum_SDL_Colorspace;
 //pub const struct_SDL_Color = extern struct {
 pub const Color = extern struct {
-//    r: Uint8 = @import("std").mem.zeroes(Uint8),
-	r: u8 = @import("std").mem.zeroes(u8),
-//    g: Uint8 = @import("std").mem.zeroes(Uint8),
-	g: u8 = @import("std").mem.zeroes(u8),
-//    b: Uint8 = @import("std").mem.zeroes(Uint8),
-	b: u8 = @import("std").mem.zeroes(u8),
-//    a: Uint8 = @import("std").mem.zeroes(Uint8),
-	a: u8 = @import("std").mem.zeroes(u8),
-//};
+    //    r: Uint8 = @import("std").mem.zeroes(Uint8),
+    r: u8 = @import("std").mem.zeroes(u8),
+    //    g: Uint8 = @import("std").mem.zeroes(Uint8),
+    g: u8 = @import("std").mem.zeroes(u8),
+    //    b: Uint8 = @import("std").mem.zeroes(Uint8),
+    b: u8 = @import("std").mem.zeroes(u8),
+    //    a: Uint8 = @import("std").mem.zeroes(Uint8),
+    a: u8 = @import("std").mem.zeroes(u8),
+    //};
 };
 //pub const SDL_Color = struct_SDL_Color;
 //pub const struct_SDL_FColor = extern struct {
 pub const FColor = extern struct {
-//    r: f32 = @import("std").mem.zeroes(f32),
-	r: f32 = @import("std").mem.zeroes(f32),
-//    g: f32 = @import("std").mem.zeroes(f32),
-	g: f32 = @import("std").mem.zeroes(f32),
-//    b: f32 = @import("std").mem.zeroes(f32),
-	b: f32 = @import("std").mem.zeroes(f32),
-//    a: f32 = @import("std").mem.zeroes(f32),
-	a: f32 = @import("std").mem.zeroes(f32),
-//};
+    //    r: f32 = @import("std").mem.zeroes(f32),
+    r: f32 = @import("std").mem.zeroes(f32),
+    //    g: f32 = @import("std").mem.zeroes(f32),
+    g: f32 = @import("std").mem.zeroes(f32),
+    //    b: f32 = @import("std").mem.zeroes(f32),
+    b: f32 = @import("std").mem.zeroes(f32),
+    //    a: f32 = @import("std").mem.zeroes(f32),
+    a: f32 = @import("std").mem.zeroes(f32),
+    //};
 };
 //pub const SDL_FColor = struct_SDL_FColor;
 //pub const struct_SDL_Palette = extern struct {
 pub const Palette = extern struct {
-//    ncolors: c_int = @import("std").mem.zeroes(c_int),
-	ncolors: c_int = @import("std").mem.zeroes(c_int),
-//    colors: [*c]SDL_Color = @import("std").mem.zeroes([*c]SDL_Color),
-	colors: [*c]Color = @import("std").mem.zeroes([*c]Color),
-//    version: Uint32 = @import("std").mem.zeroes(Uint32),
-	version: u32 = @import("std").mem.zeroes(u32),
-//    refcount: c_int = @import("std").mem.zeroes(c_int),
-	refcount: c_int = @import("std").mem.zeroes(c_int),
-//};
+    //    ncolors: c_int = @import("std").mem.zeroes(c_int),
+    ncolors: c_int = @import("std").mem.zeroes(c_int),
+    //    colors: [*c]SDL_Color = @import("std").mem.zeroes([*c]SDL_Color),
+    colors: [*c]Color = @import("std").mem.zeroes([*c]Color),
+    //    version: Uint32 = @import("std").mem.zeroes(Uint32),
+    version: u32 = @import("std").mem.zeroes(u32),
+    //    refcount: c_int = @import("std").mem.zeroes(c_int),
+    refcount: c_int = @import("std").mem.zeroes(c_int),
+    //};
 };
 //pub const SDL_Palette = struct_SDL_Palette;
 //pub const struct_SDL_PixelFormatDetails = extern struct {
 pub const PixelFormatDetails = extern struct {
-//    format: SDL_PixelFormat = @import("std").mem.zeroes(SDL_PixelFormat),
-	format: PixelFormat = @import("std").mem.zeroes(PixelFormat),
-//    bits_per_pixel: Uint8 = @import("std").mem.zeroes(Uint8),
-	bits_per_pixel: u8 = @import("std").mem.zeroes(u8),
-//    bytes_per_pixel: Uint8 = @import("std").mem.zeroes(Uint8),
-	bytes_per_pixel: u8 = @import("std").mem.zeroes(u8),
-//    padding: [2]Uint8 = @import("std").mem.zeroes([2]Uint8),
-	padding: [2]u8 = @import("std").mem.zeroes([2]u8),
-//    Rmask: Uint32 = @import("std").mem.zeroes(Uint32),
-	rmask: u32 = @import("std").mem.zeroes(u32),
-//    Gmask: Uint32 = @import("std").mem.zeroes(Uint32),
-	gmask: u32 = @import("std").mem.zeroes(u32),
-//    Bmask: Uint32 = @import("std").mem.zeroes(Uint32),
-	bmask: u32 = @import("std").mem.zeroes(u32),
-//    Amask: Uint32 = @import("std").mem.zeroes(Uint32),
-	amask: u32 = @import("std").mem.zeroes(u32),
-//    Rbits: Uint8 = @import("std").mem.zeroes(Uint8),
-	rbits: u8 = @import("std").mem.zeroes(u8),
-//    Gbits: Uint8 = @import("std").mem.zeroes(Uint8),
-	gbits: u8 = @import("std").mem.zeroes(u8),
-//    Bbits: Uint8 = @import("std").mem.zeroes(Uint8),
-	bbits: u8 = @import("std").mem.zeroes(u8),
-//    Abits: Uint8 = @import("std").mem.zeroes(Uint8),
-	abits: u8 = @import("std").mem.zeroes(u8),
-//    Rshift: Uint8 = @import("std").mem.zeroes(Uint8),
-	rshift: u8 = @import("std").mem.zeroes(u8),
-//    Gshift: Uint8 = @import("std").mem.zeroes(Uint8),
-	gshift: u8 = @import("std").mem.zeroes(u8),
-//    Bshift: Uint8 = @import("std").mem.zeroes(Uint8),
-	bshift: u8 = @import("std").mem.zeroes(u8),
-//    Ashift: Uint8 = @import("std").mem.zeroes(Uint8),
-	ashift: u8 = @import("std").mem.zeroes(u8),
-//};
+    //    format: SDL_PixelFormat = @import("std").mem.zeroes(SDL_PixelFormat),
+    format: PixelFormat = @import("std").mem.zeroes(PixelFormat),
+    //    bits_per_pixel: Uint8 = @import("std").mem.zeroes(Uint8),
+    bits_per_pixel: u8 = @import("std").mem.zeroes(u8),
+    //    bytes_per_pixel: Uint8 = @import("std").mem.zeroes(Uint8),
+    bytes_per_pixel: u8 = @import("std").mem.zeroes(u8),
+    //    padding: [2]Uint8 = @import("std").mem.zeroes([2]Uint8),
+    padding: [2]u8 = @import("std").mem.zeroes([2]u8),
+    //    Rmask: Uint32 = @import("std").mem.zeroes(Uint32),
+    rmask: u32 = @import("std").mem.zeroes(u32),
+    //    Gmask: Uint32 = @import("std").mem.zeroes(Uint32),
+    gmask: u32 = @import("std").mem.zeroes(u32),
+    //    Bmask: Uint32 = @import("std").mem.zeroes(Uint32),
+    bmask: u32 = @import("std").mem.zeroes(u32),
+    //    Amask: Uint32 = @import("std").mem.zeroes(Uint32),
+    amask: u32 = @import("std").mem.zeroes(u32),
+    //    Rbits: Uint8 = @import("std").mem.zeroes(Uint8),
+    rbits: u8 = @import("std").mem.zeroes(u8),
+    //    Gbits: Uint8 = @import("std").mem.zeroes(Uint8),
+    gbits: u8 = @import("std").mem.zeroes(u8),
+    //    Bbits: Uint8 = @import("std").mem.zeroes(Uint8),
+    bbits: u8 = @import("std").mem.zeroes(u8),
+    //    Abits: Uint8 = @import("std").mem.zeroes(Uint8),
+    abits: u8 = @import("std").mem.zeroes(u8),
+    //    Rshift: Uint8 = @import("std").mem.zeroes(Uint8),
+    rshift: u8 = @import("std").mem.zeroes(u8),
+    //    Gshift: Uint8 = @import("std").mem.zeroes(Uint8),
+    gshift: u8 = @import("std").mem.zeroes(u8),
+    //    Bshift: Uint8 = @import("std").mem.zeroes(Uint8),
+    bshift: u8 = @import("std").mem.zeroes(u8),
+    //    Ashift: Uint8 = @import("std").mem.zeroes(Uint8),
+    ashift: u8 = @import("std").mem.zeroes(u8),
+    //};
 };
 //pub const SDL_PixelFormatDetails = struct_SDL_PixelFormatDetails;
 //pub extern fn SDL_GetPixelFormatName(format: SDL_PixelFormat) [*c]const u8;

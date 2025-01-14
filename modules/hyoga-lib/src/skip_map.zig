@@ -5,20 +5,18 @@ const EntryType = enum {
     occupied,
 };
 
-
-// A skipmap retains the memory addresses of members as it grows 
+// A skipmap retains the memory addresses of members as it grows
 // while maintaining a O(n) iteration time. A skipmap consists of
 // a doubly-linked list of blocks that contain an array of
 // members an associated metadata. Each new allocated block is
-// double the size of the previous block. 
-// Insertions make use of a free list, both per-block as well 
-// as a second the skipmap maintains of 
+// double the size of the previous block.
+// Insertions make use of a free list, both per-block as well
+// as a second the skipmap maintains of
 pub fn SkipMap(comptime T: type) type {
     const Size = blk: {
         if (@sizeOf(T) > 10 or @alignOf(T) > 10) {
             break :blk u16;
-        }
-        else {
+        } else {
             break :blk u8;
         }
     };
@@ -35,9 +33,11 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             element: *Slot,
             skip: *Skip,
 
-            pub inline fn unwrap(self: Cursor) *T { return &self.element.data; }
+            pub inline fn unwrap(self: Cursor) *T {
+                return &self.element.data;
+            }
         };
-        
+
         pub const Iterator = struct {
             cursor: Cursor,
             end: *Skip,
@@ -77,7 +77,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             }
         };
 
-        const Stride = std.meta.Int(.unsigned, @alignOf(T) * 8); 
+        const Stride = std.meta.Int(.unsigned, @alignOf(T) * 8);
 
         const Skip = struct {
             value: Size,
@@ -95,19 +95,19 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             }
         };
 
-        const SlotIndex = enum (Size) {
+        const SlotIndex = enum(Size) {
             none = std.math.maxInt(Size),
             // Index to the last erased element in the group.
             _,
 
             inline fn unwrap(i: @This()) ?Size {
-                return switch(i) {
+                return switch (i) {
                     .none => return null,
-                    else => @intFromEnum(i)
+                    else => @intFromEnum(i),
                 };
             }
         };
-        
+
         const FreeListNode = struct {
             next: SlotIndex,
             prev: SlotIndex,
@@ -125,10 +125,9 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             // Pointer subtraction only works with usize, so an
             // additional function definition is needed here.
             inline fn left(self: *Slot, count: usize) *Slot {
-                const ptr: [*]Slot= @ptrCast(self);
+                const ptr: [*]Slot = @ptrCast(self);
                 return @ptrCast(ptr - count);
             }
-
         };
 
         // group == element memory block + skipfield + block metadata
@@ -183,9 +182,9 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                 // Assign pointers into memory block
                 const ptr_elements: [*]Slot = @ptrCast(@alignCast(data.ptr));
                 const ptr_skipfield: [*]Skip = @ptrCast(ptr_elements + capacity);
-                @memset(ptr_skipfield[0..capacity + 1], .{ .value = 0 });
+                @memset(ptr_skipfield[0 .. capacity + 1], .{ .value = 0 });
 
-                if (prev_group) |g | g.next_group = self; 
+                if (prev_group) |g| g.next_group = self;
 
                 self.* = .{
                     .previous_group = prev_group,
@@ -198,7 +197,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             }
 
             fn deinit(self: *Group, allocator: std.mem.Allocator) void {
-                const ptr_data: [*]align(@alignOf(T))Stride = @ptrCast(@alignCast(self.elements));
+                const ptr_data: [*]align(@alignOf(T)) Stride = @ptrCast(@alignCast(self.elements));
                 const data = ptr_data[0..Group.alignedSize(self.capacity)];
                 self.group_no = 0;
                 allocator.free(data);
@@ -210,7 +209,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
         pub const GroupList = struct {
             head: ?Cursor = null,
             tail: ?Cursor = null,
-            open_head: ?*Group = null,  
+            open_head: ?*Group = null,
             total_capacity: usize = 0,
             size: usize = 0, // Number of groups in the collection.
 
@@ -225,7 +224,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                     self.total_capacity += node.capacity;
                     self.size += 1;
                 } else {
-                    self.head = Cursor {
+                    self.head = Cursor{
                         .group = node,
                         .element = node.elementsStart(),
                         .skip = node.skipfieldStart(),
@@ -258,16 +257,16 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                     self.head = null;
                     self.tail = null;
                     self.open_head = null;
-                    self.total_capacity =0;
+                    self.total_capacity = 0;
                     self.size = 0;
                     return;
                 }
-                
+
                 self.size -= 1;
 
                 if (node.previous_group) |prev| {
                     prev.next_group = node.next_group;
-                } 
+                }
                 // Head node
                 else {
                     std.debug.assert(self.head.?.group == node);
@@ -282,10 +281,10 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
 
                     self.total_capacity -= node.capacity;
                 }
-                
+
                 if (node.next_group) |next| {
                     next.previous_group = node.previous_group;
-                } 
+                }
 
                 // Tail node
                 else {
@@ -294,24 +293,24 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
 
                     const prev = node.previous_group.?;
                     self.tail = .{
-                        .group = prev ,
+                        .group = prev,
                         .element = prev.elementsEnd(),
                         .skip = prev.skipfieldStart().right(prev.capacity),
                     };
                 }
 
-                self.total_capacity -= node.capacity; 
+                self.total_capacity -= node.capacity;
                 std.debug.assert(self.head.?.group != node);
                 std.debug.assert(self.tail.?.group != node);
             }
         };
-        
+
         groups: GroupList,
         open_groups_head: ?*Group = null,
         total_capacity: usize = 0,
         len: usize = 0,
         block_capacity: Size = 8,
-        max_block_capacity: Size = @min(std.math.maxInt(Size) - 1, 8192), 
+        max_block_capacity: Size = @min(std.math.maxInt(Size) - 1, 8192),
         allocator: std.mem.Allocator,
 
         pub const CreateOptions = struct {
@@ -319,7 +318,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
         };
 
         pub fn create(allocator: std.mem.Allocator, options: CreateOptions) !SkipMap(T) {
-            const skipmap = SkipMap(T) {
+            const skipmap = SkipMap(T){
                 .groups = .{},
                 .allocator = allocator,
                 .block_capacity = options.initial_block_capacity,
@@ -339,18 +338,15 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
 
         pub fn iterator(self: *Self) Iterator {
             // Not initialized, return a dummy iterator
-            if (self.len == 0) { 
-                return Iterator {
-                    .end = @ptrCast(@alignCast(self)),
-                    .cursor = .{
-                        .group = undefined,
-                        .element = undefined,
-                        .skip = @ptrCast(@alignCast(self)),
-                    }
-                };
+            if (self.len == 0) {
+                return Iterator{ .end = @ptrCast(@alignCast(self)), .cursor = .{
+                    .group = undefined,
+                    .element = undefined,
+                    .skip = @ptrCast(@alignCast(self)),
+                } };
             }
 
-            return Iterator {
+            return Iterator{
                 .end = self.groups.tail.?.skip,
                 .cursor = self.groups.head.?,
             };
@@ -362,7 +358,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                 var group: *Group = undefined;
                 const capacity = @min(self.block_capacity, self.max_block_capacity);
                 group = try self.createGroup(null, capacity);
-                
+
                 self.groups.prepend(group);
 
                 var tail = &self.groups.tail.?;
@@ -373,7 +369,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                 self.len += 1;
 
                 return self.groups.head.?;
-            } 
+            }
 
             // Insert into an open group
             else if (self.open_groups_head) |group| {
@@ -387,10 +383,10 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                 const old_free_node = slot.free_node;
 
                 // Fix up skipblock and vacancy groups
-                const skiplen = skip.value - 1; 
+                const skiplen = skip.value - 1;
 
                 // This is the start of a skipbock
-                if (skiplen != 0) { 
+                if (skiplen != 0) {
                     skip.right(1).value = skiplen;
                     skip.right(skiplen).value = skiplen;
                     slot.right(1).* = .{ .free_node = old_free_node };
@@ -401,14 +397,14 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
 
                     // Point free list head to new skipblock start
                     group.free_list_head = @enumFromInt(idx + 1);
-                } 
+                }
 
                 // Remove free list
-                else { 
+                else {
                     group.free_list_head = old_free_node.next;
                     if (group.free_list_head.unwrap()) |head| {
                         group.elements[head].free_node.prev = .none;
-                    } 
+                    }
                     // No elements free, remove from vacancy list
                     else {
                         self.open_groups_head = self.open_groups_head.?.next_open_group;
@@ -426,7 +422,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                     if (group == head.group and idx_slot < idx_head) {
                         head.* = .{
                             .element = slot,
-                            .skip= skip,
+                            .skip = skip,
                             .group = group,
                         };
                     }
@@ -437,9 +433,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                     .element = slot,
                     .skip = skip,
                 };
-            } 
-
-            else if (self.groups.tail != null and self.groups.tail.?.element != self.groups.tail.?.group.elementsEnd()) {
+            } else if (self.groups.tail != null and self.groups.tail.?.element != self.groups.tail.?.group.elementsEnd()) {
                 const tail = &(self.groups.tail.?);
                 const cursor = tail.*;
                 tail.element.* = .{ .data = value };
@@ -491,16 +485,14 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
 
                 // No consecutive erased elements, create a skipblock of len 1
                 // and fix up free list.
-                if (!has_left_skipblock and !has_right_skipblock) { 
+                if (!has_left_skipblock and !has_right_skipblock) {
                     cursor.skip.value = 1;
 
                     const index = cursor.group.indexOf(cursor.element);
 
                     if (group.free_list_head.unwrap()) |head| {
                         group.elements[head].free_node.prev = index;
-                    } 
-
-                    else {
+                    } else {
                         group.next_open_group = self.open_groups_head;
 
                         if (self.open_groups_head) |vacant_group| {
@@ -511,15 +503,15 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                     }
 
                     cursor.element.* = .{ .free_node = .{
-                        .prev= .none,
-                        .next= group.free_list_head,
-                    }};
+                        .prev = .none,
+                        .next = group.free_list_head,
+                    } };
 
                     group.free_list_head = index;
-                } 
-                
+                }
+
                 // A skipblock on the left.
-                // Increase skiplen by 1 and set current node's value and value of 
+                // Increase skiplen by 1 and set current node's value and value of
                 // the start node and current to the new value.
                 else if (has_left_skipblock and !has_right_skipblock) {
                     const prev = cursor.skip.left(1);
@@ -528,7 +520,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
 
                     start.value = skiplen;
                     cursor.skip.value = skiplen;
-                } 
+                }
 
                 // A skipblock on the right.
                 // Increase skiplen by 1 and make this the start of the
@@ -539,15 +531,15 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                     const end_skipfield = cursor.skip.right(skiplen - 1);
                     end_skipfield.value = skiplen;
                     cursor.skip.value = skiplen;
-                    
+
                     // Edit free list - The free list information is stored at the start of every skipblock.
 
                     // Move the skipfield information into the new start
-                    cursor.element.* = .{ .free_node =  cursor.element.right(1).free_node }; 
+                    cursor.element.* = .{ .free_node = cursor.element.right(1).free_node };
 
                     const index = cursor.group.indexOf(cursor.element);
-                    const node_prev= cursor.element.free_node.prev.unwrap();
-                    const node_next= cursor.element.free_node.next.unwrap();
+                    const node_prev = cursor.element.free_node.prev.unwrap();
+                    const node_next = cursor.element.free_node.next.unwrap();
 
                     if (node_next) |next| {
                         cursor.group.elements[next].free_node.prev = index;
@@ -560,12 +552,12 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                     }
 
                     head_skiplen = skiplen;
-                } 
+                }
 
                 // Between two skipblocks.
                 // Set skiplen to (left skipblock count) + (right skipblock count) + 1
                 // and delete the right block from free list. (merge with left skipblock)
-                else { 
+                else {
                     cursor.skip.value = 1;
                     const prev = cursor.skip.left(1).value;
                     const next = cursor.skip.right(1).value;
@@ -596,11 +588,11 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                     self.groups.head.?.skip = cursor.skip.right(head_skiplen);
                     self.groups.head.?.element = cursor.element.right(head_skiplen);
                 }
-            } 
+            }
 
             // The removed element is the last in the group.
             // The group is empty, so can be deallocated.
-            else { 
+            else {
 
                 // Only group left, reuse
                 if (self.groups.size == 1) {
@@ -619,8 +611,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                     group.next_open_group = null;
                     group.prev_open_group = null;
                     group.group_no = 0;
-                }
-                else {
+                } else {
                     self.groups.remove(group);
 
                     // Remove from vacancies
@@ -628,7 +619,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                     if (group.free_list_head != .none) {
                         self.closeGroup(group);
                     }
-                    
+
                     self.total_capacity -= group.capacity;
                     group.deinit(self.allocator);
                 }
@@ -643,22 +634,16 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             var node: ?*Group = self.groups.tail.?.group;
             while (node) |group| {
                 if (@intFromPtr(group.elementsStart()) <= @intFromPtr(element) and
-                    @intFromPtr(group.elementsEnd()) > @intFromPtr(element)) {
-
+                    @intFromPtr(group.elementsEnd()) > @intFromPtr(element))
+                {
                     const found_element: *Slot = @ptrCast(element);
 
-                    return Cursor {
-                        .element = found_element,
-                        .group = group,
-                        .skip = group.skipfieldStart().right(group.indexOf(found_element).unwrap().?)
-                    };
-
+                    return Cursor{ .element = found_element, .group = group, .skip = group.skipfieldStart().right(group.indexOf(found_element).unwrap().?) };
                 }
                 node = group.previous_group;
-            } 
+            }
             return null;
-
-        } 
+        }
 
         pub fn dump(self: *Self) void {
             if (self.groups.head) |head| {
@@ -700,7 +685,6 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                         } else {
                             std.debug.print("_\t", .{});
                         }
-
                     }
 
                     std.debug.print("\nfree:\t", .{});
@@ -712,10 +696,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
 
                     q_group = group.next_group;
                     std.debug.print("\n", .{});
-
-
                 }
-
 
                 q_group = head.group;
                 std.debug.print("\ngr:", .{});
@@ -757,7 +738,6 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             try group.init(capacity, null, self.allocator);
             return group;
         }
-
     };
 }
 
@@ -765,10 +745,14 @@ test "skipmap.create" {
     const allocator = std.testing.allocator;
     var skipmap = try SkipMap(u128).create(allocator, .{ .initial_block_capacity = 2 });
     defer skipmap.deinit();
-    for (0..100) |i| { _ = try skipmap.insert(@intCast(i)); }
+    for (0..100) |i| {
+        _ = try skipmap.insert(@intCast(i));
+    }
     var it = skipmap.iterator();
     var i: u128 = 0;
-    while (it.next()) |val| : ({ i += 1; }) {
+    while (it.next()) |val| : ({
+        i += 1;
+    }) {
         try std.testing.expectEqual(i, val.*);
     }
 }
@@ -786,9 +770,9 @@ test "skipmap.remove" {
     _ = try skipmap.insert(7);
 
     // Test all skipblock merge cases
-    skipmap.remove(b); 
+    skipmap.remove(b);
     skipmap.remove(c); // [1] [_] [_] skipblock on left
-    skipmap.remove(f);  
+    skipmap.remove(f);
     skipmap.remove(e); // [_] [_] [1] skipblock on right
     skipmap.remove(d); // [2] [_] [2] skipblock merge
     skipmap.remove(a); // First element
@@ -816,6 +800,4 @@ test "skipmap.reuse" {
     try std.testing.expectEqual(null, it.next());
 }
 
-test "skipmap.basic" {
-
-}
+test "skipmap.basic" {}

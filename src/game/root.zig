@@ -14,14 +14,12 @@ fn shutdown(_: *hy.Engine, state: hy.World) callconv(.C) void {
 }
 
 fn reload(engine: *hy.Engine, world: hy.World) callconv(.C) bool {
-    game.reload(engine, world)
-        catch |e| {
-            log.err("Reload failure: {}", .{e});
-            return false;
-        };
+    game.reload(engine, world) catch |e| {
+        log.err("Reload failure: {}", .{e});
+        return false;
+    };
     return true;
 }
-
 
 export fn interface() hy.GameInterface {
     return .{

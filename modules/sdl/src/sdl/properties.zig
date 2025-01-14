@@ -7,13 +7,13 @@ pub const PropertiesID = u32;
 //pub const SDL_PROPERTY_TYPE_FLOAT: c_int = 4;
 //pub const SDL_PROPERTY_TYPE_BOOLEAN: c_int = 5;
 //pub const enum_SDL_PropertyType = c_uint;
-pub const PropertyType = enum (c_uint) {
-	invalid,
-	pointer,
-	string,
-	number,
-	float,
-	boolean,
+pub const PropertyType = enum(c_uint) {
+    invalid,
+    pointer,
+    string,
+    number,
+    float,
+    boolean,
 };
 
 //pub const SDL_PropertyType = enum_SDL_PropertyType;

@@ -14,7 +14,7 @@ const Input = @This();
 
 pub const Action = enum { up, down, held };
 
-pub const InputFlags = packed struct (u8) {
+pub const InputFlags = packed struct(u8) {
     up: bool = false,
     down: bool = false,
     held: bool = false,
@@ -42,7 +42,7 @@ arena: std.heap.ArenaAllocator,
 keybinds: Keybinds,
 mousebinds: Mousebinds,
 keys_down: KeysDownSet = .{},
-mouse_state: MouseDownSet = .{}, 
+mouse_state: MouseDownSet = .{},
 
 input_inited: bool = false,
 
@@ -68,10 +68,10 @@ pub fn reset(self: *Input) void {
 pub fn getKeyCallbacks(self: *Input, button: Keycode) ?*ActionSet {
     const allocator = self.arena.allocator();
 
-    const entry = self.keybinds.getOrPut(allocator,button) catch {
+    const entry = self.keybinds.getOrPut(allocator, button) catch {
         std.log.warn("[INPUT] Out of memory", .{});
         return null;
-    }; 
+    };
 
     if (!entry.found_existing) {
         entry.value_ptr.* = ActionSet.initFill(.{});
@@ -82,10 +82,10 @@ pub fn getKeyCallbacks(self: *Input, button: Keycode) ?*ActionSet {
 
 pub fn getMouseCallbacks(self: *Input, button: MouseButton) ?*ActionSet {
     const allocator = self.arena.allocator();
-    const entry = self.mousebinds.getOrPut(allocator,button) catch {
+    const entry = self.mousebinds.getOrPut(allocator, button) catch {
         std.log.warn("[INPUT] Out of memory", .{});
         return null;
-    }; 
+    };
     if (!entry.found_existing) {
         entry.value_ptr.* = ActionSet.initFill(.{});
     }
@@ -153,7 +153,6 @@ pub fn updateKeyboard(self: *Input, event: sdl.events.Event) void {
             self.post(key, undefined, .up, event);
         },
 
-
         else => {},
     }
 }
@@ -164,7 +163,7 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
 
     switch (event.type) {
         sdl.events.type.mouse_button_down => {
-            switch(event.button.button) {
+            switch (event.button.button) {
                 1 => {
                     self.mouse_state.insert(.left);
                     self.postMouse(.left, .down, event);
@@ -182,7 +181,7 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
         },
 
         sdl.events.type.mouse_button_up => {
-            switch(event.button.button) {
+            switch (event.button.button) {
                 1 => {
                     self.mouse_state.remove(.left);
                     self.postMouse(.left, .up, event);
@@ -202,14 +201,14 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
         sdl.events.type.mouse_motion => {
             self.mouse_state.insert(.motion);
             const m = event.motion;
-            self.postMouse(.motion, .down, hy.event.MouseMotion { 
+            self.postMouse(.motion, .down, hy.event.MouseMotion{
                 .position = hy.math.vec(.{ m.x, m.y }),
                 .delta = hy.math.vec(.{ m.xrel, m.yrel }),
             });
         },
         sdl.events.type.mouse_wheel => {
             self.mouse_state.insert(.wheel);
-            self.postMouse(.wheel, .down, hy.event.MouseWheel { .delta = event.wheel.y });
+            self.postMouse(.wheel, .down, hy.event.MouseWheel{ .delta = event.wheel.y });
         },
         else => {},
     }
