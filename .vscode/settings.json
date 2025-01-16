@@ -9,9 +9,6 @@
         "spirv_cross_c.h": "c",
         "sdl_shadercross.h": "c"
     },
-    "[zig]": {
-        "editor.formatOnSave": false,
-    },
     "zig.zls.inlayHintsShowBuiltin": false, 
     "zig.zls.inlayHintsHideRedundantParamNames": false,
     "zig.zls.inlayHintsShowParameterName": false,

@@ -181,7 +181,7 @@ pub const Models = struct {
         const hdl = device.createBuffer(&.{
             .usage = .{ .index = true, .vertex = true },
             .size = vtx_buf_size + idx_buf_size,
-        }).?;
+        }) catch @panic("error creating buffer");
 
         const root_buffer = Buffer{
             .hdl = hdl,

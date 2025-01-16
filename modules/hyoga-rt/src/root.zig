@@ -75,14 +75,14 @@ export fn hyeWindow(engine: *Engine) *Engine.Window {
     return &engine.window;
 }
 
-export fn hygpuImportModel(gpu: *Gpu, path: [*:0]const u8, settings: Gpu.Models.ImportSettings) Gpu.ModelHandle {
+export fn hygpuImportModel(gpu: *Gpu, path: [*:0]const u8, settings: Gpu.Models.ImportSettings) Gpu.Model {
     return gpu.importModel(path, settings) catch |e| {
         std.log.err("import model failure: {}", .{e});
-        return Gpu.ModelHandle.invalid;
+        return Gpu.Model.invalid;
     };
 }
 
-export fn hygpuModelBounds(gpu: *Gpu, model: Gpu.ModelHandle) hy.math.AxisAligned {
+export fn hygpuModelBounds(gpu: *Gpu, model: Gpu.Model) hy.math.AxisAligned {
     if (gpu.models.get(model)) |m| {
         return m.bounds;
     } else |e| {
@@ -91,18 +91,18 @@ export fn hygpuModelBounds(gpu: *Gpu, model: Gpu.ModelHandle) hy.math.AxisAligne
     }
 }
 
-export fn hygpuModelDupe(gpu: *Gpu, model: Gpu.ModelHandle, options: Gpu.Models.DupeModelOptions) Gpu.ModelHandle {
+export fn hygpuModelDupe(gpu: *Gpu, model: Gpu.Model, options: Gpu.Models.DupeModelOptions) Gpu.Model {
     return gpu.models.dupe(model, options) catch |e| {
         std.log.err("dupe model failure: {}", .{e});
-        return Gpu.ModelHandle.invalid;
+        return Gpu.Model.invalid;
     };
 }
 
-export fn hygpuModelPrimitive(gpu: *Gpu, shape: Gpu.primitives.Shape) Gpu.ModelHandle {
+export fn hygpuModelPrimitive(gpu: *Gpu, shape: Gpu.primitives.Shape) Gpu.Model {
     return gpu.getPrimitive(shape);
 }
 
-export fn hygpuModelWaitLoad(gpu: *Gpu, model: Gpu.ModelHandle, max: u64) bool {
+export fn hygpuModelWaitLoad(gpu: *Gpu, model: Gpu.Model, max: u64) bool {
     return gpu.models.waitLoad(model, max);
 }
 

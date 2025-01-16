@@ -1,7 +1,6 @@
-pub const mdl = @import("model.zig");
-pub const primitives = @import("primitives.zig");
-
 const std = @import("std");
+const mdl = @import("model.zig");
+const hy = @import("hyoga-lib");
 const sdl = @import("sdl");
 const sdlsc = @import("sdl_shadercross");
 const ai = @import("assimp");
@@ -29,10 +28,21 @@ const World = @import("../root.zig").World;
 
 const Gpu = @This();
 
-pub const ModelHandle = mdl.Handle;
+pub const Material = mt.Material;
+pub const MaterialHandle = mt.Handle;
+pub const MaterialTemplate = mt.MaterialTemplate;
+pub const Mesh = mdl.Mesh;
+pub const Model = mdl.Handle;
 pub const Models = mdl.Models;
 pub const RenderItemHandle = rbl.RenderItemHandle;
 pub const AddRenderableOptions = rbl.RenderList.AddModelOptions;
+pub const Texture = tx.Handle;
+pub const Textures = tx.Textures;
+pub const TextureSet = tx.TextureSet;
+pub const primitives = @import("primitives.zig");
+
+const log = std.log.scoped(.gpu);
+const panic = std.debug.panic;
 
 /// These constant strings are declared in each shader's resource manifest
 /// in order to bind SSBOs and uniforms.
@@ -44,16 +54,16 @@ pub const StringIDs = struct {
     light_direction: Strint.ID,
     viewport_size: Strint.ID,
 
-    pub fn init(strint: *Strint) !@This() {
+    pub fn init(strint: *Strint) @This() {
         return .{
             // Storage buffers
-            .all_renderables = try strint.from("hy_all_renderables"),
-            .selected_renderables = try strint.from("hy_selected_renderables"),
+            .all_renderables = strint.from("hy_all_renderables") catch hy.err.oom(),
+            .selected_renderables = strint.from("hy_selected_renderables") catch hy.err.oom(),
             // Uniform buffers
-            .view_projection = try strint.from("hy_view_projection_matrix"),
-            .camera_world_position = try strint.from("hy_camera_world_position"),
-            .light_direction = try strint.from("hy_light_direction"),
-            .viewport_size = try strint.from("hy_viewport_size"),
+            .view_projection = strint.from("hy_view_projection_matrix") catch hy.err.oom(),
+            .camera_world_position = strint.from("hy_camera_world_position") catch hy.err.oom(),
+            .light_direction = strint.from("hy_light_direction") catch hy.err.oom(),
+            .viewport_size = strint.from("hy_viewport_size") catch hy.err.oom(),
         };
     }
 };
@@ -98,17 +108,16 @@ const RenderState = struct {
     forward_pass: passes.Forward,
     blit_pass: passes.BlitPass,
 
-    default_material: mt.MaterialTemplate,
-    post_material: mt.MaterialTemplate,
-    outline_material: mt.MaterialTemplate,
-    primitives_material: mt.Handle,
+    default_material: MaterialTemplate,
+    post_material: MaterialTemplate,
+    outline_material: MaterialTemplate,
 
     default_texture: *sdl.gpu.Texture,
     black_texture: *sdl.gpu.Texture,
     white_texture: *sdl.gpu.Texture,
 
-    cube: ModelHandle,
-    quad: ModelHandle,
+    cube: Model,
+    quad: Model,
 
     sampler: *sdl.gpu.Sampler = undefined,
 
@@ -125,9 +134,6 @@ pub const PassTargets = struct {
 };
 
 const WindowState = struct {
-    window: *Window = undefined,
-    angle: vec3.Vec3 = vec3.zero,
-    cam_position: vec3.Vec3 = vec3.create(0, 0, 2.5),
     msaa_tex: *sdl.gpu.Texture = undefined,
     prev_drawable_w: u32 = 0,
     prev_drawable_h: u32 = 0,
@@ -159,68 +165,78 @@ gpa: std.mem.Allocator,
 arena: std.heap.ArenaAllocator,
 buffer_allocator: buf.BufferAllocator,
 loader: *Loader,
-swapchain_target_desc: sdl.gpu.ColorTargetDescription,
-frames: u32 = 0,
 strint: *Strint,
+window: *Window,
 render_state: RenderState = undefined,
 window_state: WindowState = .{},
 renderables: rbl.RenderList,
 outlined: std.AutoArrayHashMapUnmanaged(rbl.RenderItemHandle, void),
 speed: f32 = 1,
 textures: tx.Textures,
-models: mdl.Models,
+models: Models,
 materials: SlotMap(mt.Material),
 uniforms: std.AutoHashMapUnmanaged(Strint.ID, Uniform),
 ids: StringIDs,
 
 pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allocator) !*Gpu {
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
-    const d = sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, null) orelse {
-        std.log.err("[GPU] create device failure: {s}", .{sdl.getError()});
+
+    const device = sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, null) orelse {
+        log.err("[GPU] create device failure: {s}", .{sdl.getError()});
         return error.CreateDeviceFailure;
     };
-    _ = d.claimWindow(window.hdl);
 
-    if (!d.setSwapchainParameters(window.hdl, .sdr, .immediate)) {
-        std.log.warn("[GPU] Swapchain parameters could not be set:" ++
-            "{s}", .{sdl.getError()});
+    _ = device.claimWindow(window.hdl);
+
+    if (!device.setSwapchainParameters(window.hdl, .sdr, .immediate)) {
+        log.warn("[GPU] Swapchain parameters could not be set: {s}", .{sdl.getError()});
     }
 
-    std.log.info("[GPU] Selected backend: {s}", .{d.getDeviceDriver()});
+    log.info("[GPU] Selected backend: {s}", .{device.getDeviceDriver()});
 
-    var self = try gpa.create(Gpu);
+    var self = gpa.create(Gpu) catch hy.err.oom();
+
     self.* = .{
         .gpa = gpa,
+        .device = device,
         .arena = std.heap.ArenaAllocator.init(gpa),
-        .buffer_allocator = buf.BufferAllocator.init(d, .{ .vertex = true, .index = true }, self.gpa),
-        .device = d,
-        .swapchain_target_desc = .{ .format = d.getSwapchainTextureFormat(window.hdl) },
+        .buffer_allocator = buf.BufferAllocator.init(self.device, .{ .vertex = true, .index = true }, self.gpa),
         .loader = loader,
         .strint = strint,
-        .textures = tx.Textures.create(d, loader, strint, self.gpa),
-        .models = mdl.Models.create(loader, strint, self.gpa),
-        .materials = try SlotMap(mt.Material).create(self.gpa, 1),
-        .window_state = .{ .window = window },
-        .renderables = try rbl.RenderList.init(self, self.gpa),
+        .window = window,
+        .window_state = .{},
+        .ids = StringIDs.init(self.strint),
+        .textures = tx.Textures.create(self.device, loader, strint, self.gpa),
+        .models = Models.create(loader, strint, self.gpa),
+        .materials = SlotMap(mt.Material).create(self.gpa, 4) catch hy.err.oom(),
+        .renderables = rbl.RenderList.init(self, self.gpa),
         .outlined = .{},
         .uniforms = .empty,
-        .ids = try StringIDs.init(self.strint),
     };
 
-    try sdlsc.init();
+    sdlsc.init() catch |e| std.debug.panic("sdl shader compiler init failure: {}", .{e});
     self.textures.image_loader.use();
 
-    const material = try mt.readFromPath(self, .{
+    // Generate default assets
+
+    const material = mt.readFromPath(self, .{
         .path = "shaders/standard",
         .enable_depth = true,
         .enable_stencil = false,
         .fill_mode = .fill,
-    }, self.gpa);
-
-    // Generate default assets
+    }, self.gpa) catch @panic("error creating standard shader");
 
     // Unloaded texture
-    const texture = self.device.createTexture(&.{ .format = .b8g8r8a8_unorm, .height = 256, .width = 256, .layer_count_or_depth = 1, .num_levels = 1, .sample_count = .@"1", .usage = .{ .sampler = true } }).?;
+    const texture = self.device.createTexture(&.{
+        .format = .b8g8r8a8_unorm,
+        .height = 256,
+        .width = 256,
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
+        .sample_count = .@"1",
+        .usage = .{ .sampler = true },
+    }) catch @panic("error creating texture");
+
     self.device.setTextureName(texture, "null_tex");
 
     var buffer: [256 * 256]u32 = [_]u32{0xffffffff} ** (256 * 256);
@@ -229,28 +245,45 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
     for (0..256) |i| {
         for (0..256) |j| {
-            if ((i + j) % 2 == 999) {
+            if ((i + j) % 2 == 0) {
                 @memset(buffer[i * 256 + j .. i * 256 + j + 1], black);
             } else {
                 @memset(buffer[i * 256 + j .. i * 256 + j + 1], white);
             }
         }
     }
+
     try self.uploadToTexture(texture, 256, 256, &std.mem.toBytes(buffer));
 
     // Black texture
-    const black_texture = self.device.createTexture(&.{ .format = .b8g8r8a8_unorm, .height = 1, .width = 1, .layer_count_or_depth = 1, .num_levels = 1, .sample_count = .@"1", .usage = .{ .sampler = true } }).?;
+    const black_texture = self.device.createTexture(&.{
+        .format = .b8g8r8a8_unorm,
+        .height = 1,
+        .width = 1,
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
+        .sample_count = .@"1",
+        .usage = .{ .sampler = true },
+    }) catch panic("error creating texture", .{});
     self.device.setTextureName(black_texture, "black_tex");
 
     try self.uploadToTexture(black_texture, 1, 1, &[4]u8{ 1, 0, 0, 0 });
 
-    const white_texture = self.device.createTexture(&.{ .format = .b8g8r8a8_unorm, .height = 1, .width = 1, .layer_count_or_depth = 1, .num_levels = 1, .sample_count = .@"1", .usage = .{ .sampler = true } }).?;
+    const white_texture = self.device.createTexture(&.{
+        .format = .b8g8r8a8_unorm,
+        .height = 1,
+        .width = 1,
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
+        .sample_count = .@"1",
+        .usage = .{ .sampler = true },
+    }) catch panic("error creating texture", .{});
     self.device.setTextureName(white_texture, "white_tex");
 
     try self.uploadToTexture(white_texture, 1, 1, &std.mem.toBytes([_]u32{white}));
 
     // Sampler
-    const sampler_info = sdl.gpu.SamplerCreateInfo{
+    const sampler_info: sdl.gpu.SamplerCreateInfo = .{
         .address_mode_u = .clamp_to_edge,
         .address_mode_v = .clamp_to_edge,
         .address_mode_w = .clamp_to_edge,
@@ -258,7 +291,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .mag_filter = .linear,
     };
 
-    const white_material = try self.materials.insert(mt.Material.fromTemplate(material, tx.TextureSet.initFull(.{ .target = white_texture })));
+    const white_material = try self.materials.insert(mt.Material.fromTemplate(material, TextureSet.initFull(.{ .target = white_texture })));
 
     const cube = try self.createModel(&primitives.cube.vertices, &primitives.cube.indices, white_material);
     const quad = try self.createModel(&primitives.quad.vertices, &primitives.quad.indices, white_material);
@@ -279,7 +312,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
             .clear_color = .{ .r = 0.2, .g = 0.2, .b = 0.4, .a = 1 },
             .depth_enabled = true,
             .stencil_enabled = false,
-            .dest_format = self.swapchain_target_desc.format,
+            .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
             .dest_usage = .{ .color_target = true, .sampler = true },
             .dest_tex_width = @intCast(w),
             .dest_tex_height = @intCast(h),
@@ -304,9 +337,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
             .format = .r8_unorm,
         }, self.gpa),
 
-        .primitives_material = white_material,
-
-        .sampler = self.device.createSampler(&sampler_info).?,
+        .sampler = self.device.createSampler(&sampler_info) orelse std.debug.panic("create sampler failure: {s}", .{sdl.getError()}),
         .obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 512, "Object Mats"),
         .selected_obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 8, "Selected Object Mats"),
         .active_target = null,
@@ -318,7 +349,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 pub fn shutdown(self: *Gpu) void {
     sdlsc.quit();
 
-    self.device.releaseWindow(self.window_state.window.hdl);
+    self.device.releaseWindow(self.window.hdl);
 
     self.textures.deinit();
     self.models.deinit();
@@ -413,7 +444,7 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
     };
 
     var swapchain: ?*sdl.gpu.Texture = null;
-    if (!cmd.acquireSwapchainTexture(self.window_state.window.hdl, &swapchain, &drawable_w, &drawable_h)) {
+    if (!cmd.acquireSwapchainTexture(self.window.hdl, &swapchain, &drawable_w, &drawable_h)) {
         std.log.err("Could not acquire swapchain texture", .{});
         return error.AcquireSwapchainError;
     } else if (swapchain) |s| {
@@ -492,7 +523,7 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
         .items = .{ .renderables = (&self.render_state.blit_pass.quad)[0..1] },
         .material = mt.Material.fromTemplate(
             self.render_state.post_material,
-            tx.TextureSet.init(.{
+            TextureSet.init(.{
                 .diffuse = .{ .target = self.render_state.forward_pass.texture() },
                 .mask = .{ .target = if (mask != null) mask.?.texture() else self.render_state.black_texture },
             }),
@@ -565,7 +596,15 @@ pub fn doPass(self: *Gpu, job: PassInfo) !void {
     }
 }
 
-fn draw(self: *Gpu, job: *const PassInfo, pass: *sdl.gpu.RenderPass, num_first_instance: u32, num_instances: u32, mesh: mdl.Mesh, last_pipeline: *?*sdl.gpu.GraphicsPipeline) !void {
+fn draw(
+    self: *Gpu,
+    job: *const PassInfo,
+    pass: *sdl.gpu.RenderPass,
+    num_first_instance: u32,
+    num_instances: u32,
+    mesh: Mesh,
+    last_pipeline: *?*sdl.gpu.GraphicsPipeline,
+) !void {
     const zone = @import("ztracy").ZoneN(@src(), "RenderInstanced");
     defer zone.End();
 
@@ -640,7 +679,7 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
     const sample_count = .@"1";
 
     const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{.{
-        .format = params.format orelse self.swapchain_target_desc.format,
+        .format = params.format orelse self.device.getSwapchainTextureFormat(self.window.hdl),
         .blend_state = .{
             .enable_blend = true,
             .src_color_blendfactor = .src_alpha,
@@ -780,7 +819,7 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
     return pipeline;
 }
 
-pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSettings) !ModelHandle {
+pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSettings) !Model {
     const path_slice = std.mem.span(path);
     const allocator = self.arena.allocator();
 
@@ -792,7 +831,7 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSetti
     // Material indices start at one for assimp imports
     materials_array[0] = mt.Handle.invalid;
     for (import.materials[1..import.num_materials], 1..) |ai_material, mat_index| {
-        var texture_set = tx.TextureSet.init(.{});
+        var texture_set = TextureSet.init(.{});
 
         inline for (std.meta.fields(ai.TextureType)) |field| {
             const tex_type: ai.TextureType = @enumFromInt(field.value);
@@ -807,7 +846,7 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSetti
 
                 const ai_tex_id: [:0]u8 = str.data[0..str.len :0];
                 var tex_id: [:0]u8 = ai_tex_id;
-                var handle: ?tx.Handle = null;
+                var handle: ?Texture = null;
 
                 if (import.getEmbeddedTexture(ai_tex_id.ptr)) |tex| {
                     _ = tex;
@@ -836,7 +875,7 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSetti
     return model;
 }
 
-pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, material: mt.Handle) !ModelHandle {
+pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, material: mt.Handle) !Model {
     const buffer = buf.VertexIndexBuffer.create(
         self.device,
         @intCast(@sizeOf(Vertex) * verts.len),
@@ -846,7 +885,7 @@ pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, mate
     try self.uploadToBuffer(buffer.hdl, buffer.offset, std.mem.sliceAsBytes(verts));
     try self.uploadToBuffer(buffer.hdl, buffer.idx_start, std.mem.sliceAsBytes(indices));
 
-    const mesh = try self.gpa.create(mdl.Mesh);
+    const mesh = try self.gpa.create(Mesh);
     errdefer self.gpa.destroy(mesh);
 
     mesh.* = .{
@@ -854,7 +893,7 @@ pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, mate
         .material = material,
     };
 
-    const model = mdl.Model{
+    const model: mdl.Model = .{
         .children = mesh[0..1],
         .transform = mat4.identity,
         .bounds = primitives.Cube.bounds,
@@ -863,7 +902,7 @@ pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, mate
     return self.models.add(model);
 }
 
-pub fn getPrimitive(self: *Gpu, shape: primitives.Shape) ModelHandle {
+pub fn getPrimitive(self: *Gpu, shape: primitives.Shape) Model {
     return switch (shape) {
         .cube => return self.render_state.cube,
         .quad => return self.render_state.quad,

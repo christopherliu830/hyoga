@@ -98,7 +98,7 @@ pub const Textures = struct {
 
         const texture_info = sdl.gpu.TextureCreateInfo{ .type = .@"2d", .format = .r8g8b8a8_unorm, .usage = .{ .sampler = true }, .height = h, .width = w, .layer_count_or_depth = 1, .num_levels = 1, .sample_count = .@"1", .props = 0 };
 
-        const tex = device.createTexture(&texture_info) orelse @panic("could not create texture");
+        const tex = device.createTexture(&texture_info) catch @panic("could not create texture");
         device.setTextureName(tex, pathZ);
         errdefer device.releaseTexture(tex);
 

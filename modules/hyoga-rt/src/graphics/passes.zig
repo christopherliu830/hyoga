@@ -4,6 +4,8 @@ const Gpu = @import("gpu.zig");
 const mt = @import("material.zig");
 const mdl = @import("model.zig");
 
+const panic = std.debug.panic;
+
 const Renderable = @import("renderable.zig").Renderable;
 
 pub const Forward = struct {
@@ -42,7 +44,7 @@ pub const Forward = struct {
             .sample_count = .@"1",
         };
 
-        const dest_tex = device.createTexture(&tex_info).?;
+        const dest_tex = device.createTexture(&tex_info) catch panic("could not create texture", .{});
         device.setTextureName(dest_tex, options.name.ptr);
 
         const target: sdl.gpu.ColorTargetInfo = .{
@@ -70,7 +72,7 @@ pub const Forward = struct {
                     .props = 0,
                 };
 
-                const depth_tex = device.createTexture(&ds_tex_info);
+                const depth_tex = device.createTexture(&ds_tex_info) catch panic("could not create texture", .{});
                 device.setTextureName(depth_tex, options.name.ptr);
 
                 break :blk sdl.gpu.DepthStencilTargetInfo{
@@ -120,10 +122,10 @@ pub const Forward = struct {
         self.device.releaseTexture(self.texture());
         self.device.releaseTexture(self.depthStencilTexture());
 
-        self.target.texture = self.device.createTexture(&self.tex_info).?;
+        self.target.texture = self.device.createTexture(&self.tex_info) catch @panic("error creating texture");
         self.device.setTextureName(self.target.texture, self.name.ptr);
         if (self.ds_target) |*target| {
-            target.texture = self.device.createTexture(&self.ds_tex_info.?);
+            target.texture = self.device.createTexture(&self.ds_tex_info.?) catch @panic("error creating texture");
             self.device.setTextureName(target.texture, self.name.ptr);
         }
     }
@@ -158,7 +160,7 @@ pub const BlitPass = struct {
         const quad_buffer = device.createBuffer(&.{
             .size = @sizeOf(Verts),
             .usage = .{ .vertex = true, .index = true },
-        }).?;
+        }) catch panic("error creating buffer", .{});
 
         try gpu.uploadToBuffer(quad_buffer, 0, &std.mem.toBytes(verts));
 

@@ -13,6 +13,8 @@ const root = @This();
 pub const Mat4 = extern struct {
     m: [4]f32x4,
 
+    pub const identity = root.identity;
+
     pub inline fn position(self: *const Mat4) Vec3 {
         return vec3.create(self.m[3][0], self.m[3][1], self.m[3][2]);
     }

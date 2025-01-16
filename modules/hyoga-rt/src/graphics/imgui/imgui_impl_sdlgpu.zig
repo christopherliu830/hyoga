@@ -4,6 +4,8 @@ const Gpu = @import("../gpu.zig");
 const imgui = @import("imgui");
 const mt = @import("../material.zig");
 
+const panic = std.debug.panic;
+
 const ShaderType = enum { vertex, fragment };
 
 const ImplData = struct {
@@ -189,7 +191,7 @@ pub fn createFontsTexture() !*sdl.gpu.Texture {
         .height = h,
         .layer_count_or_depth = 1,
         .num_levels = 1,
-    }).?;
+    }) catch panic("error creating texture", .{});
 
     try bd.gpu.uploadToTexture(texture, w, h, pixels[0..@intCast(out_width * out_height * 4)]);
     return texture;
@@ -244,7 +246,7 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
 
             const vtx_buf_info = sdl.gpu.BufferCreateInfo{ .usage = .{ .vertex = true }, .size = new_vtx_size };
 
-            const buf_vertex = bd.gpu.device.createBuffer(&vtx_buf_info).?;
+            const buf_vertex = bd.gpu.device.createBuffer(&vtx_buf_info) catch @panic("error creating buffer");
             bd.buf_vertex = buf_vertex;
             bd.size_buf_vertex = new_vtx_size;
         }
@@ -257,7 +259,7 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
                 .usage = .{ .index = true },
                 .size = new_idx_size,
             };
-            const buf_index = bd.gpu.device.createBuffer(&idx_buf_info);
+            const buf_index = bd.gpu.device.createBuffer(&idx_buf_info) catch @panic("could not create buffer");
             bd.buf_index = buf_index;
             bd.size_buf_index = new_idx_size;
         }

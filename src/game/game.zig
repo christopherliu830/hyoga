@@ -6,13 +6,15 @@ const rt = hy.runtime;
 const hym = hy.math;
 const SkipMap = hy.SkipMap;
 
+const oom = hy.err.oom;
+
 const ui = @import("ui.zig");
 const cam = @import("camera.zig");
 
 const Self = @This();
 
 const Object = struct {
-    transform: hym.Mat4,
+    transform: hym.Mat4 = .identity,
     bounds: hym.AxisAligned = .{},
     hdl: rt.gpu.RenderItemHandle = .invalid,
 };
@@ -20,21 +22,21 @@ const Object = struct {
 gpa: std.heap.GeneralPurposeAllocator(.{}),
 arena: std.heap.ArenaAllocator,
 callback_arena: std.heap.ArenaAllocator,
-cube_model: rt.gpu.ModelHandle = rt.gpu.ModelHandle.invalid,
-cube: Object = undefined,
+cube_model: rt.gpu.ModelHandle = .invalid,
+cube: Object = .{},
 objects: SkipMap(Object),
 ui_state: ui.State,
 camera: cam.Camera,
 
 pub fn init(engine: *hy.Engine) !hy.World {
     var self_gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const self = try self_gpa.allocator().create(Self);
+    const self = self_gpa.allocator().create(Self) catch oom();
     self.* = .{
         .gpa = self_gpa,
         .arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
         .callback_arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
-        .objects = try SkipMap(Object).create(self.gpa.allocator(), .{}),
-        .ui_state = .{ .second_timer = try std.time.Timer.start() },
+        .objects = SkipMap(Object).create(self.gpa.allocator(), .{}) catch oom,
+        .ui_state = .{ .second_timer = std.time.Timer.start() catch unreachable },
         .camera = .{ .input = engine.input(), .window = engine.window() },
     };
 
@@ -48,7 +50,8 @@ pub fn init(engine: *hy.Engine) !hy.World {
         for (0..10) |x| {
             const fx: f32 = @floatFromInt(x);
             const fy: f32 = @floatFromInt(y);
-            var object = (try self.objects.insert(undefined)).unwrap();
+            const cursor = self.objects.insert(.{}) catch oom();
+            var object = cursor.unwrap();
             object.* = .{
                 .hdl = gpu.addRenderable(.{
                     .model = if ((y + x) % 2 == 0) quad else cube,
@@ -61,7 +64,7 @@ pub fn init(engine: *hy.Engine) !hy.World {
         }
     }
 
-    try self.camera.registerInputs(self.callback_arena.allocator());
+    self.camera.registerInputs(self.callback_arena.allocator()) catch oom();
     self.camera.position = hym.vec(.{ 50, 50, 50 });
     self.camera.look_direction = hym.vec(.{ 0, 0, -1 });
 
@@ -91,8 +94,8 @@ pub fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
 
     // Check performance difference
     if (true) {
-        var boxes = allocator.alloc(hym.AxisAligned, self.objects.len) catch std.debug.panic("oom", .{});
-        var objects = allocator.alloc(*Object, self.objects.len) catch std.debug.panic("oom", .{});
+        var boxes = allocator.alloc(hym.AxisAligned, self.objects.len) catch oom();
+        var objects = allocator.alloc(*Object, self.objects.len) catch oom();
 
         {
             var it = self.objects.iterator();
@@ -108,13 +111,12 @@ pub fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
             }
         }
 
-        const packed_boxes = hym.Ray.pack(boxes, allocator) catch std.debug.panic("oom", .{});
-        const intersections = ray.intersectPacked(packed_boxes, 1000, allocator) catch std.debug.panic("oom", .{});
+        const packed_boxes = hym.Ray.pack(boxes, allocator) catch oom();
+        const intersections = ray.intersectPacked(packed_boxes, 1000, allocator) catch oom();
 
         for (objects, 0..) |object, i| {
             const ixn = intersections[i];
             if (ixn < 1000) {
-                std.debug.print("hit\n", .{});
                 engine.gpu().selectRenderable(object.hdl);
             }
         }
@@ -160,5 +162,5 @@ pub fn reload(engine: *hy.Engine, game: hy.World) !void {
     const ptr = @as(*Self, @ptrCast(@alignCast(game.memory)));
     engine.input().reset();
     _ = ptr.callback_arena.reset(.retain_capacity);
-    try ptr.camera.registerInputs(ptr.callback_arena.allocator());
+    ptr.camera.registerInputs(ptr.callback_arena.allocator()) catch oom();
 }

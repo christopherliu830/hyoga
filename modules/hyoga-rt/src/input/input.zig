@@ -46,7 +46,7 @@ mouse_state: MouseDownSet = .{},
 
 input_inited: bool = false,
 
-pub fn init(in_allocator: std.mem.Allocator) !Input {
+pub fn init(in_allocator: std.mem.Allocator) Input {
     return .{
         .arena = std.heap.ArenaAllocator.init(in_allocator),
         .mousebinds = .{},

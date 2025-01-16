@@ -125,6 +125,7 @@ pub fn build(b: *std.Build) !void {
 
     exe_check.root_module.addImport("hyoga-lib", lib.module("hyoga-lib"));
     exe_check.linkLibrary(rt.artifact("hyrt"));
+    exe_check.linkLibrary(game_lib);
 
     const check = b.step("check", "check if run compiles");
     check.dependOn(&exe_check.step);

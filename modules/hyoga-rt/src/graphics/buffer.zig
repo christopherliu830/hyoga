@@ -1,6 +1,8 @@
 const std = @import("std");
 const sdl = @import("sdl");
 
+const panic = std.debug.panic;
+
 pub const BufferAllocator = struct {
     device: *sdl.gpu.Device,
     usage: sdl.gpu.BufferUsageFlags,
@@ -73,12 +75,10 @@ pub const VertexIndexBuffer = struct {
         const hdl = device.createBuffer(&.{
             .usage = .{ .index = true, .vertex = true },
             .size = vtx_size + idx_size,
-        });
-
-        std.debug.assert(hdl != null);
+        }) catch panic("error creating buffer", .{});
 
         return .{
-            .hdl = hdl.?,
+            .hdl = hdl,
             .size = vtx_size + idx_size,
             .idx_start = vtx_size,
         };
@@ -122,12 +122,10 @@ pub fn DynamicBuffer(comptime T: anytype) type {
         size: u32,
 
         pub fn init(device: *sdl.gpu.Device, count: u32, name: []const u8) !@This() {
-            const hdl = device.createBuffer(&.{
+            const hdl = try device.createBuffer(&.{
                 .usage = .{ .graphics_storage_read = true },
                 .size = @sizeOf(T) * count,
-            }) orelse {
-                return error.BufferCreateFailure;
-            };
+            });
 
             if (name.len > 0) device.setBufferName(hdl, name.ptr);
 

@@ -60,10 +60,10 @@ pub const RenderList = struct {
 
     pub const Iterator = RenderItems.ValidItemsIterator;
 
-    pub fn init(gpu: *Gpu, allocator: std.mem.Allocator) !RenderList {
+    pub fn init(gpu: *Gpu, allocator: std.mem.Allocator) RenderList {
         return .{
             .gpu = gpu,
-            .items = try RenderItems.create(allocator, 8),
+            .items = RenderItems.create(allocator, 8) catch hy.err.oom(),
         };
     }
 
