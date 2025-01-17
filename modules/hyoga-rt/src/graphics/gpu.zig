@@ -128,11 +128,6 @@ const RenderState = struct {
     pending_submit_result: ?RenderSubmitResult = null,
 };
 
-pub const PassTargets = struct {
-    color: []const sdl.gpu.ColorTargetInfo,
-    depth: ?*const sdl.gpu.DepthStencilTargetInfo,
-};
-
 const WindowState = struct {
     msaa_tex: *sdl.gpu.Texture = undefined,
     prev_drawable_w: u32 = 0,
@@ -516,19 +511,7 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     };
     defer if (mask) |m| m.deinit();
 
-    self.doPass(.{
-        .cmd = cmd,
-        .scene = scene.*,
-        .targets = self.render_state.blit_pass.targets(self.render_state.active_target.?),
-        .items = .{ .renderables = (&self.render_state.blit_pass.quad)[0..1] },
-        .material = mt.Material.fromTemplate(
-            self.render_state.post_material,
-            TextureSet.init(.{
-                .diffuse = .{ .target = self.render_state.forward_pass.texture() },
-                .mask = .{ .target = if (mask != null) mask.?.texture() else self.render_state.black_texture },
-            }),
-        ),
-    }) catch unreachable;
+    self.blitToScreen(cmd, self.render_state.active_target.?, self.render_state.forward_pass.texture(), if (mask != null) mask.?.texture() else self.render_state.black_texture, self.uniforms.get(self.ids.viewport_size).?.f32x4);
 }
 
 pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
@@ -543,14 +526,54 @@ pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
     return result;
 }
 
-pub const PassIterator = union(enum) {
+/// The vertex data for blitToScreen is hard coded into the shader,
+/// so we only need to supply textures and draw 3 vertices.
+pub fn blitToScreen(
+    self: *Gpu,
+    cmd: *sdl.gpu.CommandBuffer,
+    screen_tex: *sdl.gpu.Texture,
+    scene_tex: *sdl.gpu.Texture,
+    mask_tex: *sdl.gpu.Texture,
+    viewport_size: [4]f32,
+) void {
+    const color: sdl.gpu.ColorTargetInfo = .{
+        .texture = screen_tex,
+        .load_op = .clear,
+        .store_op = .store,
+        .cycle = false,
+    };
+
+    const pass = cmd.beginRenderPass((&color)[0..1], 1, null) orelse
+        panic("error begin render pass {s}", .{sdl.getError()});
+    defer pass.end();
+
+    pass.bindGraphicsPipeline(self.render_state.post_material.pipeline);
+
+    const binding = [_]sdl.gpu.TextureSamplerBinding{
+        .{ .sampler = self.render_state.sampler, .texture = scene_tex },
+        .{ .sampler = self.render_state.sampler, .texture = mask_tex },
+    };
+
+    pass.bindFragmentSamplers(0, &binding, 2);
+
+    cmd.pushFragmentUniformData(0, std.mem.asBytes(&viewport_size), @sizeOf(@TypeOf(viewport_size)));
+
+    pass.drawPrimitives(3, 1, 0, 0);
+}
+
+const PassIterator = union(enum) {
     renderables: []const rbl.Renderable,
     handles: []const rbl.RenderItemHandle,
     iterator: rbl.RenderList.Iterator,
     pack: rbl.PackedRenderables,
 };
 
-pub const PassInfo = struct {
+pub const PassTargets = struct {
+    color: []const sdl.gpu.ColorTargetInfo,
+    depth: ?*const sdl.gpu.DepthStencilTargetInfo,
+};
+
+const PassInfo = struct {
     cmd: *sdl.gpu.CommandBuffer,
 
     items: PassIterator,

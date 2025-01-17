@@ -7,12 +7,18 @@ struct VOut {
     float2 uv;
 }
 
+static const float4[3] vert_data = {
+    -3,  -1,  -1,  1,
+     1,   3,   1, -1,
+     1,  -1,   1,  1,
+};
+
 [shader("vertex")]
-VOut vertexMain(ScreenVertex in)
+VOut vertexMain(int id: SV_VertexID)
 {
     VOut output;
-    output.position = float4(in.position.xy, 0, 1);
-    output.uv = in.uv;
+    output.position = float4(vert_data[id].xy, 0, 1);
+    output.uv = vert_data[id].zw;
     return output;
 }
 
