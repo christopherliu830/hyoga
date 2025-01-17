@@ -18,6 +18,7 @@ pub const Arena = SlotMap(ImportModel);
 pub const Handle = SlotMap(?Model).Handle;
 
 const Buffer = buf.VertexIndexBuffer;
+const panic = std.debug.panic;
 
 const ModelLoadJob = struct {
     allocator: std.mem.Allocator,
@@ -38,6 +39,28 @@ const ModelLoadJob = struct {
 };
 
 const Queue = Loader.Queue(ModelLoadJob.Result);
+
+pub const Model = struct {
+    bounds: hy.math.AxisAligned,
+    children: []Mesh,
+    transform: mat4.Mat4 = mat4.identity,
+};
+
+pub const Mesh = struct {
+    buffer: Buffer,
+    material: mt.Handle = mt.Handle.invalid,
+};
+
+const ImportMesh = struct {
+    vertices: std.ArrayListUnmanaged(Vertex) = .{},
+    indices: std.ArrayListUnmanaged(u32) = .{},
+    material: mt.Handle,
+
+    pub fn deinit(self: *ImportMesh, allocator: std.mem.Allocator) void {
+        self.vertices.deinit(allocator);
+        self.indices.deinit(allocator);
+    }
+};
 
 pub const Models = struct {
     allocator: std.mem.Allocator,
@@ -140,109 +163,97 @@ pub const Models = struct {
             result.job.deinit();
         }
     }
+};
 
-    fn doRead(queue: *Queue, self: *Models, job: ModelLoadJob) void {
-        const gpu: *Gpu = @alignCast(@fieldParentPtr("models", self));
-        const device = gpu.device;
+fn doRead(queue: *Queue, self: *Models, job: ModelLoadJob) void {
+    const gpu: *Gpu = @alignCast(@fieldParentPtr("models", self));
 
-        const allocator = self.queue.tsa.allocator();
+    const allocator = self.queue.tsa.allocator();
 
-        // Process scene node tree into a big array of meshes
-        const min = -std.math.floatMax(f32);
-        const max = std.math.floatMax(f32);
+    // Process scene node tree into a big array of meshes
+    const min = -std.math.floatMax(f32);
+    const max = std.math.floatMax(f32);
 
-        var bounds = hy.math.AxisAligned{
-            .min = hy.math.vec(.{ max, max, max }),
-            .max = hy.math.vec(.{ min, min, min }),
-        };
+    var bounds = hy.math.AxisAligned{
+        .min = hy.math.vec(.{ max, max, max }),
+        .max = hy.math.vec(.{ min, min, min }),
+    };
 
-        var in_model: ImportModel = .{
-            .total_index_count = 0,
-            .total_vertex_count = 0,
-            .meshes = .{},
-            .transform = job.settings.transform,
-        };
+    var in_model: ImportModel = .{
+        .total_index_count = 0,
+        .total_vertex_count = 0,
+        .meshes = .{},
+        .transform = job.settings.transform,
+    };
 
-        in_model.processNode(.{
-            .allocator = allocator,
-            .scene = job.scene,
-            .node = job.scene.root_node,
-            .materials = job.mats,
-            .root_bounds = &bounds,
-        }) catch |err| {
-            std.log.err("[GPU] model load failure: {}", .{err});
-        };
+    in_model.processNode(.{
+        .allocator = allocator,
+        .scene = job.scene,
+        .node = job.scene.root_node,
+        .materials = job.mats,
+        .root_bounds = &bounds,
+    }) catch |err| {
+        std.log.err("[GPU] model load failure: {}", .{err});
+    };
 
-        defer in_model.deinit(allocator);
+    defer in_model.deinit(allocator);
 
-        const vtx_buf_size = in_model.total_vertex_count * @sizeOf(Vertex);
-        const idx_buf_size = in_model.total_index_count * @sizeOf(u32);
+    const vbuf_size = in_model.total_vertex_count * @sizeOf(Vertex);
+    const ibuf_size = in_model.total_index_count * @sizeOf(u32);
 
-        const hdl = device.createBuffer(&.{
-            .usage = .{ .index = true, .vertex = true },
-            .size = vtx_buf_size + idx_buf_size,
-        }) catch @panic("error creating buffer");
+    const alloc_buf = gpu.buffer_allocator.alloc(vbuf_size + ibuf_size) catch {
+        panic("sdl buffer alloc failed: {s}", .{sdl.getError()});
+    };
 
-        const root_buffer = Buffer{
-            .hdl = hdl,
-            .size = vtx_buf_size + idx_buf_size,
-            .idx_start = vtx_buf_size,
-        };
+    const root_buffer = .{
+        .hdl = alloc_buf.hdl,
+        .size = alloc_buf.size,
+        .offset = alloc_buf.offset,
+        .idx_start = alloc_buf.offset + vbuf_size,
+    };
 
-        var buf_offset: usize = 0;
+    var buf_offset: usize = 0;
 
-        const children = allocator.alloc(Mesh, in_model.meshes.items.len) catch {
-            std.debug.panic("out of memory", .{});
-        };
+    const children = allocator.alloc(Mesh, in_model.meshes.items.len) catch {
+        std.debug.panic("out of memory", .{});
+    };
 
-        for (in_model.meshes.items, 0..) |mesh, i| {
-            const mesh_vbuf_size = mesh.vertices.items.len * @sizeOf(Vertex);
-            const mesh_ibuf_size = mesh.indices.items.len * @sizeOf(u32);
-            gpu.uploadToBuffer(root_buffer.hdl, @intCast(buf_offset), std.mem.sliceAsBytes(mesh.vertices.items)) catch std.debug.panic("model load error");
-            gpu.uploadToBuffer(root_buffer.hdl, @intCast(buf_offset + root_buffer.idx_start), std.mem.sliceAsBytes(mesh.indices.items)) catch std.debug.panic("model load error");
-            children[i] = .{
-                .buffer = .{
-                    .hdl = hdl,
-                    .size = @intCast(mesh_vbuf_size + mesh_ibuf_size),
-                    .offset = @intCast(buf_offset),
-                    .idx_start = @intCast(buf_offset + mesh_vbuf_size),
-                },
-                .material = mesh.material,
-            };
-            buf_offset += mesh_vbuf_size;
-        }
+    for (in_model.meshes.items, 0..) |mesh, i| {
+        const mesh_vbuf_size = mesh.vertices.items.len * @sizeOf(Vertex);
+        const mesh_ibuf_size = mesh.indices.items.len * @sizeOf(u32);
 
-        queue.push(.{
-            .job = job,
-            .model = .{
-                .children = children,
-                .bounds = bounds,
+        gpu.uploadToBuffer(
+            root_buffer.hdl,
+            @intCast(buf_offset),
+            std.mem.sliceAsBytes(mesh.vertices.items),
+        ) catch std.debug.panic("model load error");
+
+        gpu.uploadToBuffer(
+            root_buffer.hdl,
+            @intCast(buf_offset + root_buffer.idx_start),
+            std.mem.sliceAsBytes(mesh.indices.items),
+        ) catch std.debug.panic("model load error");
+
+        children[i] = .{
+            .buffer = .{
+                .hdl = root_buffer.hdl,
+                .size = @intCast(mesh_vbuf_size + mesh_ibuf_size),
+                .offset = @intCast(buf_offset),
+                .idx_start = @intCast(buf_offset + mesh_vbuf_size),
             },
-        }) catch |err| std.log.err("[GPU] model load failure: {}", .{err});
+            .material = mesh.material,
+        };
+        buf_offset += mesh_vbuf_size;
     }
-};
 
-pub const Model = struct {
-    bounds: hy.math.AxisAligned,
-    children: []Mesh,
-    transform: mat4.Mat4 = mat4.identity,
-};
-
-pub const Mesh = struct {
-    buffer: Buffer,
-    material: mt.Handle = mt.Handle.invalid,
-};
-
-const ImportMesh = struct {
-    vertices: std.ArrayListUnmanaged(Vertex) = .{},
-    indices: std.ArrayListUnmanaged(u32) = .{},
-    material: mt.Handle,
-
-    pub fn deinit(self: *ImportMesh, allocator: std.mem.Allocator) void {
-        self.vertices.deinit(allocator);
-        self.indices.deinit(allocator);
-    }
-};
+    queue.push(.{
+        .job = job,
+        .model = .{
+            .children = children,
+            .bounds = bounds,
+        },
+    }) catch |err| std.log.err("[GPU] model load failure: {}", .{err});
+}
 
 const ImportModel = struct {
     total_vertex_count: u32 = 0,

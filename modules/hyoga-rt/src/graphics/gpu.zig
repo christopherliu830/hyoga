@@ -214,7 +214,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .uniforms = .empty,
     };
 
-    sdlsc.init() catch |e| std.debug.panic("sdl shader compiler init failure: {}", .{e});
+    sdlsc.init() catch |e| panic("sdl shader compiler init failure: {}", .{e});
     self.textures.image_loader.use();
 
     // Generate default assets
@@ -224,7 +224,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .enable_depth = true,
         .enable_stencil = false,
         .fill_mode = .fill,
-    }, self.gpa) catch @panic("error creating standard shader");
+    }, self.gpa) catch panic("error creating standard shader", .{});
 
     // Unloaded texture
     const texture = self.device.createTexture(&.{
@@ -235,7 +235,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .num_levels = 1,
         .sample_count = .@"1",
         .usage = .{ .sampler = true },
-    }) catch @panic("error creating texture");
+    }) catch panic("error creating texture", .{});
 
     self.device.setTextureName(texture, "null_tex");
 
@@ -661,7 +661,7 @@ fn draw(
             const texture: *sdl.gpu.Texture = blk: {
                 if (tex_id.target) |target| break :blk target;
                 if (tex_id.handle) |handle| break :blk self.textures.get(handle) catch self.render_state.default_texture orelse self.render_state.default_texture;
-                std.debug.panic("[GPU] Textures must have a handle or direct target defined", .{});
+                panic("[GPU] Textures must have a handle or direct target defined", .{});
             };
 
             const binding = [_]sdl.gpu.TextureSamplerBinding{.{ .sampler = self.render_state.sampler, .texture = texture }};
@@ -765,7 +765,7 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
         },
     };
 
-    const stencil_state = sdl.gpu.StencilOpState{
+    const stencil_state: sdl.gpu.StencilOpState = .{
         .compare_op = .always,
         .depth_fail_op = .keep,
         .fail_op = .keep,
@@ -877,8 +877,8 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSetti
 
 pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, material: mt.Handle) !Model {
     const alloc_buffer = try self.buffer_allocator.alloc(
-        @intCast(@sizeOf(Vertex) * verts.len + 
-        @sizeOf(u32) * indices.len),
+        @intCast(@sizeOf(Vertex) * verts.len +
+            @sizeOf(u32) * indices.len),
     );
 
     const buffer: buf.VertexIndexBuffer = .{
@@ -887,13 +887,6 @@ pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, mate
         .offset = alloc_buffer.offset,
         .idx_start = @intCast(alloc_buffer.offset + @sizeOf(Vertex) * verts.len),
     };
-    std.debug.print("{}\n", .{buffer});
-
-    // const buffer = buf.VertexIndexBuffer.create(
-    //     self.device,
-    //     @intCast(@sizeOf(Vertex) * verts.len),
-    //     @intCast(@sizeOf(u32) * indices.len),
-    // );
 
     try self.uploadToBuffer(buffer.hdl, buffer.offset, std.mem.sliceAsBytes(verts));
     try self.uploadToBuffer(buffer.hdl, buffer.idx_start, std.mem.sliceAsBytes(indices));

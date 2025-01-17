@@ -33,35 +33,82 @@ pub const Camera = struct {
         const view = hym.cam.lookTo(self.position, self.look_direction, vec3.y);
         const dim = self.window.dimensions();
         const aspect = dim.x() / dim.y();
-        const persp = hym.cam.perspectiveMatrix(self.fovy, aspect, self.z_near, self.z_far);
+        const persp = hym.cam.perspectiveMatrix(
+            self.fovy,
+            aspect,
+            self.z_near,
+            self.z_far,
+        );
         return hym.mul(view, persp);
     }
 
     pub fn worldRay(self: *const Camera) hym.Ray {
         const inv = hym.mat4.inverse(self.viewProj());
-        var dims = self.input.queryMousePosition().div(self.window.dimensions()).mul(2).sub(1);
-        dims = dims.mul(hym.vec(.{ 1, -1 }));
+
+        var dims = self.input.queryMousePosition()
+            .div(self.window.dimensions())
+            .mul(2)
+            .sub(1)
+            .mul(hym.vec(.{ 1, -1 }));
+
         const world_end = hym.mul(hym.vec4.create(dims.x(), dims.y(), 1, 1), inv);
         const end = hym.vec3.div(world_end.xyz(), world_end.w());
+
         return .{
             .origin = self.position,
             .direction = end.sub(self.position).normal(),
         };
     }
 
-    pub fn registerInputs(self: *Camera, allocator: std.mem.Allocator) !void {
-        const lambda = hy.closure.create;
-        self.input.bindMouse(.{ .button = .wheel }, try lambda(zoom, .{self}, allocator));
-        self.input.bindMouse(.{ .button = .motion }, try lambda(translate, .{self}, allocator));
-        self.input.bindMouse(.{ .button = .left }, try lambda(lockMouse, .{ self, true }, allocator));
-        self.input.bindMouse(.{ .button = .left, .fire_on = .{ .up = true } }, try lambda(lockMouse, .{ self, false }, allocator));
-        self.input.bindMouse(.{ .button = .middle }, try lambda(lockMouse, .{ self, true }, allocator));
-        self.input.bindMouse(.{ .button = .middle, .fire_on = .{ .up = true } }, try lambda(lockMouse, .{ self, false }, allocator));
+    pub fn registerInputs(self: *Camera, arena: std.mem.Allocator) !void {
+        const l = hy.closure.create;
 
-        self.input.bindKey(.{ .button = .s, .fire_on = .{ .down = true, .held = true } }, try lambda(pan, .{ self, vec2.create(-1, 0) }, allocator));
-        self.input.bindKey(.{ .button = .d, .fire_on = .{ .down = true, .held = true } }, try lambda(pan, .{ self, vec2.create(0, -1) }, allocator));
-        self.input.bindKey(.{ .button = .f, .fire_on = .{ .down = true, .held = true } }, try lambda(pan, .{ self, vec2.create(0, 1) }, allocator));
-        self.input.bindKey(.{ .button = .g, .fire_on = .{ .down = true, .held = true } }, try lambda(pan, .{ self, vec2.create(1, 0) }, allocator));
+        self.input.bindMouse(
+            .{ .button = .wheel },
+            try l(zoom, .{self}, arena),
+        );
+
+        self.input.bindMouse(
+            .{ .button = .motion },
+            try l(translate, .{self}, arena),
+        );
+
+        self.input.bindMouse(
+            .{ .button = .left },
+            try l(lockMouse, .{ self, true }, arena),
+        );
+
+        self.input.bindMouse(
+            .{ .button = .left, .fire_on = .{ .up = true } },
+            try l(lockMouse, .{ self, false }, arena),
+        );
+
+        self.input.bindMouse(
+            .{ .button = .middle },
+            try l(lockMouse, .{ self, true }, arena),
+        );
+
+        self.input.bindMouse(
+            .{ .button = .middle, .fire_on = .{ .up = true } },
+            try l(lockMouse, .{ self, false }, arena),
+        );
+
+        self.input.bindKey(
+            .{ .button = .s, .fire_on = .{ .down = true, .held = true } },
+            try l(pan, .{ self, vec2.create(-1, 0) }, arena),
+        );
+        self.input.bindKey(
+            .{ .button = .d, .fire_on = .{ .down = true, .held = true } },
+            try l(pan, .{ self, vec2.create(0, -1) }, arena),
+        );
+        self.input.bindKey(
+            .{ .button = .f, .fire_on = .{ .down = true, .held = true } },
+            try l(pan, .{ self, vec2.create(0, 1) }, arena),
+        );
+        self.input.bindKey(
+            .{ .button = .g, .fire_on = .{ .down = true, .held = true } },
+            try l(pan, .{ self, vec2.create(1, 0) }, arena),
+        );
     }
 
     pub fn editor(self: *Camera) void {

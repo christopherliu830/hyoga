@@ -11,7 +11,6 @@ pub const BufferAllocator = struct {
     node_allocator: std.mem.Allocator,
     end_index: u32 = 0,
 
-
     pub const Buf = struct {
         hdl: *sdl.gpu.Buffer,
         size: u32,
@@ -53,7 +52,7 @@ pub const BufferAllocator = struct {
                 self.end_index = end_offset;
                 return .{
                     .hdl = cur_node.data.hdl,
-                    .offset = end_offset,
+                    .offset = offset,
                     .size = n,
                 };
             }
