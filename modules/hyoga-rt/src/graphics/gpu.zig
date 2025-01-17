@@ -876,11 +876,24 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSetti
 }
 
 pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, material: mt.Handle) !Model {
-    const buffer = buf.VertexIndexBuffer.create(
-        self.device,
-        @intCast(@sizeOf(Vertex) * verts.len),
-        @intCast(@sizeOf(u32) * indices.len),
+    const alloc_buffer = try self.buffer_allocator.alloc(
+        @intCast(@sizeOf(Vertex) * verts.len + 
+        @sizeOf(u32) * indices.len),
     );
+
+    const buffer: buf.VertexIndexBuffer = .{
+        .hdl = alloc_buffer.hdl,
+        .size = alloc_buffer.size,
+        .offset = alloc_buffer.offset,
+        .idx_start = @intCast(alloc_buffer.offset + @sizeOf(Vertex) * verts.len),
+    };
+    std.debug.print("{}\n", .{buffer});
+
+    // const buffer = buf.VertexIndexBuffer.create(
+    //     self.device,
+    //     @intCast(@sizeOf(Vertex) * verts.len),
+    //     @intCast(@sizeOf(u32) * indices.len),
+    // );
 
     try self.uploadToBuffer(buffer.hdl, buffer.offset, std.mem.sliceAsBytes(verts));
     try self.uploadToBuffer(buffer.hdl, buffer.idx_start, std.mem.sliceAsBytes(indices));

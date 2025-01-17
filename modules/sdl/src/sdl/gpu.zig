@@ -5,7 +5,7 @@ const PropertiesID = @import("properties.zig").PropertiesID;
 const FlipMode = @import("surface.zig").FlipMode;
 const Window = @import("video.zig").Window;
 
-pub const SDLError = error {
+pub const Error = error {
     CreateTextureFailure,
     CreateBufferFailure,
 };
@@ -21,12 +21,12 @@ pub const Device = opaque {
     pub const createSampler = SDL_CreateGPUSampler;
     pub const createShader = SDL_CreateGPUShader;
 
-    pub fn createTexture(device: DeviceHdl, createinfo: *const TextureCreateInfo) SDLError!*Texture {
-        return SDL_CreateGPUTexture(device, createinfo) orelse SDLError.CreateTextureFailure;
+    pub fn createTexture(device: DeviceHdl, createinfo: *const TextureCreateInfo) Error!*Texture {
+        return SDL_CreateGPUTexture(device, createinfo) orelse Error.CreateTextureFailure;
     }
 
-    pub fn createBuffer(device: DeviceHdl, createinfo: *const BufferCreateInfo) SDLError!*Buffer {
-        return SDL_CreateGPUBuffer(device, createinfo) orelse SDLError.CreateBufferFailure;
+    pub fn createBuffer(device: DeviceHdl, createinfo: *const BufferCreateInfo) Error!*Buffer {
+        return SDL_CreateGPUBuffer(device, createinfo) orelse Error.CreateBufferFailure;
     }
 
     pub const createTransferBuffer = SDL_CreateGPUTransferBuffer;

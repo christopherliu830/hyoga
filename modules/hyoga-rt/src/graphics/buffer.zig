@@ -1,4 +1,5 @@
 const std = @import("std");
+const hy = @import("hyoga-lib");
 const sdl = @import("sdl");
 
 const panic = std.debug.panic;
@@ -9,6 +10,7 @@ pub const BufferAllocator = struct {
     buffer_list: std.SinglyLinkedList(Buf) = .{},
     node_allocator: std.mem.Allocator,
     end_index: u32 = 0,
+
 
     pub const Buf = struct {
         hdl: *sdl.gpu.Buffer,
@@ -25,10 +27,10 @@ pub const BufferAllocator = struct {
         };
     }
 
-    fn createNode(self: *BufferAllocator, prev_len: u32, min_size: u32) ?*BufNode {
+    fn createNode(self: *BufferAllocator, prev_len: u32, min_size: u32) sdl.gpu.Error!*BufNode {
         const len = (prev_len + min_size) + (prev_len + min_size) / 2;
-        const buf = self.device.createBuffer(&.{ .size = len, .usage = self.usage }) orelse return null;
-        const node = self.node_allocator.create(BufNode) catch return null;
+        const buf = try self.device.createBuffer(&.{ .size = len, .usage = self.usage });
+        const node = self.node_allocator.create(BufNode) catch hy.err.oom();
         node.* = .{ .data = .{
             .hdl = buf,
             .size = len,
@@ -38,25 +40,25 @@ pub const BufferAllocator = struct {
         return node;
     }
 
-    pub fn alloc(self: *BufferAllocator, n: u32) ?Buffer {
+    pub fn alloc(self: *BufferAllocator, n: u32) sdl.gpu.Error!Buffer {
         var cur_node = if (self.buffer_list.first) |first_node|
             first_node
         else
-            (self.createNode(0, n) orelse return null);
+            try self.createNode(0, n);
         while (true) {
             const offset = self.end_index;
             const end_offset = offset + n;
 
-            if (end_offset <= cur_node.size) {
+            if (end_offset <= cur_node.data.size) {
                 self.end_index = end_offset;
                 return .{
-                    .hdl = cur_node.hdl,
+                    .hdl = cur_node.data.hdl,
                     .offset = end_offset,
                     .size = n,
                 };
             }
 
-            cur_node = self.createNode(cur_node.size, n) orelse return null;
+            cur_node = try self.createNode(cur_node.data.size, n);
         }
     }
 
@@ -85,7 +87,7 @@ pub const VertexIndexBuffer = struct {
     }
 
     pub inline fn idxCount(self: VertexIndexBuffer) u32 {
-        return (self.size - self.idx_start) / @sizeOf(u32);
+        return (self.size - (self.idx_start - self.offset)) / @sizeOf(u32);
     }
 
     pub fn eql(lhs: VertexIndexBuffer, rhs: VertexIndexBuffer) bool {
