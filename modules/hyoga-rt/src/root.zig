@@ -118,13 +118,15 @@ export fn hygpuRemoveRenderable(gpu: *Gpu, item: Gpu.RenderItemHandle) void {
 }
 
 export fn hygpuSelectRenderable(gpu: *Gpu, item: Gpu.RenderItemHandle) void {
-    gpu.outlined.put(gpu.gpa, item, {}) catch |e| {
-        std.log.err("select renderable failure: {}", .{e});
-    };
+    gpu.selectRenderable(item);
 }
 
 export fn hygpuDeselectRenderable(gpu: *Gpu, item: Gpu.RenderItemHandle) void {
     _ = gpu.outlined.swapRemove(item);
+}
+
+export fn hygpuRenderableSetTransform(gpu: *Gpu, item: Gpu.RenderItemHandle, transform: hy.math.Mat4) void {
+    gpu.renderableSetTransform(item, transform);
 }
 
 export fn hygpuClearSelection(gpu: *Gpu) void {

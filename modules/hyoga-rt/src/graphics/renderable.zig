@@ -1,22 +1,22 @@
 const std = @import("std");
 const sdl = @import("sdl");
 const hy = @import("hyoga-lib");
-const mat4 = hy.math.mat4;
+const mt = @import("material.zig");
+const mdl = @import("model.zig");
 
 const SlotMap = @import("hyoga-lib").SlotMap;
 const Gpu = @import("gpu.zig");
-const mt = @import("material.zig");
-
-const mdl = @import("model.zig");
+const Mesh = mdl.Mesh;
 const Model = mdl.Model;
 const ModelHandle = mdl.Handle;
+const Mat4 = hy.math.Mat4;
 
 const RenderItems = SlotMap(Renderable);
 
 pub const RenderItemHandle = RenderItems.Handle;
 
 pub const PackedRenderables = struct {
-    transforms: []mat4.Mat4,
+    transforms: []Mat4,
     handles: std.AutoHashMapUnmanaged(RenderItemHandle, u32),
     meshes: []mdl.Mesh,
     instance_counts: []u32,
@@ -25,9 +25,9 @@ pub const PackedRenderables = struct {
 
 pub const Renderable = struct {
     next: ?RenderItemHandle = null, // When models are imported as a group, support adds and removes via this link.
-    mesh: mdl.Mesh,
-    transform: mat4.Mat4 = mat4.identity, // Set on import and does not change.
-    parent_transform: *const mat4.Mat4 = &mat4.identity,
+    mesh: Mesh,
+    import_transform: Mat4 = .identity, // Set on import and does not change.
+    parent_transform: *const Mat4 = &.identity,
 
     pub fn lessThan(_: void, lhs: Renderable, rhs: Renderable) bool {
         if (lhs.mesh.buffer.eql(rhs.mesh.buffer))
@@ -68,7 +68,7 @@ pub const RenderList = struct {
     }
 
     pub const AddModelOptions = extern struct {
-        owner: *mat4.Mat4,
+        owner: *Mat4,
         time: u64,
         model: ModelHandle,
     };
@@ -93,7 +93,7 @@ pub const RenderList = struct {
             for (model.children) |mesh| {
                 const renderable = Renderable{
                     .mesh = mesh,
-                    .transform = model.transform,
+                    .import_transform = model.transform,
                     .parent_transform = options.owner,
                     .next = head,
                 };
@@ -144,7 +144,7 @@ pub const RenderList = struct {
 
         defer allocator.free(renderables);
 
-        const transforms = try allocator.alloc(mat4.Mat4, handles.len);
+        const transforms = try allocator.alloc(Mat4, handles.len);
         errdefer allocator.free(transforms);
         const material_ids = try allocator.alloc(mt.Handle, handles.len);
         errdefer allocator.free(material_ids);
@@ -162,7 +162,7 @@ pub const RenderList = struct {
             const handle = handles[i];
             const renderable = renderables[i];
             try handle_map.put(allocator, handle, @intCast(i));
-            transforms[i] = renderable.transform.mul(renderable.parent_transform.*);
+            transforms[i] = renderable.import_transform.mul(renderable.parent_transform.*);
 
             if (dst != 0 and renderable.eql(renderables[i - 1])) {
                 instance_counts[dst - 1] += 1;

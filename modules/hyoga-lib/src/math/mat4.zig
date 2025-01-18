@@ -8,27 +8,31 @@ const Vec4 = vec4.Vec4;
 const f32x4 = @Vector(4, f32);
 const i32x4 = @Vector(4, i32);
 
-const root = @This();
+const Root = @This();
 
 pub const Mat4 = extern struct {
     m: [4]f32x4,
 
-    pub const identity = root.identity;
+    pub const identity = Root.identity;
 
     pub inline fn position(self: *const Mat4) Vec3 {
         return vec3.create(self.m[3][0], self.m[3][1], self.m[3][2]);
     }
 
-    pub inline fn scale(self: *const Mat4, s: Vec3) Mat4 {
-        return root.mul(self.*, root.scale(s));
-    }
-
     pub inline fn mul(self: *const Mat4, other: Mat4) Mat4 {
-        return root.mul(self.*, other);
+        return Root.mul(self.*, other);
     }
 
     pub inline fn translate(self: *const Mat4, other: Vec3) Mat4 {
-        return root.translation(self.*, other);
+        return translation(self.*, other);
+    }
+
+    pub inline fn rotate(self: *const Mat4, deg: f32, axis: vec3.Vec3) Mat4 {
+        return self.mul(rotation(deg, axis));
+    }
+
+    pub inline fn scale(self: *const Mat4, s: Vec3) Mat4 {
+        return self.mul(Root.scale(s));
     }
 };
 

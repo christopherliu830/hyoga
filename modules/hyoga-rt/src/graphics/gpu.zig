@@ -334,7 +334,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
         .sampler = self.device.createSampler(&sampler_info) orelse std.debug.panic("create sampler failure: {s}", .{sdl.getError()}),
         .obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 512, "Object Mats"),
-        .selected_obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 8, "Selected Object Mats"),
+        .selected_obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 512, "Selected Object Mats"),
         .active_target = null,
     };
 
@@ -511,7 +511,13 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     };
     defer if (mask) |m| m.deinit();
 
-    self.blitToScreen(cmd, self.render_state.active_target.?, self.render_state.forward_pass.texture(), if (mask != null) mask.?.texture() else self.render_state.black_texture, self.uniforms.get(self.ids.viewport_size).?.f32x4);
+    self.blitToScreen(
+        cmd,
+        self.render_state.active_target.?,
+        self.render_state.forward_pass.texture(),
+        if (mask != null) mask.?.texture() else self.render_state.black_texture,
+        self.uniforms.get(self.ids.viewport_size).?.f32x4,
+    );
 }
 
 pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
@@ -939,5 +945,18 @@ pub fn getPrimitive(self: *Gpu, shape: primitives.Shape) Model {
 }
 
 pub fn selectRenderable(self: *Gpu, handle: rbl.RenderItemHandle) void {
-    self.outlined.put(self.gpa, handle, {});
+    self.outlined.put(self.gpa, handle, {}) catch hy.err.oom();
+}
+
+pub fn renderableSetTransform(
+    self: *Gpu,
+    handle: rbl.RenderItemHandle,
+    transform: mat4.Mat4,
+) void {
+    const renderable = self.renderables.items.getPtr(handle) catch {
+        log.warn("Renderable set transform called when no renderable exists", .{});
+        return;
+    };
+
+    renderable.import_transform = transform;
 }

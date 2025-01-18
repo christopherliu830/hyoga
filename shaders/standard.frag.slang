@@ -26,10 +26,9 @@ float4 fragmentMain(VOut input): SV_Target {
     float diffuse = max(0, dot(n, ld));
     vec3 eye_direction = normalize(hy_camera_world_position - input.vert_world_pos);
 
-    vec3 reflected = reflect(-ld, input.normal);
-    float spec = pow(max(dot(eye_direction, reflected), 0), 32) * 0.5;
+    vec3 reflected = reflect(-ld, n);
+    float spec = pow(max(dot(eye_direction, reflected), 0), 32);
 
-    // return float4(ld, 1);
     return tex_diffuse.Sample(input.uv) * (ambient + diffuse) * vec4(input.color, 1) +
         tex_specular.Sample(input.uv).x * spec;
 }

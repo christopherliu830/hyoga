@@ -15,10 +15,14 @@ pub const Gpu = opaque {
     pub const removeRenderable = hygpuRemoveRenderable;
     pub const selectRenderable = hygpuSelectRenderable;
     pub const deselectRenderable = hygpuDeselectRenderable;
+    pub const renderableSetTransform = hygpuRenderableSetTransform;
     pub const clearSelection = hygpuClearSelection;
 };
 
-pub const RenderItemHandle = enum(u64) { invalid = 0, _ };
+pub const RenderItemHandle = enum(u64) {
+    invalid = 0,
+    _,
+};
 
 pub const ModelHandle = enum(u64) {
     invalid = 0,
@@ -100,4 +104,5 @@ extern fn hygpuAddRenderable(*Gpu, AddRenderableOptions) RenderItemHandle;
 extern fn hygpuRemoveRenderable(*Gpu, RenderItemHandle) void;
 extern fn hygpuSelectRenderable(*Gpu, RenderItemHandle) void;
 extern fn hygpuDeselectRenderable(*Gpu, RenderItemHandle) void;
+extern fn hygpuRenderableSetTransform(*Gpu, RenderItemHandle, math.Mat4) void;
 extern fn hygpuClearSelection(*Gpu) void;
