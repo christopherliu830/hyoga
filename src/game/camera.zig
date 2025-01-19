@@ -10,7 +10,8 @@ const mat4 = hym.mat4;
 const ViewMatrix = hym.Mat4;
 
 pub const Camera = struct {
-    input: *hy.runtime.Input,
+    input_group: hy.runtime.Input.Group = .invalid,
+
     window: *hy.runtime.Window,
 
     position: vec3.Vec3 = vec3.create(0, 0, 4),
@@ -22,9 +23,9 @@ pub const Camera = struct {
     z_near: f32 = 0.1,
     z_far: f32 = 1000,
 
-    pub fn create(input: *hy.Input, window: *hy.Window) Camera {
+    pub fn create(input: *hy.runtime.Input, window: *hy.runtime.Window) Camera {
         return .{
-            .input = input,
+            .input_group = input.createGroup(),
             .window = window,
         };
     }
@@ -42,10 +43,10 @@ pub const Camera = struct {
         return hym.mul(view, persp);
     }
 
-    pub fn worldRay(self: *const Camera) hym.Ray {
+    pub fn worldRay(self: *const Camera, mouse_position: hym.Vec2) hym.Ray {
         const inv = hym.mat4.inverse(self.viewProj());
 
-        var dims = self.input.queryMousePosition()
+        var dims = mouse_position
             .div(self.window.dimensions())
             .mul(2)
             .sub(1)
@@ -60,53 +61,64 @@ pub const Camera = struct {
         };
     }
 
-    pub fn registerInputs(self: *Camera, arena: std.mem.Allocator) !void {
+    pub fn registerInputs(self: *Camera, input: *hy.runtime.Input, arena: std.mem.Allocator) !void {
+        const group = input.getGroup(self.input_group);
+
+        if (self.input_group == group) {
+            return;
+        } else {
+            self.input_group = group;
+        }
+
         const l = hy.closure.create;
 
-        self.input.bindMouse(
-            .{ .button = .wheel },
+        input.bindMouse(
+            .{ .group = self.input_group, .button = .wheel },
             try l(zoom, .{self}, arena),
         );
 
-        self.input.bindMouse(
-            .{ .button = .motion },
-            try l(translate, .{self}, arena),
+        input.bindMouse(
+            .{ .group = self.input_group, .button = .motion },
+            try l(translate, .{ self, input }, arena),
         );
 
-        self.input.bindMouse(
-            .{ .button = .left },
+        input.bindMouse(
+            .{ .group = self.input_group, .button = .left },
             try l(lockMouse, .{ self, true }, arena),
         );
 
-        self.input.bindMouse(
-            .{ .button = .left, .fire_on = .{ .up = true } },
+        input.bindMouse(
+            .{ .group = self.input_group, .button = .left, .fire_on = .{ .up = true } },
             try l(lockMouse, .{ self, false }, arena),
         );
 
-        self.input.bindMouse(
-            .{ .button = .middle },
+        input.bindMouse(
+            .{ .group = self.input_group, .button = .middle },
             try l(lockMouse, .{ self, true }, arena),
         );
 
-        self.input.bindMouse(
-            .{ .button = .middle, .fire_on = .{ .up = true } },
+        input.bindMouse(
+            .{ .group = self.input_group, .button = .middle, .fire_on = .{ .up = true } },
             try l(lockMouse, .{ self, false }, arena),
         );
 
-        self.input.bindKey(
-            .{ .button = .s, .fire_on = .{ .down = true, .held = true } },
+        input.bindKey(
+            .{ .group = self.input_group, .button = .s, .fire_on = .{ .down = true, .held = true } },
             try l(pan, .{ self, vec2.create(-1, 0) }, arena),
         );
-        self.input.bindKey(
-            .{ .button = .d, .fire_on = .{ .down = true, .held = true } },
+
+        input.bindKey(
+            .{ .group = self.input_group, .button = .d, .fire_on = .{ .down = true, .held = true } },
             try l(pan, .{ self, vec2.create(0, -1) }, arena),
         );
-        self.input.bindKey(
-            .{ .button = .f, .fire_on = .{ .down = true, .held = true } },
+
+        input.bindKey(
+            .{ .group = self.input_group, .button = .f, .fire_on = .{ .down = true, .held = true } },
             try l(pan, .{ self, vec2.create(0, 1) }, arena),
         );
-        self.input.bindKey(
-            .{ .button = .g, .fire_on = .{ .down = true, .held = true } },
+
+        input.bindKey(
+            .{ .group = self.input_group, .button = .g, .fire_on = .{ .down = true, .held = true } },
             try l(pan, .{ self, vec2.create(1, 0) }, arena),
         );
     }
@@ -128,15 +140,16 @@ fn lockMouse(cam: *Camera, lock: bool, _: ?*anyopaque) void {
     cam.window.setRelativeMouseMode(lock);
 }
 
-fn translate(cam: *Camera, event: ?*anyopaque) void {
+fn translate(cam: *Camera, input: *hy.runtime.Input, event: ?*anyopaque) void {
     const motion: *hy.event.MouseMotion = @ptrCast(@alignCast(event));
+
     // pan
-    if (cam.input.queryMouse(.middle)) {
+    if (input.queryMouse(.middle)) {
         pan(cam, vec2.create(motion.delta.x() / 10, motion.delta.y() / 10), event);
     }
 
     // change look
-    if (cam.input.queryMouse(.left)) {
+    if (input.queryMouse(.left)) {
         var direction = cam.look_direction;
         direction.rotate(vec3.y, -motion.delta.x() / 500);
         direction.rotate(vec3.cross(direction, vec3.y), -motion.delta.y() / 500);

@@ -5,7 +5,14 @@ const math = @import("../math/math.zig");
 const closure = @import("../closure.zig");
 
 pub const Input = opaque {
+    pub const Group = enum(u64) {
+        invalid = 0,
+        _,
+    };
+
     pub const reset = hyioReset;
+    pub const createGroup = hyioCreateGroup;
+    pub const getGroup = hyioGetGroup;
     pub const bindMouse = hyioBindMouse;
     pub const bindKey = hyioBindKey;
     pub const queryMouse = hyioQueryMouse;
@@ -21,16 +28,20 @@ pub const InputFlags = packed struct(u8) {
 };
 
 pub const BindKeyOptions = extern struct {
+    group: Input.Group,
     button: key.Keycode,
     fire_on: InputFlags = .{ .down = true },
 };
 
 pub const BindMouseOptions = extern struct {
+    group: Input.Group,
     button: key.MouseButton,
     fire_on: InputFlags = .{ .down = true },
 };
 
 extern fn hyioReset(*Input) void;
+extern fn hyioCreateGroup(*Input) Input.Group;
+extern fn hyioGetGroup(*Input, Input.Group) Input.Group;
 extern fn hyioBindMouse(*Input, BindMouseOptions, *closure.Runnable) void;
 extern fn hyioBindKey(*Input, BindKeyOptions, *closure.Runnable) void;
 extern fn hyioQueryMouse(*Input, key.MouseButton) bool;

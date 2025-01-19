@@ -11,7 +11,7 @@ const HotReloader = struct {
     allocator: std.mem.Allocator,
     name: []const u8,
     src: []const u8,
-    current_dst: []const u8 = &.{},
+    current_dst: ?[]const u8 = null,
     version: u32 = 1,
 
     pub fn link(name: []const u8, allocator: std.mem.Allocator) !HotReloader {
@@ -35,21 +35,24 @@ const HotReloader = struct {
     /// Returns the fresh interface if the library was updated.
     /// On error or stale dll, returns null.
     pub fn update(self: *HotReloader) ?hy.GameInterface {
-        if (!(self.isStale() catch return null)) {
-            return null;
-        } else {
-            self.reload() catch |e| {
+        self.reload() catch |e| {
+            if (e == error.FileNotFound) {
+                std.log.err("Game at {?s} not found", .{self.current_dst});
+            } else {
                 std.log.err("Could not reload library: {}", .{e});
-                return null;
-            };
-            return self.interface;
-        }
+            }
+            return null;
+        };
+        return self.interface;
     }
 
-    pub fn isStale(self: *HotReloader) !bool {
+    pub fn isStale(self: *HotReloader) bool {
         const st_lib = std.fs.cwd().statFile(self.src) catch |err| switch (err) {
             error.FileNotFound => return true,
-            else => return err,
+            else => {
+                std.log.err("Error checking hot library: {}", .{err});
+                return false;
+            },
         };
         return st_lib.mtime > self.last_write_time;
     }
@@ -76,8 +79,11 @@ const HotReloader = struct {
             self.interface = interface();
             self.last_write_time = src_stat.mtime;
 
-            if (self.lib != null) {
-                try self.unload(self.current_dst);
+            if (self.lib) |*lib| {
+                lib.close();
+                if (self.current_dst) |dst| {
+                    try std.fs.cwd().deleteFile(dst);
+                }
                 self.current_dst = dest_file;
             }
 
@@ -88,12 +94,6 @@ const HotReloader = struct {
         }
     }
 
-    pub fn unload(self: *HotReloader, path: []const u8) !void {
-        self.lib.?.close();
-        try std.fs.cwd().deleteFile(path);
-        self.lib = null;
-    }
-
     pub fn createFilename(self: *HotReloader, version: u32) ![]const u8 {
         const lib_basename = std.fs.path.stem(self.name);
         return try std.fmt.allocPrint(self.allocator, format_string, .{ lib_basename, version });
@@ -101,7 +101,7 @@ const HotReloader = struct {
 
     pub fn shutdown(self: *HotReloader) void {
         self.allocator.free(self.src);
-        self.allocator.free(self.current_dst);
+        self.allocator.free(self.current_dst.?);
     }
 
     const format_string = switch (builtin.os.tag) {
@@ -114,28 +114,31 @@ const HotReloader = struct {
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    var arena = std.heap.ArenaAllocator.init(allocator);
-
-    var game = try HotReloader.link("game", arena.allocator());
-
-    var world: hy.World = undefined;
+    var game = try HotReloader.link("game", allocator);
 
     const engine = hy.runtime.init();
     defer engine.shutdown();
 
-    while (!world.quit) {
-        var gi = game.interface;
-        world = gi.init(engine);
+    var gi = game.interface;
+    var world = gi.init(engine);
 
+    while (!world.quit) {
         while (!world.restart and !world.quit) {
             world = engine.update(world, gi);
 
-            if (game.update()) |new_interface| {
-                gi = new_interface;
-                _ = gi.reload(engine, world);
+            if (game.isStale()) {
+                if (game.update()) |new_interface| {
+                    gi = new_interface;
+                    _ = gi.reload(engine, world);
+                }
             }
-
-            _ = arena.reset(.retain_capacity);
         }
+
+        if (game.update()) |new_interface| {
+            gi = new_interface;
+            _ = gi.reload(engine, world);
+        }
+
+        world.restart = false;
     }
 }

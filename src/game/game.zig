@@ -20,7 +20,6 @@ const Object = struct {
     hdl: rt.gpu.RenderItemHandle = .invalid,
 };
 
-gpa: std.heap.GeneralPurposeAllocator(.{}),
 allocator: std.mem.Allocator,
 arena: std.heap.ArenaAllocator,
 callback_arena: std.heap.ArenaAllocator,
@@ -34,18 +33,21 @@ camera: cam.Camera,
 timer: std.time.Timer,
 
 pub fn init(engine: *hy.Engine) !hy.World {
-    var self_gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const self = self_gpa.allocator().create(Self) catch oom();
+    const extern_allocator = engine.gameAllocator();
+    const allocator: std.mem.Allocator = .{
+        .ptr = extern_allocator.ptr,
+        .vtable = extern_allocator.vtable,
+    };
+    const self = allocator.create(Self) catch oom();
 
     self.* = .{
-        .gpa = self_gpa,
-        .allocator = self.gpa.allocator(),
+        .allocator = allocator,
         .arena = std.heap.ArenaAllocator.init(self.allocator),
         .callback_arena = std.heap.ArenaAllocator.init(self.allocator),
         .objects = SkipMap(Entity).create(self.allocator, .{}) catch oom(),
         .selected_objects = try .initCapacity(self.allocator, 8),
         .ui_state = .{ .second_timer = std.time.Timer.start() catch unreachable },
-        .camera = .{ .input = engine.input(), .window = engine.window() },
+        .camera = .{ .window = engine.window() },
         .entity = .{
             .gpu = engine.gpu(),
             .position = hym.vec(.{ 0, 0, 5 }),
@@ -75,8 +77,8 @@ pub fn init(engine: *hy.Engine) !hy.World {
         }
     }
 
-    self.camera.registerInputs(self.callback_arena.allocator()) catch oom();
-    self.camera.position = hym.vec(.{ 5, 7, 10 });
+    self.camera.registerInputs(engine.input(), self.callback_arena.allocator()) catch oom();
+    self.camera.position = hym.vec(.{ 0, 0, 15 });
     self.camera.look_direction = hym.vec(.{ 0, 0, -1 });
 
     const ui_state = engine.ui().getGlobalState();
@@ -98,9 +100,12 @@ pub fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
     var game = pre;
     const self: *Self = @ptrCast(@alignCast(pre.memory));
 
+    // self.camera.position = hym.vec(.{ 0, 0, 15 });
+    // self.camera.look_direction = hym.vec(.{ 0, 0, -1 });
+
     game.scene.view_proj = self.camera.viewProj();
 
-    const ray = self.camera.worldRay();
+    const ray = self.camera.worldRay(engine.input().queryMousePosition());
     const allocator = self.arena.allocator();
 
     var boxes = allocator.alloc(hym.AxisAligned, self.objects.len) catch oom();
@@ -145,7 +150,10 @@ pub fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
         item[1].update();
     }
 
-    if (self.ui_state.restart_requested) game.restart = true;
+    if (self.ui_state.restart_requested) {
+        game.restart = true;
+        self.ui_state.restart_requested = false;
+    }
 
     return game;
 }
@@ -171,8 +179,14 @@ pub fn afterRender(engine: *hy.Engine, world: hy.World) callconv(.C) void {
 }
 
 pub fn reload(engine: *hy.Engine, game: hy.World) !void {
-    const ptr = @as(*Self, @ptrCast(@alignCast(game.memory)));
+    const ptr: *Self = @ptrCast(@alignCast(game.memory));
+
+    // Patch up procedure pointers
     engine.input().reset();
     _ = ptr.callback_arena.reset(.retain_capacity);
-    ptr.camera.registerInputs(ptr.callback_arena.allocator()) catch oom();
+    ptr.camera.registerInputs(engine.input(), ptr.callback_arena.allocator()) catch oom();
+
+    const ui_state = engine.ui().getGlobalState();
+    imgui.SetCurrentContext(@ptrCast(ui_state.imgui_ctx));
+    implot.setCurrentContext(@ptrCast(ui_state.implot_ctx));
 }

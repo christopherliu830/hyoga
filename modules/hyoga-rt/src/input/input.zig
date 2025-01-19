@@ -22,11 +22,13 @@ pub const InputFlags = packed struct(u8) {
 };
 
 pub const BindKeyOptions = extern struct {
+    group: Group.Handle,
     button: hy.key.Keycode,
     fire_on: InputFlags,
 };
 
 pub const BindMouseOptions = extern struct {
+    group: Group.Handle,
     button: hy.key.MouseButton,
     fire_on: InputFlags,
 };
@@ -38,9 +40,70 @@ const Keybinds = std.AutoHashMapUnmanaged(Keycode, ActionSet);
 const KeysDownSet = std.EnumSet(Keycode);
 const MouseDownSet = std.EnumSet(MouseButton);
 
-arena: std.heap.ArenaAllocator,
-keybinds: Keybinds,
-mousebinds: Mousebinds,
+pub const Group = struct {
+    pub const Handle = hy.SlotMap(Group).Handle;
+
+    arena: std.heap.ArenaAllocator,
+    input: *Input,
+    enabled: bool = true,
+    keybinds: Keybinds = .empty,
+    mousebinds: Mousebinds = .empty,
+
+    pub fn getKeyCallbacks(group: *Group, button: Keycode) ?*ActionSet {
+        const allocator = group.arena.allocator();
+
+        const entry = group.keybinds.getOrPut(allocator, button) catch {
+            std.log.warn("[INPUT] Out of memory", .{});
+            return null;
+        };
+
+        if (!entry.found_existing) {
+            entry.value_ptr.* = ActionSet.initFill(.{});
+        }
+
+        return entry.value_ptr;
+    }
+
+    pub fn getMouseCallbacks(group: *Group, button: MouseButton) ?*ActionSet {
+        const allocator = group.arena.allocator();
+
+        const entry = group.mousebinds.getOrPut(allocator, button) catch {
+            std.log.warn("[INPUT] Out of memory", .{});
+            return null;
+        };
+        if (!entry.found_existing) {
+            entry.value_ptr.* = ActionSet.initFill(.{});
+        }
+        return entry.value_ptr;
+    }
+
+    pub fn bindMouse(group: *Group, options: BindMouseOptions, delegate: *hy.closure.Runnable) !void {
+        const allocator = group.arena.allocator();
+
+        const action_set = group.getMouseCallbacks(options.button) orelse return;
+        const fire_on = options.fire_on;
+
+        if (fire_on.down) try action_set.getPtr(.down).append(allocator, delegate);
+        if (fire_on.up) try action_set.getPtr(.up).append(allocator, delegate);
+        if (fire_on.held) try action_set.getPtr(.held).append(allocator, delegate);
+    }
+
+    pub fn bindKey(group: *Group, options: BindKeyOptions, delegate: *hy.closure.Runnable) !void {
+        const allocator = group.arena.allocator();
+
+        const action_set = group.getKeyCallbacks(options.button) orelse return;
+        const fire_on = options.fire_on;
+        if (fire_on.down) try action_set.getPtr(.down).append(allocator, delegate);
+        if (fire_on.up) try action_set.getPtr(.up).append(allocator, delegate);
+        if (fire_on.held) try action_set.getPtr(.held).append(allocator, delegate);
+    }
+};
+
+allocator: std.mem.Allocator,
+keybinds: Keybinds = .empty,
+mousebinds: Mousebinds = .empty,
+groups: hy.SlotMap(Group),
+group: Group,
 keys_down: KeysDownSet = .{},
 mouse_state: MouseDownSet = .{},
 
@@ -48,64 +111,54 @@ input_inited: bool = false,
 
 pub fn init(in_allocator: std.mem.Allocator) Input {
     return .{
-        .arena = std.heap.ArenaAllocator.init(in_allocator),
-        .mousebinds = .{},
-        .keybinds = .{},
+        .allocator = in_allocator,
+        .groups = hy.SlotMap(Group).create(in_allocator, 8) catch hy.err.oom(),
+        .group = undefined,
         .input_inited = true,
     };
 }
 
 pub fn shutdown(self: *Input) void {
-    _ = self.arena.reset(.free_all);
+    self.groups.deinit();
 }
 
 pub fn reset(self: *Input) void {
-    self.mousebinds = .{};
-    self.keybinds = .{};
-    _ = self.arena.reset(.retain_capacity);
+    self.groups.clear();
 }
 
-pub fn getKeyCallbacks(self: *Input, button: Keycode) ?*ActionSet {
-    const allocator = self.arena.allocator();
-
-    const entry = self.keybinds.getOrPut(allocator, button) catch {
-        std.log.warn("[INPUT] Out of memory", .{});
-        return null;
-    };
-
-    if (!entry.found_existing) {
-        entry.value_ptr.* = ActionSet.initFill(.{});
-    }
-
-    return entry.value_ptr;
+pub fn createGroup(self: *Input) Group.Handle {
+    return self.groups.insert(.{
+        .input = self,
+        .arena = .init(self.allocator),
+    }) catch hy.err.oom();
 }
 
-pub fn getMouseCallbacks(self: *Input, button: MouseButton) ?*ActionSet {
-    const allocator = self.arena.allocator();
-    const entry = self.mousebinds.getOrPut(allocator, button) catch {
-        std.log.warn("[INPUT] Out of memory", .{});
-        return null;
-    };
-    if (!entry.found_existing) {
-        entry.value_ptr.* = ActionSet.initFill(.{});
+pub fn setGroupEnabled(
+    self: *Input,
+    hdl: Group.Handle,
+    enabled: bool,
+) void {
+    if (self.groups.get(hdl)) |group| {
+        group.enabled = enabled;
     }
-    return entry.value_ptr;
+}
+
+pub fn getGroup(self: *Input, hdl: Group.Handle) Group.Handle {
+    if (self.groups.get(hdl)) |_| {
+        return hdl;
+    } else |_| {
+        return self.createGroup();
+    }
 }
 
 pub fn bindMouse(self: *Input, options: BindMouseOptions, delegate: *hy.closure.Runnable) !void {
-    const action_set = self.getMouseCallbacks(options.button) orelse return;
-    const fire_on = options.fire_on;
-    if (fire_on.down) try action_set.getPtr(.down).append(self.arena.allocator(), delegate);
-    if (fire_on.up) try action_set.getPtr(.up).append(self.arena.allocator(), delegate);
-    if (fire_on.held) try action_set.getPtr(.held).append(self.arena.allocator(), delegate);
+    var group = self.groups.getPtr(options.group) catch std.debug.panic("No input group found", .{});
+    group.bindMouse(options, delegate) catch std.debug.panic("failed to bind input", .{});
 }
 
 pub fn bindKey(self: *Input, options: BindKeyOptions, delegate: *hy.closure.Runnable) !void {
-    const action_set = self.getKeyCallbacks(options.button) orelse return;
-    const fire_on = options.fire_on;
-    if (fire_on.down) try action_set.getPtr(.down).append(self.arena.allocator(), delegate);
-    if (fire_on.up) try action_set.getPtr(.up).append(self.arena.allocator(), delegate);
-    if (fire_on.held) try action_set.getPtr(.held).append(self.arena.allocator(), delegate);
+    var group = self.groups.getPtr(options.group) catch std.debug.panic("No input group found", .{});
+    group.bindKey(options, delegate) catch std.debug.panic("failed to bind input", .{});
 }
 
 pub fn queryKey(self: *Input, key: types.Keycode) bool {
@@ -125,17 +178,24 @@ pub fn queryMousePosition(_: *Input) hy.math.Vec2 {
 
 pub fn post(self: *Input, key: types.Keycode, mods: types.Keymod, action: Action, event: sdl.events.Event) void {
     _ = mods;
-    const callbacks = self.getKeyCallbacks(key) orelse return;
-    for (callbacks.getPtr(action).items) |handler| {
-        var e = event;
-        @call(.auto, handler.runFn, .{ handler, &e });
+
+    var it = self.groups.iterator();
+    while (it.nextPtr()) |group| {
+        const callbacks = group.getKeyCallbacks(key) orelse return;
+        for (callbacks.getPtr(action).items) |handler| {
+            var e = event;
+            @call(.auto, handler.runFn, .{ handler, &e });
+        }
     }
 }
 
 pub fn postMouse(self: *Input, mouse: MouseButton, action: Action, event: anytype) void {
-    const callbacks = self.getMouseCallbacks(mouse) orelse return;
-    for (callbacks.getPtr(action).items) |handler| {
-        @call(.auto, handler.runFn, .{ handler, @constCast(&event) });
+    var it = self.groups.iterator();
+    while (it.nextPtr()) |group| {
+        const callbacks = group.getMouseCallbacks(mouse) orelse return;
+        for (callbacks.getPtr(action).items) |handler| {
+            @call(.auto, handler.runFn, .{ handler, @constCast(&event) });
+        }
     }
 }
 

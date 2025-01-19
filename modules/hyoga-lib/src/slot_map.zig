@@ -104,6 +104,18 @@ pub fn SlotMap(comptime T: type) type {
             self.entries.clearAndFree();
         }
 
+        pub fn clear(self: *SlotMap(T)) void {
+            for (self.slots(), 0..) |slot, i| {
+                switch (slot) {
+                    .occupied => {
+                        const hdl = self.handle_at(@intCast(i)) catch unreachable;
+                        self.remove(hdl);
+                    },
+                    .empty => continue,
+                }
+            }
+        }
+
         pub fn capacity(self: SlotMap(T)) u32 {
             return @intCast(self.entries.capacity);
         }
@@ -154,7 +166,7 @@ pub fn SlotMap(comptime T: type) type {
             };
         }
 
-        pub fn slots(self: *const SlotMap(T)) []Slot(T) {
+        pub fn slots(self: *const SlotMap(T)) []Slot {
             return self.entries.items;
         }
 

@@ -75,6 +75,10 @@ export fn hyeWindow(engine: *Engine) *Engine.Window {
     return &engine.window;
 }
 
+export fn hyeGameAllocator(engine: *Engine) hy.runtime.ExternAllocator {
+    return engine.gameAllocator();
+}
+
 export fn hygpuImportModel(gpu: *Gpu, path: [*:0]const u8, settings: Gpu.Models.ImportSettings) Gpu.Model {
     return gpu.importModel(path, settings) catch |e| {
         std.log.err("import model failure: {}", .{e});
@@ -135,6 +139,14 @@ export fn hygpuClearSelection(gpu: *Gpu) void {
 
 export fn hyioReset(input: *Input) void {
     input.reset();
+}
+
+export fn hyioCreateGroup(input: *Input) Input.Group.Handle {
+    return input.createGroup();
+}
+
+export fn hyioGetGroup(input: *Input, hdl: Input.Group.Handle) Input.Group.Handle {
+    return input.getGroup(hdl);
 }
 
 export fn hyioBindMouse(input: *Input, options: Input.BindMouseOptions, delegate: *hy.closure.Runnable) void {

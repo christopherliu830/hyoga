@@ -17,6 +17,7 @@ const GameInterface = @import("root.zig").GameInterface;
 
 gpa: std.heap.GeneralPurposeAllocator(.{}),
 arena: std.heap.ArenaAllocator,
+game_arena: std.heap.ArenaAllocator,
 window: Window,
 strint: Strint,
 input: Input,
@@ -33,6 +34,7 @@ pub fn init() !*Engine {
     self.* = .{
         .gpa = self_gpa,
         .arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
+        .game_arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
         .strint = Strint.init(self.arena.allocator()),
         .input = Input.init(self.gpa.allocator()),
         .window = try Window.init(),
@@ -53,8 +55,9 @@ pub fn shutdown(self: *Engine) void {
     self.gpu.shutdown();
     self.input.shutdown();
     self.strint.shutdown();
-    self.arena.deinit();
     self.window.deinit();
+    self.game_arena.deinit();
+    self.arena.deinit();
     self.gpa.allocator().destroy(self);
 }
 
@@ -116,4 +119,12 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
 
     @import("ztracy").FrameMark();
     return game;
+}
+
+pub fn gameAllocator(self: *Engine) hy.runtime.ExternAllocator {
+    const allocator = self.game_arena.allocator();
+    return .{
+        .ptr = allocator.ptr,
+        .vtable = allocator.vtable,
+    };
 }

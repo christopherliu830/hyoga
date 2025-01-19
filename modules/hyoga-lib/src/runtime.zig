@@ -1,6 +1,8 @@
 //! All datatypes within this file are hand-written
 //! and must be manually kept in sync with the runtime datatypes!
 
+const std = @import("std");
+
 pub const input = @import("runtime/input.zig");
 pub const gpu = @import("runtime/gpu.zig");
 pub const strint = @import("runtime/strint.zig");
@@ -32,6 +34,22 @@ pub const World = extern struct {
     memory: *anyopaque,
 };
 
+pub const ExternAllocator = extern struct {
+    ptr: *anyopaque,
+    vtable: *const std.mem.Allocator.VTable,
+};
+
+pub const ExternSlice = extern struct {
+    ptr: [*]u8,
+    len: usize,
+};
+
+pub const ExternVTable = extern struct {
+    alloc: *const fn (ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) callconv(.C) ?[*]u8,
+    resize: *const fn (ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_addr: usize) callconv(.C) bool,
+    free: *const fn (ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) callconv(.C) void,
+};
+
 pub const GameInterface = extern struct {
     init: *const fn (*Engine) callconv(.C) World,
     shutdown: *const fn (*Engine, World) callconv(.C) void,
@@ -44,6 +62,7 @@ pub const GameInterface = extern struct {
 pub const Engine = opaque {
     pub const shutdown = hyeShutdown;
     pub const update = hyeUpdate;
+    pub const gameAllocator = hyeGameAllocator;
     pub const gpu = hyeGpu;
     pub const input = hyeInput;
     pub const strint = hyeStrint;
@@ -56,6 +75,7 @@ pub const init = hyInit;
 extern fn hyInit() *Engine;
 extern fn hyeShutdown(*Engine) void;
 extern fn hyeUpdate(*Engine, World, GameInterface) World;
+extern fn hyeGameAllocator(*Engine) ExternAllocator;
 extern fn hyeGpu(*Engine) *gpu.Gpu;
 extern fn hyeInput(*Engine) *input.Input;
 extern fn hyeStrint(*Engine) *Strint;

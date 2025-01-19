@@ -27,7 +27,6 @@ pub const Renderable = struct {
     next: ?RenderItemHandle = null, // When models are imported as a group, support adds and removes via this link.
     mesh: Mesh,
     import_transform: Mat4 = .identity, // Set on import and does not change.
-    parent_transform: *const Mat4 = &.identity,
 
     pub fn lessThan(_: void, lhs: Renderable, rhs: Renderable) bool {
         if (lhs.mesh.buffer.eql(rhs.mesh.buffer))
@@ -94,7 +93,6 @@ pub const RenderList = struct {
                 const renderable = Renderable{
                     .mesh = mesh,
                     .import_transform = model.transform,
-                    .parent_transform = options.owner,
                     .next = head,
                 };
                 head = try self.items.insert(renderable);
@@ -162,7 +160,7 @@ pub const RenderList = struct {
             const handle = handles[i];
             const renderable = renderables[i];
             try handle_map.put(allocator, handle, @intCast(i));
-            transforms[i] = renderable.import_transform.mul(renderable.parent_transform.*);
+            transforms[i] = renderable.import_transform;
 
             if (dst != 0 and renderable.eql(renderables[i - 1])) {
                 instance_counts[dst - 1] += 1;
