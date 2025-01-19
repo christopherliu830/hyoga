@@ -21,9 +21,14 @@ const Object = struct {
     hdl: rt.gpu.RenderItemHandle = .invalid,
 };
 
-const ControlMode = enum {
+pub const ControlMode = enum {
     noclip,
     game,
+};
+
+const CachedWorld = struct {
+    boxes: []hym.ray.Ray.PackedAxisAligned = &.{},
+    objects: []*Entity = &.{},
 };
 
 allocator: std.mem.Allocator,
@@ -38,6 +43,7 @@ selected_objects: std.ArrayListUnmanaged(struct { hym.Vec3, *Entity }),
 ui_state: ui.State,
 camera: cam.Camera,
 timer: std.time.Timer,
+world_cache: CachedWorld = .{},
 
 pub fn init(engine: *hy.Engine) !hy.World {
     const extern_allocator = engine.gameAllocator();
@@ -54,7 +60,7 @@ pub fn init(engine: *hy.Engine) !hy.World {
         .input_group = .none,
         .objects = SkipMap(Entity).create(self.allocator, .{}) catch oom(),
         .selected_objects = try .initCapacity(self.allocator, 8),
-        .ui_state = .{ .second_timer = std.time.Timer.start() catch unreachable },
+        .ui_state = .{ .second_timer = std.time.Timer.start() catch unreachable, .mode = .noclip },
         .camera = .{ .window = engine.window() },
         .entity = .{
             .gpu = engine.gpu(),
@@ -72,7 +78,7 @@ pub fn init(engine: *hy.Engine) !hy.World {
     self.entity.renderable = gpu.addRenderable(.{ .model = cube });
     self.entity.bounds = bounds;
 
-    self.entity.update();
+    self.entity.pushRender();
 
     for (0..10) |y| {
         for (0..10) |x| {
@@ -110,39 +116,15 @@ pub fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
     var game = pre;
     const self: *Self = @ptrCast(@alignCast(pre.memory));
 
-    // self.camera.position = hym.vec(.{ 0, 0, 15 });
-    // self.camera.look_direction = hym.vec(.{ 0, 0, -1 });
+    const allocator = self.arena.allocator();
 
     game.scene.view_proj = self.camera.viewProj();
 
+    self.world_cache = cacheWorld(&self.objects, self.arena.allocator());
     const ray = self.camera.worldRay(engine.input().queryMousePosition());
-    const allocator = self.arena.allocator();
+    const intersections = ray.intersectPacked(self.world_cache.boxes, 1000, allocator) catch oom();
 
-    var boxes = allocator.alloc(hym.AxisAligned, self.objects.len) catch oom();
-    var objects = allocator.alloc(*Entity, self.objects.len) catch oom();
-
-    const time = blk: {
-        const t: f32 = @floatFromInt(self.timer.read());
-        break :blk t / std.time.ns_per_s;
-    };
-
-    {
-        var it = self.objects.iterator();
-        var i: u32 = 0;
-        while (it.next()) |cursor| : (i += 1) {
-            const object = cursor.unwrap();
-
-            boxes[i] = object.calcBounds();
-            objects[i] = object;
-
-            object.update();
-        }
-    }
-
-    const packed_boxes = hym.Ray.pack(boxes, allocator) catch oom();
-    const intersections = ray.intersectPacked(packed_boxes, 1000, allocator) catch oom();
-
-    for (objects, intersections[0..objects.len]) |object, ixn| {
+    for (self.world_cache.objects, intersections[0..self.world_cache.objects.len]) |object, ixn| {
         if (ixn < 1000) {
             engine.gpu().selectRenderable(object.renderable);
             if (self.selected_objects.items.len < self.selected_objects.capacity) {
@@ -151,13 +133,15 @@ pub fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
         }
     }
 
-    for (self.selected_objects.items) |item| {
-        item[1].position = hym.vec(.{
-            item[0].x(),
-            item[0].y(),
-            item[0].z() + std.math.sin(time),
-        });
-        item[1].update();
+    const delta_time = blk: {
+        const t: f32 = @floatFromInt(game.update_delta_time);
+        break :blk t / std.time.ns_per_s;
+    };
+
+    for (self.world_cache.objects) |object| {
+        if (object.scale.x() < 1) {
+            object.scale = object.scale.add(hym.vec3.one.mul(delta_time));
+        }
     }
 
     if (self.ui_state.restart_requested) {
@@ -172,6 +156,12 @@ pub fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
 pub fn render(engine: *hy.Engine, state: hy.World) callconv(.C) void {
     _ = engine;
     const self: *Self = @ptrCast(@alignCast(state.memory));
+
+    var it = self.objects.iterator();
+    while (it.next()) |cursor| {
+        const object = cursor.unwrap();
+        object.pushRender();
+    }
 
     ui.drawMainUI(&self.ui_state);
     self.ui_state.frame_time = state.render_delta_time;
@@ -195,10 +185,32 @@ pub fn reload(engine: *hy.Engine, game: hy.World) !void {
     engine.input().reset();
     _ = ptr.callback_arena.reset(.retain_capacity);
     ptr.camera.registerInputs(engine.input(), ptr.callback_arena.allocator()) catch oom();
+    try ptr.registerInputs(engine);
 
     const ui_state = engine.ui().getGlobalState();
     imgui.SetCurrentContext(@ptrCast(ui_state.imgui_ctx));
     implot.setCurrentContext(@ptrCast(ui_state.implot_ctx));
+}
+
+fn cacheWorld(objects: *hy.SkipMap(Entity), arena: std.mem.Allocator) CachedWorld {
+    var boxes = arena.alloc(hym.AxisAligned, objects.len) catch oom();
+    var objects_slice = arena.alloc(*Entity, objects.len) catch oom();
+
+    var it = objects.iterator();
+    var i: u32 = 0;
+    while (it.next()) |cursor| : (i += 1) {
+        const object = cursor.unwrap();
+
+        boxes[i] = object.calcBounds();
+        objects_slice[i] = object;
+    }
+
+    const packed_boxes = hym.Ray.pack(boxes, arena) catch oom();
+
+    return .{
+        .boxes = packed_boxes,
+        .objects = objects_slice,
+    };
 }
 
 fn registerInputs(self: *Self, engine: *hy.Engine) !void {
@@ -213,9 +225,11 @@ fn registerInputs(self: *Self, engine: *hy.Engine) !void {
     const allocator = self.callback_arena.allocator();
     input.bind(group, .key(.q), try l(switchControlMode, .{ self, engine, .game }, allocator));
     input.bind(group, .key(.w), try l(switchControlMode, .{ self, engine, .noclip }, allocator));
+    input.bind(group, .mouseOn(.left, .{ .down = true, .held = true }), try l(intersect, .{ self, engine }, allocator));
 }
 
 fn switchControlMode(self: *Self, engine: *hy.Engine, mode: ControlMode, _: ?*anyopaque) void {
+    self.ui_state.mode = mode;
     switch (mode) {
         .noclip => {
             engine.window().setRelativeMouseMode(false);
@@ -225,5 +239,18 @@ fn switchControlMode(self: *Self, engine: *hy.Engine, mode: ControlMode, _: ?*an
             engine.window().setRelativeMouseMode(false);
             engine.input().setGroupEnabled(self.camera.input_group, false);
         },
+    }
+}
+
+fn intersect(self: *Self, engine: *hy.Engine, _: ?*anyopaque) void {
+    self.world_cache = cacheWorld(&self.objects, self.arena.allocator());
+    const ray = self.camera.worldRay(engine.input().queryMousePosition());
+    const intersections = ray.intersectPacked(self.world_cache.boxes, 1000, self.arena.allocator()) catch oom();
+
+    for (self.world_cache.objects, intersections[0..self.world_cache.objects.len]) |object, ixn| {
+        if (ixn < 1000) {
+            object.scale = hym.vec(.{ 0.2, 0.2, 0.2 });
+            engine.gpu().selectRenderable(object.renderable);
+        }
     }
 }

@@ -58,7 +58,9 @@ pub fn shutdown(self: *Engine) void {
     self.window.deinit();
     self.game_arena.deinit();
     self.arena.deinit();
-    self.gpa.allocator().destroy(self);
+
+    var gpa = self.gpa;
+    gpa.allocator().destroy(self);
 }
 
 pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {

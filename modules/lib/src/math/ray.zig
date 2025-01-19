@@ -38,7 +38,7 @@ pub const Ray = struct {
     const PackedVec3 = [3]@Vector(pack_len, f32);
     const PackedFloat = @Vector(pack_len, f32);
 
-    const PackedAxisAligned = struct {
+    pub const PackedAxisAligned = struct {
         bounds: [2]PackedVec3,
     };
 

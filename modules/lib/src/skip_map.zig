@@ -339,14 +339,14 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
         pub fn iterator(self: *Self) Iterator {
             // Not initialized, return a dummy iterator
             if (self.len == 0) {
-                return Iterator{ .end = @ptrCast(@alignCast(self)), .cursor = .{
+                return .{ .end = @ptrCast(@alignCast(self)), .cursor = .{
                     .group = undefined,
                     .element = undefined,
                     .skip = @ptrCast(@alignCast(self)),
                 } };
             }
 
-            return Iterator{
+            return .{
                 .end = self.groups.tail.?.skip,
                 .cursor = self.groups.head.?,
             };

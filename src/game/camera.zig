@@ -87,7 +87,7 @@ pub const Camera = struct {
     }
 
     pub fn editor(self: *Camera) void {
-        if (imgui.Begin("Camera", null, imgui.WindowFlag.always_auto_resize)) {
+        if (imgui.Begin("Camera", null, .{ .always_auto_resize = true })) {
             _ = imgui.DragFloat3("Position", @ptrCast(&self.position));
             _ = imgui.SliderFloat("Near Plane", @ptrCast(&self.z_near), 0.1, 1000);
             _ = imgui.SliderFloat("Far Plane", @ptrCast(&self.z_far), 0.1, 1000);

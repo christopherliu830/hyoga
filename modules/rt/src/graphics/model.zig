@@ -82,14 +82,12 @@ pub const Models = struct {
 
     pub fn deinit(self: *@This()) void {
         self.flushQueue() catch std.debug.panic("Could not flush queue", .{});
-        const gpu: *Gpu = @alignCast(@fieldParentPtr("models", self));
 
         if (self.models.len > 0) {
             var it = self.models.iterator();
             while (it.next()) |q_entry| {
                 if (q_entry) |entry| {
                     std.debug.assert(entry.children.len > 0);
-                    gpu.device.releaseBuffer(entry.children[0].buffer.hdl);
                     self.allocator.free(entry.children);
                 }
             }

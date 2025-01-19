@@ -2,6 +2,7 @@ const std = @import("std");
 const hy = @import("hyoga-lib");
 const imgui = @import("imgui");
 const plot = @import("implot");
+const ControlMode = @import("game.zig").ControlMode;
 
 const frames_slice_len = 128;
 
@@ -13,6 +14,7 @@ const Windows = struct {
 pub const State = struct {
     second_timer: std.time.Timer, // Timer that ticks every second
     windows: Windows = .{},
+    mode: ControlMode,
     frame_time: u64 = 0,
     drawn_frame_time: u64 = 0,
     frame_times: [frames_slice_len]f64 = [_]f64{0} ** frames_slice_len,
@@ -53,7 +55,7 @@ pub fn drawMainUI(state: *State) void {
     }
 
     if (state.windows.perf) {
-        if (ui.Begin("Performance", &state.windows.perf, 0)) {
+        if (ui.Begin("Performance", &state.windows.perf, .none)) {
             const frame_time = timeAsFloat(state.drawn_frame_time);
             const fps: f64 = 1000 / frame_time;
             ui.Text("Frame time: %.2fms (%.1f)fps", frame_time, fps);
@@ -61,6 +63,8 @@ pub fn drawMainUI(state: *State) void {
         }
         ui.End();
     }
+
+    drawOverlay(state);
 }
 
 pub fn drawFrametimePlot(state: *State) void {
@@ -84,6 +88,39 @@ pub fn drawFrametimePlot(state: *State) void {
     }
 
     state.current_frame_time_idx = (state.current_frame_time_idx + 1) % frames_slice_len;
+}
+
+pub fn drawOverlay(state: *State) void {
+    const padding: f32 = 12;
+
+    const window_flags: imgui.WindowFlags = .{
+        .no_title_bar = true,
+        .no_resize = true,
+        .no_scrollbar = true,
+        .no_collapse = true,
+        .no_docking = true,
+        .always_auto_resize = true,
+        .no_saved_settings = true,
+        .no_focus_on_appearing = true,
+        .no_nav_inputs = true,
+        .no_nav_focus = true,
+        .no_move = true,
+    };
+
+    const ui = imgui;
+    const viewport = imgui.GetMainViewport().?;
+    const work_pos = viewport.WorkPos;
+    const pos: imgui.Vec2 = .{ .x = work_pos.x + padding, .y = work_pos.y + padding };
+    ui.SetNextWindowPos(pos, .always);
+
+    ui.SetNextWindowBgAlpha(0);
+    if (ui.Begin("Main Overlay", null, window_flags)) {
+        const frame_time = timeAsFloat(state.drawn_frame_time);
+        const fps: f64 = 1000 / frame_time;
+        imgui.Text("FPS: %.2f", fps);
+        imgui.Text("Mode: %s", @tagName(state.mode).ptr);
+    }
+    ui.End();
 }
 
 fn timeAsFloat(time: u64) f64 {

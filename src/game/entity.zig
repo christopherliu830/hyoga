@@ -15,7 +15,7 @@ pub const Entity = struct {
     scale: hym.Vec3 = .one,
     bounds: hym.AxisAligned = .{},
 
-    pub fn update(self: *Entity) void {
+    pub fn pushRender(self: *Entity) void {
         const mat = Mat4.identity
             .scale(self.scale)
             .rotate(self.rotation.x(), hym.vec3.x)

@@ -53,7 +53,36 @@ pub const TableColumnFlags = c_int;
 pub const TableRowFlags = c_int;
 pub const TreeNodeFlags = c_int;
 pub const ViewportFlags = c_int;
-pub const WindowFlags = c_int;
+
+pub const WindowFlags = packed struct(u32) {
+    pub const no_nav: WindowFlags = .{ .no_nav_inputs = true, .no_nav_focus = true, .no_docking = true };
+    pub const no_decoration: WindowFlags = .{ .no_title_bar = true, .no_resize = true, .no_scrollbar = true, .no_collapse = true };
+    pub const no_inputs: WindowFlags = .{ .no_mouse_inputs = true, .no_nav_inputs = true, .no_nav_focus = true };
+    pub const none: WindowFlags = .{};
+
+    no_title_bar: bool = false,
+    no_resize: bool = false,
+    no_move: bool = false,
+    no_scrollbar: bool = false,
+    no_scroll_with_mouse: bool = false,
+    no_collapse: bool = false,
+    always_auto_resize: bool = false,
+    no_background: bool = false,
+    no_saved_settings: bool = false,
+    no_mouse_inputs: bool = false,
+    menu_bar: bool = false,
+    horizontal_scrollbar: bool = false,
+    no_focus_on_appearing: bool = false,
+    no_bring_to_front_on_focus: bool = false,
+    always_vertical_scrollbar: bool = false,
+    always_horizontal_scrollbar: bool = false,
+    no_nav_inputs: bool = false,
+    no_nav_focus: bool = false,
+    unsaved_document: bool = false,
+    no_docking: bool = false,
+    _padding: u12 = 0,
+};
+
 pub const TextureID = u64;
 pub const DrawIdx = c_ushort;
 pub const Wchar32 = c_uint;
@@ -66,41 +95,6 @@ pub const SizeCallback = *const fn (data: [*c]SizeCallbackData) callconv(.C) voi
 pub const MemAllocFunc = ?*const fn (sz: usize, user_data: *anyopaque) callconv(.C) *anyopaque;
 pub const MemFreeFunc = ?*const fn (ptr: *anyopaque, user_data: *anyopaque) callconv(.C) void;
 pub const DrawCallback = *const fn (parent_list: [*c]const DrawList, cmd: [*c]const DrawCmd) callconv(.C) void;
-
-pub const WindowFlag = struct {
-    pub const none = 0x0;
-    pub const no_title_bar = 0x1;
-    pub const no_resize = 0x2;
-    pub const no_move = 0x4;
-    pub const no_scrollbar = 0x8;
-    pub const no_scroll_with_mouse = 0x10;
-    pub const no_collapse = 0x20;
-    pub const always_auto_resize = 0x40;
-    pub const no_background = 0x80;
-    pub const no_saved_settings = 0x100;
-    pub const no_mouse_inputs = 0x200;
-    pub const menu_bar = 0x400;
-    pub const horizontal_scrollbar = 0x800;
-    pub const no_focus_on_appearing = 0x1000;
-    pub const no_bring_to_front_on_focus = 0x2000;
-    pub const always_vertical_scrollbar = 0x4000;
-    pub const always_horizontal_scrollbar = 0x8000;
-    pub const no_nav_inputs = 0x10000;
-    pub const no_nav_focus = 0x20000;
-    pub const unsaved_document = 0x40000;
-    pub const no_docking = 0x80000;
-    pub const no_nav = 0x30000;
-    pub const no_decoration = 0x2b;
-    pub const no_inputs = 0x30200;
-    pub const child_window = 0x1000000;
-    pub const tooltip = 0x2000000;
-    pub const popup = 0x4000000;
-    pub const modal = 0x8000000;
-    pub const child_menu = 0x10000000;
-    pub const dock_node_host = 0x20000000;
-    pub const always_use_window_padding = 0x40000000;
-    pub const nav_flattened = 0x80000000;
-};
 
 pub const ChildFlag = struct {
     pub const none = 0x0;
