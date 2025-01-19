@@ -21,7 +21,7 @@
             .path = "../ztracy",
         },
         .hyoga_lib = .{
-            .path = "../hyoga-lib",
+            .path = "../lib",
         },
     },
     .paths = .{""},
