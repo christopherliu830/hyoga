@@ -63,61 +63,27 @@ pub const Camera = struct {
 
         if (self.input_group == group) {
             return;
-        } else {
-            self.input_group = group;
         }
+
+        self.input_group = group;
 
         const l = hy.closure.create;
 
-        input.bindMouse(
-            .{ .group = self.input_group, .button = .wheel },
-            try l(zoom, .{self}, arena),
-        );
+        input.bind(group, .mouse(.wheel), try l(zoom, .{self}, arena));
+        input.bind(group, .mouse(.motion), try l(translate, .{ self, input }, arena));
 
-        input.bindMouse(
-            .{ .group = self.input_group, .button = .motion },
-            try l(translate, .{ self, input }, arena),
-        );
+        const lock = try l(lockMouse, .{ self, true }, arena);
+        const unlock = try l(lockMouse, .{ self, false }, arena);
+        input.bind(group, .mouse(.left), lock);
+        input.bind(group, .mouse(.middle), lock);
+        input.bind(group, .mouseUp(.left), unlock);
+        input.bind(group, .mouseUp(.middle), unlock);
 
-        input.bindMouse(
-            .{ .group = self.input_group, .button = .left },
-            try l(lockMouse, .{ self, true }, arena),
-        );
-
-        input.bindMouse(
-            .{ .group = self.input_group, .button = .left, .fire_on = .{ .up = true } },
-            try l(lockMouse, .{ self, false }, arena),
-        );
-
-        input.bindMouse(
-            .{ .group = self.input_group, .button = .middle },
-            try l(lockMouse, .{ self, true }, arena),
-        );
-
-        input.bindMouse(
-            .{ .group = self.input_group, .button = .middle, .fire_on = .{ .up = true } },
-            try l(lockMouse, .{ self, false }, arena),
-        );
-
-        input.bindKey(
-            .{ .group = self.input_group, .button = .s, .fire_on = .{ .down = true, .held = true } },
-            try l(pan, .{ self, vec2.create(-1, 0) }, arena),
-        );
-
-        input.bindKey(
-            .{ .group = self.input_group, .button = .d, .fire_on = .{ .down = true, .held = true } },
-            try l(pan, .{ self, vec2.create(0, -1) }, arena),
-        );
-
-        input.bindKey(
-            .{ .group = self.input_group, .button = .f, .fire_on = .{ .down = true, .held = true } },
-            try l(pan, .{ self, vec2.create(0, 1) }, arena),
-        );
-
-        input.bindKey(
-            .{ .group = self.input_group, .button = .g, .fire_on = .{ .down = true, .held = true } },
-            try l(pan, .{ self, vec2.create(1, 0) }, arena),
-        );
+        const dh: hy.Input.OnFlags = .{ .down = true, .held = true };
+        input.bind(group, .keyOn(.s, dh), try l(pan, .{ self, vec2.nx }, arena));
+        input.bind(group, .keyOn(.d, dh), try l(pan, .{ self, vec2.ny }, arena));
+        input.bind(group, .keyOn(.f, dh), try l(pan, .{ self, vec2.py }, arena));
+        input.bind(group, .keyOn(.g, dh), try l(pan, .{ self, vec2.px }, arena));
     }
 
     pub fn editor(self: *Camera) void {

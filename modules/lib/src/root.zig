@@ -1,5 +1,6 @@
 pub const closure = @import("closure.zig");
-pub const err = @import("errors.zig");
+pub const err = @import("debug.zig");
+pub const debug = @import("debug.zig");
 pub const event = @import("event.zig");
 pub const key = @import("key.zig");
 pub const math = @import("math/math.zig");

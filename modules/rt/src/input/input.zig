@@ -1,6 +1,7 @@
 const std = @import("std");
 const sdl = @import("sdl");
 const hy = @import("hyoga-lib");
+const rt = hy.runtime;
 const imgui = @import("imgui");
 const window = @import("../window.zig");
 const types = @import("types.zig");
@@ -19,24 +20,35 @@ pub const InputFlags = packed struct(u8) {
     down: bool = false,
     held: bool = false,
     _padding: u5 = 0,
+
+    comptime {
+        hy.debug.assertMatches(InputFlags, rt.Input.OnFlags);
+    }
 };
 
-pub const BindKeyOptions = extern struct {
-    group: Group.Handle,
-    button: hy.key.Keycode,
-    fire_on: InputFlags,
+pub const Device = enum(u8) {
+    mouse,
+    keyboard,
+
+    comptime {
+        hy.debug.assertMatches(Device, rt.Input.Device);
+    }
 };
 
-pub const BindMouseOptions = extern struct {
-    group: Group.Handle,
-    button: hy.key.MouseButton,
+pub const BindOptions = extern struct {
+    button: u32,
+    device: Device,
     fire_on: InputFlags,
+
+    comptime {
+        hy.debug.assertMatches(BindOptions, rt.Input.BindOptions);
+    }
 };
 
 pub const DelegateList = std.ArrayListUnmanaged(*hy.closure.Runnable);
 const ActionSet = std.EnumArray(Action, DelegateList);
-const Mousebinds = std.AutoHashMapUnmanaged(MouseButton, ActionSet);
-const Keybinds = std.AutoHashMapUnmanaged(Keycode, ActionSet);
+const Mousebinds = std.AutoHashMapUnmanaged(u32, ActionSet);
+const Keybinds = std.AutoHashMapUnmanaged(u32, ActionSet);
 const KeysDownSet = std.EnumSet(Keycode);
 const MouseDownSet = std.EnumSet(MouseButton);
 
@@ -49,14 +61,18 @@ pub const Group = struct {
     keybinds: Keybinds = .empty,
     mousebinds: Mousebinds = .empty,
 
-    pub fn getKeyCallbacks(group: *Group, button: Keycode) ?*ActionSet {
-        // const allocator = std.heap.c_allocator;
+    pub fn getCallbacks(
+        group: *Group,
+        device: Device,
+        button: u32,
+    ) *ActionSet {
         const allocator = group.arena.allocator();
-
-        const entry = group.keybinds.getOrPut(allocator, button) catch {
-            std.log.warn("[INPUT] Out of memory", .{});
-            return null;
+        const action_set = switch (device) {
+            .mouse => &group.mousebinds,
+            .keyboard => &group.keybinds,
         };
+
+        const entry = action_set.getOrPut(allocator, button) catch hy.err.oom();
 
         if (!entry.found_existing) {
             entry.value_ptr.* = ActionSet.initFill(.{});
@@ -65,38 +81,16 @@ pub const Group = struct {
         return entry.value_ptr;
     }
 
-    pub fn getMouseCallbacks(group: *Group, button: MouseButton) ?*ActionSet {
-        // const allocator = std.heap.c_allocator;
+    pub fn bind(
+        group: *Group,
+        options: BindOptions,
+        delegate: *hy.closure.Runnable,
+    ) !void {
         const allocator = group.arena.allocator();
+        var action_set = group.getCallbacks(options.device, options.button);
 
-        const entry = group.mousebinds.getOrPut(allocator, button) catch {
-            std.log.warn("[INPUT] Out of memory", .{});
-            return null;
-        };
-        if (!entry.found_existing) {
-            entry.value_ptr.* = ActionSet.initFill(.{});
-        }
-        return entry.value_ptr;
-    }
-
-    pub fn bindMouse(group: *Group, options: BindMouseOptions, delegate: *hy.closure.Runnable) !void {
-        // const allocator = std.heap.c_allocator;
-        const allocator = group.arena.allocator();
-
-        const action_set = group.getMouseCallbacks(options.button) orelse return;
         const fire_on = options.fire_on;
 
-        if (fire_on.down) try action_set.getPtr(.down).append(allocator, delegate);
-        if (fire_on.up) try action_set.getPtr(.up).append(allocator, delegate);
-        if (fire_on.held) try action_set.getPtr(.held).append(allocator, delegate);
-    }
-
-    pub fn bindKey(group: *Group, options: BindKeyOptions, delegate: *hy.closure.Runnable) !void {
-        // const allocator = std.heap.c_allocator;
-        const allocator = group.arena.allocator();
-
-        const action_set = group.getKeyCallbacks(options.button) orelse return;
-        const fire_on = options.fire_on;
         if (fire_on.down) try action_set.getPtr(.down).append(allocator, delegate);
         if (fire_on.up) try action_set.getPtr(.up).append(allocator, delegate);
         if (fire_on.held) try action_set.getPtr(.held).append(allocator, delegate);
@@ -154,14 +148,9 @@ pub fn setGroupEnabled(
     group.enabled = enabled;
 }
 
-pub fn bindMouse(self: *Input, options: BindMouseOptions, delegate: *hy.closure.Runnable) !void {
-    var group = self.groups.getPtr(options.group) catch std.debug.panic("No input group found", .{});
-    group.bindMouse(options, delegate) catch std.debug.panic("failed to bind input", .{});
-}
-
-pub fn bindKey(self: *Input, options: BindKeyOptions, delegate: *hy.closure.Runnable) !void {
-    var group = self.groups.getPtr(options.group) catch std.debug.panic("No input group found", .{});
-    group.bindKey(options, delegate) catch std.debug.panic("failed to bind input", .{});
+pub fn bind(self: *Input, hdl: Group.Handle, options: BindOptions, delegate: *hy.closure.Runnable) !void {
+    var group = self.groups.getPtr(hdl) catch std.debug.panic("No input group found", .{});
+    group.bind(options, delegate) catch std.debug.panic("failed to bind input", .{});
 }
 
 pub fn queryKey(self: *Input, key: types.Keycode) bool {
@@ -179,28 +168,16 @@ pub fn queryMousePosition(_: *Input) hy.math.Vec2 {
     return hy.math.vec2.create(x, y);
 }
 
-pub fn post(self: *Input, key: types.Keycode, mods: types.Keymod, action: Action, event: sdl.events.Event) void {
+pub fn post(self: *Input, device: Device, key: u32, mods: types.Keymod, action: Action, event: anytype) void {
     _ = mods;
 
     var it = self.groups.iterator();
     while (it.nextPtr()) |group| {
         if (group.enabled) {
-            const callbacks = group.getKeyCallbacks(key) orelse return;
+            const callbacks = group.getCallbacks(device, key);
             for (callbacks.getPtr(action).items) |handler| {
                 var e = event;
                 @call(.auto, handler.runFn, .{ handler, &e });
-            }
-        }
-    }
-}
-
-pub fn postMouse(self: *Input, mouse: MouseButton, action: Action, event: anytype) void {
-    var it = self.groups.iterator();
-    while (it.nextPtr()) |group| {
-        if (group.enabled) {
-            const callbacks = group.getMouseCallbacks(mouse) orelse return;
-            for (callbacks.getPtr(action).items) |handler| {
-                @call(.auto, handler.runFn, .{ handler, @constCast(&event) });
             }
         }
     }
@@ -211,13 +188,26 @@ pub fn updateKeyboard(self: *Input, event: sdl.events.Event) void {
         sdl.events.type.key_down => {
             const key = types.fromSdl(event.key.key);
             self.keys_down.insert(key);
-            self.post(key, undefined, if (event.key.repeat) .held else .down, event);
+            self.post(
+                .keyboard,
+                @intFromEnum(key),
+                undefined,
+                if (event.key.repeat) .held else .down,
+                event,
+            );
         },
 
         sdl.events.type.key_up => {
             const key = types.fromSdl(event.key.key);
             _ = self.keys_down.remove(key);
-            self.post(key, undefined, .up, event);
+
+            self.post(
+                .keyboard,
+                @intFromEnum(key),
+                undefined,
+                .up,
+                event,
+            );
         },
 
         else => {},
@@ -230,52 +220,67 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
 
     switch (event.type) {
         sdl.events.type.mouse_button_down => {
-            switch (event.button.button) {
-                1 => {
-                    self.mouse_state.insert(.left);
-                    self.postMouse(.left, .down, event);
-                },
-                2 => {
-                    self.mouse_state.insert(.middle);
-                    self.postMouse(.middle, .down, event);
-                },
-                3 => {
-                    self.mouse_state.insert(.right);
-                    self.postMouse(.right, .down, event);
-                },
-                else => {},
-            }
+            const button: MouseButton = switch (event.button.button) {
+                0 => unreachable,
+                1 => .left,
+                2 => .middle,
+                3 => .right,
+                else => |v| @enumFromInt(v + 100),
+            };
+
+            self.mouse_state.insert(button);
+            self.post(
+                .mouse,
+                @intFromEnum(button),
+                undefined,
+                .down,
+                event,
+            );
         },
 
         sdl.events.type.mouse_button_up => {
-            switch (event.button.button) {
-                1 => {
-                    self.mouse_state.remove(.left);
-                    self.postMouse(.left, .up, event);
-                },
-                2 => {
-                    self.mouse_state.remove(.middle);
-                    self.postMouse(.middle, .up, event);
-                },
-                3 => {
-                    self.mouse_state.remove(.right);
-                    self.postMouse(.right, .up, event);
-                },
-                else => {},
-            }
+            const button: MouseButton = switch (event.button.button) {
+                0 => unreachable,
+                1 => .left,
+                2 => .middle,
+                3 => .right,
+                else => |v| @enumFromInt(v + 100),
+            };
+
+            self.mouse_state.remove(button);
+            self.post(
+                .mouse,
+                @intFromEnum(button),
+                undefined,
+                .up,
+                event,
+            );
         },
 
         sdl.events.type.mouse_motion => {
             self.mouse_state.insert(.motion);
             const m = event.motion;
-            self.postMouse(.motion, .down, hy.event.MouseMotion{
-                .position = hy.math.vec(.{ m.x, m.y }),
-                .delta = hy.math.vec(.{ m.xrel, m.yrel }),
-            });
+            self.post(
+                .mouse,
+                @intFromEnum(MouseButton.motion),
+                undefined,
+                .down,
+                hy.event.MouseMotion{
+                    .position = hy.math.vec(.{ m.x, m.y }),
+                    .delta = hy.math.vec(.{ m.xrel, m.yrel }),
+                },
+            );
         },
+
         sdl.events.type.mouse_wheel => {
+            self.post(
+                .mouse,
+                @intFromEnum(MouseButton.wheel),
+                undefined,
+                .down,
+                hy.event.MouseWheel{ .delta = event.wheel.y },
+            );
             self.mouse_state.insert(.wheel);
-            self.postMouse(.wheel, .down, hy.event.MouseWheel{ .delta = event.wheel.y });
         },
         else => {},
     }

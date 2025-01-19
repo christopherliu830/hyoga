@@ -153,14 +153,8 @@ export fn hyioSetGroupEnabled(input: *Input, group: Input.Group.Handle, enabled:
     input.setGroupEnabled(group, enabled);
 }
 
-export fn hyioBindMouse(input: *Input, options: Input.BindMouseOptions, delegate: *hy.closure.Runnable) void {
-    input.bindMouse(options, delegate) catch |e| {
-        std.log.err("Could not bind delegate: {}", .{e});
-    };
-}
-
-export fn hyioBindKey(input: *Input, options: Input.BindKeyOptions, delegate: *hy.closure.Runnable) void {
-    input.bindKey(options, delegate) catch |e| {
+export fn hyioBind(input: *Input, group: Input.Group.Handle, options: Input.BindOptions, delegate: *hy.closure.Runnable) void {
+    input.bind(group, options, delegate) catch |e| {
         std.log.err("Could not bind delegate: {}", .{e});
     };
 }

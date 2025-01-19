@@ -2,7 +2,7 @@ const sdl = @import("sdl");
 
 pub const Keymod = c_uint;
 
-pub const Keycode = enum {
+pub const Keycode = enum(u32) {
     unknown,
     @"return",
     escape,
@@ -260,6 +260,7 @@ pub const MouseButton = enum(u8) {
     middle, // m3
     motion,
     wheel,
+    _,
 };
 
 pub const mod_none = @as(c_uint, 0x0000);

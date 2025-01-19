@@ -10,7 +10,8 @@ const oom = hy.err.oom;
 
 const ui = @import("ui.zig");
 const cam = @import("camera.zig");
-const Entity = @import("entity.zig").Entity;
+const ent = @import("entity.zig");
+const Entity = ent.Entity;
 
 const Self = @This();
 
@@ -77,7 +78,7 @@ pub fn init(engine: *hy.Engine) !hy.World {
         for (0..10) |x| {
             const fx: f32 = @floatFromInt(x);
             const fy: f32 = @floatFromInt(y);
-            const cursor = self.objects.insert(.createCube(engine.gpu())) catch oom();
+            const cursor = self.objects.insert(ent.createCube(engine.gpu())) catch oom();
             const object = cursor.unwrap();
 
             object.position = hym.vec(.{ fx, 9 - fy, 0 });
@@ -209,23 +210,19 @@ fn registerInputs(self: *Self, engine: *hy.Engine) !void {
 
     const l = hy.closure.create;
 
-    input.bindKey(
-        .{ .group = self.input_group, .button = .f1 },
-        try l(switchControlMode, .{ self, engine, .game }, self.callback_arena.allocator()),
-    );
-
-    input.bindKey(
-        .{ .group = self.input_group, .button = .f2 },
-        try l(switchControlMode, .{ self, engine, .noclip }, self.callback_arena.allocator()),
-    );
+    const allocator = self.callback_arena.allocator();
+    input.bind(group, .key(.q), try l(switchControlMode, .{ self, engine, .game }, allocator));
+    input.bind(group, .key(.w), try l(switchControlMode, .{ self, engine, .noclip }, allocator));
 }
 
 fn switchControlMode(self: *Self, engine: *hy.Engine, mode: ControlMode, _: ?*anyopaque) void {
     switch (mode) {
         .noclip => {
+            engine.window().setRelativeMouseMode(false);
             engine.input().setGroupEnabled(self.camera.input_group, true);
         },
         .game => {
+            engine.window().setRelativeMouseMode(false);
             engine.input().setGroupEnabled(self.camera.input_group, false);
         },
     }

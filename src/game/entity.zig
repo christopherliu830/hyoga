@@ -7,8 +7,9 @@ const Mat4 = hym.Mat4;
 pub const Transform = struct {};
 
 pub const Entity = struct {
-    gpu: *hy.runtime.Gpu,
-    renderable: hy.runtime.gpu.RenderItemHandle = .invalid,
+    gpu: *hy.Gpu,
+    renderable: hy.gpu.RenderItemHandle = .invalid,
+    input_group: hy.Input.Group = .none,
     position: hym.Vec3 = .zero,
     rotation: hym.Vec3 = .zero,
     scale: hym.Vec3 = .one,
@@ -33,10 +34,25 @@ pub const Entity = struct {
             .max = scaled_max.add(self.position),
         };
     }
-
-    pub fn createCube(gpu: *hy.runtime.Gpu) Entity {
-        const cube = gpu.modelPrimitive(.cube);
-        const renderable = gpu.addRenderable(.{ .model = cube });
-        return .{ .gpu = gpu, .renderable = renderable };
-    }
 };
+
+pub fn createCube(gpu: *hy.Gpu) Entity {
+    const cube = gpu.modelPrimitive(.cube);
+    const renderable = gpu.addRenderable(.{ .model = cube });
+    return .{ .gpu = gpu, .renderable = renderable };
+}
+
+pub fn createPlayer(gpu: *hy.Gpu) Entity {
+    const cube_entity = createCube(gpu);
+    return cube_entity;
+}
+
+pub fn registerInputs(player: Entity, input: *hy.Input) void {
+    const group = input.getGroup(player.input_group);
+
+    if (player.input_group == group) {
+        return;
+    }
+
+    player.input_group = group;
+}

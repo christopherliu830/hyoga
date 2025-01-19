@@ -9,6 +9,13 @@ const Vec3 = vec3.Vec3;
 pub const Vec2 = extern struct {
     v: @Vector(2, f32),
 
+    pub const zero = Vec2{ .v = .{ 0, 0 } };
+    pub const one = Vec2{ .v = .{ 1, 1 } };
+    pub const px = Vec2{ .v = .{ 1, 0 } };
+    pub const py = Vec2{ .v = .{ 0, 1 } };
+    pub const nx = Vec2{ .v = .{ -1, 0 } };
+    pub const ny = Vec2{ .v = .{ 0, -1 } };
+
     pub inline fn x(self: Vec2) f32 {
         return self.v[0];
     }
@@ -58,15 +65,12 @@ pub const Vec2 = extern struct {
     }
 };
 
-pub const zero: Vec2 = .{ .v = .{ 0, 0 } };
-
-pub const one: Vec2 = .{ .v = .{ 1, 1 } };
-
-pub const x: Vec2 = .{ .v = .{ 1, 0 } };
-
-pub const y: Vec2 = .{ .v = .{ 0, 1 } };
-
-pub const z: Vec2 = .{ .v = .{ 0, 0 } };
+pub const zero = Vec2{ .v = .{ 0, 0 } };
+pub const one = Vec2{ .v = .{ 1, 1 } };
+pub const px = Vec2{ .v = .{ 1, 0 } };
+pub const py = Vec2{ .v = .{ 0, 1 } };
+pub const nx = Vec2{ .v = .{ -1, 0 } };
+pub const ny = Vec2{ .v = .{ 0, -1 } };
 
 pub inline fn create(i: f32, j: f32) Vec2 {
     return .{ .v = .{ i, j } };
