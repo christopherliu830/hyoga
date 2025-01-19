@@ -20,9 +20,15 @@ const Object = struct {
     hdl: rt.gpu.RenderItemHandle = .invalid,
 };
 
+const ControlMode = enum {
+    noclip,
+    game,
+};
+
 allocator: std.mem.Allocator,
 arena: std.heap.ArenaAllocator,
 callback_arena: std.heap.ArenaAllocator,
+input_group: hy.Input.Group,
 cube_model: rt.gpu.ModelHandle = .invalid,
 cube: Object = .{},
 entity: Entity,
@@ -44,6 +50,7 @@ pub fn init(engine: *hy.Engine) !hy.World {
         .allocator = allocator,
         .arena = std.heap.ArenaAllocator.init(self.allocator),
         .callback_arena = std.heap.ArenaAllocator.init(self.allocator),
+        .input_group = .none,
         .objects = SkipMap(Entity).create(self.allocator, .{}) catch oom(),
         .selected_objects = try .initCapacity(self.allocator, 8),
         .ui_state = .{ .second_timer = std.time.Timer.start() catch unreachable },
@@ -54,6 +61,8 @@ pub fn init(engine: *hy.Engine) !hy.World {
         },
         .timer = std.time.Timer.start() catch unreachable,
     };
+
+    self.registerInputs(engine) catch unreachable;
 
     const gpu = engine.gpu();
     const cube = gpu.modelPrimitive(.cube);
@@ -189,4 +198,35 @@ pub fn reload(engine: *hy.Engine, game: hy.World) !void {
     const ui_state = engine.ui().getGlobalState();
     imgui.SetCurrentContext(@ptrCast(ui_state.imgui_ctx));
     implot.setCurrentContext(@ptrCast(ui_state.implot_ctx));
+}
+
+fn registerInputs(self: *Self, engine: *hy.Engine) !void {
+    const input = engine.input();
+    const group = input.getGroup(self.input_group);
+
+    if (group == self.input_group) return;
+    self.input_group = group;
+
+    const l = hy.closure.create;
+
+    input.bindKey(
+        .{ .group = self.input_group, .button = .f1 },
+        try l(switchControlMode, .{ self, engine, .game }, self.callback_arena.allocator()),
+    );
+
+    input.bindKey(
+        .{ .group = self.input_group, .button = .f2 },
+        try l(switchControlMode, .{ self, engine, .noclip }, self.callback_arena.allocator()),
+    );
+}
+
+fn switchControlMode(self: *Self, engine: *hy.Engine, mode: ControlMode, _: ?*anyopaque) void {
+    switch (mode) {
+        .noclip => {
+            engine.input().setGroupEnabled(self.camera.input_group, true);
+        },
+        .game => {
+            engine.input().setGroupEnabled(self.camera.input_group, false);
+        },
+    }
 }

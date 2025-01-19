@@ -10,14 +10,11 @@ const mat4 = hym.mat4;
 const ViewMatrix = hym.Mat4;
 
 pub const Camera = struct {
-    input_group: hy.runtime.Input.Group = .invalid,
-
-    window: *hy.runtime.Window,
+    input_group: hy.Input.Group = .none,
+    window: *hy.Window,
 
     position: vec3.Vec3 = vec3.create(0, 0, 4),
     look_direction: vec3.Vec3 = vec3.create(0, 0, -1),
-    pending_input: vec2.Vec2 = vec2.zero,
-    mouse_lock_position: vec2.Vec2 = vec2.create(-1, -1),
 
     fovy: f32 = 1,
     z_near: f32 = 0.1,
@@ -140,7 +137,7 @@ fn lockMouse(cam: *Camera, lock: bool, _: ?*anyopaque) void {
     cam.window.setRelativeMouseMode(lock);
 }
 
-fn translate(cam: *Camera, input: *hy.runtime.Input, event: ?*anyopaque) void {
+fn translate(cam: *Camera, input: *hy.Input, event: ?*anyopaque) void {
     const motion: *hy.event.MouseMotion = @ptrCast(@alignCast(event));
 
     // pan

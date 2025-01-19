@@ -50,6 +50,7 @@ pub const Group = struct {
     mousebinds: Mousebinds = .empty,
 
     pub fn getKeyCallbacks(group: *Group, button: Keycode) ?*ActionSet {
+        // const allocator = std.heap.c_allocator;
         const allocator = group.arena.allocator();
 
         const entry = group.keybinds.getOrPut(allocator, button) catch {
@@ -65,6 +66,7 @@ pub const Group = struct {
     }
 
     pub fn getMouseCallbacks(group: *Group, button: MouseButton) ?*ActionSet {
+        // const allocator = std.heap.c_allocator;
         const allocator = group.arena.allocator();
 
         const entry = group.mousebinds.getOrPut(allocator, button) catch {
@@ -78,6 +80,7 @@ pub const Group = struct {
     }
 
     pub fn bindMouse(group: *Group, options: BindMouseOptions, delegate: *hy.closure.Runnable) !void {
+        // const allocator = std.heap.c_allocator;
         const allocator = group.arena.allocator();
 
         const action_set = group.getMouseCallbacks(options.button) orelse return;
@@ -89,6 +92,7 @@ pub const Group = struct {
     }
 
     pub fn bindKey(group: *Group, options: BindKeyOptions, delegate: *hy.closure.Runnable) !void {
+        // const allocator = std.heap.c_allocator;
         const allocator = group.arena.allocator();
 
         const action_set = group.getKeyCallbacks(options.button) orelse return;
@@ -103,7 +107,6 @@ allocator: std.mem.Allocator,
 keybinds: Keybinds = .empty,
 mousebinds: Mousebinds = .empty,
 groups: hy.SlotMap(Group),
-group: Group,
 keys_down: KeysDownSet = .{},
 mouse_state: MouseDownSet = .{},
 
@@ -113,7 +116,6 @@ pub fn init(in_allocator: std.mem.Allocator) Input {
     return .{
         .allocator = in_allocator,
         .groups = hy.SlotMap(Group).create(in_allocator, 8) catch hy.err.oom(),
-        .group = undefined,
         .input_inited = true,
     };
 }
@@ -127,20 +129,11 @@ pub fn reset(self: *Input) void {
 }
 
 pub fn createGroup(self: *Input) Group.Handle {
-    return self.groups.insert(.{
+    const hdl = self.groups.insert(.{
         .input = self,
-        .arena = .init(self.allocator),
-    }) catch hy.err.oom();
-}
-
-pub fn setGroupEnabled(
-    self: *Input,
-    hdl: Group.Handle,
-    enabled: bool,
-) void {
-    if (self.groups.get(hdl)) |group| {
-        group.enabled = enabled;
-    }
+        .arena = .init(std.heap.c_allocator),
+    }) catch unreachable;
+    return hdl;
 }
 
 pub fn getGroup(self: *Input, hdl: Group.Handle) Group.Handle {
@@ -149,6 +142,16 @@ pub fn getGroup(self: *Input, hdl: Group.Handle) Group.Handle {
     } else |_| {
         return self.createGroup();
     }
+}
+
+pub fn setGroupEnabled(
+    self: *Input,
+    hdl: Group.Handle,
+    enabled: bool,
+) void {
+    const group = self.groups.getPtr(hdl) catch
+        std.debug.panic("Invalid group handle", .{});
+    group.enabled = enabled;
 }
 
 pub fn bindMouse(self: *Input, options: BindMouseOptions, delegate: *hy.closure.Runnable) !void {
@@ -181,10 +184,12 @@ pub fn post(self: *Input, key: types.Keycode, mods: types.Keymod, action: Action
 
     var it = self.groups.iterator();
     while (it.nextPtr()) |group| {
-        const callbacks = group.getKeyCallbacks(key) orelse return;
-        for (callbacks.getPtr(action).items) |handler| {
-            var e = event;
-            @call(.auto, handler.runFn, .{ handler, &e });
+        if (group.enabled) {
+            const callbacks = group.getKeyCallbacks(key) orelse return;
+            for (callbacks.getPtr(action).items) |handler| {
+                var e = event;
+                @call(.auto, handler.runFn, .{ handler, &e });
+            }
         }
     }
 }
@@ -192,9 +197,11 @@ pub fn post(self: *Input, key: types.Keycode, mods: types.Keymod, action: Action
 pub fn postMouse(self: *Input, mouse: MouseButton, action: Action, event: anytype) void {
     var it = self.groups.iterator();
     while (it.nextPtr()) |group| {
-        const callbacks = group.getMouseCallbacks(mouse) orelse return;
-        for (callbacks.getPtr(action).items) |handler| {
-            @call(.auto, handler.runFn, .{ handler, @constCast(&event) });
+        if (group.enabled) {
+            const callbacks = group.getMouseCallbacks(mouse) orelse return;
+            for (callbacks.getPtr(action).items) |handler| {
+                @call(.auto, handler.runFn, .{ handler, @constCast(&event) });
+            }
         }
     }
 }

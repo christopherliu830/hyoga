@@ -6,13 +6,14 @@ const closure = @import("../closure.zig");
 
 pub const Input = opaque {
     pub const Group = enum(u64) {
-        invalid = 0,
+        none = 0,
         _,
     };
 
     pub const reset = hyioReset;
     pub const createGroup = hyioCreateGroup;
     pub const getGroup = hyioGetGroup;
+    pub const setGroupEnabled = hyioSetGroupEnabled;
     pub const bindMouse = hyioBindMouse;
     pub const bindKey = hyioBindKey;
     pub const queryMouse = hyioQueryMouse;
@@ -42,6 +43,7 @@ pub const BindMouseOptions = extern struct {
 extern fn hyioReset(*Input) void;
 extern fn hyioCreateGroup(*Input) Input.Group;
 extern fn hyioGetGroup(*Input, Input.Group) Input.Group;
+extern fn hyioSetGroupEnabled(*Input, Input.Group, bool) void;
 extern fn hyioBindMouse(*Input, BindMouseOptions, *closure.Runnable) void;
 extern fn hyioBindKey(*Input, BindKeyOptions, *closure.Runnable) void;
 extern fn hyioQueryMouse(*Input, key.MouseButton) bool;

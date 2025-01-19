@@ -7,11 +7,16 @@ pub const runtime = @import("runtime.zig");
 pub const slot_map = @import("slot_map.zig");
 pub const skip_map = @import("skip_map.zig");
 
+pub const gpu = runtime.gpu;
+
 pub const SlotMap = slot_map.SlotMap;
 pub const SkipMap = skip_map.SkipMap;
 pub const Engine = runtime.Engine;
 pub const GameInterface = runtime.GameInterface;
 pub const World = runtime.World;
+pub const Input = runtime.Input;
+pub const Gpu = runtime.Gpu;
+pub const Window = runtime.Window;
 pub const Keycode = key.Keycode;
 pub const Keymod = key.Keymod;
 pub const MouseButton = key.MouseButton;

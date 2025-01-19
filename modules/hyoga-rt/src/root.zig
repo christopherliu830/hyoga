@@ -149,6 +149,10 @@ export fn hyioGetGroup(input: *Input, hdl: Input.Group.Handle) Input.Group.Handl
     return input.getGroup(hdl);
 }
 
+export fn hyioSetGroupEnabled(input: *Input, group: Input.Group.Handle, enabled: bool) void {
+    input.setGroupEnabled(group, enabled);
+}
+
 export fn hyioBindMouse(input: *Input, options: Input.BindMouseOptions, delegate: *hy.closure.Runnable) void {
     input.bindMouse(options, delegate) catch |e| {
         std.log.err("Could not bind delegate: {}", .{e});

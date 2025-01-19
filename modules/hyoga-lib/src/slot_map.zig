@@ -27,7 +27,7 @@ pub fn SlotMap(comptime T: type) type {
 
     return struct {
         pub const ValidItemsIterator = struct {
-            arena: *SlotMap(T),
+            slot_map: *SlotMap(T),
             next_index: u32 = 0,
 
             pub inline fn index(self: *ValidItemsIterator) u32 {
@@ -36,11 +36,10 @@ pub fn SlotMap(comptime T: type) type {
 
             pub fn nextPtr(self: *ValidItemsIterator) ?*T {
                 const i = self.next_index;
-                if (i < 0 or i >= self.arena.len) return null;
+                if (i < 0 or i >= self.slot_map.len) return null;
 
-                while (self.next_index < self.arena.len) {
-                    var slot = self.arena.entries.items[self.next_index];
-                    switch (slot) {
+                while (self.next_index < self.slot_map.len) {
+                    switch (self.slot_map.slots()[self.next_index]) {
                         .occupied => |*val| {
                             self.next_index += 1;
                             return &val.value;
@@ -56,10 +55,10 @@ pub fn SlotMap(comptime T: type) type {
 
             pub fn next(self: *ValidItemsIterator) ?T {
                 const i = self.next_index;
-                if (i < 0 or i >= self.arena.len) return null;
+                if (i < 0 or i >= self.slot_map.len) return null;
 
-                while (self.next_index < self.arena.len) {
-                    const slot = self.arena.entries.items[self.next_index];
+                while (self.next_index < self.slot_map.len) {
+                    const slot = self.slot_map.entries.items[self.next_index];
                     switch (slot) {
                         .occupied => |val| {
                             self.next_index += 1;
@@ -160,8 +159,8 @@ pub fn SlotMap(comptime T: type) type {
         }
 
         pub fn iterator(self: *SlotMap(T)) ValidItemsIterator {
-            return ValidItemsIterator{
-                .arena = self,
+            return .{
+                .slot_map = self,
                 .next_index = 0,
             };
         }
