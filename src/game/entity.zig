@@ -4,8 +4,6 @@ const hym = hy.math;
 
 const Mat4 = hym.Mat4;
 
-pub const Transform = struct {};
-
 pub const Entity = struct {
     gpu: *hy.Gpu,
     renderable: hy.gpu.RenderItemHandle = .invalid,
@@ -36,23 +34,45 @@ pub const Entity = struct {
     }
 };
 
+pub const Player = struct {
+    entity: Entity,
+    move_delta: hym.Vec2,
+
+    pub fn update(self: *Player) void {
+        // self.entity.position = .add(self.entity.position, self.move_delta.append(0));
+        self.entity.pushRender();
+    }
+};
+
 pub fn createCube(gpu: *hy.Gpu) Entity {
     const cube = gpu.modelPrimitive(.cube);
     const renderable = gpu.addRenderable(.{ .model = cube });
-    return .{ .gpu = gpu, .renderable = renderable };
+    return .{ .gpu = gpu, .renderable = renderable, .bounds = gpu.modelBounds(cube) };
 }
 
-pub fn createPlayer(gpu: *hy.Gpu) Entity {
-    const cube_entity = createCube(gpu);
-    return cube_entity;
+pub fn createPlayer(gpu: *hy.Gpu) Player {
+    return .{
+        .entity = createCube(gpu),
+        .move_delta = .zero,
+    };
 }
 
-pub fn registerInputs(player: Entity, input: *hy.Input) void {
-    const group = input.getGroup(player.input_group);
+/// Sets input_group on entity passed in.
+pub fn playerRegisterInputs(player: *Player, input: *hy.Input, callback_arena: std.mem.Allocator) void {
+    const group = input.getGroup(player.entity.input_group);
 
-    if (player.input_group == group) {
+    if (player.entity.input_group == group) {
         return;
     }
 
-    player.input_group = group;
+    player.entity.input_group = group;
+    const l: hy.closure.Builder = .{ .allocator = callback_arena };
+    input.bind(group, .keyOn(.w, .{.down = true }), l.make(playerMove, .{player, hym.vec(.{0, 1})})); 
+    input.bind(group, .keyOn(.a, .{.down = true }), l.make(playerMove, .{player, hym.vec(.{-1, 0})})); 
+    input.bind(group, .keyOn(.s, .{.down = true }), l.make(playerMove, .{player, hym.vec(.{0, -1})})); 
+    input.bind(group, .keyOn(.d, .{.down = true}), l.make(playerMove, .{player, hym.vec(.{1, 0})})); 
+}
+
+fn playerMove(player: *Player, delta: hym.Vec2, _: ?*anyopaque) void {
+    player.move_delta = delta;
 }

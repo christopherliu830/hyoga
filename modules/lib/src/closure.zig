@@ -1,4 +1,5 @@
 const std = @import("std");
+const debug = @import("debug.zig");
 
 pub const RunProto = *const fn (*Runnable, ctx: ?*anyopaque) void;
 pub const Runnable = struct { runFn: RunProto };
@@ -25,3 +26,12 @@ pub fn create(
     closure.* = .{ .arguments = args };
     return &closure.runnable;
 }
+
+/// Convenience builder for making many closures at once.
+pub const Builder = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn make(self: *const Builder, handler: anytype, args: anytype) *Runnable {
+        return create(handler, args, self.allocator) catch debug.oom();
+    }
+};

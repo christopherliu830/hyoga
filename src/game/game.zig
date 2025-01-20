@@ -37,7 +37,7 @@ callback_arena: std.heap.ArenaAllocator,
 input_group: hy.Input.Group,
 cube_model: rt.gpu.ModelHandle = .invalid,
 cube: Object = .{},
-entity: Entity,
+entity: ent.Player,
 objects: SkipMap(Entity),
 selected_objects: std.ArrayListUnmanaged(struct { hym.Vec3, *Entity }),
 ui_state: ui.State,
@@ -51,8 +51,10 @@ pub fn init(engine: *hy.Engine) !hy.World {
         .ptr = extern_allocator.ptr,
         .vtable = extern_allocator.vtable,
     };
-    const self = allocator.create(Self) catch oom();
 
+    const gpu = engine.gpu();
+
+    const self = allocator.create(Self) catch oom();
     self.* = .{
         .allocator = allocator,
         .arena = std.heap.ArenaAllocator.init(self.allocator),
@@ -62,23 +64,17 @@ pub fn init(engine: *hy.Engine) !hy.World {
         .selected_objects = try .initCapacity(self.allocator, 8),
         .ui_state = .{ .second_timer = std.time.Timer.start() catch unreachable, .mode = .noclip },
         .camera = .{ .window = engine.window() },
-        .entity = .{
-            .gpu = engine.gpu(),
-            .position = hym.vec(.{ 0, 0, 5 }),
-        },
+        .entity = ent.createPlayer(gpu),
         .timer = std.time.Timer.start() catch unreachable,
     };
 
     self.registerInputs(engine) catch unreachable;
 
-    const gpu = engine.gpu();
     const cube = gpu.modelPrimitive(.cube);
     const bounds = gpu.modelBounds(cube);
 
-    self.entity.renderable = gpu.addRenderable(.{ .model = cube });
-    self.entity.bounds = bounds;
-
-    self.entity.pushRender();
+    self.entity = ent.createPlayer(gpu);
+    ent.playerRegisterInputs(&self.entity, engine.input(), self.callback_arena.allocator());
 
     for (0..10) |y| {
         for (0..10) |x| {
@@ -163,6 +159,8 @@ pub fn render(engine: *hy.Engine, state: hy.World) callconv(.C) void {
         object.pushRender();
     }
 
+    self.entity.update();
+
     ui.drawMainUI(&self.ui_state);
     self.ui_state.frame_time = state.render_delta_time;
     if (self.ui_state.windows.camera) self.camera.editor();
@@ -223,8 +221,8 @@ fn registerInputs(self: *Self, engine: *hy.Engine) !void {
     const l = hy.closure.create;
 
     const allocator = self.callback_arena.allocator();
-    input.bind(group, .key(.q), try l(switchControlMode, .{ self, engine, .game }, allocator));
-    input.bind(group, .key(.w), try l(switchControlMode, .{ self, engine, .noclip }, allocator));
+    input.bind(group, .key(.@"1"), try l(switchControlMode, .{ self, engine, .game }, allocator));
+    input.bind(group, .key(.@"2"), try l(switchControlMode, .{ self, engine, .noclip }, allocator));
     input.bind(group, .mouseOn(.left, .{ .down = true, .held = true }), try l(intersect, .{ self, engine }, allocator));
 }
 
@@ -234,10 +232,12 @@ fn switchControlMode(self: *Self, engine: *hy.Engine, mode: ControlMode, _: ?*an
         .noclip => {
             engine.window().setRelativeMouseMode(false);
             engine.input().setGroupEnabled(self.camera.input_group, true);
+            engine.input().setGroupEnabled(self.entity.entity.input_group, false);
         },
         .game => {
             engine.window().setRelativeMouseMode(false);
             engine.input().setGroupEnabled(self.camera.input_group, false);
+            engine.input().setGroupEnabled(self.entity.entity.input_group, true);
         },
     }
 }
