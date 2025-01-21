@@ -5,6 +5,12 @@ pub inline fn oom() noreturn {
     std.debug.panic("out of memory", .{});
 }
 
+pub fn singlePointerChild(T: type) type {
+    const info = @typeInfo(T);
+    std.debug.assert(info.pointer.size == .One);
+    return info.pointer.child;
+}
+
 pub fn assertMatches(comptime A: type, comptime B: type) void {
     switch (@typeInfo(A)) {
         .@"struct" => assertStructMatches(A, B),

@@ -15,6 +15,10 @@ const Engine = @This();
 const World = @import("root.zig").World;
 const GameInterface = @import("root.zig").GameInterface;
 
+pub const Config = struct {
+    max_fps: u32 = 256,
+};
+
 gpa: std.heap.GeneralPurposeAllocator(.{}),
 arena: std.heap.ArenaAllocator,
 game_arena: std.heap.ArenaAllocator,
@@ -26,6 +30,7 @@ ui: UI,
 loader: Loader,
 timer: std.time.Timer,
 render_timer: std.time.Timer,
+config: Config = .{},
 
 pub fn init() !*Engine {
     var self_gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
@@ -65,6 +70,8 @@ pub fn shutdown(self: *Engine) void {
 
 pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
     var game = old_game;
+
+    const start_time = self.timer.read();
 
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
@@ -118,6 +125,11 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
     }
 
     game.update_delta_time = self.timer.lap();
+    const update_duration = game.update_delta_time - start_time;
+    const min_update_time: u64 = @intFromFloat(1 / @as(f64, @floatFromInt(self.config.max_fps)) * std.time.ns_per_s);
+    if (min_update_time > update_duration) {
+        std.time.sleep(min_update_time - update_duration);
+    }
 
     @import("ztracy").FrameMark();
     return game;

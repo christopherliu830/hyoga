@@ -1,5 +1,7 @@
 const std = @import("std");
 const hy = @import("hyoga-lib");
+const imgui = @import("imgui");
+const ui = @import("ui.zig");
 const hym = hy.math;
 
 const Mat4 = hym.Mat4;
@@ -35,12 +37,73 @@ pub const Entity = struct {
 };
 
 pub const Player = struct {
-    entity: Entity,
-    move_delta: hym.Vec2,
+    entity: *Entity,
+    velocity: hym.Vec3 = .zero,
+    move_delta: hym.Vec2 = .zero,
+    acceleration: f32 = 0,
+    deceleration: f32 = 0,
+    max_speed: f32 = 2,
 
-    pub fn update(self: *Player) void {
-        // self.entity.position = .add(self.entity.position, self.move_delta.append(0));
+    pub fn default(entity: *Entity) Player {
+        return .{
+            .entity = entity,
+            .acceleration = 145,
+            .deceleration = 50,
+            .max_speed = 8,
+        };
+    }
+
+    pub fn update(self: *Player, delta_time: f32) void {
+        const accel = self.acceleration * delta_time;
+        const decel = self.deceleration * delta_time;
+
+        const move = self.move_delta.mul(accel).append(0);
+
+        const vel = &self.velocity;
+
+        vel.* = vel.add(move);
+        const dir = vel.normal();
+
+        if (vel.sqlen() > decel * decel) {
+            vel.* = vel.sub(dir.mul(decel));
+        }
+
+        if (vel.sqlen() > self.max_speed * self.max_speed) {
+            vel.* = vel.normal().mul(self.max_speed);
+        }
+
+        self.entity.position = self.entity.position.add(vel.mul(delta_time));
         self.entity.pushRender();
+    }
+
+    /// Sets input_group on entity passed in.
+    pub fn registerInputs(player: *Player, input: *hy.Input, callback_arena: std.mem.Allocator) void {
+        const group = input.getGroup(player.entity.input_group);
+
+        if (player.entity.input_group == group) {
+            return;
+        }
+
+        player.entity.input_group = group;
+        const l: hy.closure.Builder = .{ .allocator = callback_arena };
+        input.bind(group, .key(.w), l.make(playerMove, .{ player, Axis.py }));
+        input.bind(group, .key(.a), l.make(playerMove, .{ player, Axis.nx }));
+        input.bind(group, .key(.s), l.make(playerMove, .{ player, Axis.ny }));
+        input.bind(group, .key(.d), l.make(playerMove, .{ player, Axis.px }));
+
+        input.bind(group, .keyUp(.w), l.make(playerMove, .{ player, Axis.ny }));
+        input.bind(group, .keyUp(.a), l.make(playerMove, .{ player, Axis.px }));
+        input.bind(group, .keyUp(.s), l.make(playerMove, .{ player, Axis.py }));
+        input.bind(group, .keyUp(.d), l.make(playerMove, .{ player, Axis.nx }));
+    }
+
+    pub fn inspector(self: *Player, _: ?*ui.State) void {
+        _ = imgui.DragFloat3("Position", @ptrCast(&self.entity.position));
+        _ = imgui.DragFloat2("Heading", @ptrCast(&self.move_delta));
+        _ = imgui.DragFloat("Acceleration", @ptrCast(&self.acceleration));
+        _ = imgui.DragFloat("Deceleration", @ptrCast(&self.deceleration));
+        _ = imgui.DragFloat("Max Speed", @ptrCast(&self.max_speed));
+        _ = imgui.DragFloat3("Velocity", @ptrCast(&self.velocity));
     }
 };
 
@@ -50,29 +113,15 @@ pub fn createCube(gpu: *hy.Gpu) Entity {
     return .{ .gpu = gpu, .renderable = renderable, .bounds = gpu.modelBounds(cube) };
 }
 
-pub fn createPlayer(gpu: *hy.Gpu) Player {
-    return .{
-        .entity = createCube(gpu),
-        .move_delta = .zero,
-    };
-}
+const Axis = enum { px, py, nx, ny };
 
-/// Sets input_group on entity passed in.
-pub fn playerRegisterInputs(player: *Player, input: *hy.Input, callback_arena: std.mem.Allocator) void {
-    const group = input.getGroup(player.entity.input_group);
-
-    if (player.entity.input_group == group) {
-        return;
+fn playerMove(player: *Player, axis: Axis, _: ?*anyopaque) void {
+    const md = &player.move_delta;
+    switch (axis) {
+        .px => md.* = md.add(hym.vec2.px),
+        .py => md.* = md.add(hym.vec2.py),
+        .nx => md.* = md.add(hym.vec2.nx),
+        .ny => md.* = md.add(hym.vec2.ny),
     }
-
-    player.entity.input_group = group;
-    const l: hy.closure.Builder = .{ .allocator = callback_arena };
-    input.bind(group, .keyOn(.w, .{.down = true }), l.make(playerMove, .{player, hym.vec(.{0, 1})})); 
-    input.bind(group, .keyOn(.a, .{.down = true }), l.make(playerMove, .{player, hym.vec(.{-1, 0})})); 
-    input.bind(group, .keyOn(.s, .{.down = true }), l.make(playerMove, .{player, hym.vec(.{0, -1})})); 
-    input.bind(group, .keyOn(.d, .{.down = true}), l.make(playerMove, .{player, hym.vec(.{1, 0})})); 
-}
-
-fn playerMove(player: *Player, delta: hym.Vec2, _: ?*anyopaque) void {
-    player.move_delta = delta;
+    md.v = @min(hym.vec2.one.v, @max(hym.vec2.one.mul(-1).v, md.v));
 }

@@ -15,4 +15,13 @@
     "zig.zls.inlayHintsShowVariableTypeHints": false,
     "zig.zls.inlayHintsShowStructLiteralFieldType": false,
     "zig.zls.enableBuildOnSave": true,
+    "zig.zls.completionLabelDetails": true,
+    "zig.zls.enableArgumentPlaceholders": false,
+    "editor.inlineSuggest.suppressSuggestions": true,
+    "editor.inlineSuggest.syntaxHighlightingEnabled": true,
+    "editor.suggest.preview": false,
+    "editor.suggest.showClasses": false,
+    "zig.zls.skipStdReferences": false,
+    "editor.suggest.showTypeParameters": true,
+    "editor.suggest.snippetsPreventQuickSuggestions": true,
 }

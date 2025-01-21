@@ -37,9 +37,9 @@ callback_arena: std.heap.ArenaAllocator,
 input_group: hy.Input.Group,
 cube_model: rt.gpu.ModelHandle = .invalid,
 cube: Object = .{},
-entity: ent.Player,
+player: ent.Player,
 objects: SkipMap(Entity),
-selected_objects: std.ArrayListUnmanaged(struct { hym.Vec3, *Entity }),
+selected_objects: std.ArrayListUnmanaged(*Entity),
 ui_state: ui.State,
 camera: cam.Camera,
 timer: std.time.Timer,
@@ -54,6 +54,8 @@ pub fn init(engine: *hy.Engine) !hy.World {
 
     const gpu = engine.gpu();
 
+    const cube = ent.createCube(engine.gpu());
+
     const self = allocator.create(Self) catch oom();
     self.* = .{
         .allocator = allocator,
@@ -64,17 +66,13 @@ pub fn init(engine: *hy.Engine) !hy.World {
         .selected_objects = try .initCapacity(self.allocator, 8),
         .ui_state = .{ .second_timer = std.time.Timer.start() catch unreachable, .mode = .noclip },
         .camera = .{ .window = engine.window() },
-        .entity = ent.createPlayer(gpu),
+        .player = .default((self.objects.insert(cube) catch oom()).unwrap()),
         .timer = std.time.Timer.start() catch unreachable,
     };
 
-    self.registerInputs(engine) catch unreachable;
+    self.registerInputs(engine);
 
-    const cube = gpu.modelPrimitive(.cube);
-    const bounds = gpu.modelBounds(cube);
-
-    self.entity = ent.createPlayer(gpu);
-    ent.playerRegisterInputs(&self.entity, engine.input(), self.callback_arena.allocator());
+    const bounds = gpu.modelBounds(gpu.modelPrimitive(.cube));
 
     for (0..10) |y| {
         for (0..10) |x| {
@@ -89,7 +87,6 @@ pub fn init(engine: *hy.Engine) !hy.World {
         }
     }
 
-    self.camera.registerInputs(engine.input(), self.callback_arena.allocator()) catch oom();
     self.camera.position = hym.vec(.{ 0, 0, 15 });
     self.camera.look_direction = hym.vec(.{ 0, 0, -1 });
 
@@ -117,14 +114,14 @@ pub fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
     game.scene.view_proj = self.camera.viewProj();
 
     self.world_cache = cacheWorld(&self.objects, self.arena.allocator());
+    self.selected_objects.clearRetainingCapacity();
     const ray = self.camera.worldRay(engine.input().queryMousePosition());
     const intersections = ray.intersectPacked(self.world_cache.boxes, 1000, allocator) catch oom();
-
     for (self.world_cache.objects, intersections[0..self.world_cache.objects.len]) |object, ixn| {
         if (ixn < 1000) {
             engine.gpu().selectRenderable(object.renderable);
             if (self.selected_objects.items.len < self.selected_objects.capacity) {
-                self.selected_objects.appendAssumeCapacity(.{ object.position, object });
+                self.selected_objects.appendAssumeCapacity(object);
             }
         }
     }
@@ -139,6 +136,8 @@ pub fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
             object.scale = object.scale.add(hym.vec3.one.mul(delta_time));
         }
     }
+
+    self.player.update(delta_time);
 
     if (self.ui_state.restart_requested) {
         game.restart = true;
@@ -159,10 +158,9 @@ pub fn render(engine: *hy.Engine, state: hy.World) callconv(.C) void {
         object.pushRender();
     }
 
-    self.entity.update();
-
     ui.drawMainUI(&self.ui_state);
-    self.ui_state.frame_time = state.render_delta_time;
+    self.ui_state.update_time = state.update_delta_time;
+    self.ui_state.render_time = state.render_delta_time;
     if (self.ui_state.windows.camera) self.camera.editor();
 }
 
@@ -170,10 +168,6 @@ pub fn afterRender(engine: *hy.Engine, world: hy.World) callconv(.C) void {
     engine.gpu().clearSelection();
     const self: *Self = @ptrCast(@alignCast(world.memory));
     _ = self.arena.reset(.retain_capacity);
-    for (self.selected_objects.items) |item| {
-        item[1].position = item[0];
-    }
-    self.selected_objects.clearRetainingCapacity();
 }
 
 pub fn reload(engine: *hy.Engine, game: hy.World) !void {
@@ -182,8 +176,7 @@ pub fn reload(engine: *hy.Engine, game: hy.World) !void {
     // Patch up procedure pointers
     engine.input().reset();
     _ = ptr.callback_arena.reset(.retain_capacity);
-    ptr.camera.registerInputs(engine.input(), ptr.callback_arena.allocator()) catch oom();
-    try ptr.registerInputs(engine);
+    ptr.registerInputs(engine);
 
     const ui_state = engine.ui().getGlobalState();
     imgui.SetCurrentContext(@ptrCast(ui_state.imgui_ctx));
@@ -211,19 +204,21 @@ fn cacheWorld(objects: *hy.SkipMap(Entity), arena: std.mem.Allocator) CachedWorl
     };
 }
 
-fn registerInputs(self: *Self, engine: *hy.Engine) !void {
+fn registerInputs(self: *Self, engine: *hy.Engine) void {
     const input = engine.input();
     const group = input.getGroup(self.input_group);
 
     if (group == self.input_group) return;
     self.input_group = group;
 
-    const l = hy.closure.create;
+    const l: hy.closure.Builder = .{ .allocator = self.callback_arena.allocator() };
+    input.bind(group, .key(.@"1"), l.make(switchControlMode, .{ self, engine, .game }));
+    input.bind(group, .key(.@"2"), l.make(switchControlMode, .{ self, engine, .noclip }));
+    input.bind(group, .mouse(.left), l.make(intersect, .{ self, engine }));
+    input.bind(group, .mouse(.right), l.make(inspectSelected, .{self}));
 
-    const allocator = self.callback_arena.allocator();
-    input.bind(group, .key(.@"1"), try l(switchControlMode, .{ self, engine, .game }, allocator));
-    input.bind(group, .key(.@"2"), try l(switchControlMode, .{ self, engine, .noclip }, allocator));
-    input.bind(group, .mouseOn(.left, .{ .down = true, .held = true }), try l(intersect, .{ self, engine }, allocator));
+    self.player.registerInputs(input, self.callback_arena.allocator());
+    self.camera.registerInputs(engine.input(), self.callback_arena.allocator()) catch oom();
 }
 
 fn switchControlMode(self: *Self, engine: *hy.Engine, mode: ControlMode, _: ?*anyopaque) void {
@@ -232,12 +227,12 @@ fn switchControlMode(self: *Self, engine: *hy.Engine, mode: ControlMode, _: ?*an
         .noclip => {
             engine.window().setRelativeMouseMode(false);
             engine.input().setGroupEnabled(self.camera.input_group, true);
-            engine.input().setGroupEnabled(self.entity.entity.input_group, false);
+            engine.input().setGroupEnabled(self.player.entity.input_group, false);
         },
         .game => {
             engine.window().setRelativeMouseMode(false);
             engine.input().setGroupEnabled(self.camera.input_group, false);
-            engine.input().setGroupEnabled(self.entity.entity.input_group, true);
+            engine.input().setGroupEnabled(self.player.entity.input_group, true);
         },
     }
 }
@@ -253,4 +248,15 @@ fn intersect(self: *Self, engine: *hy.Engine, _: ?*anyopaque) void {
             engine.gpu().selectRenderable(object.renderable);
         }
     }
+}
+
+fn inspectSelected(self: *Self, _: ?*anyopaque) void {
+    for (self.selected_objects.items) |obj| {
+        if (obj == self.player.entity) {
+            self.ui_state.windows.inspector = true;
+            self.ui_state.inspector = .{ .player = &self.player };
+            return;
+        }
+    }
+    self.ui_state.inspector = .none;
 }

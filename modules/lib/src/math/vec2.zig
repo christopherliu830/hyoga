@@ -23,6 +23,10 @@ pub const Vec2 = extern struct {
         return self.v[1];
     }
 
+    pub inline fn eql(self: Vec2, other: Vec2) bool {
+        return @reduce(.And, self.v == other.v);
+    }
+
     pub inline fn dot(a: Vec2, b: Vec2) f32 {
         return root.dot(a, b);
     }
