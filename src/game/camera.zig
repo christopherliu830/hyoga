@@ -120,7 +120,11 @@ pub const Camera = struct {
     }
 
     pub fn update(self: *Camera, delta_time: f32) void {
-        self.position = self.position.add(self.moveable.heading.mul(delta_time * self.speed));
+        const dir = self.moveable.heading.mul(delta_time * self.speed);
+        const right = vec3.cross(self.look_direction, vec3.y);
+        const up = vec3.cross(right, self.look_direction);
+        self.position = self.position.add(vec3.mul(right, dir.x()));
+        self.position = self.position.add(vec3.mul(up, dir.y()));
     }
 
     pub fn registerInputs(self: *Camera, input: *hy.runtime.Input, arena: std.mem.Allocator) !void {
@@ -143,12 +147,6 @@ pub const Camera = struct {
         input.bind(group, .mouse(.middle), lock);
         input.bind(group, .mouseUp(.left), unlock);
         input.bind(group, .mouseUp(.middle), unlock);
-
-        // const dh: hy.Input.OnFlags = .{ .down = true, .held = true };
-        // input.bind(group, .keyOn(.s, dh), try l(pan, .{ self, vec2.nx }, arena));
-        // input.bind(group, .keyOn(.d, dh), try l(pan, .{ self, vec2.ny }, arena));
-        // input.bind(group, .keyOn(.f, dh), try l(pan, .{ self, vec2.py }, arena));
-        // input.bind(group, .keyOn(.g, dh), try l(pan, .{ self, vec2.px }, arena));
 
         const bindings: []const ent.Moveable.Binding = &.{
             .{ .px = .g },

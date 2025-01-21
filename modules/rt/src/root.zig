@@ -103,7 +103,7 @@ export fn hygpuModelDupe(gpu: *Gpu, model: Gpu.Model, options: Gpu.Models.DupeMo
 }
 
 export fn hygpuModelPrimitive(gpu: *Gpu, shape: Gpu.primitives.Shape) Gpu.Model {
-    return gpu.getPrimitive(shape);
+    return gpu.modelPrimitive(shape);
 }
 
 export fn hygpuModelWaitLoad(gpu: *Gpu, model: Gpu.Model, max: u64) bool {

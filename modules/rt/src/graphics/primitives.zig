@@ -1,3 +1,5 @@
+const std = @import("std");
+const math = @import("std").math;
 const hy = @import("hyoga-lib");
 const hym = hy.math;
 
@@ -6,6 +8,7 @@ const Vertex = @import("vertex.zig").Vertex;
 pub const Shape = enum(u8) {
     cube,
     quad,
+    sphere,
 };
 
 pub const Cube = struct {
@@ -123,3 +126,54 @@ pub const quad: Quad = blk: {
         .indices = .{ 0, 1, 3, 0, 3, 2 },
     };
 };
+
+pub const Sphere8 = struct {
+    vertices: [58]Vertex,
+    indices: [58]u32,
+
+    pub const bounds: hym.AxisAligned = .{
+        .min = .of(-0.5, -0.5, -0.5),
+        .max = .of(0.5, 0.5, 0.5),
+    };
+};
+
+pub fn createSphere() Sphere8 {
+    const start: f64 = -math.pi / 2.0;
+    const end: f64 = math.pi / 2.0;
+
+    var tz = start;
+
+    var verts: [58]Vertex = [_]Vertex{undefined} ** 58;
+    const idxs: [58]u32 = std.simd.iota(u32, 58);
+
+    var i: u32 = 0;
+    while (tz <= end) {
+        const v = hym.Vec3.of(@floatCast(math.cos(tz)), @floatCast(math.sin(tz)), 0);
+        if (tz == start) {
+            std.debug.print("ROW 0\n", .{});
+            verts[i] = .{ .pos = v.v, .normal = v.v, .uv = .{ 0, 0 } };
+
+            i += 1;
+            std.debug.print("hello {}\n", .{i});
+        } else if (tz == end) {
+            std.debug.print("ROW 7\n", .{});
+            verts[i] = .{ .pos = v.v, .normal = v.v, .uv = .{ 0, 0 } };
+            i += 1;
+            std.debug.print("hello {}\n", .{i});
+        } else {
+            std.debug.print("ROW N\n", .{});
+            for (0..8) |j| {
+                const r_v = hym.vec3.rotate(v, hym.vec3.py, (math.pi * 2.0 / 8.0) * @as(f32, @floatFromInt(j)));
+                verts[i] = .{ .pos = r_v.v, .normal = r_v.v, .uv = .{ 0, 0 } };
+                i += 1;
+            }
+            std.debug.print("hello {}\n", .{i});
+        }
+        tz += (end - start) / 8.0;
+    }
+    std.debug.print("hello {}\n", .{i});
+    return .{
+        .vertices = verts,
+        .indices = idxs,
+    };
+}

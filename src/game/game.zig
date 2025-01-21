@@ -53,7 +53,11 @@ pub fn init(engine: *hy.Engine) !hy.World {
     };
 
     const gpu = engine.gpu();
-    const cube = ent.createCube(engine.gpu());
+    // const cube = ent.createCube(engine.gpu());
+    const model_sphere = gpu.modelPrimitive(.sphere);
+    const sphere_renderable = gpu.addRenderable(.{ .model = model_sphere });
+    const sphere: ent.Entity = .{ .gpu = gpu, .renderable = sphere_renderable, .bounds = gpu.modelBounds(model_sphere) };
+
     const self = allocator.create(Self) catch oom();
     self.* = .{
         .allocator = allocator,
@@ -64,7 +68,7 @@ pub fn init(engine: *hy.Engine) !hy.World {
         .selected_objects = try .initCapacity(self.allocator, 8),
         .ui_state = .{ .second_timer = std.time.Timer.start() catch unreachable, .mode = .noclip },
         .camera = .default(engine.window()),
-        .player = .default((self.objects.insert(cube) catch oom()).unwrap()),
+        .player = .default((self.objects.insert(sphere) catch oom()).unwrap()),
         .timer = std.time.Timer.start() catch unreachable,
     };
     self.registerInputs(engine);

@@ -35,6 +35,7 @@ pub const MaterialHandle = enum(u64) {
 pub const PrimitiveShape = enum(u8) {
     cube,
     quad,
+    sphere,
 };
 
 pub const PostProcessSteps = packed struct(u32) {

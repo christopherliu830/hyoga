@@ -61,6 +61,7 @@ pub const MaterialReadOptions = struct {
     enable_depth: bool = true,
     enable_stencil: bool = true,
     fill_mode: sdl.gpu.FillMode = .fill,
+    primitive_type: sdl.gpu.PrimitiveType = .trianglelist,
 };
 
 pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.Allocator) !MaterialTemplate {
@@ -89,6 +90,7 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
         .enable_depth = options.enable_depth,
         .enable_stencil = options.enable_stencil,
         .fill_mode = options.fill_mode,
+        .primitive_type = options.primitive_type,
     });
 
     var vert_textures: [4]?tx.TextureType = [_]?tx.TextureType{null} ** 4;

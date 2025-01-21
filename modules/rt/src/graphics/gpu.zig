@@ -102,6 +102,7 @@ pub const BuildPipelineParams = struct {
     enable_depth: bool,
     enable_stencil: bool,
     fill_mode: sdl.gpu.FillMode,
+    primitive_type: sdl.gpu.PrimitiveType,
 };
 
 const RenderState = struct {
@@ -118,6 +119,7 @@ const RenderState = struct {
 
     cube: Model,
     quad: Model,
+    sphere: Model,
 
     sampler: *sdl.gpu.Sampler = undefined,
 
@@ -221,6 +223,14 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .fill_mode = .fill,
     }, self.gpa) catch panic("error creating standard shader", .{});
 
+    const point_list_material = mt.readFromPath(self, .{
+        .path = "shaders/standard",
+        .enable_depth = true,
+        .enable_stencil = true,
+        .fill_mode = .fill,
+        .primitive_type = .pointlist,
+    }, self.gpa) catch panic("error creating standard shader", .{});
+
     // Unloaded texture
     const texture = self.device.createTexture(&.{
         .format = .b8g8r8a8_unorm,
@@ -287,9 +297,12 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
     };
 
     const white_material = try self.materials.insert(mt.Material.fromTemplate(material, TextureSet.initFull(.{ .target = white_texture })));
+    const white_point_material = try self.materials.insert(.fromTemplate(point_list_material, .initFull(.{ .target = white_texture })));
 
     const cube = try self.createModel(&primitives.cube.vertices, &primitives.cube.indices, white_material);
     const quad = try self.createModel(&primitives.quad.vertices, &primitives.quad.indices, white_material);
+    const sphere_primitive = primitives.createSphere();
+    const sphere = try self.createModel(&sphere_primitive.vertices, &sphere_primitive.indices, white_point_material);
 
     const post_material_template = try mt.readFromPath(self, .{
         .path = "shaders/post_process",
@@ -322,6 +335,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
         .cube = cube,
         .quad = quad,
+        .sphere = sphere,
 
         .post_material = post_material_template,
 
@@ -827,7 +841,7 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
         .target_info = target_info,
         .depth_stencil_state = depth_stencil_state,
         .multisample_state = .{ .sample_count = sample_count },
-        .primitive_type = .trianglelist,
+        .primitive_type = params.primitive_type,
         .rasterizer_state = .{ .fill_mode = params.fill_mode },
         .vertex_shader = params.vert,
         .fragment_shader = params.frag,
@@ -937,10 +951,11 @@ pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, mate
     return self.models.add(model);
 }
 
-pub fn getPrimitive(self: *Gpu, shape: primitives.Shape) Model {
+pub fn modelPrimitive(self: *Gpu, shape: primitives.Shape) Model {
     return switch (shape) {
         .cube => return self.render_state.cube,
         .quad => return self.render_state.quad,
+        .sphere => return self.render_state.sphere,
     };
 }
 
