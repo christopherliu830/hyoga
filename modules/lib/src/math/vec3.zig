@@ -11,12 +11,14 @@ pub const Vec3 = extern struct {
 
     pub const zero = Vec3{ .v = .{ 0, 0, 0 } };
     pub const one = Vec3{ .v = .{ 1, 1, 1 } };
-    pub const one_x = Vec3{ .v = .{ 1, 0, 0 } };
-    pub const one_y = Vec3{ .v = .{ 0, 1, 0 } };
-    pub const one_z = Vec3{ .v = .{ 0, 0, 1 } };
+    pub const px = Vec3{ .v = .{ 1, 0, 0 } };
+    pub const py = Vec3{ .v = .{ 0, 1, 0 } };
+    pub const pz = Vec3{ .v = .{ 0, 0, 1 } };
     pub const nx = Vec3{ .v = .{ -1, 0, 0 } };
     pub const ny = Vec3{ .v = .{ 0, -1, 0 } };
     pub const nz = Vec3{ .v = .{ 0, 0, -1 } };
+
+    pub const of = root.create;
 
     pub inline fn x(self: Vec3) f32 {
         return self.v[0];
@@ -82,6 +84,9 @@ pub const y = Vec3{ .v = .{ 0, 1, 0 } };
 
 pub const z = Vec3{ .v = .{ 0, 0, 1 } };
 
+pub const px = Vec3{ .v = .{ 1, 0, 0 } };
+pub const py = Vec3{ .v = .{ 0, 1, 0 } };
+pub const pz = Vec3{ .v = .{ 0, 0, 1 } };
 pub const nx = Vec3{ .v = .{ -1, 0, 0 } };
 pub const ny = Vec3{ .v = .{ 0, -1, 0 } };
 pub const nz = Vec3{ .v = .{ 0, 0, -1 } };

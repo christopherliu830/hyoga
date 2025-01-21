@@ -9,6 +9,8 @@ const Vec3 = vec3.Vec3;
 pub const Vec4 = struct {
     v: @Vector(4, f32),
 
+    pub const of = root.create;
+
     pub inline fn x(self: Vec4) f32 {
         return self.v[0];
     }

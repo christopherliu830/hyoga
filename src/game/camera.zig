@@ -9,21 +9,61 @@ const mat4 = hym.mat4;
 
 const ViewMatrix = hym.Mat4;
 
+pub const PerspectiveProjection = struct {
+    fovy: f32,
+    z_near: f32,
+    z_far: f32,
+
+    pub const default: PerspectiveProjection = .{
+        .fovy = 1,
+        .z_near = 0.1,
+        .z_far = 1000,
+    };
+};
+
+pub const OrthographicProjection = struct {
+    z_near: f32,
+    z_far: f32,
+    size: f32,
+
+    pub const default: OrthographicProjection = .{
+        .z_near = 0.1,
+        .z_far = 1000,
+        .size = 10,
+    };
+};
+
+pub const Projection = union(enum) {
+    perspective: PerspectiveProjection,
+    orthographic: OrthographicProjection,
+
+    pub const default: Projection = .{
+        .perspective = .default,
+    };
+};
+
 pub const Camera = struct {
     input_group: hy.Input.Group = .none,
     window: *hy.Window,
+    position: vec3.Vec3,
+    look_direction: vec3.Vec3,
+    projection: Projection,
 
-    position: vec3.Vec3 = vec3.create(0, 0, 4),
-    look_direction: vec3.Vec3 = vec3.create(0, 0, -1),
-
-    fovy: f32 = 1,
-    z_near: f32 = 0.1,
-    z_far: f32 = 1000,
-
-    pub fn create(input: *hy.runtime.Input, window: *hy.runtime.Window) Camera {
+    pub fn default(window: *hy.runtime.Window) Camera {
         return .{
-            .input_group = input.createGroup(),
             .window = window,
+            .position = .of(0, 0, 4),
+            .look_direction = .of(0, 0, -1),
+            .projection = .{ .perspective = .default },
+        };
+    }
+
+    pub fn defaultOrthographic(window: *hy.runtime.Window) Camera {
+        return .{
+            .window = window,
+            .position = .of(0, 0, 4),
+            .look_direction = .of(0, 0, -1),
+            .projection = .{ .orthographic = .default },
         };
     }
 
@@ -31,31 +71,48 @@ pub const Camera = struct {
         const view = hym.cam.lookTo(self.position, self.look_direction, vec3.y);
         const dim = self.window.dimensions();
         const aspect = dim.x() / dim.y();
-        const persp = hym.cam.perspectiveMatrix(
-            self.fovy,
-            aspect,
-            self.z_near,
-            self.z_far,
-        );
+        const persp = switch (self.projection) {
+            .perspective => |p| hym.cam.perspectiveMatrix(p.fovy, aspect, p.z_near, p.z_far),
+            .orthographic => |o| blk: {
+                break :blk hym.cam.orthographicRh(aspect * o.size, o.size, o.z_near, o.z_far);
+            },
+        };
+
         return hym.mul(view, persp);
     }
 
     pub fn worldRay(self: *const Camera, mouse_position: hym.Vec2) hym.Ray {
         const inv = hym.mat4.inverse(self.viewProj());
+        std.mem.doNotOptimizeAway(inv);
 
-        var dims = mouse_position
+        var n = mouse_position
             .div(self.window.dimensions())
             .mul(2)
             .sub(1)
             .mul(hym.vec(.{ 1, -1 }));
 
-        const world_end = hym.mul(hym.vec4.create(dims.x(), dims.y(), 1, 1), inv);
-        const end = hym.vec3.div(world_end.xyz(), world_end.w());
+        switch (self.projection) {
+            .perspective => {
+                const clip_end = hym.Vec4.of(n.x(), n.y(), 1, 1);
+                const world_end = hym.mul(clip_end, inv);
+                const end: hym.Vec3 = .div(world_end.xyz(), world_end.w());
 
-        return .{
-            .origin = self.position,
-            .direction = end.sub(self.position).normal(),
-        };
+                return .{
+                    .origin = self.position,
+                    .direction = end.sub(self.position).normal(),
+                };
+            },
+            .orthographic => {
+                const clip_start = hym.Vec4.of(n.x(), n.y(), 0, 1);
+                const world_start = hym.mul(clip_start, inv);
+                const start: hym.Vec3 = .div(world_start.xyz(), world_start.w());
+
+                return .{
+                    .origin = start,
+                    .direction = self.look_direction,
+                };
+            },
+        }
     }
 
     pub fn registerInputs(self: *Camera, input: *hy.runtime.Input, arena: std.mem.Allocator) !void {
@@ -89,11 +146,53 @@ pub const Camera = struct {
     pub fn editor(self: *Camera) void {
         if (imgui.Begin("Camera", null, .{ .always_auto_resize = true })) {
             _ = imgui.DragFloat3("Position", @ptrCast(&self.position));
-            _ = imgui.SliderFloat("Near Plane", @ptrCast(&self.z_near), 0.1, 1000);
-            _ = imgui.SliderFloat("Far Plane", @ptrCast(&self.z_far), 0.1, 1000);
-            var fovy = self.fovy * std.math.deg_per_rad;
-            _ = imgui.SliderFloat("FOV", &fovy, 0, 180);
-            self.fovy = fovy * std.math.rad_per_deg;
+
+            const items = [_][:0]const u8{ "Perspective", "Orthographic" };
+            const selected: u32 = switch (self.projection) {
+                .perspective => 0,
+                .orthographic => 1,
+            };
+
+            if (imgui.BeginCombo("Projection", items[selected].ptr, 0)) {
+                inline for (items[0..2], 0..) |label, i| {
+                    const is_selected = selected == i;
+                    if (imgui.SelectableEx(label, is_selected, 0, .auto) and !is_selected) {
+                        switch (i) {
+                            0 => {
+                                const z_near = self.projection.orthographic.z_near;
+                                const z_far = self.projection.orthographic.z_far;
+                                self.projection = .{ .perspective = .default };
+                                self.projection.perspective.z_near = z_near;
+                                self.projection.perspective.z_far = z_far;
+                            },
+                            1 => {
+                                const z_near = self.projection.perspective.z_near;
+                                const z_far = self.projection.perspective.z_far;
+                                self.projection = .{ .orthographic = .default };
+                                self.projection.orthographic.z_near = z_near;
+                                self.projection.orthographic.z_far = z_far;
+                            },
+                            else => comptime unreachable,
+                        }
+                    }
+                }
+                imgui.EndCombo();
+            }
+
+            switch (self.projection) {
+                .perspective => |*projection| {
+                    _ = imgui.SliderFloat("Near Plane", @ptrCast(&projection.z_near), 0.1, 1000);
+                    _ = imgui.SliderFloat("Far Plane", @ptrCast(&projection.z_far), 0.1, 1000);
+                    var fovy = projection.fovy * std.math.deg_per_rad;
+                    _ = imgui.SliderFloat("FOV", &fovy, 0, 180);
+                    projection.fovy = fovy * std.math.rad_per_deg;
+                },
+                .orthographic => |*projection| {
+                    _ = imgui.SliderFloat("Near Plane", @ptrCast(&projection.z_near), 0.1, 1000);
+                    _ = imgui.SliderFloat("Far Plane", @ptrCast(&projection.z_far), 0.1, 1000);
+                    _ = imgui.SliderFloat("Size", @ptrCast(&projection.size), 0.1, 100);
+                },
+            }
         }
         imgui.End();
     }

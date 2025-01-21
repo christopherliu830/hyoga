@@ -53,9 +53,7 @@ pub fn init(engine: *hy.Engine) !hy.World {
     };
 
     const gpu = engine.gpu();
-
     const cube = ent.createCube(engine.gpu());
-
     const self = allocator.create(Self) catch oom();
     self.* = .{
         .allocator = allocator,
@@ -65,13 +63,11 @@ pub fn init(engine: *hy.Engine) !hy.World {
         .objects = SkipMap(Entity).create(self.allocator, .{}) catch oom(),
         .selected_objects = try .initCapacity(self.allocator, 8),
         .ui_state = .{ .second_timer = std.time.Timer.start() catch unreachable, .mode = .noclip },
-        .camera = .{ .window = engine.window() },
+        .camera = .default(engine.window()),
         .player = .default((self.objects.insert(cube) catch oom()).unwrap()),
         .timer = std.time.Timer.start() catch unreachable,
     };
-
     self.registerInputs(engine);
-
     const bounds = gpu.modelBounds(gpu.modelPrimitive(.cube));
 
     for (0..10) |y| {
@@ -81,7 +77,7 @@ pub fn init(engine: *hy.Engine) !hy.World {
             const cursor = self.objects.insert(ent.createCube(engine.gpu())) catch oom();
             const object = cursor.unwrap();
 
-            object.position = hym.vec(.{ fx, 9 - fy, 0 });
+            object.position = hym.vec(.{ 2 * fx - 10, 10 - fy * 2, 0 });
             object.scale = hym.vec(.{ 1, 1, 1 });
             object.bounds = bounds;
         }
@@ -94,6 +90,8 @@ pub fn init(engine: *hy.Engine) !hy.World {
 
     imgui.SetCurrentContext(@ptrCast(ui_state.imgui_ctx));
     implot.setCurrentContext(@ptrCast(ui_state.implot_ctx));
+
+    self.switchControlMode(engine, .game, null);
 
     return .{
         .scene = .{
@@ -178,6 +176,8 @@ pub fn reload(engine: *hy.Engine, game: hy.World) !void {
     _ = ptr.callback_arena.reset(.retain_capacity);
     ptr.registerInputs(engine);
 
+    ptr.switchControlMode(engine, .noclip, null);
+
     const ui_state = engine.ui().getGlobalState();
     imgui.SetCurrentContext(@ptrCast(ui_state.imgui_ctx));
     implot.setCurrentContext(@ptrCast(ui_state.implot_ctx));
@@ -215,7 +215,7 @@ fn registerInputs(self: *Self, engine: *hy.Engine) void {
     input.bind(group, .key(.@"1"), l.make(switchControlMode, .{ self, engine, .game }));
     input.bind(group, .key(.@"2"), l.make(switchControlMode, .{ self, engine, .noclip }));
     input.bind(group, .mouse(.left), l.make(intersect, .{ self, engine }));
-    input.bind(group, .mouse(.right), l.make(inspectSelected, .{self}));
+    input.bind(group, .mouse(.right), l.make(inspectUnderMouse, .{ self, engine.input() }));
 
     self.player.registerInputs(input, self.callback_arena.allocator());
     self.camera.registerInputs(engine.input(), self.callback_arena.allocator()) catch oom();
@@ -227,12 +227,12 @@ fn switchControlMode(self: *Self, engine: *hy.Engine, mode: ControlMode, _: ?*an
         .noclip => {
             engine.window().setRelativeMouseMode(false);
             engine.input().setGroupEnabled(self.camera.input_group, true);
-            engine.input().setGroupEnabled(self.player.entity.input_group, false);
+            engine.input().setGroupEnabled(self.player.input_group, false);
         },
         .game => {
             engine.window().setRelativeMouseMode(false);
             engine.input().setGroupEnabled(self.camera.input_group, false);
-            engine.input().setGroupEnabled(self.player.entity.input_group, true);
+            engine.input().setGroupEnabled(self.player.input_group, true);
         },
     }
 }
@@ -250,13 +250,16 @@ fn intersect(self: *Self, engine: *hy.Engine, _: ?*anyopaque) void {
     }
 }
 
-fn inspectSelected(self: *Self, _: ?*anyopaque) void {
-    for (self.selected_objects.items) |obj| {
-        if (obj == self.player.entity) {
-            self.ui_state.windows.inspector = true;
-            self.ui_state.inspector = .{ .player = &self.player };
-            return;
-        }
+fn inspectUnderMouse(self: *Self, input: *hy.Input, _: ?*anyopaque) void {
+    const bounds = self.player.entity.calcBounds();
+    var out: f32 = 1000;
+    const ray = self.camera.worldRay(input.queryMousePosition());
+    ray.intersect(&.{bounds}, (&out)[0..1]);
+    if (out < 1000) {
+        self.ui_state.windows.inspector = true;
+        self.ui_state.inspector = .{ .player = &self.player };
+        return;
     }
+
     self.ui_state.inspector = .none;
 }

@@ -897,6 +897,7 @@ pub const FontBuilderIO = opaque {};
 pub const Context = opaque {};
 
 pub const Vec2 = extern struct {
+    pub const auto: Vec2 = .{ .x = 0, .y = 0 };
     x: f32 = 0,
     y: f32 = 0,
 };

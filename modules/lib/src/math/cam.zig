@@ -21,14 +21,16 @@ pub inline fn perspectiveMatrix(fovy: f32, aspect: f32, z_near: f32, z_far: f32)
     return m;
 }
 
-pub fn orthographicRh(w: f32, h: f32, near: f32, far: f32) mat4.Mat4 {
-    const r = 1 / (near - far);
-    return .{ .m = .{
-        .{ 2 / w, 0.0, 0.0, 0.0 },
-        .{ 0.0, 2 / h, 0.0, 0.0 },
-        .{ 0.0, 0.0, r, 0.0 },
-        .{ 0.0, 0.0, r * near, 1.0 },
-    } };
+pub fn orthographicRh(w: f32, h: f32, n: f32, f: f32) mat4.Mat4 {
+    const r_nf: f32 = 1 / (n - f);
+    return .{
+        .m = .{
+            .{ 2 / w, 0.0, 0.0, 0 },
+            .{ 0, 2 / h, 0.0, 0 },
+            .{ 0, 0, r_nf, 0 },
+            .{ 0, 0, n * r_nf, 1 },
+        },
+    };
 }
 
 // create view matrix with right handed coordinate system
