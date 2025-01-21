@@ -1,6 +1,7 @@
 const std = @import("std");
 const hy = @import("hyoga-lib");
 const imgui = @import("imgui");
+const ent = @import("entity.zig");
 const hym = hy.math;
 
 const vec3 = hym.vec3;
@@ -48,6 +49,8 @@ pub const Camera = struct {
     position: vec3.Vec3,
     look_direction: vec3.Vec3,
     projection: Projection,
+    moveable: ent.Moveable = .{},
+    speed: f32,
 
     pub fn default(window: *hy.runtime.Window) Camera {
         return .{
@@ -55,6 +58,7 @@ pub const Camera = struct {
             .position = .of(0, 0, 4),
             .look_direction = .of(0, 0, -1),
             .projection = .{ .perspective = .default },
+            .speed = 8,
         };
     }
 
@@ -115,6 +119,10 @@ pub const Camera = struct {
         }
     }
 
+    pub fn update(self: *Camera, delta_time: f32) void {
+        self.position = self.position.add(self.moveable.heading.mul(delta_time * self.speed));
+    }
+
     pub fn registerInputs(self: *Camera, input: *hy.runtime.Input, arena: std.mem.Allocator) !void {
         const group = input.getGroup(self.input_group);
 
@@ -136,11 +144,20 @@ pub const Camera = struct {
         input.bind(group, .mouseUp(.left), unlock);
         input.bind(group, .mouseUp(.middle), unlock);
 
-        const dh: hy.Input.OnFlags = .{ .down = true, .held = true };
-        input.bind(group, .keyOn(.s, dh), try l(pan, .{ self, vec2.nx }, arena));
-        input.bind(group, .keyOn(.d, dh), try l(pan, .{ self, vec2.ny }, arena));
-        input.bind(group, .keyOn(.f, dh), try l(pan, .{ self, vec2.py }, arena));
-        input.bind(group, .keyOn(.g, dh), try l(pan, .{ self, vec2.px }, arena));
+        // const dh: hy.Input.OnFlags = .{ .down = true, .held = true };
+        // input.bind(group, .keyOn(.s, dh), try l(pan, .{ self, vec2.nx }, arena));
+        // input.bind(group, .keyOn(.d, dh), try l(pan, .{ self, vec2.ny }, arena));
+        // input.bind(group, .keyOn(.f, dh), try l(pan, .{ self, vec2.py }, arena));
+        // input.bind(group, .keyOn(.g, dh), try l(pan, .{ self, vec2.px }, arena));
+
+        const bindings: []const ent.Moveable.Binding = &.{
+            .{ .px = .g },
+            .{ .ny = .f },
+            .{ .nx = .s },
+            .{ .py = .d },
+        };
+
+        self.moveable.registerInputs(input, group, bindings, arena);
     }
 
     pub fn editor(self: *Camera) void {

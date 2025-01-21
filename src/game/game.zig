@@ -136,6 +136,7 @@ pub fn update(engine: *hy.Engine, pre: hy.World) callconv(.C) hy.World {
     }
 
     self.player.update(delta_time);
+    self.camera.update(delta_time);
 
     if (self.ui_state.restart_requested) {
         game.restart = true;
