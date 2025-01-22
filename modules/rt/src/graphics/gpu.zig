@@ -107,7 +107,6 @@ pub const BuildPipelineParams = struct {
 
 const RenderState = struct {
     forward_pass: passes.Forward,
-    blit_pass: passes.BlitPass,
 
     default_material: MaterialTemplate,
     post_material: MaterialTemplate,
@@ -223,14 +222,6 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .fill_mode = .fill,
     }, self.gpa) catch panic("error creating standard shader", .{});
 
-    const point_list_material = mt.readFromPath(self, .{
-        .path = "shaders/standard",
-        .enable_depth = true,
-        .enable_stencil = true,
-        .fill_mode = .fill,
-        .primitive_type = .pointlist,
-    }, self.gpa) catch panic("error creating standard shader", .{});
-
     // Unloaded texture
     const texture = self.device.createTexture(&.{
         .format = .b8g8r8a8_unorm,
@@ -297,8 +288,6 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
     };
 
     const white_material = try self.materials.insert(mt.Material.fromTemplate(material, TextureSet.initFull(.{ .target = white_texture })));
-    const white_point_material = try self.materials.insert(.fromTemplate(point_list_material, .initFull(.{ .target = white_texture })));
-    _ = white_point_material;
 
     const cube = try self.createModel(&primitives.cube.vertices, &primitives.cube.indices, white_material);
     const quad = try self.createModel(&primitives.quad.vertices, &primitives.quad.indices, white_material);
@@ -326,8 +315,6 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
             .dest_tex_width = @intCast(w),
             .dest_tex_height = @intCast(h),
         }),
-
-        .blit_pass = passes.BlitPass.init(self, self.device),
 
         .default_material = material,
         .default_texture = texture,
@@ -359,15 +346,26 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 pub fn shutdown(self: *Gpu) void {
     sdlsc.quit();
 
+    self.device.waitForIdle() catch {
+        std.debug.panic("Could not wait for idle: {s}", .{sdl.getError()});
+    };
+
     self.device.releaseWindow(self.window.hdl);
 
     self.textures.deinit();
     self.models.deinit();
     self.materials.deinit();
 
+    self.buffer_allocator.deinit();
+
+    self.render_state.forward_pass.deinit();
+    self.device.releaseBuffer(self.render_state.obj_buf.hdl);
+    self.device.releaseBuffer(self.render_state.selected_obj_buf.hdl);
     self.device.releaseTexture(self.render_state.default_texture);
     self.device.releaseTexture(self.render_state.black_texture);
+    self.device.releaseTexture(self.render_state.white_texture);
     self.device.releaseSampler(self.render_state.sampler);
+    self.device.releaseGraphicsPipeline(self.render_state.outline_material.pipeline);
     self.device.releaseGraphicsPipeline(self.render_state.post_material.pipeline);
     self.device.releaseGraphicsPipeline(self.render_state.default_material.pipeline);
     self.device.destroy();

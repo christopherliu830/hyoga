@@ -182,7 +182,7 @@ pub const BlitPass = struct {
     }
 
     pub fn deinit(self: BlitPass) void {
-        self.device.releaseBuffer(self.quad.buf);
+        self.device.releaseBuffer(self.quad);
     }
 
     pub fn targets(self: *BlitPass, tex: *sdl.gpu.Texture) Gpu.PassTargets {

@@ -26,9 +26,19 @@ pub const BufferAllocator = struct {
         };
     }
 
+    pub fn deinit(self: *BufferAllocator) void {
+        var maybe_node = self.buffer_list.popFirst();
+        while (maybe_node) |node| : (maybe_node = self.buffer_list.popFirst()) {
+            const buf = node.data;
+            self.device.releaseBuffer(buf.hdl);
+            self.node_allocator.destroy(node);
+        }
+    }
+
     fn createNode(self: *BufferAllocator, prev_len: u32, min_size: u32) sdl.gpu.Error!*BufNode {
         const len = (prev_len + min_size) + (prev_len + min_size) / 2;
         const buf = try self.device.createBuffer(&.{ .size = len, .usage = self.usage });
+        self.device.setBufferName(buf, "Buffer Allocator Buffer");
         const node = self.node_allocator.create(BufNode) catch hy.err.oom();
         node.* = .{ .data = .{
             .hdl = buf,

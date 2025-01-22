@@ -5,9 +5,10 @@ const PropertiesID = @import("properties.zig").PropertiesID;
 const FlipMode = @import("surface.zig").FlipMode;
 const Window = @import("video.zig").Window;
 
-pub const Error = error {
+pub const Error = error{
     CreateTextureFailure,
     CreateBufferFailure,
+    WaitForIdleError,
 };
 
 pub const DeviceHdl = *Device;
@@ -50,7 +51,13 @@ pub const Device = opaque {
     pub const setAllowedFramesInFlight = SDL_SetGPUAllowedFramesInFlight;
     pub const getSwapchainTextureFormat = SDL_GetGPUSwapchainTextureFormat;
     pub const waitForSwapchain = SDL_WaitForGPUSwapchain;
-    pub const waitForIdle = SDL_WaitForGPUIdle;
+
+    pub fn waitForIdle(self: *Device) Error!void {
+        if (!SDL_WaitForGPUIdle(self)) {
+            return Error.WaitForIdleError;
+        }
+    }
+
     pub const waitForFences = SDL_WaitForGPUFences;
     pub const queryFence = SDL_QueryGPUFence;
     pub const releaseFence = SDL_ReleaseGPUFence;
