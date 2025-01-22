@@ -66,13 +66,13 @@ pub const RenderList = struct {
         };
     }
 
-    pub const AddModelOptions = extern struct {
+    pub const AddOptions = extern struct {
         owner: *Mat4,
         time: u64,
         model: ModelHandle,
     };
 
-    pub fn add(self: *RenderList, options: AddModelOptions) !RenderItemHandle {
+    pub fn add(self: *RenderList, options: AddOptions) !RenderItemHandle {
         const q_model = blk: {
             var model = self.gpu.models.get(options.model) catch null;
             // catch |e| if (e != error.ModelEmpty) return e else null;
@@ -90,7 +90,7 @@ pub const RenderList = struct {
         if (q_model) |model| {
             var head: ?RenderItemHandle = null;
             for (model.children) |mesh| {
-                const renderable = Renderable{
+                const renderable: Renderable = .{
                     .mesh = mesh,
                     .import_transform = model.transform,
                     .next = head,

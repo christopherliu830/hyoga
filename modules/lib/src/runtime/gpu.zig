@@ -19,12 +19,12 @@ pub const Gpu = opaque {
     pub const clearSelection = hygpuClearSelection;
 };
 
-pub const RenderItemHandle = enum(u64) {
+pub const Renderable = enum(u64) {
     invalid = 0,
     _,
 };
 
-pub const ModelHandle = enum(u64) {
+pub const Model = enum(u64) {
     invalid = 0,
 };
 
@@ -89,21 +89,21 @@ pub const ImportSettings = extern struct {
 pub const AddRenderableOptions = extern struct {
     owner: *const mat4.Mat4 = &mat4.identity,
     time: u64 = 0,
-    model: ModelHandle,
+    model: Model,
 };
 
 pub const ModelDupeOptions = extern struct {
     override_material: MaterialHandle = .invalid,
 };
 
-extern fn hygpuImportModel(*Gpu, [*:0]const u8, ImportSettings) ModelHandle;
-extern fn hygpuModelBounds(*Gpu, ModelHandle) math.AxisAligned;
-extern fn hygpuModelDupe(*Gpu, ModelHandle, ModelDupeOptions) ModelHandle;
-extern fn hygpuModelPrimitive(*Gpu, PrimitiveShape) ModelHandle;
-extern fn hygpuModelWaitLoad(*Gpu, ModelHandle, u64) bool;
-extern fn hygpuAddRenderable(*Gpu, AddRenderableOptions) RenderItemHandle;
-extern fn hygpuRemoveRenderable(*Gpu, RenderItemHandle) void;
-extern fn hygpuSelectRenderable(*Gpu, RenderItemHandle) void;
-extern fn hygpuDeselectRenderable(*Gpu, RenderItemHandle) void;
-extern fn hygpuRenderableSetTransform(*Gpu, RenderItemHandle, math.Mat4) void;
+extern fn hygpuImportModel(*Gpu, [*:0]const u8, ImportSettings) Model;
+extern fn hygpuModelBounds(*Gpu, Model) math.AxisAligned;
+extern fn hygpuModelDupe(*Gpu, Model, ModelDupeOptions) Model;
+extern fn hygpuModelPrimitive(*Gpu, PrimitiveShape) Model;
+extern fn hygpuModelWaitLoad(*Gpu, Model, u64) bool;
+extern fn hygpuAddRenderable(*Gpu, AddRenderableOptions) Renderable;
+extern fn hygpuRemoveRenderable(*Gpu, Renderable) void;
+extern fn hygpuSelectRenderable(*Gpu, Renderable) void;
+extern fn hygpuDeselectRenderable(*Gpu, Renderable) void;
+extern fn hygpuRenderableSetTransform(*Gpu, Renderable, math.Mat4) void;
 extern fn hygpuClearSelection(*Gpu) void;
