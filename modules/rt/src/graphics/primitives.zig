@@ -127,53 +127,113 @@ pub const quad: Quad = blk: {
     };
 };
 
-pub const Sphere8 = struct {
-    vertices: [58]Vertex,
-    indices: [58]u32,
+pub fn Sphere(size: usize) type {
+    const caps = 2;
+    const rings = size - 1;
+    const vert_size = size * rings + caps;
+    const idx_size = 3 * (size * caps + 2 * size * (rings - 1));
 
-    pub const bounds: hym.AxisAligned = .{
-        .min = .of(-0.5, -0.5, -0.5),
-        .max = .of(0.5, 0.5, 0.5),
-    };
-};
+    return struct {
+        vertices: [vert_size]Vertex,
+        indices: [idx_size]u32,
+        pub fn make() @This() {
+            const start: f64 = -math.pi / 2.0;
+            const end: f64 = math.pi / 2.0;
 
-pub fn createSphere() Sphere8 {
-    const start: f64 = -math.pi / 2.0;
-    const end: f64 = math.pi / 2.0;
+            var vert_buf: [vert_size]Vertex = undefined;
+            var vert_list: std.ArrayListUnmanaged(Vertex) = .{
+                .items = vert_buf[0..0],
+                .capacity = vert_size,
+            };
 
-    var tz = start;
+            var idx_buf: [idx_size]u32 = undefined;
+            var idx_list: std.ArrayListUnmanaged(u32) = .{
+                .items = idx_buf[0..0],
+                .capacity = idx_size,
+            };
 
-    var verts: [58]Vertex = [_]Vertex{undefined} ** 58;
-    const idxs: [58]u32 = std.simd.iota(u32, 58);
+            var tz = start;
 
-    var i: u32 = 0;
-    while (tz <= end) {
-        const v = hym.Vec3.of(@floatCast(math.cos(tz)), @floatCast(math.sin(tz)), 0);
-        if (tz == start) {
-            std.debug.print("ROW 0\n", .{});
-            verts[i] = .{ .pos = v.v, .normal = v.v, .uv = .{ 0, 0 } };
+            const pitch = (end - start) / @as(f32, @floatFromInt(size));
+            const stride = math.pi * 2.0 / @as(f32, @floatFromInt(size));
 
-            i += 1;
-            std.debug.print("hello {}\n", .{i});
-        } else if (tz == end) {
-            std.debug.print("ROW 7\n", .{});
-            verts[i] = .{ .pos = v.v, .normal = v.v, .uv = .{ 0, 0 } };
-            i += 1;
-            std.debug.print("hello {}\n", .{i});
-        } else {
-            std.debug.print("ROW N\n", .{});
-            for (0..8) |j| {
-                const r_v = hym.vec3.rotate(v, hym.vec3.py, (math.pi * 2.0 / 8.0) * @as(f32, @floatFromInt(j)));
-                verts[i] = .{ .pos = r_v.v, .normal = r_v.v, .uv = .{ 0, 0 } };
-                i += 1;
+            for (0..size + 1) |row| {
+                const pole_pos = hym.Vec3.of(@floatCast(math.cos(tz)), @floatCast(math.sin(tz)), 0).normal().div(2);
+
+                // Bottom cap, top cap
+                if (tz == start) {
+                    vert_list.appendAssumeCapacity(.{ .pos = pole_pos.v, .normal = pole_pos.v, .uv = .{ 0, 0 } });
+                }
+
+                // First row
+                else if (tz == start + pitch) {
+                    for (0..size) |j| {
+                        const vert_pos = hym.vec3.rotate(pole_pos, hym.vec3.py, stride * @as(f32, @floatFromInt(j)));
+                        vert_list.appendAssumeCapacity(.{ .pos = vert_pos.v, .normal = vert_pos.v, .uv = .{ 0, 0 } });
+                    }
+                    inline for (0..size - 1) |i| {
+                        idx_list.appendSliceAssumeCapacity(&.{ 0, 1 + i, 2 + i });
+                    }
+                    idx_list.appendSliceAssumeCapacity(&.{ 0, size, 1 });
+                }
+
+                // Last row
+                else if (tz == end) {
+                    vert_list.appendAssumeCapacity(.{ .pos = pole_pos.v, .normal = pole_pos.v, .uv = .{ 0, 0 } });
+                    const end_idx = vert_size - 1;
+                    inline for (0..size - 1) |i| {
+                        idx_list.appendSliceAssumeCapacity(&.{
+                            end_idx - size + i,
+                            end_idx,
+                            end_idx - size + i + 1,
+                        });
+                    }
+                    idx_list.appendSliceAssumeCapacity(&.{
+                        end_idx - 1,
+                        end_idx,
+                        end_idx - size,
+                    });
+                }
+                // Second-seventh rows
+                else {
+                    // Previous row's vertices
+                    const p: @Vector(size, u32) = blk: {
+                        var nums = std.simd.iota(u32, size);
+                        nums += @splat(@intCast((row - 2) * size + 1));
+                        break :blk nums;
+                    };
+
+                    for (0..size) |j| {
+                        const vert_pos = hym.vec3.rotate(pole_pos, hym.vec3.py, stride * @as(f32, @floatFromInt(j)));
+                        vert_list.appendAssumeCapacity(.{ .pos = vert_pos.v, .normal = vert_pos.v, .uv = .{ 0, 0 } });
+                    }
+
+                    // Current row's vertices
+                    const c: @Vector(size, u32) = p + @as(@Vector(size, u32), @splat(size));
+
+                    inline for (0..size - 1) |i| {
+                        idx_list.appendSliceAssumeCapacity(&.{
+                            p[i], c[i], c[i + 1], p[i], c[i + 1], p[i + 1],
+                        });
+                    }
+                    idx_list.appendSliceAssumeCapacity(&.{
+                        p[size - 1], c[size - 1], c[0], p[size - 1], c[0], p[0],
+                    });
+                }
+
+                tz += pitch;
             }
-            std.debug.print("hello {}\n", .{i});
+
+            std.debug.print("IDX: {}\n", .{idx_list.items.len});
+
+            return .{
+                .vertices = vert_buf,
+                .indices = idx_buf,
+            };
         }
-        tz += (end - start) / 8.0;
-    }
-    std.debug.print("hello {}\n", .{i});
-    return .{
-        .vertices = verts,
-        .indices = idxs,
     };
+}
+
+pub fn createSphere() Sphere(16) {
+    return .make();
 }
