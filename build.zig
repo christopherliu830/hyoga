@@ -46,16 +46,14 @@ pub fn build(b: *std.Build) !void {
 
     const wf = b.addNamedWriteFiles("bin_files");
     _ = wf.addCopyDirectory(rt.namedWriteFiles("bin_files").getDirectory(), "", .{});
-    _ = wf.addCopyDirectory(b.path("shaders"), "shaders", .{});
 
-    const shaders = b.addNamedWriteFiles("shaders");
-    try @import("src/build/InstallShadersStep.zig").init(b, shaders, .{
+    try @import("src/build/InstallShadersStep.zig").init(b, wf, .{
         .install_dir = .bin,
         .always_generate = gen_shaders,
         .source_path = b.path("shaders"),
-        .dest_path = ".",
+        .dest_path = "shaders",
         .target = "spirv",
         .profile = "spirv_1_3",
     });
-    _ = shaders.addCopyDirectory(b.path("shaders"), ".", .{ .include_extensions = &.{".json"} });
+    _ = wf.addCopyDirectory(b.path("shaders"), "shaders", .{ .include_extensions = &.{".json"} });
 }

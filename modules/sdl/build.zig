@@ -39,6 +39,9 @@ pub fn build(b: *std.Build) !void {
             sdl_shadercross.addIncludePath(b.path("include"));
             sdl_shadercross.addLibraryPath(b.path("lib/windows"));
             _ = dll_wf.addCopyFile(b.path("lib/windows/SDL3.dll"), "SDL3.dll");
+            if (optimize == .Debug) {
+                _ = dll_wf.addCopyFile(b.path("lib/windows/SDL3.pdb"), "SDL3.pdb");
+            }
 
             if (dxc_enabled) {
                 sdl_shadercross.linkSystemLibrary("dxil", .{});
