@@ -25,7 +25,7 @@ pub fn build(b: *std.Build) !void {
     const options_module = options_step.createModule();
 
     const rt = b.addSharedLibrary(.{
-        .name = "hyrt",
+        .name = "rt",
         .target = target,
         .optimize = optimize,
         .root_source_file = b.path("src/root.zig"),

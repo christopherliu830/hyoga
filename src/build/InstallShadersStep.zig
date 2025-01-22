@@ -23,8 +23,8 @@ const ShaderArgs = struct {
     entry: []const u8,
 };
 
-pub fn init(b: *Build, step: *Step, options: Options) !void {
-    const path = options.source_path.getPath3(b, step);
+pub fn init(b: *Build, wf: *Step.WriteFile, options: Options) !void {
+    const path = options.source_path.getPath3(b, &wf.step);
     var src_dir = try std.fs.cwd().openDir(try path.toString(b.allocator), .{ .iterate = true });
     defer src_dir.close();
 
@@ -65,7 +65,6 @@ pub fn init(b: *Build, step: *Step, options: Options) !void {
                     const name = try std.mem.concat(b.allocator, u8, &.{ "compile ", entry.path });
                     const run = Step.Run.create(b, name);
                     const input = try options.source_path.join(b.allocator, entry.path);
-                    // ;b.pathJoin(&.{options.source_path, entry.path});
                     run.addArg("slangc");
                     run.addFileArg(input);
                     run.addArgs(&.{
@@ -78,9 +77,9 @@ pub fn init(b: *Build, step: *Step, options: Options) !void {
                     });
                     const out = run.captureStdOut();
                     const install_file_name = b.pathJoin(&.{ options.dest_path, out_basename });
-                    const install = Step.InstallFile.create(b, out, .bin, install_file_name);
-                    install.step.dependOn(&run.step);
-                    step.dependOn(&install.step);
+                    // const install = Step.InstallFile.create(b, out, .bin, install_file_name);
+                    _ = wf.addCopyFile(out, install_file_name);
+                    // install.step.dependOn(&run.step);
                 }
             },
             else => {},

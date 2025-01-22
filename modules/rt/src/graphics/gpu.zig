@@ -298,11 +298,12 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
     const white_material = try self.materials.insert(mt.Material.fromTemplate(material, TextureSet.initFull(.{ .target = white_texture })));
     const white_point_material = try self.materials.insert(.fromTemplate(point_list_material, .initFull(.{ .target = white_texture })));
+    _ = white_point_material;
 
     const cube = try self.createModel(&primitives.cube.vertices, &primitives.cube.indices, white_material);
     const quad = try self.createModel(&primitives.quad.vertices, &primitives.quad.indices, white_material);
     const sphere_primitive = primitives.createSphere();
-    const sphere = try self.createModel(&sphere_primitive.vertices, &sphere_primitive.indices, white_point_material);
+    const sphere = try self.createModel(&sphere_primitive.vertices, &sphere_primitive.indices, white_material);
 
     const post_material_template = try mt.readFromPath(self, .{
         .path = "shaders/post_process",
