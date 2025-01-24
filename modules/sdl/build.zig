@@ -15,6 +15,11 @@ pub fn build(b: *std.Build) !void {
 
     const dxc_enabled = b.option(bool, "dxc", "compile with dxc enabled") orelse false;
 
+    const sdl_dep = b.dependency("sdl", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const sdl = b.addModule("sdl", .{
         .root_source_file = b.path("src/sdl/sdl.zig"),
         .target = target,
@@ -29,20 +34,16 @@ pub fn build(b: *std.Build) !void {
         .link_libc = true,
     });
 
+    const sdl_lib = sdl_dep.artifact("SDL3");
+    sdl.linkLibrary(sdl_lib);
+
     const dll_wf = b.addNamedWriteFiles("dlls");
 
     switch (builtin.target.os.tag) {
         .windows => {
-            sdl.addIncludePath(b.path("include"));
-            sdl.addLibraryPath(b.path("lib/windows"));
-            sdl.linkSystemLibrary("SDL3", .{});
+            sdl_shadercross.addIncludePath(sdl_dep.path("include"));
             sdl_shadercross.addIncludePath(b.path("include"));
             sdl_shadercross.addLibraryPath(b.path("lib/windows"));
-            _ = dll_wf.addCopyFile(b.path("lib/windows/SDL3.dll"), "SDL3.dll");
-            if (optimize == .Debug) {
-                _ = dll_wf.addCopyFile(b.path("lib/windows/SDL3.pdb"), "SDL3.pdb");
-            }
-
             if (dxc_enabled) {
                 sdl_shadercross.linkSystemLibrary("dxil", .{});
                 sdl_shadercross.linkSystemLibrary("dxcompiler", .{});
@@ -53,9 +54,7 @@ pub fn build(b: *std.Build) !void {
             _ = dll_wf.addCopyFile(b.path("lib/windows/spirv-cross-c-shared.dll"), "spirv-cross-c-shared.dll");
         },
         .macos => {
-            sdl.addIncludePath(b.path("include"));
-            sdl.addLibraryPath(b.path("lib/macos"));
-            sdl.linkSystemLibrary("SDL3", .{});
+            sdl_shadercross.addIncludePath(sdl_dep.path("include"));
             sdl_shadercross.addIncludePath(b.path("include"));
             sdl_shadercross.addObjectFile(b.path("lib/macos/libspirv-cross-c.a"));
             sdl_shadercross.addObjectFile(b.path("lib/macos/libspirv-cross-core.a"));
