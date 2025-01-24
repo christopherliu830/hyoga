@@ -9,13 +9,13 @@ struct ScreenVertex {
     float2 uv;
 }
 
-struct Scene {
-    float4x4    view_proj;
-    float3      camera_world_pos;
-    int32_t     viewport_size_x;
-    float3      light_dir;
-    int32_t     viewport_size_y;
-};
+struct Sprite {
+    uint16_t2 atlas_size;
+    uint16_t start_index;
+    uint16_t len;
+    float speed;
+}
+
 
 struct Lighting {
     float3 light_dir;

@@ -56,4 +56,9 @@ pub fn build(b: *std.Build) !void {
         .profile = "spirv_1_3",
     });
     _ = wf.addCopyDirectory(b.path("shaders"), "shaders", .{ .include_extensions = &.{".json"} });
+
+    // Language server
+
+    const check = b.step("check", "check if run compiles");
+    check.dependOn(&rt.artifact("rt").step);
 }

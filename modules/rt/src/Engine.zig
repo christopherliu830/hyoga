@@ -29,6 +29,7 @@ gpu: *Gpu,
 ui: UI,
 loader: Loader,
 timer: std.time.Timer,
+frame_timer: std.time.Timer,
 render_timer: std.time.Timer,
 config: Config = .{},
 
@@ -47,6 +48,7 @@ pub fn init() !*Engine {
         .ui = try UI.init(.{ .gpu = self.gpu, .window = &self.window, .allocator = self.gpa.allocator() }),
         .loader = undefined, // Init after in place, I don't know why but it crashes otherwise.
         .timer = std.time.Timer.start() catch unreachable,
+        .frame_timer = std.time.Timer.start() catch unreachable,
         .render_timer = std.time.Timer.start() catch unreachable,
     };
 
@@ -71,7 +73,7 @@ pub fn shutdown(self: *Engine) void {
 pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
     var game = old_game;
 
-    const start_time = self.timer.read();
+    const start_time = self.frame_timer.read();
 
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
@@ -105,6 +107,8 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
         }
     };
 
+    game.current_time = self.timer.read();
+
     // If no command buffer, too many frames are in flight - skip rendering.
     if (maybe_cmd) |cmd| {
         self.ui.beginFrame() catch |err|
@@ -112,7 +116,7 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
 
         gi.render(self, game);
 
-        self.gpu.render(cmd, &game.scene) catch |err|
+        self.gpu.render(cmd, &game.scene, game.current_time) catch |err|
             std.log.err("[GPU] failed to finish render: {}", .{err});
         self.ui.render(cmd) catch |err|
             std.log.err("[UI] failed to finish render: {}", .{err});
@@ -124,7 +128,7 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
         game.render_delta_time = self.render_timer.lap();
     }
 
-    game.update_delta_time = self.timer.lap();
+    game.update_delta_time = self.frame_timer.lap();
     const update_duration = game.update_delta_time - start_time;
     const min_update_time: u64 = @intFromFloat(1 / @as(f64, @floatFromInt(self.config.max_fps)) * std.time.ns_per_s);
     if (min_update_time > update_duration) {

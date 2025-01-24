@@ -29,6 +29,7 @@ pub const World = extern struct {
     quit: bool = false,
     restart: bool = false,
     scene: Scene,
+    current_time: u64 = 0,
     render_delta_time: u64 = 0,
     update_delta_time: u64 = 0,
     memory: *anyopaque,
@@ -39,18 +40,32 @@ pub const ExternAllocator = extern struct {
     vtable: *const std.mem.Allocator.VTable,
 };
 
-pub const ExternSlice = extern struct {
-    ptr: [*]u8,
-    len: usize,
+pub fn ExternSlice(T: type) type {
+    return extern struct {
+        ptr: [*]T,
+        len: usize,
 
-    pub fn asSlice(self: ExternSlice) []u8 {
-        return self.ptr[0..self.len];
-    }
+        pub fn make(slice: []T) ExternSlice(T) {
+            return .{ .ptr = slice.ptr, .len = slice.len };
+        }
 
-    pub fn asSliceZ(self: ExternSlice) [:0]u8 {
-        std.debug.assert(self.ptr[self.len] == 0);
-        return self.ptr[0..self.len :0];
-    }
+        pub fn asSlice(self: ExternSlice(T)) []T {
+            return self.ptr[0..self.len];
+        }
+
+        pub fn asSliceZ(self: ExternSlice(T)) [:0]T {
+            std.debug.assert(self.ptr[self.len] == 0);
+            return self.ptr[0..self.len :0];
+        }
+    };
+}
+
+pub const SlotmapHandle = enum(u64) {
+    invalid = 0,
+};
+
+pub const IndexHandle = enum(u32) {
+    invalid = std.math.maxInt(u32),
 };
 
 pub const ExternVTable = extern struct {

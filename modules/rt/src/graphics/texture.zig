@@ -1,4 +1,5 @@
 const std = @import("std");
+const hy = @import("hyoga-lib");
 const sdl = @import("sdl");
 const stbi = @import("stb_image");
 const ai = @import("assimp");
@@ -17,14 +18,20 @@ const TextureLoadJob = struct {
     target: *sdl.gpu.Texture,
 };
 
+pub const TextureArray = [std.enums.directEnumArrayLen(TextureType, 0)]Handle;
+
 pub const TextureSet = std.EnumMap(TextureType, TextureId);
 
-pub const TextureType = enum {
+pub const TextureType = enum(u32) {
     diffuse,
     specular,
     height,
     normal,
     mask,
+
+    comptime {
+        hy.meta.assertMatches(TextureType, hy.runtime.gpu.TextureType);
+    }
 };
 
 pub const tex_to_hyoga_type = std.EnumMap(ai.TextureType, TextureType).init(.{

@@ -22,7 +22,7 @@ pub const InputFlags = packed struct(u8) {
     _padding: u5 = 0,
 
     comptime {
-        hy.debug.assertMatches(InputFlags, rt.Input.OnFlags);
+        hy.meta.assertMatches(InputFlags, rt.Input.OnFlags);
     }
 };
 
@@ -31,7 +31,7 @@ pub const Device = enum(u8) {
     keyboard,
 
     comptime {
-        hy.debug.assertMatches(Device, rt.Input.Device);
+        hy.meta.assertMatches(Device, rt.Input.Device);
     }
 };
 
@@ -41,7 +41,7 @@ pub const BindOptions = extern struct {
     fire_on: InputFlags,
 
     comptime {
-        hy.debug.assertMatches(BindOptions, rt.Input.BindOptions);
+        hy.meta.assertMatches(BindOptions, rt.Input.BindOptions);
     }
 };
 

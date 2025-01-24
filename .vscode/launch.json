@@ -3,25 +3,5 @@
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "(macos) Launch",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceFolder}/zig-out/bin/run",
-            "args": [],
-            "cwd": "${workspaceRoot}/zig-out/bin",
-        },
-        {
-            "name": "(Windows) Launch",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/zig-out/bin/run.exe",
-            "cwd": "${workspaceRoot}/zig-out/bin",
-            "args": [],
-            "environment": [],
-            "console": "internalConsole",
-            "preLaunchTask": "${defaultBuildTask}"
-        },
-    ]
+    "configurations": [ ]
 }

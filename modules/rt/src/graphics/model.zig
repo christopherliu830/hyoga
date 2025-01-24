@@ -107,15 +107,15 @@ pub const Models = struct {
     }
 
     pub const DupeModelOptions = extern struct {
-        override_material: mt.Handle = mt.Handle.invalid,
+        material: mt.Handle = mt.Handle.invalid,
     };
 
     pub fn dupe(self: *@This(), model: Handle, options: DupeModelOptions) !Handle {
         var copy = (try self.get(model)).*;
         const meshes = try self.allocator.dupe(Mesh, copy.children);
         for (meshes) |*mesh| {
-            if (options.override_material.is_valid()) {
-                mesh.material = options.override_material;
+            if (options.material.is_valid()) {
+                mesh.material = options.material;
             }
         }
         copy.children = meshes;

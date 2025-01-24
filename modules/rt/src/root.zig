@@ -23,6 +23,7 @@ pub const World = extern struct {
     quit: bool = false,
     restart: bool = false,
     scene: Scene,
+    current_time: u64 = 0,
     render_delta_time: u64 = 0,
     update_delta_time: u64 = 0,
     memory: *anyopaque,
@@ -110,15 +111,11 @@ export fn hygpuModelWaitLoad(gpu: *Gpu, model: Gpu.Model, max: u64) bool {
     return gpu.models.waitLoad(model, max);
 }
 
-export fn hygpuTextureImport(gpu: *Gpu, path: hy.runtime.ExternSlice) hy.gpu.TextureHandle {
-    return gpu.textures.read(path.asSliceZ()) catch |e| {
-        std.log.err("texture import failure: {}", .{e});
+export fn hygpuMaterialCreate(gpu: *Gpu, template: Gpu.MaterialTemplateIndex, tx_set: *const Gpu.TextureArray) Gpu.MaterialHandle {
+    return gpu.materialCreate(template, tx_set) catch |e| {
+        std.log.err("material create failure: {}", .{e});
         return .invalid;
     };
-}
-
-export fn hygpuMaterialCreate(gpu: *Gpu, tx_set: gpu.TextureSet) void {
-    _ = tx_set;
 }
 
 export fn hygpuAddRenderable(gpu: *Gpu, options: Gpu.AddRenderableOptions) Gpu.RenderItemHandle {
@@ -146,6 +143,20 @@ export fn hygpuRenderableSetTransform(gpu: *Gpu, item: Gpu.RenderItemHandle, tra
 
 export fn hygpuClearSelection(gpu: *Gpu) void {
     gpu.outlined.clearRetainingCapacity();
+}
+
+export fn hygpuSpriteCreate(gpu: *Gpu, opts: Gpu.SpriteCreateOptions) Gpu.RenderItemHandle {
+    return gpu.spriteCreate(opts) catch |e| {
+        std.log.err("sprite create failure: {}", .{e});
+        return .invalid;
+    };
+}
+
+export fn hygpuTextureImport(gpu: *Gpu, path: hy.runtime.ExternSlice(u8)) Gpu.TextureHandle {
+    return gpu.textures.read(path.asSliceZ()) catch |e| {
+        std.log.err("texture import failure: {}", .{e});
+        return .invalid;
+    };
 }
 
 export fn hyioReset(input: *Input) void {

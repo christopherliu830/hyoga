@@ -1,11 +1,13 @@
 //! All datatypes within this file are hand-written
 //! and must be manually kept in sync with the runtime datatypes!
 const std = @import("std");
+const rt = @import("../runtime.zig");
 
 const math = @import("../math/math.zig");
 const mat4 = math.mat4;
 
 pub const Gpu = opaque {
+    pub const materialCreate = hygpuMaterialCreate;
     pub const modelImport = hygpuImportModel;
     pub const modelBounds = hygpuModelBounds;
     pub const modelDupe = hygpuModelDupe;
@@ -16,24 +18,42 @@ pub const Gpu = opaque {
     pub const selectRenderable = hygpuSelectRenderable;
     pub const deselectRenderable = hygpuDeselectRenderable;
     pub const renderableSetTransform = hygpuRenderableSetTransform;
+    pub const textureImport = hygpuTextureImport;
+    pub const spriteCreate = hygpuSpriteCreate;
     pub const clearSelection = hygpuClearSelection;
 };
 
-pub const Renderable = enum(u64) {
-    invalid = 0,
-    _,
+pub const Renderable = rt.SlotmapHandle;
+
+pub const Model = rt.SlotmapHandle;
+
+pub const MaterialHandle = rt.SlotmapHandle;
+
+pub const MaterialType = enum(u32) {
+    standard,
+    sprite,
+    post_process,
+    bw_mask,
 };
 
-pub const Model = enum(u64) {
-    invalid = 0,
+pub const TextureType = enum(u32) {
+    diffuse,
+    specular,
+    height,
+    normal,
+    mask,
 };
 
-pub const MaterialHandle = enum(u64) {
-    invalid = 0,
-};
+pub const TextureHandle = rt.IndexHandle;
 
-pub const TextureHandle = enum(u32) {
-    invalid = std.math.maxInt(u32),
+pub const TextureArray = extern struct {
+    const Map = std.EnumMap(TextureType, TextureHandle);
+    const Initializer = std.enums.EnumFieldStruct(TextureType, TextureHandle, .invalid);
+    data: [std.enums.directEnumArrayLen(TextureType, 0)]TextureHandle,
+
+    pub fn make(txs: Initializer) TextureArray {
+        return .{ .data = Map.initFullWithDefault(.invalid, txs).values };
+    }
 };
 
 pub const PrimitiveShape = enum(u8) {
@@ -91,16 +111,25 @@ pub const ImportSettings = extern struct {
 
 // Time to wait for model load in nanoseconds.
 pub const AddRenderableOptions = extern struct {
-    owner: *const mat4.Mat4 = &mat4.identity,
-    time: u64 = 0,
     model: Model,
+    time: u64 = 0,
 };
 
 pub const ModelDupeOptions = extern struct {
-    override_material: MaterialHandle = .invalid,
+    material: MaterialHandle = .invalid,
+};
+
+pub const SpriteCreateOptions = extern struct {
+    atlas: [*:0]u8,
+    width: u16,
+    height: u16,
+    offset: u16 = 0,
+    len: u16 = 0,
+    speed: f32,
 };
 
 extern fn hygpuImportModel(*Gpu, [*:0]const u8, ImportSettings) Model;
+extern fn hygpuMaterialCreate(*Gpu, MaterialType, *const TextureArray) MaterialHandle;
 extern fn hygpuModelBounds(*Gpu, Model) math.AxisAligned;
 extern fn hygpuModelDupe(*Gpu, Model, ModelDupeOptions) Model;
 extern fn hygpuModelPrimitive(*Gpu, PrimitiveShape) Model;
@@ -110,4 +139,6 @@ extern fn hygpuRemoveRenderable(*Gpu, Renderable) void;
 extern fn hygpuSelectRenderable(*Gpu, Renderable) void;
 extern fn hygpuDeselectRenderable(*Gpu, Renderable) void;
 extern fn hygpuRenderableSetTransform(*Gpu, Renderable, math.Mat4) void;
+extern fn hygpuSpriteCreate(*Gpu, SpriteCreateOptions) Renderable;
+extern fn hygpuTextureImport(*Gpu, rt.ExternSlice(u8)) TextureHandle;
 extern fn hygpuClearSelection(*Gpu) void;
