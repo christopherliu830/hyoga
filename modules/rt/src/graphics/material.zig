@@ -26,7 +26,12 @@ pub const Material = struct {
     textures: tx.TextureSet,
 
     pub fn fromTemplate(template: MaterialTemplate, textures: tx.TextureSet) Material {
-        return Material{ .pipeline = template.pipeline, .vert_program_def = template.vert_program_def, .frag_program_def = template.frag_program_def, .textures = textures };
+        return .{
+            .pipeline = template.pipeline,
+            .vert_program_def = template.vert_program_def,
+            .frag_program_def = template.frag_program_def,
+            .textures = textures,
+        };
     }
 };
 
@@ -54,7 +59,7 @@ pub const MaterialSpec = struct {
 };
 
 pub const MaterialReadOptions = struct {
-    path: []const u8,
+    path: [:0]const u8,
 
     // Passed to build pipeline params
     format: ?sdl.gpu.TextureFormat = null,
@@ -143,7 +148,7 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
         }
     }
 
-    return MaterialTemplate{
+    return .{
         .pipeline = pipeline,
         .vert_program_def = .{
             .num_samplers = vert_info.num_samplers,

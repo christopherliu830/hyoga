@@ -110,10 +110,21 @@ export fn hygpuModelWaitLoad(gpu: *Gpu, model: Gpu.Model, max: u64) bool {
     return gpu.models.waitLoad(model, max);
 }
 
+export fn hygpuTextureImport(gpu: *Gpu, path: hy.runtime.ExternSlice) hy.gpu.TextureHandle {
+    return gpu.textures.read(path.asSliceZ()) catch |e| {
+        std.log.err("texture import failure: {}", .{e});
+        return .invalid;
+    };
+}
+
+export fn hygpuMaterialCreate(gpu: *Gpu, tx_set: gpu.TextureSet) void {
+    _ = tx_set;
+}
+
 export fn hygpuAddRenderable(gpu: *Gpu, options: Gpu.AddRenderableOptions) Gpu.RenderItemHandle {
     return gpu.renderables.add(options) catch |e| {
         std.log.err("add renderable failure: {}", .{e});
-        return Gpu.RenderItemHandle.invalid;
+        return .invalid;
     };
 }
 

@@ -32,6 +32,10 @@ pub const MaterialHandle = enum(u64) {
     invalid = 0,
 };
 
+pub const TextureHandle = enum(u32) {
+    invalid = std.math.maxInt(u32),
+};
+
 pub const PrimitiveShape = enum(u8) {
     cube,
     quad,

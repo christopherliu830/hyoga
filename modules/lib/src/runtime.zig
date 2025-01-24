@@ -42,6 +42,15 @@ pub const ExternAllocator = extern struct {
 pub const ExternSlice = extern struct {
     ptr: [*]u8,
     len: usize,
+
+    pub fn asSlice(self: ExternSlice) []u8 {
+        return self.ptr[0..self.len];
+    }
+
+    pub fn asSliceZ(self: ExternSlice) [:0]u8 {
+        std.debug.assert(self.ptr[self.len] == 0);
+        return self.ptr[0..self.len :0];
+    }
 };
 
 pub const ExternVTable = extern struct {

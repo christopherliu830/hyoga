@@ -65,14 +65,13 @@ pub const Textures = struct {
         self.textures.deinit(self.allocator);
     }
 
-    pub fn get(self: *@This(), id: Strint.ID) !?*sdl.gpu.Texture {
+    pub fn get(self: *@This(), id: Handle) !?*sdl.gpu.Texture {
         try self.flushQueue();
         return self.textures.get(id);
     }
 
     pub fn read(self: *@This(), path: [:0]const u8) !Handle {
         const copy = try self.allocator.dupeZ(u8, path);
-        // readTexture(&self.queue, self, copy);
         try self.loader.run(&self.queue, readTexture, .{ self, copy });
         return self.strint.from(path);
     }

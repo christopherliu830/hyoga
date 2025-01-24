@@ -105,8 +105,27 @@ pub const BuildPipelineParams = struct {
     primitive_type: sdl.gpu.PrimitiveType,
 };
 
-const RenderState = struct {
+const DefaultAssets = struct {
+    pub const MaterialTemplateIndex = enum {
+        standard,
+        post_process,
+        bw_mask,
+    };
+
+    pub fn materialTemplate(
+        self: *const DefaultAssets,
+        idx: MaterialTemplateIndex,
+    ) MaterialTemplate {
+        return switch (idx) {
+            .standard => self.default_material,
+            .post_process => self.post_material,
+            .bw_mask => self.outline_material,
+        };
+    }
+
     forward_pass: passes.Forward,
+
+    mat_templates: std.EnumSet(MaterialTemplate),
 
     default_material: MaterialTemplate,
     post_material: MaterialTemplate,
@@ -163,7 +182,7 @@ buffer_allocator: buf.BufferAllocator,
 loader: *Loader,
 strint: *Strint,
 window: *Window,
-render_state: RenderState = undefined,
+default_assets: DefaultAssets = undefined,
 window_state: WindowState = .{},
 renderables: rbl.RenderList,
 outlined: std.AutoArrayHashMapUnmanaged(rbl.RenderItemHandle, void),
@@ -304,7 +323,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
     var h: c_int = 0;
     _ = sdl.video.getWindowSizeInPixels(window.hdl, &w, &h);
 
-    self.render_state = .{
+    self.default_assets = .{
         .forward_pass = passes.Forward.init(self.device, .{
             .name = "standard",
             .clear_color = .{ .r = 0.2, .g = 0.2, .b = 0.4, .a = 1 },
@@ -358,16 +377,16 @@ pub fn shutdown(self: *Gpu) void {
 
     self.buffer_allocator.deinit();
 
-    self.render_state.forward_pass.deinit();
-    self.device.releaseBuffer(self.render_state.obj_buf.hdl);
-    self.device.releaseBuffer(self.render_state.selected_obj_buf.hdl);
-    self.device.releaseTexture(self.render_state.default_texture);
-    self.device.releaseTexture(self.render_state.black_texture);
-    self.device.releaseTexture(self.render_state.white_texture);
-    self.device.releaseSampler(self.render_state.sampler);
-    self.device.releaseGraphicsPipeline(self.render_state.outline_material.pipeline);
-    self.device.releaseGraphicsPipeline(self.render_state.post_material.pipeline);
-    self.device.releaseGraphicsPipeline(self.render_state.default_material.pipeline);
+    self.default_assets.forward_pass.deinit();
+    self.device.releaseBuffer(self.default_assets.obj_buf.hdl);
+    self.device.releaseBuffer(self.default_assets.selected_obj_buf.hdl);
+    self.device.releaseTexture(self.default_assets.default_texture);
+    self.device.releaseTexture(self.default_assets.black_texture);
+    self.device.releaseTexture(self.default_assets.white_texture);
+    self.device.releaseSampler(self.default_assets.sampler);
+    self.device.releaseGraphicsPipeline(self.default_assets.outline_material.pipeline);
+    self.device.releaseGraphicsPipeline(self.default_assets.post_material.pipeline);
+    self.device.releaseGraphicsPipeline(self.default_assets.default_material.pipeline);
     self.device.destroy();
 
     self.arena.deinit();
@@ -441,7 +460,7 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
 
-    self.render_state.pending_submit_result = .{};
+    self.default_assets.pending_submit_result = .{};
 
     var drawable_w: u32 = undefined;
     var drawable_h: u32 = undefined;
@@ -457,13 +476,13 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
         return error.AcquireSwapchainError;
     } else if (swapchain) |s| {
         if (self.window_state.prev_drawable_w != drawable_w or self.window_state.prev_drawable_h != drawable_h) {
-            self.render_state.forward_pass.resize(drawable_w, drawable_h);
+            self.default_assets.forward_pass.resize(drawable_w, drawable_h);
         }
 
         self.window_state.prev_drawable_w = drawable_w;
         self.window_state.prev_drawable_h = drawable_h;
 
-        self.render_state.active_target = s;
+        self.default_assets.active_target = s;
         return cmd;
     } else {
         // No swapchain was acquired, probably too many frames in flight.
@@ -484,14 +503,14 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
     try self.uniforms.put(self.gpa, self.ids.camera_world_position, .{ .f32x3 = scene.camera_world_pos.v });
     try self.uniforms.put(self.gpa, self.ids.light_direction, .{ .f32x3 = scene.light_dir.v });
     try self.uniforms.put(self.gpa, self.ids.viewport_size, .{ .f32x4 = .{ @floatFromInt(self.window_state.prev_drawable_w), @floatFromInt(self.window_state.prev_drawable_h), 0, 0 } });
-    try self.uniforms.put(self.gpa, self.ids.all_renderables, .{ .buffer = self.render_state.obj_buf.hdl });
-    try self.uniforms.put(self.gpa, self.ids.selected_renderables, .{ .buffer = self.render_state.selected_obj_buf.hdl });
+    try self.uniforms.put(self.gpa, self.ids.all_renderables, .{ .buffer = self.default_assets.obj_buf.hdl });
+    try self.uniforms.put(self.gpa, self.ids.selected_renderables, .{ .buffer = self.default_assets.selected_obj_buf.hdl });
 
     const render_pack = try self.renderables.packAll(arena);
     const transforms = render_pack.transforms;
-    try self.uploadToBuffer(self.render_state.obj_buf.hdl, 0, std.mem.sliceAsBytes(transforms));
+    try self.uploadToBuffer(self.default_assets.obj_buf.hdl, 0, std.mem.sliceAsBytes(transforms));
 
-    self.doPass(.{ .cmd = cmd, .scene = scene.*, .targets = self.render_state.forward_pass.targets(), .items = .{ .pack = render_pack } }) catch unreachable;
+    self.doPass(.{ .cmd = cmd, .scene = scene.*, .targets = self.default_assets.forward_pass.targets(), .items = .{ .pack = render_pack } }) catch unreachable;
 
     // Render selected objects as mask for outline
     const mask: ?passes.Forward = blk: {
@@ -509,12 +528,12 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
             const items = self.outlined.keys();
             const pack = try self.renderables.pack(items, self.arena.allocator());
             const selected_transforms = pack.transforms;
-            try self.uploadToBuffer(self.render_state.selected_obj_buf.hdl, 0, std.mem.sliceAsBytes(selected_transforms));
+            try self.uploadToBuffer(self.default_assets.selected_obj_buf.hdl, 0, std.mem.sliceAsBytes(selected_transforms));
 
             self.doPass(.{
                 .cmd = cmd,
                 .scene = scene.*,
-                .material = mt.Material.fromTemplate(self.render_state.outline_material, .{}),
+                .material = mt.Material.fromTemplate(self.default_assets.outline_material, .{}),
                 .targets = mask.targets(),
                 .items = .{ .pack = pack },
             }) catch unreachable;
@@ -526,9 +545,9 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene) !void {
 
     self.blitToScreen(
         cmd,
-        self.render_state.active_target.?,
-        self.render_state.forward_pass.texture(),
-        if (mask != null) mask.?.texture() else self.render_state.black_texture,
+        self.default_assets.active_target.?,
+        self.default_assets.forward_pass.texture(),
+        if (mask != null) mask.?.texture() else self.default_assets.black_texture,
         self.uniforms.get(self.ids.viewport_size).?.f32x4,
     );
 }
@@ -539,9 +558,9 @@ pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
 
     _ = cmd.submit();
     _ = self.arena.reset(.retain_capacity);
-    const result = self.render_state.pending_submit_result.?;
-    self.render_state.pending_submit_result = null;
-    self.render_state.active_target = null;
+    const result = self.default_assets.pending_submit_result.?;
+    self.default_assets.pending_submit_result = null;
+    self.default_assets.active_target = null;
     return result;
 }
 
@@ -566,11 +585,11 @@ pub fn blitToScreen(
         panic("error begin render pass {s}", .{sdl.getError()});
     defer pass.end();
 
-    pass.bindGraphicsPipeline(self.render_state.post_material.pipeline);
+    pass.bindGraphicsPipeline(self.default_assets.post_material.pipeline);
 
     const binding = [_]sdl.gpu.TextureSamplerBinding{
-        .{ .sampler = self.render_state.sampler, .texture = scene_tex },
-        .{ .sampler = self.render_state.sampler, .texture = mask_tex },
+        .{ .sampler = self.default_assets.sampler, .texture = scene_tex },
+        .{ .sampler = self.default_assets.sampler, .texture = mask_tex },
     };
 
     pass.bindFragmentSamplers(0, &binding, 2);
@@ -702,11 +721,11 @@ fn draw(
             const tex_id = material.textures.get(needed_tex_type.?).?;
             const texture: *sdl.gpu.Texture = blk: {
                 if (tex_id.target) |target| break :blk target;
-                if (tex_id.handle) |handle| break :blk self.textures.get(handle) catch self.render_state.default_texture orelse self.render_state.default_texture;
+                if (tex_id.handle) |handle| break :blk self.textures.get(handle) catch self.default_assets.default_texture orelse self.default_assets.default_texture;
                 panic("[GPU] Textures must have a handle or direct target defined", .{});
             };
 
-            const binding = [_]sdl.gpu.TextureSamplerBinding{.{ .sampler = self.render_state.sampler, .texture = texture }};
+            const binding = [_]sdl.gpu.TextureSamplerBinding{.{ .sampler = self.default_assets.sampler, .texture = texture }};
 
             pushSampler(pass, @intCast(i), &binding, 1);
         }
@@ -908,7 +927,7 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSetti
                 }
             }
         }
-        const material = mt.Material.fromTemplate(self.render_state.default_material, texture_set);
+        const material = mt.Material.fromTemplate(self.default_assets.default_material, texture_set);
         const hdl = try self.materials.insert(material);
         materials_array[mat_index] = hdl;
     }
@@ -952,9 +971,9 @@ pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, mate
 
 pub fn modelPrimitive(self: *Gpu, shape: primitives.Shape) Model {
     return switch (shape) {
-        .cube => return self.render_state.cube,
-        .quad => return self.render_state.quad,
-        .sphere => return self.render_state.sphere,
+        .cube => return self.default_assets.cube,
+        .quad => return self.default_assets.quad,
+        .sphere => return self.default_assets.sphere,
     };
 }
 
