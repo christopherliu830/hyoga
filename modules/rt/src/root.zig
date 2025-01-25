@@ -14,9 +14,14 @@ const Input = Engine.Input;
 const Gpu = Engine.Gpu;
 
 pub const Scene = extern struct {
-    view_proj: math.Mat4,
+    view: math.Mat4,
+    proj: math.Mat4,
     light_dir: math.Vec3,
     camera_world_pos: math.Vec3,
+
+    comptime {
+        hy.meta.assertMatches(Scene, hy.runtime.Scene);
+    }
 };
 
 pub const World = extern struct {

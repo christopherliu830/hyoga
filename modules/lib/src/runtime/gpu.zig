@@ -34,6 +34,7 @@ pub const MaterialType = enum(u32) {
     sprite,
     post_process,
     bw_mask,
+    billboard,
 };
 
 pub const TextureType = enum(u32) {

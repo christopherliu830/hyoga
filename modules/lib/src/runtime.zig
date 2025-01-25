@@ -20,7 +20,8 @@ const key = @import("key.zig");
 const closure = @import("closure.zig");
 
 pub const Scene = extern struct {
-    view_proj: math.Mat4,
+    view: math.Mat4,
+    proj: math.Mat4,
     light_dir: math.Vec3,
     camera_world_pos: math.Vec3,
 };

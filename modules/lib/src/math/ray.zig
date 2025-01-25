@@ -111,4 +111,15 @@ pub const Ray = struct {
 
         return @as([*]f32, @ptrCast(t_out.ptr))[0 .. boxes.len * pack_len];
     }
+
+    pub fn planeIntersect(ray: Ray, o: math.Vec3, n: math.Vec3) ?math.Vec3 {
+        const nd: f32 = n.dot(ray.direction);
+        if (@abs(nd) > std.math.floatEps(f32)) {
+            const t: f32 = o.sub(ray.origin).dot(n) / nd;
+            if (t >= 0) {
+                return ray.origin.add(ray.direction.mul(t));
+            }
+        }
+        return null;
+    }
 };

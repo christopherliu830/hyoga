@@ -1,6 +1,7 @@
 /// zig version of cglm functions.
 const math = @import("std").math;
 
+const Vec2 = @import("vec2.zig").Vec2;
 const vec4 = @import("vec4.zig");
 const Vec4 = vec4.Vec4;
 
@@ -32,6 +33,10 @@ pub const Vec3 = extern struct {
         return self.v[2];
     }
 
+    pub inline fn xy(self: Vec3) Vec2 {
+        return .{ .v = .{ self.v[0], self.v[1] } };
+    }
+
     pub inline fn dot(a: Vec3, b: Vec3) f32 {
         return root.dot(a, b);
     }
@@ -61,8 +66,8 @@ pub const Vec3 = extern struct {
         return root.cross(a, b);
     }
 
-    pub inline fn rotate(a: *Vec3, axis: Vec3, amt: f32) void {
-        a.v = root.rotate(a.*, axis, amt).v;
+    pub inline fn rotate(a: Vec3, axis: Vec3, radians: f32) Vec3 {
+        return root.rotate(a, axis, radians);
     }
 
     pub inline fn clamp(a: *Vec3, min: f32, max: f32) void {
@@ -222,13 +227,13 @@ pub inline fn angle(a: Vec3, b: Vec3) f32 {
 }
 
 /// rotate vec3 around axis by angle using Rodrigues' rotation formula
-pub inline fn rotate(v: Vec3, axis: Vec3, amt: f32) Vec3 {
+pub inline fn rotate(v: Vec3, axis: Vec3, radians: f32) Vec3 {
     // const c: @Vector(3, f32) = @splat(@cos(amt));
     // const s: @Vector(3, f32) = @splat(@sin(amt));
     // const k = normal(axis);
     // const kdotv: @Vector(3, f32) = @splat(dot(k, v) * 1 - @cos(amt));
-    const c = @cos(amt);
-    const s = @sin(amt);
+    const c = @cos(radians);
+    const s = @sin(radians);
     const k = normal(axis);
 
     // Right Hand, Rodrigues' rotation formula:

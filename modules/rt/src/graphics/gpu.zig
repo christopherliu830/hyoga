@@ -51,6 +51,8 @@ const panic = std.debug.panic;
 pub const StringIDs = struct {
     all_renderables: Strint.ID,
     selected_renderables: Strint.ID,
+    view: Strint.ID,
+    projection: Strint.ID,
     view_projection: Strint.ID, // RH, y-up view projection matrix. note that SDL_gpu flips viewports to ensure consistency among all backends.
     camera_world_position: Strint.ID,
     light_direction: Strint.ID,
@@ -65,6 +67,8 @@ pub const StringIDs = struct {
             .all_renderables = strint.from("hy_all_renderables") catch hy.err.oom(),
             .selected_renderables = strint.from("hy_selected_renderables") catch hy.err.oom(),
             // Uniform buffers
+            .view = strint.from("hy_view_matrix") catch hy.err.oom(),
+            .projection = strint.from("hy_projection_matrix") catch hy.err.oom(),
             .view_projection = strint.from("hy_view_projection_matrix") catch hy.err.oom(),
             .camera_world_position = strint.from("hy_camera_world_position") catch hy.err.oom(),
             .light_direction = strint.from("hy_light_direction") catch hy.err.oom(),
@@ -86,20 +90,11 @@ pub const MaterialTemplateIndex = enum(u32) {
     sprite,
     post_process,
     bw_mask,
+    billboard,
 
     comptime {
         hy.meta.assertMatches(MaterialTemplateIndex, hy.runtime.gpu.MaterialType);
     }
-};
-
-/// This struct is sent to shaders as a uniform
-/// buffer and fields must be kept in sync.
-pub const GpuScene = extern struct {
-    view_proj: hym.Mat4,
-    camera_world_pos: [3]f32,
-    viewport_size_x: u32,
-    light_dir: [3]f32,
-    viewport_size_y: u32,
 };
 
 pub const RenderSubmitResult = struct {
@@ -339,25 +334,32 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
             .dest_tex_height = @intCast(h),
         }),
 
-        .mats = .init(.{
-            .standard = material,
-            .sprite = try mt.readFromPath(self, .{
-                .path = "shaders/sprite",
-                .enable_depth = true,
-                .enable_stencil = false,
-            }, self.gpa),
-            .post_process = try mt.readFromPath(self, .{
-                .path = "shaders/post_process",
-                .enable_depth = false,
-                .enable_stencil = false,
-            }, self.gpa),
-            .bw_mask = try mt.readFromPath(self, .{
-                .path = "shaders/outline",
-                .enable_depth = false,
-                .enable_stencil = false,
-                .format = .r8_unorm,
-            }, self.gpa),
-        }),
+        .mats = .init(
+            .{
+                .standard = material,
+                .sprite = try mt.readFromPath(self, .{
+                    .path = "shaders/sprite",
+                    .enable_depth = true,
+                    .enable_stencil = false,
+                }, self.gpa),
+                .post_process = try mt.readFromPath(self, .{
+                    .path = "shaders/post_process",
+                    .enable_depth = false,
+                    .enable_stencil = false,
+                }, self.gpa),
+                .bw_mask = try mt.readFromPath(self, .{
+                    .path = "shaders/outline",
+                    .enable_depth = false,
+                    .enable_stencil = false,
+                    .format = .r8_unorm,
+                }, self.gpa),
+                .billboard = try mt.readFromPath(self, .{
+                    .path = "shaders/billboard",
+                    .enable_depth = true,
+                    .enable_stencil = false,
+                }, self.gpa),
+            },
+        ),
 
         .default_texture = texture,
         .black_texture = black_texture,
@@ -518,7 +520,9 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     defer zone.End();
     const arena = self.arena.allocator();
 
-    try self.uniforms.put(self.gpa, self.ids.view_projection, .{ .mat4x4 = scene.view_proj.m });
+    try self.uniforms.put(self.gpa, self.ids.view, .{ .mat4x4 = scene.view.m });
+    try self.uniforms.put(self.gpa, self.ids.projection, .{ .mat4x4 = scene.proj.m });
+    try self.uniforms.put(self.gpa, self.ids.view_projection, .{ .mat4x4 = scene.view.mul(scene.proj).m });
     try self.uniforms.put(self.gpa, self.ids.camera_world_position, .{ .f32x3 = scene.camera_world_pos.v });
     try self.uniforms.put(self.gpa, self.ids.light_direction, .{ .f32x3 = scene.light_dir.v });
     try self.uniforms.put(self.gpa, self.ids.viewport_size, .{ .f32x4 = .{ @floatFromInt(self.window_state.prev_drawable_w), @floatFromInt(self.window_state.prev_drawable_h), 0, 0 } });
@@ -1060,7 +1064,7 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !RenderItemHandle {
     std.debug.assert(opts.height != 0);
 
     const tex = try self.textures.read(std.mem.span(opts.atlas));
-    const template = self.default_assets.mats.get(.sprite).?;
+    const template = self.default_assets.mats.get(.billboard).?;
     const mat: mt.Material = mt.Material.fromTemplate(template, .init(.{ .diffuse = .{ .handle = tex } }));
     const mat_hdl = try self.materials.insert(mat);
     const quad = try self.models.dupe(self.default_assets.quad, .{ .material = mat_hdl });
