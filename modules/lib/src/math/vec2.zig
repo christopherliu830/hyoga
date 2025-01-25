@@ -90,7 +90,7 @@ pub inline fn sqlen(v: Vec2) f32 {
 }
 
 pub inline fn len(v: Vec2) f32 {
-    return @sqrt(dot(v));
+    return @sqrt(dot(v, v));
 }
 
 pub inline fn abs(v: Vec2) Vec2 {
@@ -128,7 +128,7 @@ pub inline fn normalize(v: Vec2) void {
 
 pub inline fn normal(v: Vec2) Vec2 {
     if (len(v) < math.floatEps(f32)) return zero;
-    return .{ .v = v.v / @as(Vec2, @splat(len(v))) };
+    return .{ .v = v.v / @as(@Vector(2, f32), @splat(len(v))) };
 }
 
 pub inline fn add(a: Vec2, b: anytype) Vec2 {

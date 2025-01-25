@@ -77,6 +77,20 @@ pub const Input = opaque {
         }
     };
 
+    pub const BindHelper = struct {
+        allocator: std.mem.Allocator,
+        input: *Input,
+        group: Group,
+
+        pub fn bind(self: *const BindHelper, opts: BindOptions, handler: anytype, args: anytype) void {
+            self.input.bind(
+                self.group,
+                opts,
+                closure.create(handler, args, self.allocator) catch std.debug.panic("oom", .{}),
+            );
+        }
+    };
+
     pub const reset = hyioReset;
     pub const createGroup = hyioCreateGroup;
     pub const getGroup = hyioGetGroup;
