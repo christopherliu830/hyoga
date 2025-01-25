@@ -23,11 +23,17 @@ pub const Gpu = opaque {
     pub const clearSelection = hygpuClearSelection;
 };
 
-pub const Renderable = rt.SlotmapHandle;
+pub const Renderable = enum(u64) {
+    none = 0,
+};
 
-pub const Model = rt.SlotmapHandle;
+pub const Model = enum(u64) {
+    none = 0,
+};
 
-pub const MaterialHandle = rt.SlotmapHandle;
+pub const MaterialHandle = enum(u64) {
+    none = 0,
+};
 
 pub const MaterialType = enum(u32) {
     standard,

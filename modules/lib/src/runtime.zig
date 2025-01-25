@@ -61,10 +61,6 @@ pub fn ExternSlice(T: type) type {
     };
 }
 
-pub const SlotmapHandle = enum(u64) {
-    invalid = 0,
-};
-
 pub const IndexHandle = enum(u32) {
     invalid = std.math.maxInt(u32),
 };

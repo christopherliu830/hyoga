@@ -144,14 +144,11 @@ pub const RenderList = struct {
         const transforms = try allocator.alloc(Mat4, handles.len);
         errdefer allocator.free(transforms);
 
-        const num_instances = blk: {
-            var count: usize = 0;
-            for (0..renderables.len) |i| {
-                if (i == 0) {
-                    count += 1;
-                    continue;
-                }
+        std.sort.heapContext(0, renderables.len, SwapContext{ .renderables = renderables, .handles = hdls });
 
+        const num_distinct = blk: {
+            var count: usize = 1;
+            for (1..renderables.len) |i| {
                 if (!renderables[i].eql(renderables[i - 1])) {
                     count += 1;
                 }
@@ -159,30 +156,29 @@ pub const RenderList = struct {
             break :blk count;
         };
 
-        const material_ids = try allocator.alloc(mt.Handle, num_instances);
+        const material_ids = try allocator.alloc(mt.Handle, num_distinct);
         errdefer allocator.free(material_ids);
-        const meshes = try allocator.alloc(mdl.Mesh, num_instances);
+        const meshes = try allocator.alloc(mdl.Mesh, num_distinct);
         errdefer allocator.free(meshes);
-        const instance_counts = try allocator.alloc(u32, num_instances);
+        const instance_counts = try allocator.alloc(u32, num_distinct);
         errdefer allocator.free(instance_counts);
-        var instance_hdls = try allocator.alloc(RenderItemHandle, num_instances);
+        var instance_hdls = try allocator.alloc(RenderItemHandle, num_distinct);
         errdefer allocator.free(instance_hdls);
 
-        std.sort.heapContext(0, num_instances, SwapContext{ .renderables = renderables, .handles = hdls });
-
-        var transform_idx: u32 = 0;
+        var distinct_transform_idx: u32 = 0;
         for (0..renderables.len) |i| {
             const renderable = renderables[i];
+            std.debug.print("{}\n", .{renderable.mesh});
 
             transforms[i] = renderable.import_transform;
 
-            if (transform_idx != 0 and renderable.eql(renderables[i - 1])) {
-                instance_counts[transform_idx - 1] += 1;
+            if (distinct_transform_idx == 0 or !renderable.eql(renderables[i - 1])) {
+                meshes[distinct_transform_idx] = renderable.mesh;
+                instance_counts[distinct_transform_idx] = 1;
+                instance_hdls[distinct_transform_idx] = hdls[i];
+                distinct_transform_idx += 1;
             } else {
-                meshes[transform_idx] = renderable.mesh;
-                instance_counts[transform_idx] = 1;
-                instance_hdls[transform_idx] = hdls[i];
-                transform_idx += 1;
+                instance_counts[distinct_transform_idx - 1] += 1;
             }
         }
 
@@ -190,7 +186,7 @@ pub const RenderList = struct {
             .transforms = transforms,
             .meshes = meshes,
             .instance_counts = instance_counts,
-            .len = transform_idx,
+            .len = distinct_transform_idx,
             .hdls = instance_hdls,
         };
     }
