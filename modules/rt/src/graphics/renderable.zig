@@ -168,7 +168,6 @@ pub const RenderList = struct {
         var distinct_transform_idx: u32 = 0;
         for (0..renderables.len) |i| {
             const renderable = renderables[i];
-            std.debug.print("{}\n", .{renderable.mesh});
 
             transforms[i] = renderable.import_transform;
 

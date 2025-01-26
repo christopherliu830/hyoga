@@ -224,8 +224,6 @@ pub fn Sphere(size: usize) type {
                 tz += pitch;
             }
 
-            std.debug.print("IDX: {}\n", .{idx_list.items.len});
-
             return .{
                 .vertices = vert_buf,
                 .indices = idx_buf,

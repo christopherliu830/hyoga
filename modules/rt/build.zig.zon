@@ -2,27 +2,14 @@
     .name = "hyoga-rt",
     .version = "0.0.0",
     .dependencies = .{
-        .imgui = .{
-            .path = "../imgui",
-        },
-        .sdl = .{
-            .path = "../sdl",
-        },
-        .sdl_shadercross = .{
-            .path = "../sdl_shadercross",
-        },
-        .assimp = .{
-            .path = "../assimp",
-        },
-        .stb_image = .{
-            .path = "../stb_image",
-        },
-        .ztracy = .{
-            .path = "../ztracy",
-        },
-        .hyoga_lib = .{
-            .path = "../lib",
-        },
+        .box2d = .{ .path = "../box2d" },
+        .imgui = .{ .path = "../imgui" },
+        .sdl = .{ .path = "../sdl" },
+        .sdl_shadercross = .{ .path = "../sdl_shadercross" },
+        .assimp = .{ .path = "../assimp" },
+        .stb_image = .{ .path = "../stb_image" },
+        .ztracy = .{ .path = "../ztracy" },
+        .hyoga_lib = .{ .path = "../lib" },
     },
     .paths = .{""},
 }

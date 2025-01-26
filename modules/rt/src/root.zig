@@ -69,6 +69,10 @@ export fn hyeInput(engine: *Engine) *Input {
     return &engine.input;
 }
 
+export fn hyePhys2(engine: *Engine) *Engine.Phys2 {
+    return &engine.physics;
+}
+
 export fn hyeStrint(engine: *Engine) *Engine.Strint {
     return &engine.strint;
 }
@@ -203,6 +207,17 @@ export fn hysidFrom(strint: *Engine.Strint, str: [*]const u8, len: usize) Engine
         std.log.err("strint failure: {}", .{e});
         return Engine.Strint.ID.invalid;
     };
+}
+
+export fn hyp2BodyAdd(p2d: *Engine.Phys2, opts: Engine.Phys2.BodyAddOptions) Engine.Phys2.Body {
+    return p2d.addBody(opts);
+}
+
+export fn hyp2BodyGetPosition(
+    _: *Engine.Phys2,
+    body: Engine.Phys2.Body,
+) hy.math.Vec2 {
+    return @bitCast(body.GetPosition());
 }
 
 export fn hysidAsString(strint: *Engine.Strint, str: Engine.Strint.ID, len: *usize) [*]const u8 {

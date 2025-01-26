@@ -20,6 +20,7 @@ pub const GameInterface = runtime.GameInterface;
 pub const World = runtime.World;
 pub const Input = runtime.Input;
 pub const Gpu = runtime.Gpu;
+pub const Phys2 = runtime.Phys2;
 pub const Window = runtime.Window;
 pub const Keycode = key.Keycode;
 pub const Keymod = key.Keymod;

@@ -5,12 +5,14 @@ const std = @import("std");
 
 pub const input = @import("runtime/input.zig");
 pub const gpu = @import("runtime/gpu.zig");
+pub const p2 = @import("runtime/phys2.zig");
 pub const strint = @import("runtime/strint.zig");
 pub const ui = @import("runtime/ui.zig");
 pub const w = @import("runtime/window.zig");
 
 pub const Input = input.Input;
 pub const Gpu = gpu.Gpu;
+pub const Phys2 = p2.Phys2;
 pub const Strint = strint;
 pub const Window = w.Window;
 pub const UI = ui;
@@ -85,6 +87,7 @@ pub const Engine = opaque {
     pub const update = hyeUpdate;
     pub const gameAllocator = hyeGameAllocator;
     pub const gpu = hyeGpu;
+    pub const p2 = hyePhys2;
     pub const input = hyeInput;
     pub const strint = hyeStrint;
     pub const ui = hyeUI;
@@ -98,6 +101,7 @@ extern fn hyeShutdown(*Engine) void;
 extern fn hyeUpdate(*Engine, World, GameInterface) World;
 extern fn hyeGameAllocator(*Engine) ExternAllocator;
 extern fn hyeGpu(*Engine) *gpu.Gpu;
+extern fn hyePhys2(*Engine) *p2.Phys2;
 extern fn hyeInput(*Engine) *input.Input;
 extern fn hyeStrint(*Engine) *Strint;
 extern fn hyeWindow(*Engine) *Window;

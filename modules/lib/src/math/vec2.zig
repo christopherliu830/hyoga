@@ -16,6 +16,8 @@ pub const Vec2 = extern struct {
     pub const nx = Vec2{ .v = .{ -1, 0 } };
     pub const ny = Vec2{ .v = .{ 0, -1 } };
 
+    pub const of = root.create;
+
     pub inline fn x(self: Vec2) f32 {
         return self.v[0];
     }

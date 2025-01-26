@@ -31,14 +31,25 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("src/root.zig"),
     });
 
-    const hylib = b.dependency("hyoga_lib", .{ .target = target, .optimize = optimize });
+    const hylib = b.dependency("hyoga_lib", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const box2d = b.dependency("box2d", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const imgui = b.dependency("imgui", .{
         .target = target,
         .optimize = optimize,
     });
 
-    const stb_image = b.dependency("stb_image", .{ .target = target });
+    const stb_image = b.dependency("stb_image", .{
+        .target = target,
+        // stbi is too slow in debug mode.
+    });
 
     const sdl = b.dependency("sdl", .{
         .target = target,
@@ -46,7 +57,10 @@ pub fn build(b: *std.Build) !void {
         .dxc = dxc,
     });
 
-    const assimp = b.dependency("assimp", .{ .target = target, .optimize = optimize });
+    const assimp = b.dependency("assimp", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const ztracy = b.dependency("ztracy", .{
         .target = target,
@@ -59,6 +73,7 @@ pub fn build(b: *std.Build) !void {
         rt.linkLibrary(ztracy.artifact("tracy"));
     }
 
+    rt.root_module.addImport("box2d", &box2d.artifact("box2d").root_module);
     rt.root_module.addImport("assimp", assimp.module("root"));
     rt.root_module.addImport("hyoga-lib", hylib.module("hyoga-lib"));
     rt.root_module.addImport("sdl", sdl.module("sdl"));

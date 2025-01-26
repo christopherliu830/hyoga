@@ -5,6 +5,7 @@ pub const Gpu = @import("graphics/gpu.zig");
 pub const Loader = @import("graphics/loader.zig");
 pub const Window = @import("window.zig");
 pub const Strint = @import("strintern.zig");
+pub const Phys2 = @import("phys2d/phys2d.zig");
 
 const std = @import("std");
 const sdl = @import("sdl");
@@ -16,7 +17,7 @@ const World = @import("root.zig").World;
 const GameInterface = @import("root.zig").GameInterface;
 
 pub const Config = struct {
-    max_fps: u32 = 256,
+    max_fps: u32 = 60,
 };
 
 gpa: std.heap.GeneralPurposeAllocator(.{}),
@@ -26,11 +27,13 @@ window: Window,
 strint: Strint,
 input: Input,
 gpu: *Gpu,
+physics: Phys2,
 ui: UI,
 loader: Loader,
-timer: std.time.Timer,
-frame_timer: std.time.Timer,
-render_timer: std.time.Timer,
+timer: std.time.Timer, // time since engine init in nanoseconds.
+frame_timer: std.time.Timer, // time duration of last game state update.
+render_timer: std.time.Timer, // time duration since last render.
+physics_time: u64 = 0, // Time of most recent physics update
 config: Config = .{},
 
 pub fn init() !*Engine {
@@ -45,11 +48,13 @@ pub fn init() !*Engine {
         .input = Input.init(self.gpa.allocator()),
         .window = try Window.init(),
         .gpu = try Gpu.init(&self.window, &self.loader, &self.strint, self.gpa.allocator()),
+        .physics = .init(),
         .ui = try UI.init(.{ .gpu = self.gpu, .window = &self.window, .allocator = self.gpa.allocator() }),
         .loader = undefined, // Init after in place, I don't know why but it crashes otherwise.
         .timer = std.time.Timer.start() catch unreachable,
         .frame_timer = std.time.Timer.start() catch unreachable,
         .render_timer = std.time.Timer.start() catch unreachable,
+        .physics_time = 0,
     };
 
     try self.loader.init(self.gpa.allocator());
@@ -96,7 +101,19 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
         }
     }
 
+    game.current_time = self.timer.read();
+
+    // Physics
+
+    while (self.physics.current_time < game.current_time) {
+        self.physics.step();
+    }
+
+    // Game state
+
     game = gi.update(self, game);
+
+    // Rendering
 
     const maybe_cmd = blk: {
         if (self.gpu.begin()) |cmd| {
@@ -106,8 +123,6 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
             return game;
         }
     };
-
-    game.current_time = self.timer.read();
 
     // If no command buffer, too many frames are in flight - skip rendering.
     if (maybe_cmd) |cmd| {
