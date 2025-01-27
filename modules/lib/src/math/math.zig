@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const bounds = @import("bounds.zig");
 pub const cam = @import("cam.zig");
 pub const mat4 = @import("mat4.zig");
@@ -53,4 +55,42 @@ pub fn mul(a: anytype, b: anytype) MulResult(@TypeOf(a), @TypeOf(b)) {
     }
     if (ta == Vec4 and tb == Mat4) return mat4.vmul(b, a);
     if (ta == Mat4 and tb == Vec4) return mat4.mulv(a, b);
+}
+
+/// 
+pub fn assertMetaEql(A: type, B: type) void {
+    if (A == B) return;
+
+    const vec_len = switch(A) {
+        Vec2 => 2,
+        Vec3 => 3,
+        Vec4 => 4,
+        else => @compileError(std.fmt.comptimePrint("{s} is not a hym vector type", .{@typeName(A)})),
+    };
+
+    const err_msg = std.fmt.comptimePrint("Vector type {s} not equal to {s}", .{@typeName(B), @typeName(A)});
+
+    if (@sizeOf(B) != @sizeOf(A)) {
+        @compileError(err_msg);
+    }
+
+    const type_info = @typeInfo(B);
+    switch(type_info) {
+        .@"struct" => |s| {
+            if (vec_len != s.fields.len) {
+                @compileError(err_msg);
+            }
+            for (s.fields) |f| {
+                if (f.type != f32) {
+                    @compileError(err_msg);
+                }
+            }
+        },
+        .array => |a| {
+            if (a.len != vec_len) {
+                @compileError(err_msg);
+            }
+        },
+        else => @compileError(std.fmt.comptimePrint("Type {s} is not a vector type", .{@typeName(B)})),
+    }
 }

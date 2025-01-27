@@ -73,6 +73,65 @@ pub const ExternVTable = extern struct {
     free: *const fn (ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) callconv(.C) void,
 };
 
+pub fn ExternTaggedUnion(Base: type) type {
+    const type_info = @typeInfo(Base).@"union";
+
+    var tag_info = @typeInfo(type_info.tag_type.?);
+    tag_info.@"enum".tag_type = u32; // Change backing integer to u32
+    const BaseTag = @Type(tag_info);
+
+    const Payload = @Type(.{ .@"union" = .{
+        .layout = .@"extern",
+        .tag_type = null,
+        .fields = std.meta.fields(Base),
+        .decls = &.{},
+    } });
+
+    return struct {
+        pub const Type = @Type(.{
+            .@"struct" = .{
+                .layout = .@"extern",
+                .fields = &.{ .{
+                    .name = "tag",
+                    .type = BaseTag,
+                    .default_value = null,
+                    .is_comptime = false,
+                    .alignment = @alignOf(type_info.tag_type.?),
+                }, .{
+                    .name = "payload",
+                    .type = Payload,
+                    .default_value = null,
+                    .is_comptime = false,
+                    .alignment = @alignOf(Payload),
+                } },
+                .decls = &.{},
+                .is_tuple = false,
+            },
+        });
+
+        pub fn revert(self: Type) Base {
+            switch (self.tag) {
+                inline else => |real_tag| {
+                    return @unionInit(Base, @tagName(real_tag), @field(self.payload, @tagName(real_tag)));
+                },
+            }
+        }
+
+        pub fn get(comptime tag: BaseTag, self: Type) std.meta.TagPayloadByName(Base, @tagName(tag)) {
+            const val = @unionInit(Base, @tagName(tag), @bitCast(self.payload));
+            return @field(val, @tagName(tag));
+        }
+
+        pub fn of(comptime tag: BaseTag, value: std.meta.TagPayloadByName(Payload, @tagName(tag))) Type {
+            const payload = @unionInit(Payload, @tagName(tag), value);
+            return .{
+                .tag = tag,
+                .payload = payload,
+            };
+        }
+    };
+}
+
 pub const GameInterface = extern struct {
     init: *const fn (*Engine) callconv(.C) World,
     shutdown: *const fn (*Engine, World) callconv(.C) void,

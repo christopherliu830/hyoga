@@ -4,55 +4,49 @@ const std = @import("std");
 const MAX_POLYGON_VERTICES = 8;
 const B2_SECRET_COOKIE = 1152023;
 
-const length_units_per_meter = 1;
+pub const length_units_per_meter = 1;
 
-const AABB = extern struct { lower_bound: Vec2, upper_bound: Vec2 };
+pub const AABB = extern struct { lower_bound: Vec2, upper_bound: Vec2 };
 
-const BodyEvents = opaque {};
+pub const BodyEvents = opaque {};
 
-const CastOutput = opaque {};
+pub const CastOutput = opaque {};
 
-const CastResultFcn = opaque {};
+pub const CastResultFcn = opaque {};
 
-const ContactEvents = opaque {};
+pub const ContactEvents = opaque {};
 
-const ContactData = opaque {};
+pub const ContactData = opaque {};
 
-const Counters = opaque {};
+pub const Counters = opaque {};
 
-const CustomFilterFcn = opaque {};
+pub const CustomFilterFcn = opaque {};
 
-const DebugDraw = opaque {};
+pub const DebugDraw = opaque {};
 
-const ExplosionDef = opaque {};
+pub const ExplosionDef = opaque {};
 
-const Filter = extern struct {
-    category_bits: u64,
-    mask_bits: u64,
-    group_index: i32,
-
-    pub const default: Filter = .{
-        .category_bits = 1,
-        .mask_bits = std.math.maxInt(u64),
-        .group_index = 0,
-    };
+pub const Filter = extern struct {
+    category_bits: u64 = 1,
+    mask_bits: u64 = std.math.maxInt(u64),
+    group_index: i32 = 0,
 };
 
-const MassData = opaque {};
+pub const MassData = opaque {};
 
-const OverlapResultFcn = opaque {};
+pub const OverlapResultFcn = opaque {};
 
-const PreSolveFcn = opaque {};
+pub const PreSolveFcn = opaque {};
 
-const Profile = opaque {};
+pub const Profile = opaque {};
 
-const QueryFilter = opaque {};
+pub const QueryFilter = opaque {};
 
-const RayCastInput = opaque {};
+pub const RayCastInput = opaque {};
 
-const RayResult = opaque {};
+pub const RayResult = opaque {};
 
-const Rot = extern struct {
+pub const Rot = extern struct {
     /// Cosine
     c: f32,
     /// Sine
@@ -61,23 +55,23 @@ const Rot = extern struct {
     pub const identity: Rot = .{ .c = 1, .s = 0 };
 };
 
-const SensorEvents = opaque {};
+pub const SensorEvents = opaque {};
 
-const Transform = opaque {};
+pub const Transform = opaque {};
 
-const TreeStats = opaque {};
+pub const TreeStats = opaque {};
 
-const TaskCallback = ?*const fn (start_index: c_int, end_index: c_int, worker_index: u32, task_context: ?*anyopaque) void;
+pub const TaskCallback = ?*const fn (start_index: c_int, end_index: c_int, worker_index: u32, task_context: ?*anyopaque) void;
 
-const EnqueueTaskCallback = ?*const fn (task: *TaskCallback, item_count: c_int, min_range: c_int, task_context: ?*anyopaque, user_context: ?*anyopaque) ?*anyopaque;
+pub const EnqueueTaskCallback = ?*const fn (task: *TaskCallback, item_count: c_int, min_range: c_int, task_context: ?*anyopaque, user_context: ?*anyopaque) ?*anyopaque;
 
-const FinishTaskCallback = ?*const fn (userTask: ?*anyopaque, userContext: ?*anyopaque) void;
+pub const FinishTaskCallback = ?*const fn (userTask: ?*anyopaque, userContext: ?*anyopaque) void;
 
-const FrictionCallback = ?*const fn (friction_a: f32, material_a: c_int, friction_b: f32, material_b: c_int) f32;
+pub const FrictionCallback = ?*const fn (friction_a: f32, material_a: c_int, friction_b: f32, material_b: c_int) f32;
 
-const RestitutionCallback = ?*const fn (restitution_a: f32, material_a: c_int, restitution_b: f32, material_b: c_int) f32;
+pub const RestitutionCallback = ?*const fn (restitution_a: f32, material_a: c_int, restitution_b: f32, material_b: c_int) f32;
 
-const Vec2 = extern struct {
+pub const Vec2 = extern struct {
     x: f32,
     y: f32,
     pub const zero: Vec2 = .{ .x = 0, .y = 0 };
@@ -230,92 +224,71 @@ pub const Body = enum(u64) {
     pub const Type = enum(u32) { static, kinematic, dynamic, count };
     pub const Definition = extern struct {
         /// The body type: static, kinematic, or dynamic.
-        type: Type,
+        type: Type = .static,
 
         /// The initial world position of the body. Bodies should be created with the desired position.
         /// @note Creating bodies at the origin and then moving them nearly doubles the cost of body creation, especially
         /// if the body is moved after shapes have been added.
-        position: Vec2,
+        position: Vec2 = .zero,
 
         /// The initial world rotation of the body. Use b2MakeRot() if you have an angle.
-        rotation: Rot,
+        rotation: Rot = .identity,
 
         /// The initial linear velocity of the body's origin. Usually in meters per second.
-        linear_velocity: Vec2,
+        linear_velocity: Vec2 = .zero,
 
         /// The initial angular velocity of the body. Radians per second.
-        angular_velocity: f32,
+        angular_velocity: f32 = 0,
 
         /// Linear damping is used to reduce the linear velocity. The damping parameter
         /// can be larger than 1 but the damping effect becomes sensitive to the
         /// time step when the damping parameter is large.
         /// Generally linear damping is undesirable because it makes objects move slowly
         /// as if they are floating.
-        linear_damping: f32,
+        linear_damping: f32 = 0,
 
         /// Angular damping is used to reduce the angular velocity. The damping parameter
         /// can be larger than 1.0f but the damping effect becomes sensitive to the
         /// time step when the damping parameter is large.
         /// Angular damping can be use slow down rotating bodies.
-        angular_damping: f32,
+        angular_damping: f32 = 0,
 
         /// Scale the gravity applied to this body. Non-dimensional.
-        gravity_scale: f32,
+        gravity_scale: f32 = 1,
 
         /// Sleep speed threshold, default is 0.05 meters per second
-        sleep_threshold: f32,
+        sleep_threshold: f32 = 0.05 * length_units_per_meter,
 
         /// Optional body name for debugging. Up to 31 characters (excluding null termination)
-        name: ?[*:0]const u8,
+        name: ?[*:0]const u8 = null,
 
         /// Use this to store application specific body data.
-        user_data: ?*anyopaque,
+        user_data: ?*anyopaque = null,
 
         /// Set this flag to false if this body should never fall asleep.
-        enable_sleep: bool,
+        enable_sleep: bool = true,
 
         /// Is this body initially awake or sleeping?
-        is_awake: bool,
+        is_awake: bool = true,
 
         /// Should this body be prevented from rotating? Useful for characters.
-        fixed_rotation: bool,
+        fixed_rotation: bool = false,
 
         /// Treat this body as high speed object that performs continuous collision detection
         /// against dynamic and kinematic bodies, but not other bullet bodies.
         /// @warning Bullets should be used sparingly. They are not a solution for general dynamic-versus-dynamic
         /// continuous collision. They may interfere with joint constraints.
-        is_bullet: bool,
+        is_bullet: bool = false,
 
         /// Used to disable a body. A disabled body does not move or collide.
-        is_enabled: bool,
+        is_enabled: bool = true,
 
         /// This allows this body to bypass rotational speed limits. Should only be used
         /// for circular objects, like wheels.
-        allow_fast_rotation: bool,
+        allow_fast_rotation: bool = false,
 
         /// Used internally to detect a valid definition. DO NOT SET.
-        internal_value: c_int,
-
-        pub const default: Definition = .{
-            .type = .static,
-            .position = .zero,
-            .rotation = .identity,
-            .linear_velocity = .zero,
-            .angular_velocity = 0,
-            .linear_damping = 0,
-            .angular_damping = 0,
-            .gravity_scale = 1,
-            .sleep_threshold = 0.05 * length_units_per_meter,
-            .name = null,
-            .user_data = null,
-            .enable_sleep = true,
-            .fixed_rotation = false,
-            .is_bullet = false,
-            .is_awake = true,
-            .is_enabled = true,
-            .allow_fast_rotation = false,
-            .internal_value = B2_SECRET_COOKIE,
-        };
+        internal_value: c_int = B2_SECRET_COOKIE,
     };
 
     pub const create = b2CreateBody;
@@ -390,75 +363,58 @@ pub const Shape = enum(u64) {
 
     pub const Definition = extern struct {
         /// Use this to store application specific shape data.
-        user_data: ?*anyopaque,
+        user_data: ?*anyopaque = null,
 
         /// The Coulomb (dry) friction coefficient, usually in the range [0,1].
-        friction: f32,
+        friction: f32 = 0.3,
 
         /// The coefficient of restitution (bounce) usually in the range [0,1].
         /// https://en.wikipedia.org/wiki/Coefficient_of_restitution
-        restitution: f32,
+        restitution: f32 = 0,
 
         /// The rolling resistance usually in the range [0,1].
         /// todo
-        rolling_resistance: f32,
+        rolling_resistance: f32 = 0,
 
         /// User material identifier. This is passed with query results and to friction and restitution
         /// combining functions. It is not used internally.
-        material: c_int,
+        material: c_int = 0,
 
         /// The density, usually in kg/m^2.
-        density: f32,
+        density: f32 = 1,
 
         /// Collision filtering data.
-        filter: Filter,
+        filter: Filter = .{},
 
         /// Custom debug draw color.
-        custom_color: u32,
+        custom_color: u32 = 0,
 
         /// A sensor shape generates overlap events but never generates a collision response.
         /// Sensors do not collide with other sensors and do not have continuous collision.
         /// Instead, use a ray or shape cast for those scenarios.
-        is_sensor: bool,
+        is_sensor: bool = false,
 
         /// Enable contact events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
-        enable_contact_events: bool,
+        enable_contact_events: bool = false,
 
         /// Enable hit events for this shape. Only applies to kinematic and dynamic bodies. Ignored for sensors.
-        enable_hit_events: bool,
+        enable_hit_events: bool = false,
 
         /// Enable pre-solve contact events for this shape. Only applies to dynamic bodies. These are expensive
         /// and must be carefully handled due to threading. Ignored for sensors.
-        enable_pre_solve_events: bool,
+        enable_pre_solve_events: bool = false,
 
         /// Normally shapes on static bodies don't invoke contact creation when they are added to the world. This overrides
         /// that behavior and causes contact creation. This significantly slows down static body creation which can be important
         /// when there are many static shapes.
         /// This is implicitly always true for sensors, dynamic bodies, and kinematic bodies.
-        invoke_contact_creation: bool,
+        invoke_contact_creation: bool = false,
 
         /// Should the body update the mass properties when this shape is created. Default is true.
-        update_body_mass: bool,
+        update_body_mass: bool = true,
 
         /// Used internally to detect a valid definition. DO NOT SET.
         internal_value: c_int = B2_SECRET_COOKIE,
-
-        pub const default: Definition = .{
-            .user_data = null,
-            .friction = 0.6,
-            .restitution = 0,
-            .rolling_resistance = 0,
-            .material = 0,
-            .density = 1.0,
-            .filter = .default,
-            .custom_color = 0,
-            .is_sensor = false,
-            .enable_contact_events = false,
-            .enable_hit_events = false,
-            .enable_pre_solve_events = false,
-            .invoke_contact_creation = false,
-            .update_body_mass = true,
-        };
     };
 
     pub const Type = enum(u32) {
@@ -502,7 +458,7 @@ pub const Shape = enum(u64) {
         chain_id: c_int,
     };
 
-    pub const CreateCircleShape = b2CreateCircleShape;
+    pub const createCircleShape = b2CreateCircleShape;
     pub const CreateSegmentShape = b2CreateSegmentShape;
     pub const CreateCapsuleShape = b2CreateCapsuleShape;
     pub const createPolygonShape = b2CreatePolygonShape;

@@ -3,6 +3,17 @@ const rt = @import("../runtime.zig");
 const hym = @import("../math/math.zig");
 
 pub const Phys2 = struct {
+    pub const ShapeOptions = rt.ExternTaggedUnion(union(enum) {
+        circle: extern struct {
+            radius: f32,
+            center: hym.Vec2,
+        },
+        box: extern struct {
+            width: f32,
+            height: f32,
+        },
+    });
+
     pub const Body = enum(u64) {
         none = 0,
 
@@ -13,15 +24,28 @@ pub const Phys2 = struct {
             count,
         };
 
+        pub const ShapeType = enum(u32) {
+            circle,
+            box,
+            capsule,
+            segment,
+            polygon,
+            chain_segment,
+            count,
+        };
+
         pub const AddOptions = extern struct {
             type: Type,
             position: hym.Vec2,
+            velocity: hym.Vec2 = .zero,
+            shape: ShapeOptions.Type,
         };
+
+        pub const position = hyp2BodyGetPosition;
+        extern fn hyp2BodyGetPosition(Body) hym.Vec2;
     };
 
     pub const bodyAdd = hyp2BodyAdd;
-    pub const bodyPosition = hyp2BodyGetPosition;
 
     extern fn hyp2BodyAdd(*Phys2, Body.AddOptions) Body;
-    extern fn hyp2BodyGetPosition(*Phys2, Body) hym.Vec2;
 };

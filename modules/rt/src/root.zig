@@ -213,10 +213,7 @@ export fn hyp2BodyAdd(p2d: *Engine.Phys2, opts: Engine.Phys2.BodyAddOptions) Eng
     return p2d.addBody(opts);
 }
 
-export fn hyp2BodyGetPosition(
-    _: *Engine.Phys2,
-    body: Engine.Phys2.Body,
-) hy.math.Vec2 {
+export fn hyp2BodyGetPosition(body: Engine.Phys2.Body) hy.math.Vec2 {
     return @bitCast(body.GetPosition());
 }
 

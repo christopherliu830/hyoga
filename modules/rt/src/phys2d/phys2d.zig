@@ -7,6 +7,10 @@ const Phys2 = @This();
 
 pub const Body = b2.Body;
 
+comptime {
+    hym.assertMetaEql(hym.Vec2, b2.Vec2);
+}
+
 world: b2.World,
 timestep: f32 = 1.0 / 60.0,
 
@@ -21,9 +25,32 @@ pub fn init() Phys2 {
     };
 }
 
+pub const ShapeType = enum(u32) {
+    circle,
+    box,
+    capsule,
+    segment,
+    polygon,
+    chain_segment,
+    count,
+};
+
+pub const ShapeOptions = hy.runtime.ExternTaggedUnion(union(enum) {
+    circle: extern struct {
+        radius: f32,
+        center: hym.Vec2,
+    },
+    box: extern struct {
+        width: f32,
+        height: f32,
+    },
+});
+
 pub const BodyAddOptions = extern struct {
     type: b2.Body.Type,
     position: hym.Vec2,
+    velocity: hym.Vec2 = .zero,
+    shape: ShapeOptions.Type,
 
     comptime {
         hy.meta.assertMatches(BodyAddOptions, hy.Phys2.Body.AddOptions);
@@ -32,16 +59,27 @@ pub const BodyAddOptions = extern struct {
 
 pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
     const body: b2.Body = blk: {
-        var def: b2.Body.Definition = .default;
-        def.type = opts.type;
-        def.position = @bitCast(opts.position);
-        break :blk .create(self.world, &def);
+        break :blk .create(self.world, &.{
+            .type = opts.type,
+            .position = @bitCast(opts.position),
+            .linear_velocity = @bitCast(opts.velocity),
+        });
     };
 
-    const box: b2.Shape.Polygon = .makeBox(0.5, 0.5);
-    var shape_def: b2.Shape.Definition = .default;
-    shape_def.restitution = 1;
-    _ = b2.Shape.createPolygonShape(body, &shape_def, &box);
+    switch (ShapeOptions.revert(opts.shape)) {
+        .circle => |c| {
+            const circle: b2.Shape.Circle = .{
+                .radius = c.radius,
+                .center = @bitCast(c.center),
+            };
+            _ = b2.Shape.createCircleShape(body, &.{}, &circle);
+            return body;
+        },
+        .box => |b| {
+            const box: b2.Shape.Polygon = .makeBox(b.width, b.height);
+            _ = b2.Shape.createPolygonShape(body, &.{}, &box);
+        },
+    }
 
     return body;
 }

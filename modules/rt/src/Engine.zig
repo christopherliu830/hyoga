@@ -17,7 +17,7 @@ const World = @import("root.zig").World;
 const GameInterface = @import("root.zig").GameInterface;
 
 pub const Config = struct {
-    max_fps: u32 = 60,
+    max_fps: u32 = 256,
 };
 
 gpa: std.heap.GeneralPurposeAllocator(.{}),
