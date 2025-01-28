@@ -21,7 +21,9 @@ sub_step_count: c_int = 4,
 
 pub fn init() Phys2 {
     return .{
-        .world = .create(&.default),
+        .world = .create(&.{
+            .gravity = .zero,
+        }),
     };
 }
 

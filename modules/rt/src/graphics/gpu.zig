@@ -401,6 +401,7 @@ pub fn shutdown(self: *Gpu) void {
     self.default_assets.forward_pass.deinit();
     self.device.releaseBuffer(self.default_assets.obj_buf.hdl);
     self.device.releaseBuffer(self.default_assets.selected_obj_buf.hdl);
+    self.device.releaseBuffer(self.default_assets.sprite_buf.hdl);
     self.device.releaseTexture(self.default_assets.default_texture);
     self.device.releaseTexture(self.default_assets.black_texture);
     self.device.releaseTexture(self.default_assets.white_texture);
@@ -408,9 +409,19 @@ pub fn shutdown(self: *Gpu) void {
     self.device.releaseGraphicsPipeline(self.default_assets.mats.get(.bw_mask).?.pipeline);
     self.device.releaseGraphicsPipeline(self.default_assets.mats.get(.post_process).?.pipeline);
     self.device.releaseGraphicsPipeline(self.default_assets.mats.get(.standard).?.pipeline);
+    self.device.releaseGraphicsPipeline(self.default_assets.mats.get(.billboard).?.pipeline);
+    self.device.releaseGraphicsPipeline(self.default_assets.mats.get(.sprite).?.pipeline);
+
+    self.renderables.deinit();
+    self.outlined.deinit(self.gpa);
+    self.sprites.deinit(self.gpa);
+    self.uniforms.deinit(self.gpa);
+    self.arena.deinit();
+
     self.device.destroy();
 
-    self.arena.deinit();
+    const gpa = self.gpa;
+    gpa.destroy(self);
 }
 
 pub fn uploadToBuffer(self: *Gpu, buffer: *sdl.gpu.Buffer, offset: u32, data: []const u8) !void {

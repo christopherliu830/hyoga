@@ -41,6 +41,13 @@ pub const World = extern struct {
 pub const ExternAllocator = extern struct {
     ptr: *anyopaque,
     vtable: *const std.mem.Allocator.VTable,
+
+    pub fn allocator(self: ExternAllocator) std.mem.Allocator {
+        return .{
+            .ptr = self.ptr,
+            .vtable = self.vtable,
+        };
+    }
 };
 
 pub fn ExternSlice(T: type) type {

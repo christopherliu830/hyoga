@@ -35,14 +35,19 @@ pub const Phys2 = struct {
         };
 
         pub const AddOptions = extern struct {
-            type: Type,
-            position: hym.Vec2,
+            type: Type = .dynamic,
+            position: hym.Vec2 = .zero,
             velocity: hym.Vec2 = .zero,
             shape: ShapeOptions.Type,
         };
 
         pub const position = hyp2BodyGetPosition;
+        pub const velocity = hyp2BodyGetVelocity;
+        pub const setVelocity = hyp2BodySetVelocity;
+
         extern fn hyp2BodyGetPosition(Body) hym.Vec2;
+        extern fn hyp2BodyGetVelocity(Body) hym.Vec2;
+        extern fn hyp2BodySetVelocity(Body, hym.Vec2) void;
     };
 
     pub const bodyAdd = hyp2BodyAdd;

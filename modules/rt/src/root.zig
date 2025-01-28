@@ -12,6 +12,10 @@ const math = hy.math;
 const Engine = @import("Engine.zig");
 const Input = Engine.Input;
 const Gpu = Engine.Gpu;
+const Phys2 = Engine.Phys2;
+const Strint = Engine.Strint;
+const UI = Engine.UI;
+const Window = Engine.Window;
 
 pub const Scene = extern struct {
     view: math.Mat4,
@@ -69,19 +73,19 @@ export fn hyeInput(engine: *Engine) *Input {
     return &engine.input;
 }
 
-export fn hyePhys2(engine: *Engine) *Engine.Phys2 {
+export fn hyePhys2(engine: *Engine) *Phys2 {
     return &engine.physics;
 }
 
-export fn hyeStrint(engine: *Engine) *Engine.Strint {
+export fn hyeStrint(engine: *Engine) *Strint {
     return &engine.strint;
 }
 
-export fn hyeUI(engine: *Engine) *Engine.UI {
+export fn hyeUI(engine: *Engine) *UI {
     return &engine.ui;
 }
 
-export fn hyeWindow(engine: *Engine) *Engine.Window {
+export fn hyeWindow(engine: *Engine) *Window {
     return &engine.window;
 }
 
@@ -202,41 +206,49 @@ export fn hyioQueryKey(input: *Input, button: hy.key.Keycode) bool {
     return input.queryKey(button);
 }
 
-export fn hysidFrom(strint: *Engine.Strint, str: [*]const u8, len: usize) Engine.Strint.ID {
+export fn hysidFrom(strint: *Strint, str: [*]const u8, len: usize) Strint.ID {
     return strint.from(str[0..len]) catch |e| {
         std.log.err("strint failure: {}", .{e});
-        return Engine.Strint.ID.invalid;
+        return Strint.ID.invalid;
     };
 }
 
-export fn hyp2BodyAdd(p2d: *Engine.Phys2, opts: Engine.Phys2.BodyAddOptions) Engine.Phys2.Body {
+export fn hyp2BodyAdd(p2d: *Phys2, opts: Phys2.BodyAddOptions) Phys2.Body {
     return p2d.addBody(opts);
 }
 
-export fn hyp2BodyGetPosition(body: Engine.Phys2.Body) hy.math.Vec2 {
+export fn hyp2BodyGetPosition(body: Phys2.Body) hy.math.Vec2 {
     return @bitCast(body.GetPosition());
 }
 
-export fn hysidAsString(strint: *Engine.Strint, str: Engine.Strint.ID, len: *usize) [*]const u8 {
+export fn hyp2BodyGetVelocity(body: Phys2.Body) hy.math.Vec2 {
+    return @bitCast(body.GetLinearVelocity());
+}
+
+export fn hyp2BodySetVelocity(body: Phys2.Body, velocity: hy.math.Vec2) void {
+    body.SetLinearVelocity(@bitCast(velocity));
+}
+
+export fn hysidAsString(strint: *Strint, str: Strint.ID, len: *usize) [*]const u8 {
     const slice = strint.asString(str);
     len.* = slice.len;
     return slice.ptr;
 }
 
-export fn hysidAsStringZ(strint: *Engine.Strint, str: Engine.Strint.ID, len: *usize) [*]const u8 {
+export fn hysidAsStringZ(strint: *Strint, str: Strint.ID, len: *usize) [*]const u8 {
     const slice = strint.asStringZ(str);
     len.* = slice.len;
     return slice.ptr;
 }
 
-export fn hyuiGetGlobalState(ui: *Engine.UI) Engine.UI.GlobalState {
+export fn hyuiGetGlobalState(ui: *UI) UI.GlobalState {
     return ui.getGlobalState();
 }
 
-export fn hywSetRelativeMouseMode(window: *Engine.Window, on_off: bool) void {
+export fn hywSetRelativeMouseMode(window: *Window, on_off: bool) void {
     window.setRelativeMouseMode(on_off);
 }
 
-export fn hywDimensions(window: *Engine.Window) hy.math.Vec2 {
+export fn hywDimensions(window: *Window) hy.math.Vec2 {
     return window.dimensions();
 }

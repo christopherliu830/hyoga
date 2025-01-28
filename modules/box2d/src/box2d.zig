@@ -82,47 +82,47 @@ pub const World = enum(u32) {
 
     pub const Definition = extern struct {
         /// Gravity vector. Box2D has no up-vector defined.
-        gravity: Vec2,
+        gravity: Vec2 = .{ .x = 0, .y = -10 },
 
         /// Restitution speed threshold, usually in m/s. Collisions above this
         /// speed have restitution applied (will bounce).
-        restitution_threshold: f32,
+        restitution_threshold: f32 = length_units_per_meter,
 
         /// Threshold speed for hit events. Usually meters per second.
-        hit_event_threshold: f32,
+        hit_event_threshold: f32 = length_units_per_meter,
 
         /// Contact stiffness. Cycles per second. Increasing this increases the speed of overlap recovery, but can introduce jitter.
-        contact_hertz: f32,
+        contact_hertz: f32 = 30,
 
         /// Contact bounciness. Non-dimensional. You can speed up overlap recovery by decreasing this with
         /// the trade-off that overlap resolution becomes more energetic.
-        contact_damping_ratio: f32,
+        contact_damping_ratio: f32 = 10,
 
         /// This parameter controls how fast overlap is resolved and usually has units of meters per second. This only
         /// puts a cap on the resolution speed. The resolution speed is increased by increasing the hertz and/or
         /// decreasing the damping ratio.
-        contact_max_push_speed: f32,
+        contact_max_push_speed: f32 = 3 * length_units_per_meter,
 
         /// Joint stiffness. Cycles per second.
-        joint_hertz: f32,
+        joint_hertz: f32 = 60,
 
         /// Joint bounciness. Non-dimensional.
-        joint_damping_ratio: f32,
+        joint_damping_ratio: f32 = 2.0,
 
         /// Maximum linear speed. Usually meters per second.
-        maximum_linear_speed: f32,
+        maximum_linear_speed: f32 = 400 * length_units_per_meter,
 
         /// Optional mixing callback for friction. The default uses sqrt(frictionA * frictionB).
-        frictionCallback: FrictionCallback,
+        frictionCallback: FrictionCallback = null,
 
         /// Optional mixing callback for restitution. The default uses max(restitutionA, restitutionB).
-        restitutionCallback: RestitutionCallback,
+        restitutionCallback: RestitutionCallback = null,
 
         /// Can bodies go to sleep to improve performance
-        enable_sleep: bool,
+        enable_sleep: bool = true,
 
         /// Enable continuous collision
-        enable_continuous: bool,
+        enable_continuous: bool = true,
 
         /// Number of workers to use with the provided task system. Box2D performs best when using only
         /// performance cores and accessing a single L2 cache. Efficiency cores and hyper-threading provide
@@ -131,42 +131,21 @@ pub const World = enum(u32) {
         /// that you are allocating to b2World_Step.
         /// @warning Do not modify the default value unless you are also providing a task system and providing
         /// task callbacks (enqueueTask and finishTask).
-        worker_count: c_int,
+        worker_count: c_int = 0,
 
         /// Function to spawn tasks
-        enqueueTask: EnqueueTaskCallback,
+        enqueueTask: EnqueueTaskCallback = null,
 
         /// Function to spawn tasks
-        finishTask: FinishTaskCallback,
+        finishTask: FinishTaskCallback = null,
 
         /// User context that is provided to enqueueTask and finishTask
-        user_task_context: ?*anyopaque,
+        user_task_context: ?*anyopaque = null,
 
         /// User data
-        user_data: ?*anyopaque,
+        user_data: ?*anyopaque = null,
 
         internal_value: c_int = B2_SECRET_COOKIE,
-
-        pub const default: Definition = .{
-            .gravity = .{ .x = 0, .y = -10 },
-            .restitution_threshold = length_units_per_meter,
-            .hit_event_threshold = length_units_per_meter,
-            .contact_hertz = 30,
-            .contact_damping_ratio = 10,
-            .contact_max_push_speed = 3 * length_units_per_meter,
-            .joint_hertz = 60,
-            .joint_damping_ratio = 2.0,
-            .maximum_linear_speed = 400 * length_units_per_meter,
-            .frictionCallback = null,
-            .restitutionCallback = null,
-            .enable_sleep = true,
-            .enable_continuous = true,
-            .worker_count = 0,
-            .enqueueTask = null,
-            .finishTask = null,
-            .user_task_context = null,
-            .user_data = null,
-        };
     };
 
     pub const create = b2CreateWorld;

@@ -73,6 +73,7 @@ pub fn shutdown(self: *Engine) void {
 
     var gpa = self.gpa;
     gpa.allocator().destroy(self);
+    _ = gpa.detectLeaks();
 }
 
 pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {

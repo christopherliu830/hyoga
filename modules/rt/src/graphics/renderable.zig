@@ -61,6 +61,10 @@ pub const RenderList = struct {
         };
     }
 
+    pub fn deinit(self: *RenderList) void {
+        self.items.deinit();
+    }
+
     pub const AddOptions = extern struct {
         model: ModelHandle,
         time: u64 = 0,
@@ -191,10 +195,13 @@ pub const RenderList = struct {
     }
 
     pub fn packAll(self: *RenderList, allocator: std.mem.Allocator) !PackedRenderables {
-        const handles = try allocator.alloc(RenderItemHandle, self.items.len);
-        for (0..self.items.len) |i| {
-            handles[i] = self.items.handle_at(@intCast(i)) catch unreachable;
+        const handles = try allocator.alloc(RenderItemHandle, self.items.num_items);
+        var it = self.items.iterator();
+        var i: u32 = 0;
+        while (it.next()) |_| {
+            handles[i] = self.items.handle_at(it.index()) catch unreachable;
+            i += 1;
         }
-        return try self.pack(handles, allocator);
+        return self.pack(handles, allocator) catch std.debug.panic("pack failure", .{});
     }
 };
