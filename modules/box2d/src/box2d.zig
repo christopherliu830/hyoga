@@ -271,7 +271,7 @@ pub const Body = enum(u64) {
     };
 
     pub const create = b2CreateBody;
-    pub const Destroy = b2DestroyBody;
+    pub const destroy = b2DestroyBody;
     pub const IsValid = b2Body_IsValid;
     pub const GetType = b2Body_GetType;
     pub const SetType = b2Body_SetType;

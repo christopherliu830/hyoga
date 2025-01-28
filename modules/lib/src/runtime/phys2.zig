@@ -39,15 +39,18 @@ pub const Phys2 = struct {
             position: hym.Vec2 = .zero,
             velocity: hym.Vec2 = .zero,
             shape: ShapeOptions.Type,
+            bullet: bool = false,
         };
 
         pub const position = hyp2BodyGetPosition;
         pub const velocity = hyp2BodyGetVelocity;
         pub const setVelocity = hyp2BodySetVelocity;
+        pub const destroy = hyp2BodyDestroy;
 
         extern fn hyp2BodyGetPosition(Body) hym.Vec2;
         extern fn hyp2BodyGetVelocity(Body) hym.Vec2;
         extern fn hyp2BodySetVelocity(Body, hym.Vec2) void;
+        extern fn hyp2BodyDestroy(Body) void;
     };
 
     pub const bodyAdd = hyp2BodyAdd;

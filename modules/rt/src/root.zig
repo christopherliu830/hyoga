@@ -217,6 +217,10 @@ export fn hyp2BodyAdd(p2d: *Phys2, opts: Phys2.BodyAddOptions) Phys2.Body {
     return p2d.addBody(opts);
 }
 
+export fn hyp2BodyDestroy(body: Phys2.Body) void {
+    return body.destroy();
+}
+
 export fn hyp2BodyGetPosition(body: Phys2.Body) hy.math.Vec2 {
     return @bitCast(body.GetPosition());
 }

@@ -53,6 +53,7 @@ pub const BodyAddOptions = extern struct {
     position: hym.Vec2,
     velocity: hym.Vec2 = .zero,
     shape: ShapeOptions.Type,
+    bullet: bool = false,
 
     comptime {
         hy.meta.assertMatches(BodyAddOptions, hy.Phys2.Body.AddOptions);
@@ -65,6 +66,7 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
             .type = opts.type,
             .position = @bitCast(opts.position),
             .linear_velocity = @bitCast(opts.velocity),
+            .is_bullet = opts.bullet,
         });
     };
 
