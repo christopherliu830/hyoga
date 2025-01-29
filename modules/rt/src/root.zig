@@ -184,6 +184,10 @@ export fn hyioGetGroup(input: *Input, hdl: Input.Group.Handle) Input.Group.Handl
     return input.getGroup(hdl);
 }
 
+export fn hyioGroupDestroy(input: *Input, hdl: Input.Group.Handle) void {
+    return input.groupDestroy(hdl);
+}
+
 export fn hyioSetGroupEnabled(input: *Input, group: Input.Group.Handle, enabled: bool) void {
     input.setGroupEnabled(group, enabled);
 }

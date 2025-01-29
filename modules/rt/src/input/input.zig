@@ -5,14 +5,20 @@ const rt = hy.runtime;
 const imgui = @import("imgui");
 const window = @import("../window.zig");
 const types = @import("types.zig");
+const log = std.log.scoped(.input);
+
+const Input = @This();
+allocator: std.mem.Allocator,
+keybinds: Keybinds = .empty,
+mousebinds: Mousebinds = .empty,
+groups: hy.SlotMap(Group),
+keys_down: KeysDownSet = .{},
+mouse_state: MouseDownSet = .{},
+input_inited: bool = false,
 
 pub const MouseButton = hy.MouseButton;
 pub const Keycode = hy.Keycode;
-
 pub const Event = sdl.events.Event;
-
-const Input = @This();
-
 pub const Action = enum { up, down, held };
 
 pub const InputFlags = packed struct(u8) {
@@ -97,15 +103,6 @@ pub const Group = struct {
     }
 };
 
-allocator: std.mem.Allocator,
-keybinds: Keybinds = .empty,
-mousebinds: Mousebinds = .empty,
-groups: hy.SlotMap(Group),
-keys_down: KeysDownSet = .{},
-mouse_state: MouseDownSet = .{},
-
-input_inited: bool = false,
-
 pub fn init(in_allocator: std.mem.Allocator) Input {
     return .{
         .allocator = in_allocator,
@@ -128,6 +125,15 @@ pub fn createGroup(self: *Input) Group.Handle {
         .arena = .init(std.heap.c_allocator),
     }) catch unreachable;
     return hdl;
+}
+
+pub fn groupDestroy(self: *Input, handle: Group.Handle) void {
+    const group = self.groups.get(handle) catch {
+        log.warn("invalid group passed to destroy", .{});
+        return;
+    };
+    group.arena.deinit();
+    self.groups.remove(handle);
 }
 
 pub fn getGroup(self: *Input, hdl: Group.Handle) Group.Handle {

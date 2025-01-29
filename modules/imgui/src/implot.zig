@@ -127,7 +127,7 @@ pub const PlotBarsOptions = struct {
 pub fn plotBars(label_id: [*]const u8, values: anytype, options: PlotBarsOptions) void {
     switch (@typeInfo(@TypeOf(values))) {
         .pointer => |ptr| {
-            if (ptr.size != .Slice) @panic("plot bars must take a slice type");
+            if (ptr.size != .slice) @panic("plot bars must take a slice type");
             switch (@typeInfo(ptr.child)) {
                 .int => |int| {
                     if (int.signedness == .signed) {

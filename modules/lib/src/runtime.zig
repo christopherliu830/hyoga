@@ -101,13 +101,13 @@ pub fn ExternTaggedUnion(Base: type) type {
                 .fields = &.{ .{
                     .name = "tag",
                     .type = BaseTag,
-                    .default_value = null,
+                    .default_value_ptr = null,
                     .is_comptime = false,
                     .alignment = @alignOf(type_info.tag_type.?),
                 }, .{
                     .name = "payload",
                     .type = Payload,
-                    .default_value = null,
+                    .default_value_ptr = null,
                     .is_comptime = false,
                     .alignment = @alignOf(Payload),
                 } },

@@ -73,7 +73,7 @@ pub fn build(b: *std.Build) !void {
         rt.linkLibrary(ztracy.artifact("tracy"));
     }
 
-    rt.root_module.addImport("box2d", &box2d.artifact("box2d").root_module);
+    rt.root_module.addImport("box2d", box2d.artifact("box2d").root_module);
     rt.root_module.addImport("assimp", assimp.module("root"));
     rt.root_module.addImport("hyoga-lib", hylib.module("hyoga-lib"));
     rt.root_module.addImport("sdl", sdl.module("sdl"));
