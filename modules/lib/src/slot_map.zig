@@ -101,17 +101,9 @@ pub fn SlotMap(comptime T: type) type {
             }
         };
 
-        pub fn create() !SlotMap(T) {
-            return SlotMap(T){
-                .end = 0,
-                .entries = .{},
-                .free_list = null,
-                .num_items = 0,
-            };
-        }
-
         pub fn deinit(self: *SlotMap(T), allocator: std.mem.Allocator) void {
             self.entries.clearAndFree(allocator);
+            self.* = .empty;
         }
 
         pub fn clear(self: *SlotMap(T)) void {

@@ -120,7 +120,11 @@ pub fn shutdown(self: *Input) void {
 }
 
 pub fn reset(self: *Input) void {
-    self.groups.clear();
+    var it = self.groups.iterator();
+    while (it.nextPtr()) |group| {
+        group.arena.deinit();
+        self.groups.remove(it.handle());
+    }
 }
 
 pub fn createGroup(self: *Input) Group.Handle {
