@@ -100,6 +100,10 @@ export fn hygpuImportModel(gpu: *Gpu, path: [*:0]const u8, settings: Gpu.Models.
     };
 }
 
+export fn hygpuModelDestroy(gpu: *Gpu, model: Gpu.Model) void {
+    gpu.models.remove(model);
+}
+
 export fn hygpuModelBounds(gpu: *Gpu, model: Gpu.Model) hy.math.AxisAligned {
     if (gpu.models.get(model)) |m| {
         return m.bounds;
@@ -138,8 +142,8 @@ export fn hygpuAddRenderable(gpu: *Gpu, options: Gpu.AddRenderableOptions) Gpu.R
     };
 }
 
-export fn hygpuRemoveRenderable(gpu: *Gpu, item: Gpu.RenderItemHandle) void {
-    gpu.renderables.remove(item);
+export fn hygpuRenderableDestroy(gpu: *Gpu, item: Gpu.RenderItemHandle) void {
+    gpu.renderableDestroy(item);
 }
 
 export fn hygpuSelectRenderable(gpu: *Gpu, item: Gpu.RenderItemHandle) void {
@@ -163,6 +167,10 @@ export fn hygpuSpriteCreate(gpu: *Gpu, opts: Gpu.SpriteCreateOptions) Gpu.Render
         std.log.err("sprite create failure: {}", .{e});
         return .invalid;
     };
+}
+
+export fn hygpuSpriteDestroy(gpu: *Gpu, hdl: Gpu.RenderItemHandle) void {
+    gpu.spriteDestroy(hdl);
 }
 
 export fn hygpuTextureImport(gpu: *Gpu, path: hy.runtime.ExternSlice(u8)) Gpu.TextureHandle {

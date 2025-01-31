@@ -106,12 +106,14 @@ pub const RenderList = struct {
     }
 
     pub fn remove(self: *RenderList, hdl: RenderItemHandle) void {
-        var head_hdl: ?RenderItemHandle = hdl;
-        while (head_hdl) |node_hdl| {
-            const head: ?Renderable = self.items.get(node_hdl);
+        var maybe_head_hdl: ?RenderItemHandle = hdl;
+        while (maybe_head_hdl) |head_hdl| {
+            const head: ?Renderable = self.items.get(head_hdl);
             if (head) |h| {
-                head_hdl = h.next;
-                self.items.remove(node_hdl);
+                maybe_head_hdl = h.next;
+                self.items.remove(head_hdl);
+            } else {
+                maybe_head_hdl = null;
             }
         }
     }

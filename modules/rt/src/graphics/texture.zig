@@ -9,7 +9,7 @@ const Strint = @import("../strintern.zig");
 pub const Handle = Strint.ID;
 
 const TextureId = struct {
-    handle: ?Strint.ID = null,
+    handle: ?Handle = null,
     target: ?*sdl.gpu.Texture = null,
 };
 
@@ -46,11 +46,11 @@ pub const Textures = struct {
     device: *sdl.gpu.Device,
     loader: *Loader,
     queue: Loader.Queue(TextureLoadJob),
-    textures: std.AutoHashMapUnmanaged(Strint.ID, *sdl.gpu.Texture) = .{},
+    textures: std.AutoHashMapUnmanaged(Strint.ID, ?*sdl.gpu.Texture) = .{},
     strint: *Strint,
     image_loader: stbi,
 
-    pub fn create(device: *sdl.gpu.Device, loader: *Loader, strint: *Strint, allocator: std.mem.Allocator) Textures {
+    pub fn init(device: *sdl.gpu.Device, loader: *Loader, strint: *Strint, allocator: std.mem.Allocator) Textures {
         var t: Textures = undefined;
         t.allocator = allocator;
         t.queue.init(allocator);
@@ -74,12 +74,26 @@ pub const Textures = struct {
 
     pub fn get(self: *@This(), id: Handle) !?*sdl.gpu.Texture {
         try self.flushQueue();
-        return self.textures.get(id);
+        return self.textures.get(id) orelse null;
+    }
+
+    pub fn destroy(self: *@This(), id: Handle) void {
+        if (self.textures.contains(id)) {
+            const maybe_tex = self.textures.get(id).?;
+            if (maybe_tex) |tex| {
+                self.device.releaseTexture(tex);
+            }
+            _ = self.textures.remove(id);
+        } else {
+            std.debug.panic("Destroy of invalid texture {s}", .{self.strint.asString(id)});
+        }
     }
 
     pub fn read(self: *@This(), path: [:0]const u8) !Handle {
         const copy = try self.allocator.dupeZ(u8, path);
         try self.loader.run(&self.queue, readTexture, .{ self, copy });
+        const id = try self.strint.from(path);
+        try self.textures.put(self.allocator, id, null);
         return self.strint.from(path);
     }
 
@@ -87,7 +101,12 @@ pub const Textures = struct {
         while (self.queue.pop()) |entry| {
             const tex_strint = try self.strint.from(entry.path);
             self.allocator.free(entry.path);
-            try self.textures.put(self.allocator, tex_strint, entry.target);
+
+            if (self.textures.contains(tex_strint)) {
+                try self.textures.put(self.allocator, tex_strint, entry.target);
+            } else {
+                std.log.warn("Texture {s} removed before it was finished loading, was this intentional?", .{entry.path});
+            }
         }
     }
 

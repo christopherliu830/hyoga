@@ -33,6 +33,13 @@ pub const Material = struct {
             .textures = textures,
         };
     }
+
+    pub fn deinit(self: *Material, textures: *tx.Textures) void {
+        var it = self.textures.iterator();
+        while (it.next()) |entry| {
+            textures.destroy(entry.value.handle.?);
+        }
+    }
 };
 
 pub const ShaderDefinition = struct {

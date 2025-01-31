@@ -109,7 +109,7 @@ pub const Gpu = opaque {
     };
 
     pub const ModelDupeOptions = extern struct {
-        material: MaterialHandle = .invalid,
+        material: MaterialHandle = .none,
     };
 
     pub const SpriteCreateOptions = extern struct {
@@ -123,31 +123,35 @@ pub const Gpu = opaque {
 
     pub const materialCreate = hygpuMaterialCreate;
     pub const modelImport = hygpuImportModel;
+    pub const modelDestroy = hygpuModelDestroy;
     pub const modelBounds = hygpuModelBounds;
     pub const modelDupe = hygpuModelDupe;
     pub const modelPrimitive = hygpuModelPrimitive;
     pub const modelWaitLoad = hygpuModelWaitLoad;
     pub const addRenderable = hygpuAddRenderable;
-    pub const removeRenderable = hygpuRemoveRenderable;
+    pub const renderableDestroy = hygpuRenderableDestroy;
     pub const selectRenderable = hygpuSelectRenderable;
     pub const deselectRenderable = hygpuDeselectRenderable;
     pub const renderableSetTransform = hygpuRenderableSetTransform;
     pub const textureImport = hygpuTextureImport;
     pub const spriteCreate = hygpuSpriteCreate;
+    pub const spriteDestroy = hygpuSpriteDestroy;
     pub const clearSelection = hygpuClearSelection;
 
     extern fn hygpuImportModel(*Gpu, [*:0]const u8, ImportSettings) Model;
     extern fn hygpuMaterialCreate(*Gpu, MaterialType, *const TextureArray) MaterialHandle;
     extern fn hygpuModelBounds(*Gpu, Model) math.AxisAligned;
     extern fn hygpuModelDupe(*Gpu, Model, ModelDupeOptions) Model;
+    extern fn hygpuModelDestroy(*Gpu, Model) void;
     extern fn hygpuModelPrimitive(*Gpu, PrimitiveShape) Model;
     extern fn hygpuModelWaitLoad(*Gpu, Model, u64) bool;
     extern fn hygpuAddRenderable(*Gpu, AddRenderableOptions) Renderable;
-    extern fn hygpuRemoveRenderable(*Gpu, Renderable) void;
+    extern fn hygpuRenderableDestroy(*Gpu, Renderable) void;
     extern fn hygpuSelectRenderable(*Gpu, Renderable) void;
     extern fn hygpuDeselectRenderable(*Gpu, Renderable) void;
     extern fn hygpuRenderableSetTransform(*Gpu, Renderable, math.Mat4) void;
     extern fn hygpuSpriteCreate(*Gpu, SpriteCreateOptions) Renderable;
+    extern fn hygpuSpriteDestroy(*Gpu, Renderable) void;
     extern fn hygpuTextureImport(*Gpu, rt.ExternSlice(u8)) TextureHandle;
     extern fn hygpuClearSelection(*Gpu) void;
 };

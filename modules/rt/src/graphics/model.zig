@@ -84,11 +84,8 @@ pub const Models = struct {
 
         if (self.models.len > 0) {
             var it = self.models.iterator();
-            while (it.next()) |q_entry| {
-                if (q_entry) |entry| {
-                    std.debug.assert(entry.children.len > 0);
-                    self.allocator.free(entry.children);
-                }
+            while (it.next()) |_| {
+                self.models.remove(it.handle());
             }
             self.models.deinit(self.allocator);
         }
@@ -103,6 +100,18 @@ pub const Models = struct {
 
     pub fn add(self: *@This(), model: Model) Handle {
         return self.models.insert(self.allocator, model) catch |e| std.debug.panic("add model failure: {}", .{e});
+    }
+
+    pub fn remove(self: *@This(), hdl: Handle) void {
+        if (self.models.get(hdl)) |maybe_model| {
+            if (maybe_model) |model| {
+                std.debug.assert(model.children.len > 0);
+                self.allocator.free(model.children);
+            }
+            self.models.remove(hdl);
+        } else {
+            std.debug.panic("Remove called on an invalid handle", .{});
+        }
     }
 
     pub const DupeModelOptions = extern struct {
@@ -155,7 +164,11 @@ pub const Models = struct {
 
     fn flushQueue(self: *@This()) !void {
         while (self.queue.pop()) |result| {
-            const model = self.models.getPtr(result.job.dest_hdl) orelse return error.FlushQueueFailure;
+            const model = self.models.getPtr(result.job.dest_hdl) orelse {
+                std.log.warn("Model was removed before it finished loading, was this intentional?", .{});
+                continue;
+            };
+
             model.* = result.model;
             result.job.deinit();
         }

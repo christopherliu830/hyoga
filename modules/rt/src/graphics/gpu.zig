@@ -219,17 +219,17 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
     self.* = .{
         .gpa = gpa,
         .device = device,
-        .arena = std.heap.ArenaAllocator.init(gpa),
-        .buffer_allocator = buf.BufferAllocator.init(self.device, .{ .vertex = true, .index = true }, self.gpa),
+        .arena = .init(gpa),
+        .buffer_allocator = .init(self.device, .{ .vertex = true, .index = true }, self.gpa),
         .loader = loader,
         .strint = strint,
         .window = window,
         .window_state = .{},
-        .ids = StringIDs.init(self.strint),
-        .textures = tx.Textures.create(self.device, loader, strint, self.gpa),
-        .models = Models.create(loader, strint, self.gpa),
+        .ids = .init(self.strint),
+        .textures = .init(self.device, loader, strint, self.gpa),
+        .models = .create(loader, strint, self.gpa),
         .materials = .empty,
-        .renderables = rbl.RenderList.init(self, self.gpa),
+        .renderables = .init(self, self.gpa),
         .outlined = .{},
         .sprites = .empty,
         .uniforms = .empty,
@@ -1101,4 +1101,30 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !RenderItemHandle {
     );
 
     return renderable;
+}
+
+pub fn spriteDestroy(self: *Gpu, hdl: RenderItemHandle) void {
+    const renderable = self.renderables.items.get(hdl) orelse {
+        std.debug.panic("No renderable found for handle {}", .{hdl});
+    };
+
+    self.renderables.remove(hdl);
+    self.materialDestroy(renderable.mesh.material);
+    _ = self.sprites.remove(hdl);
+}
+
+pub fn materialDestroy(self: *Gpu, handle: SlotMap(mt.Material).Handle) void {
+    var mat = self.materials.get(handle) orelse {
+        std.debug.panic("No material found for handle {}", .{handle});
+    };
+    mat.deinit(&self.textures);
+    self.materials.remove(handle);
+}
+
+pub fn renderableDestroy(self: *Gpu, handle: RenderItemHandle) void {
+    if (self.sprites.contains(handle)) {
+        self.spriteDestroy(handle);
+    }
+
+    self.renderables.remove(handle);
 }
