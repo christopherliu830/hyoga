@@ -82,10 +82,11 @@ pub const Models = struct {
     pub fn deinit(self: *@This()) void {
         self.flushQueue() catch std.debug.panic("Could not flush queue", .{});
 
-        if (self.models.len > 0) {
+        if (self.models.num_items > 0) {
             var it = self.models.iterator();
-            while (it.next()) |_| {
+            while (it.next()) |model| {
                 self.models.remove(it.handle());
+                self.allocator.free(model.?.children);
             }
             self.models.deinit(self.allocator);
         }
@@ -272,11 +273,11 @@ const ImportModel = struct {
     meshes: std.ArrayListUnmanaged(ImportMesh) = .{},
     transform: mat4.Mat4 = mat4.identity,
 
-    pub fn deinit(self: ImportModel, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *ImportModel, allocator: std.mem.Allocator) void {
         for (self.meshes.items) |*mesh| {
             mesh.deinit(allocator);
         }
-        allocator.free(self.meshes.allocatedSlice());
+        self.meshes.deinit(allocator);
     }
 
     pub const ProcessModelParams = struct {

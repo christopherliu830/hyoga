@@ -51,6 +51,7 @@ pub fn init(in_allocator: std.mem.Allocator) Self {
 }
 
 pub fn shutdown(self: *Self) void {
+    self.map.deinit(self.arena.allocator());
     self.arena.deinit();
 }
 

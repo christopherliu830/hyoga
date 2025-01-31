@@ -26,13 +26,13 @@ pub fn SlotMap(comptime T: type) type {
     const Slot = union(EntryType) { empty: FreeSlot, occupied: Entry(T) };
 
     return struct {
-        len: u32,
+        end: u32,
         entries: std.ArrayListUnmanaged(Slot),
         free_list: ?u32,
         num_items: u32,
 
         pub const empty: SlotMap(T) = .{
-            .len = 0,
+            .end = 0,
             .entries = .{},
             .free_list = null,
             .num_items = 0,
@@ -52,9 +52,9 @@ pub fn SlotMap(comptime T: type) type {
 
             pub fn nextPtr(self: *ValidItemsIterator) ?*T {
                 const i = self.next_index;
-                if (i < 0 or i >= self.slot_map.len) return null;
+                if (i < 0 or i >= self.slot_map.end) return null;
 
-                while (self.next_index < self.slot_map.len) {
+                while (self.next_index < self.slot_map.end) {
                     switch (self.slot_map.slots()[self.next_index]) {
                         .occupied => |*val| {
                             self.next_index += 1;
@@ -71,9 +71,9 @@ pub fn SlotMap(comptime T: type) type {
 
             pub fn next(self: *ValidItemsIterator) ?T {
                 const i = self.next_index;
-                if (i < 0 or i >= self.slot_map.len) return null;
+                if (i < 0 or i >= self.slot_map.end) return null;
 
-                while (self.next_index < self.slot_map.len) {
+                while (self.next_index < self.slot_map.end) {
                     const slot = self.slot_map.entries.items[self.next_index];
                     switch (slot) {
                         .occupied => |val| {
@@ -103,7 +103,7 @@ pub fn SlotMap(comptime T: type) type {
 
         pub fn create() !SlotMap(T) {
             return SlotMap(T){
-                .len = 0,
+                .end = 0,
                 .entries = .{},
                 .free_list = null,
                 .num_items = 0,
@@ -133,7 +133,7 @@ pub fn SlotMap(comptime T: type) type {
         pub fn get(self: *SlotMap(T), handle: SlotMap(T).Handle) ?T {
             const idx = handle.index;
 
-            std.debug.assert(idx < self.len);
+            std.debug.assert(idx < self.end);
 
             return switch (self.entries.items[idx]) {
                 .empty => null,
@@ -147,7 +147,7 @@ pub fn SlotMap(comptime T: type) type {
         pub fn getPtr(self: *SlotMap(T), handle: SlotMap(T).Handle) ?*T {
             const idx = handle.index;
 
-            std.debug.assert(idx < self.len);
+            std.debug.assert(idx < self.end);
 
             return switch (self.entries.items[idx]) {
                 .empty => null,
@@ -159,7 +159,7 @@ pub fn SlotMap(comptime T: type) type {
         }
 
         pub fn at(self: *SlotMap(T), idx: u32) ?*T {
-            std.debug.assert(idx < self.len);
+            std.debug.assert(idx < self.end);
             return switch (self.entries.items[idx]) {
                 .empty => null,
                 .occupied => |val| val.value,
@@ -186,7 +186,7 @@ pub fn SlotMap(comptime T: type) type {
 
         /// Caller is responsible for freeing the returned slice.
         pub fn toSlice(self: *SlotMap(T), allocator: std.mem.Allocator) ![]T {
-            var items = try allocator.alloc(T, self.len);
+            var items = try allocator.alloc(T, self.end);
             var it = self.iterator();
             var i: u32 = 0;
             while (it.next()) |item| : (i += 1) {
@@ -207,7 +207,7 @@ pub fn SlotMap(comptime T: type) type {
 
                 return .{ .index = idx, .generation = gen };
             } else {
-                const index = self.len;
+                const index = self.end;
                 if (index >= self.capacity()) {
                     const new_cap = @max(self.capacity() * 2, 1);
                     try self.resize(allocator, new_cap);
@@ -219,7 +219,7 @@ pub fn SlotMap(comptime T: type) type {
                     .value = value,
                 } });
 
-                self.len += 1;
+                self.end += 1;
                 self.num_items += 1;
 
                 return .{
@@ -231,7 +231,7 @@ pub fn SlotMap(comptime T: type) type {
 
         pub fn remove(self: *SlotMap(T), handle: SlotMap(T).Handle) void {
             const idx = handle.index;
-            if (idx >= self.len) return;
+            if (idx >= self.end) return;
             const slot = &self.entries.items[idx];
             const val: ?T = switch (self.entries.items[idx]) {
                 .empty => null,

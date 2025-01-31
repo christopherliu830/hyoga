@@ -112,6 +112,10 @@ pub fn init(in_allocator: std.mem.Allocator) Input {
 }
 
 pub fn shutdown(self: *Input) void {
+    var it = self.groups.iterator();
+    while (it.nextPtr()) |group| {
+        group.arena.deinit();
+    }
     self.groups.deinit(self.allocator);
 }
 
@@ -128,7 +132,7 @@ pub fn createGroup(self: *Input) Group.Handle {
 }
 
 pub fn groupDestroy(self: *Input, handle: Group.Handle) void {
-    const group = self.groups.get(handle) orelse {
+    var group = self.groups.get(handle) orelse {
         log.warn("invalid group passed to destroy", .{});
         return;
     };
@@ -137,7 +141,7 @@ pub fn groupDestroy(self: *Input, handle: Group.Handle) void {
 }
 
 pub fn getGroup(self: *Input, hdl: Group.Handle) Group.Handle {
-    if (self.groups.len == 0) {
+    if (self.groups.num_items == 0) {
         @branchHint(.cold);
         return self.createGroup();
     } else if (self.groups.get(hdl)) |_| {

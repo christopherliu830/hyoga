@@ -12,7 +12,6 @@ const vec3 = hym.vec3;
 const mat4 = hym.mat4;
 const hym_cam = hym.cam;
 
-const stb = @import("stb_image");
 const Window = @import("../window.zig");
 
 const buf = @import("buffer.zig");
@@ -119,12 +118,17 @@ pub const BuildPipelineParams = struct {
     primitive_type: sdl.gpu.PrimitiveType,
 };
 
-pub const Sprite = extern struct {
+pub const GpuSprite = extern struct {
     width: u16,
     height: u16,
     offset: u16 = 0,
     len: u16 = 0,
     speed: f32 = 1,
+};
+
+pub const Sprite = struct {
+    sprite: GpuSprite,
+    model: Model,
 };
 
 const DefaultAssets = struct {
@@ -417,6 +421,7 @@ pub fn shutdown(self: *Gpu) void {
     self.sprites.deinit(self.gpa);
     self.uniforms.deinit(self.gpa);
     self.arena.deinit();
+    self.models.deinit();
 
     self.device.destroy();
 
@@ -543,14 +548,14 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     const transforms = render_pack.transforms;
     try self.uploadToBuffer(self.default_assets.obj_buf.hdl, 0, std.mem.sliceAsBytes(transforms));
 
-    const sprite_data = try self.arena.allocator().alloc(Sprite, self.materials.len);
+    const sprite_data = try self.arena.allocator().alloc(GpuSprite, self.materials.num_items);
     var sprite_it = self.sprites.iterator();
     while (sprite_it.next()) |pair| {
         const renderable = self.renderables.items.get(pair.key_ptr.*) orelse {
             std.debug.panic("renderable not found", .{});
         };
         const idx = renderable.mesh.material.index;
-        sprite_data[idx] = pair.value_ptr.*;
+        sprite_data[idx] = pair.value_ptr.sprite;
     }
 
     try self.uploadToBuffer(self.default_assets.sprite_buf.hdl, 0, std.mem.sliceAsBytes(sprite_data));
@@ -1019,16 +1024,16 @@ pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, mate
     try self.uploadToBuffer(buffer.hdl, buffer.offset, std.mem.sliceAsBytes(verts));
     try self.uploadToBuffer(buffer.hdl, buffer.idx_start, std.mem.sliceAsBytes(indices));
 
-    const mesh = try self.gpa.create(Mesh);
-    errdefer self.gpa.destroy(mesh);
+    var mesh = try self.models.allocator.alloc(Mesh, 1);
+    errdefer self.models.allocator.destroy(mesh);
 
-    mesh.* = .{
+    mesh[0] = .{
         .buffer = buffer,
         .material = material,
     };
 
     const model: mdl.Model = .{
-        .children = mesh[0..1],
+        .children = mesh,
         .transform = mat4.identity,
         .bounds = primitives.Cube.bounds,
     };
@@ -1091,25 +1096,30 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !RenderItemHandle {
     try self.sprites.put(
         self.gpa,
         renderable,
-        .{
+        .{ .model = quad, .sprite = .{
             .width = opts.width,
             .height = opts.height,
             .offset = opts.offset,
             .len = if (opts.len == 0) opts.width * opts.height else opts.len,
             .speed = opts.speed,
-        },
+        } },
     );
 
     return renderable;
 }
 
 pub fn spriteDestroy(self: *Gpu, hdl: RenderItemHandle) void {
+    const sprite = self.sprites.get(hdl) orelse {
+        std.debug.panic("No sprite found for handle {}", .{hdl});
+    };
+
     const renderable = self.renderables.items.get(hdl) orelse {
         std.debug.panic("No renderable found for handle {}", .{hdl});
     };
 
     self.renderables.remove(hdl);
     self.materialDestroy(renderable.mesh.material);
+    self.models.remove(sprite.model);
     _ = self.sprites.remove(hdl);
 }
 
