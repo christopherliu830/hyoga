@@ -93,7 +93,7 @@ pub const MaterialTemplateIndex = enum(u32) {
     billboard,
 
     comptime {
-        hy.meta.assertMatches(MaterialTemplateIndex, hy.runtime.gpu.MaterialType);
+        hy.meta.assertMatches(MaterialTemplateIndex, hy.Gpu.MaterialType);
     }
 };
 
@@ -228,7 +228,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .ids = StringIDs.init(self.strint),
         .textures = tx.Textures.create(self.device, loader, strint, self.gpa),
         .models = Models.create(loader, strint, self.gpa),
-        .materials = SlotMap(mt.Material).create(self.gpa, 4) catch hy.err.oom(),
+        .materials = .empty,
         .renderables = rbl.RenderList.init(self, self.gpa),
         .outlined = .{},
         .sprites = .empty,
@@ -311,7 +311,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .mag_filter = .linear,
     };
 
-    const white_material = try self.materials.insert(mt.Material.fromTemplate(material, TextureSet.initFull(.{ .target = white_texture })));
+    const white_material = try self.materials.insert(self.gpa, mt.Material.fromTemplate(material, TextureSet.initFull(.{ .target = white_texture })));
 
     const cube = try self.createModel(&primitives.cube.vertices, &primitives.cube.indices, white_material);
     const quad = try self.createModel(&primitives.quad.vertices, &primitives.quad.indices, white_material);
@@ -394,7 +394,7 @@ pub fn shutdown(self: *Gpu) void {
 
     self.textures.deinit();
     self.models.deinit();
-    self.materials.deinit();
+    self.materials.deinit(self.gpa);
 
     self.buffer_allocator.deinit();
 
@@ -546,7 +546,9 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     const sprite_data = try self.arena.allocator().alloc(Sprite, self.materials.len);
     var sprite_it = self.sprites.iterator();
     while (sprite_it.next()) |pair| {
-        const renderable = self.renderables.items.get(pair.key_ptr.*) catch std.debug.panic("renderable not found", .{});
+        const renderable = self.renderables.items.get(pair.key_ptr.*) orelse {
+            std.debug.panic("renderable not found", .{});
+        };
         const idx = renderable.mesh.material.index;
         sprite_data[idx] = pair.value_ptr.*;
     }
@@ -685,7 +687,7 @@ pub fn doPass(self: *Gpu, job: PassInfo) !void {
             try self.draw(&job, pass, @intCast(i), 1, item.mesh, &last_pipeline);
         },
         .handles => |handles| for (handles) |hdl| {
-            const item = self.renderables.items.get(hdl) catch continue;
+            const item = self.renderables.items.get(hdl) orelse continue;
             try self.draw(&job, pass, @intCast(hdl.index), 1, item.mesh, &last_pipeline);
         },
         .iterator => |iterator| {
@@ -717,7 +719,9 @@ fn draw(
     const zone = @import("ztracy").ZoneN(@src(), "RenderInstanced");
     defer zone.End();
 
-    const material = if (job.material) |m| m else try self.materials.get(mesh.material);
+    const material = if (job.material) |m| m else self.materials.get(mesh.material) orelse {
+        std.debug.panic("No valid material found", .{});
+    };
     const buffer = mesh.buffer;
 
     if (last_pipeline.* != material.pipeline) {
@@ -940,7 +944,7 @@ pub fn materialCreate(self: *Gpu, template_idx: MaterialTemplateIndex, txs: *con
     }
 
     const mat: mt.Material = mt.Material.fromTemplate(template, map);
-    return try self.materials.insert(mat);
+    return try self.materials.insert(self.gpa, mat);
 }
 
 pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSettings) !Model {
@@ -991,7 +995,7 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSetti
             }
         }
         const material = mt.Material.fromTemplate(self.default_assets.mats.get(.standard).?, texture_set);
-        const hdl = try self.materials.insert(material);
+        const hdl = try self.materials.insert(self.gpa, material);
         materials_array[mat_index] = hdl;
     }
 
@@ -1049,7 +1053,7 @@ pub fn renderableSetTransform(
     handle: rbl.RenderItemHandle,
     transform: mat4.Mat4,
 ) void {
-    const renderable = self.renderables.items.getPtr(handle) catch {
+    const renderable = self.renderables.items.getPtr(handle) orelse {
         log.warn("Renderable set transform called when no renderable exists", .{});
         return;
     };
@@ -1066,7 +1070,7 @@ pub const SpriteCreateOptions = extern struct {
     speed: f32,
 
     comptime {
-        hy.meta.assertMatches(SpriteCreateOptions, hy.runtime.gpu.SpriteCreateOptions);
+        hy.meta.assertMatches(SpriteCreateOptions, hy.Gpu.SpriteCreateOptions);
     }
 };
 
@@ -1077,7 +1081,7 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !RenderItemHandle {
     const tex = try self.textures.read(std.mem.span(opts.atlas));
     const template = self.default_assets.mats.get(.billboard).?;
     const mat: mt.Material = mt.Material.fromTemplate(template, .init(.{ .diffuse = .{ .handle = tex } }));
-    const mat_hdl = try self.materials.insert(mat);
+    const mat_hdl = try self.materials.insert(self.gpa, mat);
     const quad = try self.models.dupe(self.default_assets.quad, .{ .material = mat_hdl });
     const renderable = try self.renderables.add(.{
         .model = quad,

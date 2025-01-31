@@ -21,7 +21,7 @@ pub const Config = struct {
 };
 
 gpa: std.heap.GeneralPurposeAllocator(.{}),
-arena: std.heap.ArenaAllocator,
+static_arena: std.heap.ArenaAllocator,
 game_arena: std.heap.ArenaAllocator,
 window: Window,
 strint: Strint,
@@ -42,9 +42,9 @@ pub fn init() !*Engine {
 
     self.* = .{
         .gpa = self_gpa,
-        .arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
+        .static_arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
         .game_arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
-        .strint = Strint.init(self.arena.allocator()),
+        .strint = Strint.init(self.static_arena.allocator()),
         .input = Input.init(self.gpa.allocator()),
         .window = try Window.init(),
         .gpu = try Gpu.init(&self.window, &self.loader, &self.strint, self.gpa.allocator()),
@@ -69,7 +69,7 @@ pub fn shutdown(self: *Engine) void {
     self.strint.shutdown();
     self.window.deinit();
     self.game_arena.deinit();
-    self.arena.deinit();
+    self.static_arena.deinit();
 
     var gpa = self.gpa;
     gpa.allocator().destroy(self);

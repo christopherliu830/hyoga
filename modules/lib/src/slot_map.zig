@@ -26,12 +26,28 @@ pub fn SlotMap(comptime T: type) type {
     const Slot = union(EntryType) { empty: FreeSlot, occupied: Entry(T) };
 
     return struct {
+        len: u32,
+        entries: std.ArrayListUnmanaged(Slot),
+        free_list: ?u32,
+        num_items: u32,
+
+        pub const empty: SlotMap(T) = .{
+            .len = 0,
+            .entries = .{},
+            .free_list = null,
+            .num_items = 0,
+        };
+
         pub const ValidItemsIterator = struct {
             slot_map: *SlotMap(T),
             next_index: u32 = 0,
 
             pub inline fn index(self: *ValidItemsIterator) u32 {
                 return self.next_index - 1;
+            }
+
+            pub inline fn handle(self: *ValidItemsIterator) SlotMap(T).Handle {
+                return self.slot_map.handle_at(self.index());
             }
 
             pub fn nextPtr(self: *ValidItemsIterator) ?*T {
@@ -85,29 +101,24 @@ pub fn SlotMap(comptime T: type) type {
             }
         };
 
-        len: u32,
-        entries: std.ArrayList(Slot),
-        free_list: ?u32,
-        num_items: u32,
-
-        pub fn create(allocator: std.mem.Allocator, size: u32) !SlotMap(T) {
+        pub fn create() !SlotMap(T) {
             return SlotMap(T){
                 .len = 0,
-                .entries = try std.ArrayList(Slot).initCapacity(allocator, size),
+                .entries = .{},
                 .free_list = null,
                 .num_items = 0,
             };
         }
 
-        pub fn deinit(self: *SlotMap(T)) void {
-            self.entries.clearAndFree();
+        pub fn deinit(self: *SlotMap(T), allocator: std.mem.Allocator) void {
+            self.entries.clearAndFree(allocator);
         }
 
         pub fn clear(self: *SlotMap(T)) void {
             for (self.slots(), 0..) |slot, i| {
                 switch (slot) {
                     .occupied => {
-                        const hdl = self.handle_at(@intCast(i)) catch unreachable;
+                        const hdl = self.handle_at(@intCast(i));
                         self.remove(hdl);
                     },
                     .empty => continue,
@@ -115,45 +126,49 @@ pub fn SlotMap(comptime T: type) type {
             }
         }
 
-        pub fn capacity(self: SlotMap(T)) u32 {
+        pub fn capacity(self: *SlotMap(T)) u32 {
             return @intCast(self.entries.capacity);
         }
 
-        pub fn get(self: SlotMap(T), handle: SlotMap(T).Handle) !T {
+        pub fn get(self: *SlotMap(T), handle: SlotMap(T).Handle) ?T {
             const idx = handle.index;
-            if (idx >= self.len) return error.OutOfRange;
+
+            std.debug.assert(idx < self.len);
+
             return switch (self.entries.items[idx]) {
-                .empty => error.Invalidated,
+                .empty => null,
                 .occupied => |val| blk: {
-                    if (val.generation > handle.generation) break :blk error.Invalidated;
+                    if (val.generation > handle.generation) break :blk null;
                     break :blk val.value;
                 },
             };
         }
 
-        pub fn getPtr(self: SlotMap(T), handle: SlotMap(T).Handle) !*T {
+        pub fn getPtr(self: *SlotMap(T), handle: SlotMap(T).Handle) ?*T {
             const idx = handle.index;
-            if (idx >= self.len) return error.OutOfRange;
+
+            std.debug.assert(idx < self.len);
+
             return switch (self.entries.items[idx]) {
-                .empty => error.Invalidated,
+                .empty => null,
                 .occupied => |*val| blk: {
-                    if (val.generation > handle.generation) break :blk error.Invalidated;
+                    if (val.generation > handle.generation) break :blk null;
                     break :blk &val.value;
                 },
             };
         }
 
-        pub fn at(self: SlotMap(T), idx: u32) !*T {
-            if (idx >= self.len) return error.OutOfRange;
+        pub fn at(self: *SlotMap(T), idx: u32) ?*T {
+            std.debug.assert(idx < self.len);
             return switch (self.entries.items[idx]) {
-                .empty => error.Invalidated,
+                .empty => null,
                 .occupied => |val| val.value,
             };
         }
 
-        pub fn handle_at(self: SlotMap(T), idx: u32) !SlotMap(T).Handle {
+        pub fn handle_at(self: *const SlotMap(T), idx: u32) SlotMap(T).Handle {
             return switch (self.entries.items[idx]) {
-                .empty => error.Invalidated,
+                .empty => std.debug.panic("handle_at used on an empty slot", .{}),
                 .occupied => |val| .{ .index = idx, .generation = val.generation },
             };
         }
@@ -180,7 +195,7 @@ pub fn SlotMap(comptime T: type) type {
             return items;
         }
 
-        pub fn insert(self: *SlotMap(T), value: T) !SlotMap(T).Handle {
+        pub fn insert(self: *SlotMap(T), allocator: std.mem.Allocator, value: T) !SlotMap(T).Handle {
             if (self.free_list != null) {
                 const idx = self.free_list.?;
                 const slot = &self.entries.items[idx];
@@ -195,11 +210,11 @@ pub fn SlotMap(comptime T: type) type {
                 const index = self.len;
                 if (index >= self.capacity()) {
                     const new_cap = @max(self.capacity() * 2, 1);
-                    try self.resize(new_cap);
-                    return self.insert(value);
+                    try self.resize(allocator, new_cap);
+                    return self.insert(allocator, value);
                 }
 
-                try self.entries.insert(index, .{ .occupied = .{
+                try self.entries.insert(allocator, index, .{ .occupied = .{
                     .generation = 1,
                     .value = value,
                 } });
@@ -235,39 +250,39 @@ pub fn SlotMap(comptime T: type) type {
             }
         }
 
-        pub fn resize(self: *SlotMap(T), new_cap: u32) !void {
+        pub fn resize(self: *SlotMap(T), allocator: std.mem.Allocator, new_cap: u32) !void {
             if (new_cap > std.math.maxInt(u32)) return error.OutOfMemory;
-            try self.entries.ensureTotalCapacity(new_cap);
+            try self.entries.ensureTotalCapacity(allocator, new_cap);
         }
     };
 }
 
 test "slotmap create and deinit" {
-    var g = try SlotMap(u32).create(std.testing.allocator, 20);
-    defer g.deinit();
+    var g: SlotMap(u32) = .{};
+    defer g.deinit(std.desting.allocator);
     try std.testing.expect(g.entries.capacity == 20);
 }
 
 test "slotmap insertions" {
-    var g = try SlotMap(u32).create(std.testing.allocator, 20);
+    var g: SlotMap(u32) = .{};
     defer g.deinit();
     try std.testing.expectError(error.OutOfRange, g.get(.{ .index = 0, .generation = 0 }));
-    const id = try g.insert(37);
-    const id2 = try g.insert(42);
+    const id = try g.insert(std.testing.allocator, 37);
+    const id2 = try g.insert(std.testing.allocator, 42);
     try std.testing.expect(try g.get(id) == 37);
     try std.testing.expect(try g.get(id2) == 42);
 }
 
 test "slotmap invalidations" {
-    var g = try SlotMap(u32).create(std.testing.allocator, 20);
+    var g: SlotMap(u32) = .{};
     defer g.deinit();
-    const id = try g.insert(37);
+    const id = try g.insert(std.testing.allocator, 37);
     try std.testing.expect(try g.get(id) == 37);
     const val = g.remove(id);
     try std.testing.expect(val == 37);
     try std.testing.expectError(error.Invalidated, g.get(id));
 
-    const new_id = try g.insert(24);
+    const new_id = try g.insert(std.testing.allocator, 24);
     try std.testing.expect(try g.get(new_id) == 24);
     try std.testing.expectError(error.Invalidated, g.get(id));
     try std.testing.expect(id.index == new_id.index);

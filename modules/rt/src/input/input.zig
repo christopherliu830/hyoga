@@ -106,13 +106,13 @@ pub const Group = struct {
 pub fn init(in_allocator: std.mem.Allocator) Input {
     return .{
         .allocator = in_allocator,
-        .groups = hy.SlotMap(Group).create(in_allocator, 8) catch hy.err.oom(),
+        .groups = .empty,
         .input_inited = true,
     };
 }
 
 pub fn shutdown(self: *Input) void {
-    self.groups.deinit();
+    self.groups.deinit(self.allocator);
 }
 
 pub fn reset(self: *Input) void {
@@ -120,15 +120,15 @@ pub fn reset(self: *Input) void {
 }
 
 pub fn createGroup(self: *Input) Group.Handle {
-    const hdl = self.groups.insert(.{
+    const hdl = self.groups.insert(self.allocator, .{
         .input = self,
-        .arena = .init(std.heap.c_allocator),
+        .arena = .init(self.allocator),
     }) catch unreachable;
     return hdl;
 }
 
 pub fn groupDestroy(self: *Input, handle: Group.Handle) void {
-    const group = self.groups.get(handle) catch {
+    const group = self.groups.get(handle) orelse {
         log.warn("invalid group passed to destroy", .{});
         return;
     };
@@ -137,9 +137,12 @@ pub fn groupDestroy(self: *Input, handle: Group.Handle) void {
 }
 
 pub fn getGroup(self: *Input, hdl: Group.Handle) Group.Handle {
-    if (self.groups.get(hdl)) |_| {
+    if (self.groups.len == 0) {
+        @branchHint(.cold);
+        return self.createGroup();
+    } else if (self.groups.get(hdl)) |_| {
         return hdl;
-    } else |_| {
+    } else {
         return self.createGroup();
     }
 }
@@ -149,13 +152,13 @@ pub fn setGroupEnabled(
     hdl: Group.Handle,
     enabled: bool,
 ) void {
-    const group = self.groups.getPtr(hdl) catch
+    const group = self.groups.getPtr(hdl) orelse
         std.debug.panic("Invalid group handle", .{});
     group.enabled = enabled;
 }
 
 pub fn bind(self: *Input, hdl: Group.Handle, options: BindOptions, delegate: *hy.closure.Runnable) !void {
-    var group = self.groups.getPtr(hdl) catch std.debug.panic("No input group found", .{});
+    var group = self.groups.getPtr(hdl) orelse std.debug.panic("No input group found", .{});
     group.bind(options, delegate) catch std.debug.panic("failed to bind input", .{});
 }
 

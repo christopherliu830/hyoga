@@ -75,8 +75,7 @@ pub const Models = struct {
         m.queue.init(allocator);
         m.strint = strint;
         m.loader = loader;
-        m.models = SlotMap(?Model).create(allocator, 1) catch |e|
-            std.debug.panic("model create failure: {}", .{e});
+        m.models = .empty;
         return m;
     }
 
@@ -91,19 +90,19 @@ pub const Models = struct {
                     self.allocator.free(entry.children);
                 }
             }
-            self.models.deinit();
+            self.models.deinit(self.allocator);
         }
     }
 
     pub fn get(self: *@This(), id: Handle) !*Model {
         try self.flushQueue();
-        const ptr = try self.models.getPtr(id);
+        const ptr = self.models.getPtr(id) orelse unreachable;
         if (ptr.* == null) return error.ModelNotLoaded;
         return &(ptr.*.?);
     }
 
     pub fn add(self: *@This(), model: Model) Handle {
-        return self.models.insert(model) catch |e| std.debug.panic("add model failure: {}", .{e});
+        return self.models.insert(self.allocator, model) catch |e| std.debug.panic("add model failure: {}", .{e});
     }
 
     pub const DupeModelOptions = extern struct {
@@ -131,7 +130,7 @@ pub const Models = struct {
     /// Once the model is finished loading, the handle's value will be set to the model
     /// data. Trying to get the model before it's finished loading will return an error.
     pub fn read(self: *@This(), scene: *ai.Scene, mats: []mt.Handle, import: ImportSettings) !Handle {
-        const hdl = try self.models.insert(null);
+        const hdl = try self.models.insert(self.allocator, null);
 
         const job = ModelLoadJob{
             .dest_hdl = hdl,
@@ -156,7 +155,7 @@ pub const Models = struct {
 
     fn flushQueue(self: *@This()) !void {
         while (self.queue.pop()) |result| {
-            const model = try self.models.getPtr(result.job.dest_hdl);
+            const model = self.models.getPtr(result.job.dest_hdl) orelse return error.FlushQueueFailure;
             model.* = result.model;
             result.job.deinit();
         }

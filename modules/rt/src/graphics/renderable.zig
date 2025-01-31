@@ -51,18 +51,20 @@ pub const Renderable = struct {
 pub const RenderList = struct {
     gpu: *Gpu,
     items: RenderItems,
+    allocator: std.mem.Allocator,
 
     pub const Iterator = RenderItems.ValidItemsIterator;
 
     pub fn init(gpu: *Gpu, allocator: std.mem.Allocator) RenderList {
         return .{
             .gpu = gpu,
-            .items = RenderItems.create(allocator, 8) catch hy.err.oom(),
+            .items = .empty,
+            .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *RenderList) void {
-        self.items.deinit();
+        self.items.deinit(self.allocator);
     }
 
     pub const AddOptions = extern struct {
@@ -70,7 +72,7 @@ pub const RenderList = struct {
         time: u64 = 0,
 
         comptime {
-            hy.meta.assertMatches(AddOptions, hy.runtime.gpu.AddRenderableOptions);
+            hy.meta.assertMatches(AddOptions, hy.Gpu.AddRenderableOptions);
         }
     };
 
@@ -95,7 +97,7 @@ pub const RenderList = struct {
                     .import_transform = model.transform,
                     .next = head,
                 };
-                head = try self.items.insert(renderable);
+                head = try self.items.insert(self.allocator, renderable);
             }
             if (head) |h| return h else return error.ModelEmpty;
         }
@@ -106,7 +108,7 @@ pub const RenderList = struct {
     pub fn remove(self: *RenderList, hdl: RenderItemHandle) void {
         var head_hdl: ?RenderItemHandle = hdl;
         while (head_hdl) |node_hdl| {
-            const head: ?Renderable = self.items.get(node_hdl) catch null;
+            const head: ?Renderable = self.items.get(node_hdl);
             if (head) |h| {
                 head_hdl = h.next;
                 self.items.remove(node_hdl);
@@ -140,7 +142,7 @@ pub const RenderList = struct {
         const renderables = try allocator.alloc(Renderable, handles.len);
 
         for (handles, 0..) |hdl, i| {
-            renderables[i] = try self.items.get(hdl);
+            renderables[i] = self.items.get(hdl) orelse unreachable;
         }
 
         defer allocator.free(renderables);
@@ -199,7 +201,7 @@ pub const RenderList = struct {
         var it = self.items.iterator();
         var i: u32 = 0;
         while (it.next()) |_| {
-            handles[i] = self.items.handle_at(it.index()) catch unreachable;
+            handles[i] = it.handle();
             i += 1;
         }
         return self.pack(handles, allocator) catch std.debug.panic("pack failure", .{});

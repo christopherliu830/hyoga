@@ -30,7 +30,7 @@ pub const TextureType = enum(u32) {
     mask,
 
     comptime {
-        hy.meta.assertMatches(TextureType, hy.runtime.gpu.TextureType);
+        hy.meta.assertMatches(TextureType, hy.Gpu.TextureType);
     }
 };
 
