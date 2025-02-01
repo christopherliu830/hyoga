@@ -245,6 +245,14 @@ export fn hyp2BodySetVelocity(body: Phys2.Body, velocity: hy.math.Vec2) void {
     body.SetLinearVelocity(@bitCast(velocity));
 }
 
+export fn hyp2EventsReset(p2d: *Phys2) void {
+    p2d.eventsReset();
+}
+
+export fn hyp2HitEventRegister(p2d: *Phys2, body: Phys2.Body, cb: *hy.closure.Runnable) void {
+    p2d.hitEventRegister(body, cb);
+}
+
 export fn hysidAsString(strint: *Strint, str: Strint.ID, len: *usize) [*]const u8 {
     const slice = strint.asString(str);
     len.* = slice.len;

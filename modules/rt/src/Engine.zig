@@ -48,7 +48,7 @@ pub fn init() !*Engine {
         .input = Input.init(self.gpa.allocator()),
         .window = try Window.init(),
         .gpu = try Gpu.init(&self.window, &self.loader, &self.strint, self.gpa.allocator()),
-        .physics = .init(),
+        .physics = .init(self.gpa.allocator()),
         .ui = try UI.init(.{ .gpu = self.gpu, .window = &self.window, .allocator = self.gpa.allocator() }),
         .loader = undefined, // Init after in place, I don't know why but it crashes otherwise.
         .timer = std.time.Timer.start() catch unreachable,
@@ -65,6 +65,7 @@ pub fn shutdown(self: *Engine) void {
     self.loader.deinit();
     self.ui.shutdown();
     self.gpu.shutdown();
+    self.physics.deinit();
     self.input.shutdown();
     self.strint.shutdown();
     self.window.deinit();

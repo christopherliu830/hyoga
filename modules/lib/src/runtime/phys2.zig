@@ -1,5 +1,6 @@
 const std = @import("std");
 const rt = @import("../runtime.zig");
+const closure = @import("../closure.zig");
 const hym = @import("../math/math.zig");
 
 pub const Phys2 = struct {
@@ -53,7 +54,17 @@ pub const Phys2 = struct {
         extern fn hyp2BodyDestroy(Body) void;
     };
 
+    pub const HitEvent = struct {
+        other: Body,
+        normal: hym.Vec2,
+        point: hym.Vec2,
+    };
+
     pub const bodyAdd = hyp2BodyAdd;
+    pub const eventsReset = hyp2EventsReset;
+    pub const hitEventRegister = hyp2HitEventRegister;
 
     extern fn hyp2BodyAdd(*Phys2, Body.AddOptions) Body;
+    extern fn hyp2EventsReset(*Phys2) void;
+    extern fn hyp2HitEventRegister(*Phys2, Body, *closure.Runnable) void;
 };

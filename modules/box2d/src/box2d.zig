@@ -14,7 +14,57 @@ pub const CastOutput = opaque {};
 
 pub const CastResultFcn = opaque {};
 
-pub const ContactEvents = opaque {};
+pub const ContactEvents = extern struct {
+    pub const BeginTouch = extern struct {
+        shape_a: Shape,
+        shape_b: Shape,
+
+        /// The initial contact manifold. This is recorded before the solver is called,
+        /// so all the impulses will be zero.
+        manifold: Manifold,
+    };
+
+    pub const EndTouch = extern struct {
+        /// Id of the first shape
+        /// @warning this shape may have been destroyed
+        /// @see b2Shape_IsValid
+        shape_a: Shape,
+
+        /// Id of the second shape
+        /// @warning this shape may have been destroyed
+        /// @see b2Shape_IsValid
+        shape_b: Shape,
+    };
+
+    /// A hit touch event is generated when two shapes collide with a speed faster than the hit speed threshold.
+    pub const Hit = extern struct {
+        /// Id of the first shape
+        shape_a: Shape align(4),
+
+        /// Id of the second shape
+        shape_b: Shape align(4),
+
+        /// Point where the shapes hit
+        point: [2]f32,
+
+        /// Normal vector pointing from shape A to shape B
+        normal: [2]f32,
+
+        /// The speed the shapes are approaching. Always positive. Typically in meters per second.
+        approach_speed: f32,
+
+        comptime {
+            std.debug.assert(@sizeOf(Hit) == 36);
+        }
+    };
+
+    begin_events: [*]BeginTouch,
+    end_events: [*]EndTouch,
+    hit_events: [*]Hit,
+    begin_count: c_int,
+    end_count: c_int,
+    hit_count: c_int,
+};
 
 pub const ContactData = opaque {};
 
@@ -30,6 +80,59 @@ pub const Filter = extern struct {
     category_bits: u64 = 1,
     mask_bits: u64 = std.math.maxInt(u64),
     group_index: i32 = 0,
+};
+
+pub const Manifold = extern struct {
+    /// A manifold point is a contact point belonging to a contact manifold.
+    /// It holds details related to the geometry and dynamics of the contact points.
+    /// Box2D uses speculative collision so some contact points may be separated.
+    /// You may use the maxNormalImpulse to determine if there was an interaction during
+    /// the time step.
+    pub const Point = extern struct {
+        /// Location of the contact point in world space. Subject to precision loss at large coordinates.
+        /// @note Should only be used for debugging.
+        point: Vec2,
+
+        /// Location of the contact point relative to shapeA's origin in world space
+        /// @note When used internally to the Box2D solver, this is relative to the body center of mass.
+        anchor_a: Vec2,
+
+        /// Location of the contact point relative to shapeB's origin in world space
+        /// @note When used internally to the Box2D solver, this is relative to the body center of mass.
+        anchor_b: Vec2,
+
+        /// The separation of the contact point, negative if penetrating
+        separation: f32,
+
+        /// The impulse along the manifold normal vector.
+        normal_impulse: f32,
+
+        /// The friction impulse
+        tangent_impulse: f32,
+
+        /// The maximum normal impulse applied during sub-stepping. This is important
+        /// to identify speculative contact points that had an interaction in the time step.
+        max_normal_impulse: f32,
+
+        /// Relative normal velocity pre-solve. Used for hit events. If the normal impulse is
+        /// zero then there was no hit. Negative means shapes are approaching.
+        normal_velocity: f32,
+
+        /// Uniquely identifies a contact point between two shapes
+        id: u16,
+
+        /// Did this contact point exist the previous step?
+        persisted: bool,
+    };
+
+    /// The manifold points, up to two are possible in 2D
+    points: [2]Point,
+
+    /// The unit normal vector in world space, points from shape A to bodyB
+    normal: Vec2,
+
+    /// The number of contacts points, will be 0, 1, or 2
+    point_count: c_int,
 };
 
 pub const MassData = opaque {};
@@ -337,8 +440,11 @@ pub const Body = enum(u64) {
     pub const ComputeAABB = b2Body_ComputeAABB;
 };
 
-pub const Shape = enum(u64) {
-    null = 0,
+pub const Shape = packed struct(u64) {
+    pub const @"null": Shape = @bitCast(0);
+    idx_1: i32,
+    world_0: u16,
+    generation: u16,
 
     pub const Definition = extern struct {
         /// Use this to store application specific shape data.
@@ -430,6 +536,7 @@ pub const Shape = enum(u64) {
 
         pub const makeBox = b2MakeBox;
     };
+
     pub const ChainSegment = extern struct {
         ghost_1: Vec2,
         segment: Vec2,
