@@ -94,6 +94,7 @@ pub const Input = opaque {
     pub const reset = hyioReset;
     pub const createGroup = hyioCreateGroup;
     pub const getGroup = hyioGetGroup;
+    pub const groupDestroy = hyioGroupDestroy;
     pub const setGroupEnabled = hyioSetGroupEnabled;
     pub const bind = hyioBind;
     pub const queryMouse = hyioQueryMouse;
@@ -103,6 +104,7 @@ pub const Input = opaque {
     extern fn hyioReset(*Input) void;
     extern fn hyioCreateGroup(*Input) Input.Group;
     extern fn hyioGetGroup(*Input, Group) Group;
+    extern fn hyioGroupDestroy(*Input, Group) void;
     extern fn hyioSetGroupEnabled(*Input, Group, bool) void;
     extern fn hyioBind(*Input, Group, BindOptions, *closure.Runnable) void;
     extern fn hyioQueryMouse(*Input, keys.MouseButton) bool;

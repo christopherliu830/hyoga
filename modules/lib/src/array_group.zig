@@ -18,7 +18,6 @@ pub fn ArrayGroup(
         array_types[i] = .{
             .name = field.name,
             .type = ArrayList(Elem),
-            // .default_value_ptr = &default_value,
             .default_value_ptr = arrayInitializer(Elem),
             .is_comptime = false,
             .alignment = @alignOf(ArrayList(Elem)),
