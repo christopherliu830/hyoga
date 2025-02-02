@@ -41,11 +41,11 @@ pub const Gpu = opaque {
 
     pub const TextureArray = extern struct {
         const Map = std.EnumMap(TextureType, TextureHandle);
-        const Initializer = std.enums.EnumFieldStruct(TextureType, TextureHandle, .invalid);
+        const Initializer = std.enums.EnumFieldStruct(TextureType, TextureHandle, .none);
         data: [std.enums.directEnumArrayLen(TextureType, 0)]TextureHandle,
 
         pub fn make(txs: Initializer) TextureArray {
-            return .{ .data = Map.initFullWithDefault(.invalid, txs).values };
+            return .{ .data = Map.initFullWithDefault(.none, txs).values };
         }
     };
 

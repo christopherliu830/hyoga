@@ -33,6 +33,10 @@ pub const Vec3 = extern struct {
         return self.v[2];
     }
 
+    pub inline fn data(self: *Vec3) *@Vector(3, f32) {
+        return &self.v;
+    }
+
     pub inline fn xy(self: Vec3) Vec2 {
         return .{ .v = .{ self.v[0], self.v[1] } };
     }

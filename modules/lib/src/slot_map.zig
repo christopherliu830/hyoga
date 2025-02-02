@@ -22,12 +22,14 @@ pub fn Handle(comptime T: type) type {
     return SlotMap(T).Handle;
 }
 
-pub fn SlotMap(comptime T: type) type {
-    const Slot = union(EntryType) { empty: FreeSlot, occupied: Entry(T) };
+pub fn Slot(comptime T: type) type {
+    return SlotMap(T).Slot;
+}
 
+pub fn SlotMap(comptime T: type) type {
     return struct {
         end: u32,
-        entries: std.ArrayListUnmanaged(Slot),
+        entries: std.ArrayListUnmanaged(SlotMap(T).Slot),
         free_list: ?u32,
         num_items: u32,
 
@@ -37,6 +39,8 @@ pub fn SlotMap(comptime T: type) type {
             .free_list = null,
             .num_items = 0,
         };
+
+        pub const Slot = union(EntryType) { empty: FreeSlot, occupied: Entry(T) };
 
         pub const ValidItemsIterator = struct {
             slot_map: *SlotMap(T),
@@ -172,7 +176,7 @@ pub fn SlotMap(comptime T: type) type {
             };
         }
 
-        pub fn slots(self: *const SlotMap(T)) []Slot {
+        pub fn slots(self: *const SlotMap(T)) []SlotMap(T).Slot {
             return self.entries.items;
         }
 

@@ -82,6 +82,9 @@ pub const Textures = struct {
             const maybe_tex = self.textures.get(id).?;
             if (maybe_tex) |tex| {
                 self.device.releaseTexture(tex);
+            } else {
+                std.log.warn("Texture {s} removed before it was finished loading, was this intentional?", .{self.strint.asString(id)});
+                // When the job finishes the texture will be released.
             }
             _ = self.textures.remove(id);
         } else {
@@ -91,21 +94,37 @@ pub const Textures = struct {
 
     pub fn read(self: *@This(), path: [:0]const u8) !Handle {
         const copy = try self.allocator.dupeZ(u8, path);
+        const hdl = try self.strint.from(path);
+
+        // Cache check
+        if (try self.get(hdl)) |_| {
+            return hdl;
+        }
+
         try self.loader.run(&self.queue, readTexture, .{ self, copy });
-        const id = try self.strint.from(path);
-        try self.textures.put(self.allocator, id, null);
-        return self.strint.from(path);
+        try self.textures.put(self.allocator, hdl, null);
+        return hdl;
     }
 
     pub fn flushQueue(self: *@This()) !void {
         while (self.queue.pop()) |entry| {
             const tex_strint = try self.strint.from(entry.path);
-            self.allocator.free(entry.path);
+            defer self.allocator.free(entry.path);
 
-            if (self.textures.contains(tex_strint)) {
-                try self.textures.put(self.allocator, tex_strint, entry.target);
+            const maybe_tex_slot = self.textures.get(tex_strint);
+
+            if (maybe_tex_slot) |tex_slot| {
+                if (tex_slot != null) {
+                    // Two jobs are loading the same texture and another one finished first,
+                    // so release this duplicate.
+                    self.device.releaseTexture(entry.target);
+                } else {
+                    // This job was first to finish reading the texture.
+                    try self.textures.put(self.allocator, tex_strint, entry.target);
+                }
             } else {
                 std.log.warn("Texture {s} removed before it was finished loading, was this intentional?", .{entry.path});
+                self.device.releaseTexture(entry.target);
             }
         }
     }

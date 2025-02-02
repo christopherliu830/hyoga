@@ -33,7 +33,8 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             element: *Slot,
             skip: *Skip,
 
-            pub inline fn unwrap(self: Cursor) *T {
+            pub inline fn unwrap(self: Cursor) ?*T {
+                if (self.skip.value != 0) return null;
                 return &self.element.data;
             }
         };

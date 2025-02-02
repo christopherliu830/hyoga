@@ -399,6 +399,7 @@ pub fn shutdown(self: *Gpu) void {
     self.textures.deinit();
     self.models.deinit();
     self.materials.deinit(self.gpa);
+    self.renderables.deinit();
 
     self.buffer_allocator.deinit();
 
@@ -416,12 +417,10 @@ pub fn shutdown(self: *Gpu) void {
     self.device.releaseGraphicsPipeline(self.default_assets.mats.get(.billboard).?.pipeline);
     self.device.releaseGraphicsPipeline(self.default_assets.mats.get(.sprite).?.pipeline);
 
-    self.renderables.deinit();
     self.outlined.deinit(self.gpa);
     self.sprites.deinit(self.gpa);
     self.uniforms.deinit(self.gpa);
     self.arena.deinit();
-    self.models.deinit();
 
     self.device.destroy();
 

@@ -1,3 +1,4 @@
+pub const array_group = @import("array_group.zig");
 pub const closure = @import("closure.zig");
 pub const err = @import("debug.zig");
 pub const debug = @import("debug.zig");
@@ -12,6 +13,7 @@ pub const circle_queue = @import("circle_queue.zig");
 
 pub const gpu = runtime.gpu;
 
+pub const ArrayGroup = array_group.ArrayGroup;
 pub const CircleQueue = circle_queue.CircleQueue;
 pub const SlotMap = slot_map.SlotMap;
 pub const SkipMap = skip_map.SkipMap;
