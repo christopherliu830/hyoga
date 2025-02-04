@@ -129,7 +129,15 @@ pub const RenderList = struct {
             renderables: []Renderable,
 
             pub fn lessThan(ctx: @This(), a: usize, b: usize) bool {
-                return Renderable.lessThan({}, ctx.renderables[a], ctx.renderables[b]);
+                const lhs = &ctx.renderables[a];
+                const rhs = &ctx.renderables[b];
+
+                if (lhs.mesh.material.index != rhs.mesh.material.index) {
+                    return lhs.mesh.material.index < rhs.mesh.material.index;
+                } else {
+                    return @as(usize, @intFromPtr(lhs.mesh.buffer.hdl)) <
+                        @as(usize, @intFromPtr(rhs.mesh.buffer.hdl));
+                }
             }
 
             pub fn swap(ctx: @This(), a: usize, b: usize) void {
@@ -138,15 +146,14 @@ pub const RenderList = struct {
             }
         };
 
+        // Sort renderables (and associated handle) by material + mesh handle.
+
         const hdls = try allocator.dupe(RenderItemHandle, handles);
         errdefer allocator.free(hdls);
-
         const renderables = try allocator.alloc(Renderable, handles.len);
-
         for (handles, 0..) |hdl, i| {
             renderables[i] = self.items.get(hdl) orelse unreachable;
         }
-
         defer allocator.free(renderables);
 
         const transforms = try allocator.alloc(Mat4, handles.len);

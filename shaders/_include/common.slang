@@ -10,9 +10,10 @@ struct ScreenVertex {
 }
 
 struct Sprite {
-    uint16_t2 atlas_size;
-    uint16_t start_index;
-    uint16_t len;
+    uint atlas_size_x;
+    uint atlas_size_y;
+    uint start_index;
+    uint len;
     float speed;
 }
 

@@ -119,11 +119,11 @@ pub const BuildPipelineParams = struct {
 };
 
 pub const GpuSprite = extern struct {
-    width: u16,
-    height: u16,
-    offset: u16 = 0,
-    len: u16 = 0,
-    speed: f32 = 1,
+    width: u32,
+    height: u32,
+    offset: u32,
+    len: u32,
+    speed: f32,
 };
 
 pub const Sprite = struct {
@@ -547,6 +547,7 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     const transforms = render_pack.transforms;
     try self.uploadToBuffer(self.default_assets.obj_buf.hdl, 0, std.mem.sliceAsBytes(transforms));
 
+    // For each sprite, put sprite data into sprite_data[sprite.material_idx].
     const sprite_data = try self.arena.allocator().alloc(GpuSprite, self.materials.num_items);
     var sprite_it = self.sprites.iterator();
     while (sprite_it.next()) |pair| {
@@ -731,8 +732,9 @@ fn draw(
     if (last_pipeline.* != material.pipeline) {
         pass.bindGraphicsPipeline(material.pipeline);
         last_pipeline.* = material.pipeline;
-        try self.uniforms.put(self.gpa, self.ids.material_idx, .{ .u32 = mesh.material.index });
     }
+
+    try self.uniforms.put(self.gpa, self.ids.material_idx, .{ .u32 = mesh.material.index });
 
     inline for (.{
         .{

@@ -52,7 +52,7 @@ VOut vertexMain(Vertex in,
 
     // Sprite animation
     Sprite sprite = hy_sprites[hy_material_index];
-    uint2 num_tiles = sprite.atlas_size;
+    uint2 num_tiles = uint2(sprite.atlas_size_x, sprite.atlas_size_y);
     uint index = (uint(hy_time * sprite.speed) + sprite.start_index) % sprite.len;
     float2 tile_uv_size = float2(1, 1) / (float2)num_tiles;
     float2 uv = in.uv / (float2)num_tiles +
