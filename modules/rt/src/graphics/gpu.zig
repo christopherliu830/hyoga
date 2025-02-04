@@ -30,6 +30,7 @@ const Gpu = @This();
 pub const Material = mt.Material;
 pub const MaterialHandle = mt.Handle;
 pub const MaterialTemplate = mt.MaterialTemplate;
+pub const MaterialType = mt.Material.Type;
 pub const Mesh = mdl.Mesh;
 pub const Model = mdl.Handle;
 pub const Models = mdl.Models;
@@ -84,18 +85,6 @@ pub const BufferHandle = packed union {
     transfer: *sdl.gpu.Buffer,
 };
 
-pub const MaterialTemplateIndex = enum(u32) {
-    standard,
-    sprite,
-    post_process,
-    bw_mask,
-    billboard,
-
-    comptime {
-        hy.meta.assertMatches(MaterialTemplateIndex, hy.Gpu.MaterialType);
-    }
-};
-
 pub const RenderSubmitResult = struct {
     num_drawn_verts: u32 = 0,
     num_draw_calls: u32 = 0,
@@ -133,8 +122,6 @@ pub const Sprite = struct {
 
 const DefaultAssets = struct {
     forward_pass: passes.Forward,
-
-    mats: std.EnumMap(MaterialTemplateIndex, MaterialTemplate),
 
     default_texture: *sdl.gpu.Texture,
     black_texture: *sdl.gpu.Texture,
@@ -198,7 +185,7 @@ sprites: std.AutoHashMapUnmanaged(rbl.RenderItemHandle, Sprite),
 speed: f32 = 1,
 textures: tx.Textures,
 models: Models,
-materials: SlotMap(mt.Material),
+materials: mt.Materials,
 uniforms: std.AutoHashMapUnmanaged(Strint.ID, Uniform),
 ids: StringIDs,
 
@@ -232,7 +219,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .ids = .init(self.strint),
         .textures = .init(self.device, loader, strint, self.gpa),
         .models = .create(loader, strint, self.gpa),
-        .materials = .empty,
+        .materials = .init(self),
         .renderables = .init(self, self.gpa),
         .outlined = .{},
         .sprites = .empty,
@@ -244,11 +231,11 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
     // Generate default assets
 
-    const material = mt.readFromPath(self, .{
-        .path = "shaders/standard",
-        .enable_depth = true,
-        .enable_stencil = false,
-    }, self.gpa) catch panic("error creating standard shader", .{});
+    // const material = mt.readFromPath(self, .{
+    //     .path = "shaders/standard",
+    //     .enable_depth = true,
+    //     .enable_stencil = false,
+    // }, self.gpa) catch panic("error creating standard shader", .{});
 
     // Unloaded texture
     const texture = self.device.createTexture(&.{
@@ -315,7 +302,15 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .mag_filter = .linear,
     };
 
-    const white_material = try self.materials.insert(self.gpa, mt.Material.fromTemplate(material, TextureSet.initFull(.{ .target = white_texture })));
+    // const white_material = try self.materials.insert(
+    //     self.gpa,
+    //     mt.Material.fromTemplate(
+    //         material,
+    //         .standard,
+    //         TextureSet.initFull(.{ .target = white_texture }),
+    //     ),
+    // );
+    const white_material = self.materials.insert(.standard, .initFull(.{ .target = white_texture }));
 
     const cube = try self.createModel(&primitives.cube.vertices, &primitives.cube.indices, white_material);
     const quad = try self.createModel(&primitives.quad.vertices, &primitives.quad.indices, white_material);
@@ -337,33 +332,6 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
             .dest_tex_width = @intCast(w),
             .dest_tex_height = @intCast(h),
         }),
-
-        .mats = .init(
-            .{
-                .standard = material,
-                .sprite = try mt.readFromPath(self, .{
-                    .path = "shaders/sprite",
-                    .enable_depth = true,
-                    .enable_stencil = false,
-                }, self.gpa),
-                .post_process = try mt.readFromPath(self, .{
-                    .path = "shaders/post_process",
-                    .enable_depth = false,
-                    .enable_stencil = false,
-                }, self.gpa),
-                .bw_mask = try mt.readFromPath(self, .{
-                    .path = "shaders/outline",
-                    .enable_depth = false,
-                    .enable_stencil = false,
-                    .format = .r8_unorm,
-                }, self.gpa),
-                .billboard = try mt.readFromPath(self, .{
-                    .path = "shaders/billboard",
-                    .enable_depth = true,
-                    .enable_stencil = false,
-                }, self.gpa),
-            },
-        ),
 
         .default_texture = texture,
         .black_texture = black_texture,
@@ -398,7 +366,7 @@ pub fn shutdown(self: *Gpu) void {
 
     self.textures.deinit();
     self.models.deinit();
-    self.materials.deinit(self.gpa);
+    self.materials.deinit();
     self.renderables.deinit();
 
     self.buffer_allocator.deinit();
@@ -411,11 +379,6 @@ pub fn shutdown(self: *Gpu) void {
     self.device.releaseTexture(self.default_assets.black_texture);
     self.device.releaseTexture(self.default_assets.white_texture);
     self.device.releaseSampler(self.default_assets.sampler);
-    self.device.releaseGraphicsPipeline(self.default_assets.mats.get(.bw_mask).?.pipeline);
-    self.device.releaseGraphicsPipeline(self.default_assets.mats.get(.post_process).?.pipeline);
-    self.device.releaseGraphicsPipeline(self.default_assets.mats.get(.standard).?.pipeline);
-    self.device.releaseGraphicsPipeline(self.default_assets.mats.get(.billboard).?.pipeline);
-    self.device.releaseGraphicsPipeline(self.default_assets.mats.get(.sprite).?.pipeline);
 
     self.outlined.deinit(self.gpa);
     self.sprites.deinit(self.gpa);
@@ -547,18 +510,7 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     const transforms = render_pack.transforms;
     try self.uploadToBuffer(self.default_assets.obj_buf.hdl, 0, std.mem.sliceAsBytes(transforms));
 
-    // For each sprite, put sprite data into sprite_data[sprite.material_idx].
-    const sprite_data = try self.arena.allocator().alloc(GpuSprite, self.materials.num_items);
-    var sprite_it = self.sprites.iterator();
-    while (sprite_it.next()) |pair| {
-        const renderable = self.renderables.items.get(pair.key_ptr.*) orelse {
-            std.debug.panic("renderable not found", .{});
-        };
-        const idx = renderable.mesh.material.index;
-        sprite_data[idx] = pair.value_ptr.sprite;
-    }
-
-    try self.uploadToBuffer(self.default_assets.sprite_buf.hdl, 0, std.mem.sliceAsBytes(sprite_data));
+    try self.uploadToBuffer(self.default_assets.sprite_buf.hdl, 0, self.materials.param_buf.items);
 
     self.doPass(.{
         .cmd = cmd,
@@ -585,10 +537,12 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
             const selected_transforms = pack.transforms;
             try self.uploadToBuffer(self.default_assets.selected_obj_buf.hdl, 0, std.mem.sliceAsBytes(selected_transforms));
 
+            const mat = self.materials.createWeak(.bw_mask, .{});
+
             self.doPass(.{
                 .cmd = cmd,
                 .scene = scene.*,
-                .material = mt.Material.fromTemplate(self.default_assets.mats.get(.bw_mask).?, .{}),
+                .material = mat,
                 .targets = mask.targets(),
                 .items = .{ .pack = pack },
             }) catch unreachable;
@@ -640,7 +594,7 @@ pub fn blitToScreen(
         panic("error begin render pass {s}", .{sdl.getError()});
     defer pass.end();
 
-    pass.bindGraphicsPipeline(self.default_assets.mats.get(.post_process).?.pipeline);
+    pass.bindGraphicsPipeline(self.materials.templates.get(.post_process).pipeline);
 
     const binding = [_]sdl.gpu.TextureSamplerBinding{
         .{ .sampler = self.default_assets.sampler, .texture = scene_tex },
@@ -734,7 +688,7 @@ fn draw(
         last_pipeline.* = material.pipeline;
     }
 
-    try self.uniforms.put(self.gpa, self.ids.material_idx, .{ .u32 = mesh.material.index });
+    try self.uniforms.put(self.gpa, self.ids.material_idx, .{ .u32 = @intCast(material.params_start) });
 
     inline for (.{
         .{
@@ -941,16 +895,14 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
     return pipeline;
 }
 
-pub fn materialCreate(self: *Gpu, template_idx: MaterialTemplateIndex, txs: *const TextureArray) !MaterialHandle {
-    const template = self.default_assets.mats.get(template_idx).?;
+pub fn materialCreate(self: *Gpu, mt_type: mt.Material.Type, txs: *const TextureArray) !MaterialHandle {
     var map: tx.TextureSet = .{};
 
     for (std.meta.tags(tx.TextureType), 0..) |tag, i| {
         map.put(tag, .{ .handle = txs[i] });
     }
 
-    const mat: mt.Material = mt.Material.fromTemplate(template, map);
-    return try self.materials.insert(self.gpa, mat);
+    return self.materials.insert(mt_type, map);
 }
 
 pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSettings) !Model {
@@ -1000,9 +952,9 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSetti
                 }
             }
         }
-        const material = mt.Material.fromTemplate(self.default_assets.mats.get(.standard).?, texture_set);
-        const hdl = try self.materials.insert(self.gpa, material);
-        materials_array[mat_index] = hdl;
+
+        const material = self.materials.insert(.standard, texture_set);
+        materials_array[mat_index] = material;
     }
 
     const model = try self.models.read(import, materials_array, settings);
@@ -1085,14 +1037,28 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !RenderItemHandle {
     std.debug.assert(opts.height != 0);
 
     const tex = try self.textures.read(std.mem.span(opts.atlas));
-    const template = self.default_assets.mats.get(.billboard).?;
-    const mat: mt.Material = mt.Material.fromTemplate(template, .init(.{ .diffuse = .{ .handle = tex } }));
-    const mat_hdl = try self.materials.insert(self.gpa, mat);
+    const mat_hdl = self.materials.insert(.billboard, .init(.{ .diffuse = .{ .handle = tex } }));
     const quad = try self.models.dupe(self.default_assets.quad, .{ .material = mat_hdl });
     const renderable = try self.renderables.add(.{
         .model = quad,
         .time = 0,
     });
+
+    self.materials.setParams(mat_hdl, &Gpu.GpuSprite{
+        .width = opts.width,
+        .height = opts.height,
+        .offset = opts.offset,
+        .len = if (opts.len == 0) opts.width * opts.height else opts.len,
+        .speed = opts.speed,
+    });
+
+    // @memcpy(self.materials.getParams(mat_hdl), &std.mem.toBytes(Gpu.GpuSprite{
+    //     .width = opts.width,
+    //     .height = opts.height,
+    //     .offset = opts.offset,
+    //     .len = if (opts.len == 0) opts.width * opts.height else opts.len,
+    //     .speed = opts.speed,
+    // }));
 
     try self.sprites.put(
         self.gpa,

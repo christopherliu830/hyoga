@@ -1,4 +1,5 @@
 const std = @import("std");
+const hy = @import("hyoga-lib");
 const sdl = @import("sdl");
 const sdlsc = @import("sdl_shadercross");
 const SlotMap = @import("hyoga-lib").SlotMap;
@@ -8,6 +9,7 @@ const Mat4 = @import("hyoga-lib").math.Mat4;
 const Vec3 = @import("hyoga-lib").math.Vec3;
 const Strint = @import("../strintern.zig");
 
+const panic = std.debug.panic;
 const max_uniform_limit = 8;
 const empty_uniform_array = [_]Strint.ID{.invalid} ** 8;
 
@@ -19,18 +21,133 @@ pub const MaterialTemplate = struct {
     frag_program_def: ShaderDefinition,
 };
 
+pub const Materials = struct {
+    gpu: *Gpu,
+    param_buf: std.ArrayListUnmanaged(u8) = .{},
+    materials: hy.SlotMap(Material) = .empty,
+    templates: std.EnumArray(Material.Type, MaterialTemplate),
+
+    pub fn init(gpu: *Gpu) Materials {
+        return .{
+            .gpu = gpu,
+            .templates = .init(
+                .{
+                    .standard = readFromPath(gpu, .{
+                        .path = "shaders/standard",
+                        .enable_depth = true,
+                    }, gpu.gpa) catch panic("error creating standard shader", .{}),
+                    .sprite = readFromPath(gpu, .{
+                        .path = "shaders/sprite",
+                        .enable_depth = true,
+                    }, gpu.gpa) catch panic("error creating sprite shader", .{}),
+                    .post_process = readFromPath(gpu, .{
+                        .path = "shaders/post_process",
+                    }, gpu.gpa) catch panic("error creating post process shader", .{}),
+                    .bw_mask = readFromPath(gpu, .{
+                        .path = "shaders/outline",
+                        .format = .r8_unorm,
+                    }, gpu.gpa) catch panic("error creating bw shader", .{}),
+                    .billboard = readFromPath(gpu, .{
+                        .path = "shaders/billboard",
+                        .enable_depth = true,
+                    }, gpu.gpa) catch panic("error creating billboard shader", .{}),
+                },
+            ),
+        };
+    }
+
+    pub fn insert(self: *Materials, mt_type: Material.Type, txs: tx.TextureSet) Handle {
+        const template = self.templates.get(mt_type);
+        const mat: Material = Material.fromTemplate(mt_type, template, self.param_buf.items.len, txs);
+        self.param_buf.appendNTimes(self.gpu.gpa, 0, paramsSize(mt_type)) catch hy.err.oom();
+        std.debug.assert(self.param_buf.items.len % 4 == 0);
+        const hdl = self.materials.insert(self.gpu.gpa, mat) catch hy.err.oom();
+        std.debug.print("mat inserting: {} {}-{}\n", .{ hdl.index, mat.params_start, self.param_buf.items.len });
+        return hdl;
+    }
+
+    pub fn remove(self: *Materials, hdl: Handle) void {
+        std.debug.print("mat Removing: {}\n", .{hdl});
+        const mat = self.materials.get(hdl).?;
+        const rm_start = mat.params_start;
+        const rm_len = paramsSize(mat.params_type);
+
+        if (rm_len > 0) {
+            self.param_buf.replaceRangeAssumeCapacity(rm_start, rm_len, &.{});
+            var it = self.materials.iterator();
+            while (it.nextPtr()) |m| {
+                if (m.params_start > rm_start) {
+                    m.params_start -= rm_len;
+                }
+            }
+        }
+
+        self.materials.remove(hdl);
+    }
+
+    /// No guarantees for the lifetime of this generated material
+    /// In addition, no parameters
+    pub fn createWeak(self: *Materials, mt_type: Material.Type, txs: tx.TextureSet) Material {
+        const template = self.templates.get(mt_type);
+        return Material.fromTemplate(mt_type, template, 0, txs);
+    }
+
+    pub fn get(self: *Materials, handle: Handle) ?Material {
+        return self.materials.get(handle);
+    }
+
+    pub fn setParams(self: *Materials, handle: Handle, data: *const anyopaque) void {
+        const mat = self.get(handle).?;
+        const bytes = self.param_buf.items[mat.params_start .. mat.params_start + paramsSize(mat.params_type)];
+        std.debug.print("Insert material data {} -> {}\n", .{ handle.index, mat.params_start });
+        const ptr: [*]const u8 = @ptrCast(data);
+        @memcpy(bytes, ptr);
+    }
+
+    pub fn deinit(self: *Materials) void {
+        self.gpu.device.releaseGraphicsPipeline(self.templates.get(.bw_mask).pipeline);
+        self.gpu.device.releaseGraphicsPipeline(self.templates.get(.post_process).pipeline);
+        self.gpu.device.releaseGraphicsPipeline(self.templates.get(.standard).pipeline);
+        self.gpu.device.releaseGraphicsPipeline(self.templates.get(.billboard).pipeline);
+        self.gpu.device.releaseGraphicsPipeline(self.templates.get(.sprite).pipeline);
+        self.param_buf.deinit(self.gpu.gpa);
+        self.materials.deinit(self.gpu.gpa);
+    }
+};
+
 pub const Material = struct {
+    pub const Type = enum(u32) {
+        standard,
+        sprite,
+        post_process,
+        bw_mask,
+        billboard,
+
+        comptime {
+            hy.meta.assertMatches(Type, hy.Gpu.MaterialType);
+        }
+    };
+
     pipeline: *sdl.gpu.GraphicsPipeline,
     vert_program_def: ShaderDefinition,
     frag_program_def: ShaderDefinition,
+    params_start: usize,
+    params_type: Type,
     textures: tx.TextureSet,
 
-    pub fn fromTemplate(template: MaterialTemplate, textures: tx.TextureSet) Material {
+    pub fn fromTemplate(
+        template_type: Material.Type,
+        template: MaterialTemplate,
+        param_start: usize,
+        textures: tx.TextureSet,
+    ) Material {
         return .{
             .pipeline = template.pipeline,
             .vert_program_def = template.vert_program_def,
             .frag_program_def = template.frag_program_def,
             .textures = textures,
+            .params_start = param_start,
+            .params_type = template_type,
         };
     }
 
@@ -70,8 +187,8 @@ pub const MaterialReadOptions = struct {
 
     // Passed to build pipeline params
     format: ?sdl.gpu.TextureFormat = null,
-    enable_depth: bool = true,
-    enable_stencil: bool = true,
+    enable_depth: bool = false,
+    enable_stencil: bool = false,
     fill_mode: sdl.gpu.FillMode = .fill,
     primitive_type: sdl.gpu.PrimitiveType = .trianglelist,
 };
@@ -212,4 +329,12 @@ pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []c
         .debug = true,
         .name = "hyoga shader",
     }, &info);
+}
+
+/// Get the required struct size in bytes based on a material's type
+pub fn paramsSize(mt_type: Material.Type) usize {
+    return switch (mt_type) {
+        .sprite, .billboard => (@sizeOf(Gpu.GpuSprite) + 3) / 4 * 4,
+        else => 0,
+    };
 }

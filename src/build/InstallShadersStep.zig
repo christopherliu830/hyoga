@@ -5,6 +5,7 @@ const Step = std.Build.Step;
 
 const ext_from_target = std.StaticStringMap([]const u8).initComptime(.{
     .{ "spirv", ".spv" },
+    .{ "glsl", ".glsl" },
     .{ "metal", ".metal" },
 });
 
@@ -55,7 +56,11 @@ pub fn init(b: *Build, wf: *Step.WriteFile, options: Options) !void {
                             .entry = "fragmentMain",
                         }};
                     } else {
-                        break :blk &.{ .{ .stage = ".vert", .ext = ext_from_target.get(options.target).?, .entry = "vertexMain" }, .{ .stage = ".frag", .ext = ext_from_target.get(options.target).?, .entry = "fragmentMain" } };
+                        break :blk &.{ .{ .stage = ".vert", .ext = ext_from_target.get(options.target).?, .entry = "vertexMain" }, .{
+                            .stage = ".frag",
+                            .ext = ext_from_target.get(options.target).?,
+                            .entry = "fragmentMain",
+                        } };
                     }
                 };
 
@@ -64,6 +69,7 @@ pub fn init(b: *Build, wf: *Step.WriteFile, options: Options) !void {
                     const out_basename = try std.mem.concat(b.allocator, u8, &.{ std.fs.path.stem(entry.path), args.stage, args.ext });
                     const name = try std.mem.concat(b.allocator, u8, &.{ "compile ", entry.path });
                     const run = Step.Run.create(b, name);
+                    run.has_side_effects = options.always_generate;
                     const input = try options.source_path.join(b.allocator, entry.path);
                     run.addArg("slangc");
                     run.addFileArg(input);
@@ -77,9 +83,7 @@ pub fn init(b: *Build, wf: *Step.WriteFile, options: Options) !void {
                     });
                     const out = run.captureStdOut();
                     const install_file_name = b.pathJoin(&.{ options.dest_path, out_basename });
-                    // const install = Step.InstallFile.create(b, out, .bin, install_file_name);
                     _ = wf.addCopyFile(out, install_file_name);
-                    // install.step.dependOn(&run.step);
                 }
             },
             else => {},

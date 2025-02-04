@@ -10,7 +10,7 @@ pub fn build(b: *std.Build) !void {
     const dxc = b.option(bool, "dxc", "enable HLSL support") orelse false;
     const enable_tracy = b.option(bool, "enable_tracy", "enable profiling with tracy") orelse false;
     const backend = b.option(GpuDriver, "gpu_driver", "force backend graphics driver") orelse .none;
-    const gen_shaders = b.option(bool, "compile_shaders", "force shader compile") orelse false;
+    const compile_shaders = b.option(bool, "compile_shaders", "force shader compile") orelse false;
 
     const lib = b.dependency("hyoga_lib", .{
         .target = target,
@@ -49,7 +49,7 @@ pub fn build(b: *std.Build) !void {
 
     try @import("src/build/InstallShadersStep.zig").init(b, wf, .{
         .install_dir = .bin,
-        .always_generate = gen_shaders,
+        .always_generate = compile_shaders,
         .source_path = b.path("shaders"),
         .dest_path = "shaders",
         .target = "spirv",

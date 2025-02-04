@@ -12,10 +12,10 @@ struct VOut {
 }
 
 [vk::binding(0, 0)]
-StructuredBuffer<float4x4> hy_all_renderables;
+StructuredBuffer<float4x4> hy_all_renderables: register(b1);
 
 [vk::binding(1, 0)]
-StructuredBuffer<Sprite> hy_sprites: register(b2);
+ByteAddressBuffer hy_sprites: register(b2);
 
 [vk::binding(0, 1)]
 ConstantBuffer<float4x4> hy_view_matrix;
@@ -51,9 +51,10 @@ VOut vertexMain(Vertex in,
     float4 final = mul(float4(position_world, 1), mul(view, hy_projection_matrix));
 
     // Sprite animation
-    Sprite sprite = hy_sprites[hy_material_index];
+    Sprite sprite = hy_sprites.Load<Sprite>(hy_material_index);
+
     uint2 num_tiles = uint2(sprite.atlas_size_x, sprite.atlas_size_y);
-    uint index = (uint(hy_time * sprite.speed) + sprite.start_index) % sprite.len;
+    uint index = (uint(hy_time * asfloat(sprite.speed)) + sprite.start_index) % sprite.len;
     float2 tile_uv_size = float2(1, 1) / (float2)num_tiles;
     float2 uv = in.uv / (float2)num_tiles +
                 tile_uv_size * float2(index % num_tiles.x, index / num_tiles.x);

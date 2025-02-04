@@ -14,7 +14,7 @@ struct Sprite {
     uint atlas_size_y;
     uint start_index;
     uint len;
-    float speed;
+    uint speed;
 }
 
 

@@ -128,8 +128,8 @@ export fn hygpuModelWaitLoad(gpu: *Gpu, model: Gpu.Model, max: u64) bool {
     return gpu.models.waitLoad(model, max);
 }
 
-export fn hygpuMaterialCreate(gpu: *Gpu, template: Gpu.MaterialTemplateIndex, tx_set: *const Gpu.TextureArray) Gpu.MaterialHandle {
-    return gpu.materialCreate(template, tx_set) catch |e| {
+export fn hygpuMaterialCreate(gpu: *Gpu, mt_type: Gpu.MaterialType, tx_set: *const Gpu.TextureArray) Gpu.MaterialHandle {
+    return gpu.materialCreate(mt_type, tx_set) catch |e| {
         std.log.err("material create failure: {}", .{e});
         return .invalid;
     };
