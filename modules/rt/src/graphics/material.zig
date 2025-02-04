@@ -62,12 +62,10 @@ pub const Materials = struct {
         self.param_buf.appendNTimes(self.gpu.gpa, 0, paramsSize(mt_type)) catch hy.err.oom();
         std.debug.assert(self.param_buf.items.len % 4 == 0);
         const hdl = self.materials.insert(self.gpu.gpa, mat) catch hy.err.oom();
-        std.debug.print("mat inserting: {} {}-{}\n", .{ hdl.index, mat.params_start, self.param_buf.items.len });
         return hdl;
     }
 
     pub fn remove(self: *Materials, hdl: Handle) void {
-        std.debug.print("mat Removing: {}\n", .{hdl});
         const mat = self.materials.get(hdl).?;
         const rm_start = mat.params_start;
         const rm_len = paramsSize(mat.params_type);
@@ -99,7 +97,6 @@ pub const Materials = struct {
     pub fn setParams(self: *Materials, handle: Handle, data: *const anyopaque) void {
         const mat = self.get(handle).?;
         const bytes = self.param_buf.items[mat.params_start .. mat.params_start + paramsSize(mat.params_type)];
-        std.debug.print("Insert material data {} -> {}\n", .{ handle.index, mat.params_start });
         const ptr: [*]const u8 = @ptrCast(data);
         @memcpy(bytes, ptr);
     }
