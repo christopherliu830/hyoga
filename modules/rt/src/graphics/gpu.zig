@@ -1066,7 +1066,7 @@ pub fn renderableSetTransform(
 }
 
 pub const SpriteCreateOptions = extern struct {
-    atlas: [*:0]u8,
+    atlas: [*:0]const u8,
     width: u16,
     height: u16,
     offset: u16,

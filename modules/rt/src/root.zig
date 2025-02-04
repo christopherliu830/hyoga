@@ -238,6 +238,10 @@ export fn hyp2BodyDestroy(body: Phys2.Body) void {
     return body.destroy();
 }
 
+export fn hyp2BodyUserData(body: Phys2.Body) ?*anyopaque {
+    return body.GetUserData();
+}
+
 export fn hyp2BodyGetPosition(body: Phys2.Body) hy.math.Vec2 {
     return @bitCast(body.GetPosition());
 }

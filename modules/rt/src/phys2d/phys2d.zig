@@ -42,10 +42,18 @@ pub fn init(allocator: std.mem.Allocator) Phys2 {
 }
 
 pub fn deinit(self: *Phys2) void {
+    var it = self.hit_callbacks.valueIterator();
+    while (it.next()) |cbs| {
+        cbs.deinit(self.allocator);
+    }
     self.hit_callbacks.deinit(self.allocator);
 }
 
 pub fn eventsReset(self: *Phys2) void {
+    var it = self.hit_callbacks.valueIterator();
+    while (it.next()) |cbs| {
+        cbs.deinit(self.allocator);
+    }
     self.hit_callbacks.deinit(self.allocator);
 }
 
@@ -85,6 +93,7 @@ pub const BodyAddOptions = extern struct {
     velocity: hym.Vec2 = .zero,
     shape: AddShapeOptions,
     bullet: bool = false,
+    user_data: ?*anyopaque = null,
 
     comptime {
         hy.meta.assertMatches(BodyAddOptions, hy.Phys2.Body.AddOptions);
@@ -98,6 +107,7 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
             .position = @bitCast(opts.position),
             .linear_velocity = @bitCast(opts.velocity),
             .is_bullet = opts.bullet,
+            .user_data = opts.user_data,
         });
     };
 
@@ -148,6 +158,9 @@ pub fn hitEventDeregister(
         return;
     }
     _ = cbs.?.swapRemove(cb);
+    if (cbs.?.count() == 0) {
+        _ = self.hit_callbacks.remove(body);
+    }
 }
 
 pub fn hitEventDeregisterAll(
@@ -159,6 +172,7 @@ pub fn hitEventDeregisterAll(
         return;
     }
     cbs.?.clearAndFree(self.allocator);
+    _ = self.hit_callbacks.remove(body);
 }
 
 pub fn step(self: *Phys2) void {

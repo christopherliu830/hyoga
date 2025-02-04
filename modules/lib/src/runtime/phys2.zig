@@ -47,16 +47,19 @@ pub const Phys2 = struct {
             velocity: hym.Vec2 = .zero,
             shape: AddShapeOptions,
             bullet: bool = false,
+            user_data: ?*anyopaque = null,
         };
 
         pub const position = hyp2BodyGetPosition;
         pub const velocity = hyp2BodyGetVelocity;
+        pub const userData = hyp2BodyUserData;
         pub const setVelocity = hyp2BodySetVelocity;
         pub const destroy = hyp2BodyDestroy;
 
         extern fn hyp2BodyGetPosition(Body) hym.Vec2;
         extern fn hyp2BodyGetVelocity(Body) hym.Vec2;
         extern fn hyp2BodySetVelocity(Body, hym.Vec2) void;
+        extern fn hyp2BodyUserData(Body) ?*anyopaque;
         extern fn hyp2BodyDestroy(Body) void;
     };
 
