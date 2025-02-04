@@ -86,7 +86,7 @@ pub const Input = opaque {
             self.input.bind(
                 self.group,
                 opts,
-                closure.create(handler, args, self.allocator) catch std.debug.panic("oom", .{}),
+                closure.createDynamic(handler, args, self.allocator) catch std.debug.panic("oom", .{}),
             );
         }
     };
@@ -106,7 +106,7 @@ pub const Input = opaque {
     extern fn hyioGetGroup(*Input, Group) Group;
     extern fn hyioGroupDestroy(*Input, Group) void;
     extern fn hyioSetGroupEnabled(*Input, Group, bool) void;
-    extern fn hyioBind(*Input, Group, BindOptions, *closure.Runnable) void;
+    extern fn hyioBind(*Input, Group, BindOptions, *closure.Runnable(anyopaque)) void;
     extern fn hyioQueryMouse(*Input, keys.MouseButton) bool;
     extern fn hyioQueryMousePosition(*Input) math.Vec2;
     extern fn hyioQueryKey(*Input, keys.Keycode) bool;

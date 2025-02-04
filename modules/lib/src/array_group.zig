@@ -6,19 +6,20 @@ pub const ArrayGroupField = struct {
     field: type,
 };
 
+/// ArrayList requires a .default value
 pub fn ArrayGroup(
     ArrayList: fn (type) type,
-    arrayInitializer: fn (type) *const anyopaque,
     comptime initializer: anytype,
 ) type {
     const fields = @typeInfo(@TypeOf(initializer)).@"struct".fields;
     var array_types: [fields.len]Type.StructField = undefined;
     inline for (fields, 0..) |field, i| {
         const Elem = field.defaultValue().?;
+        const default = ArrayList(Elem).default;
         array_types[i] = .{
             .name = field.name,
             .type = ArrayList(Elem),
-            .default_value_ptr = arrayInitializer(Elem),
+            .default_value_ptr = &default,
             .is_comptime = false,
             .alignment = @alignOf(ArrayList(Elem)),
         };

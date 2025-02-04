@@ -17,6 +17,7 @@ pub const Phys2 = struct {
 
     pub const Body = enum(u64) {
         none = 0,
+        _,
 
         pub const Type = enum(c_int) {
             static,
@@ -35,11 +36,16 @@ pub const Phys2 = struct {
             count,
         };
 
+        pub const AddShapeOptions = extern struct {
+            type: ShapeOptions.Type,
+            density: f32 = 1,
+        };
+
         pub const AddOptions = extern struct {
             type: Type = .dynamic,
             position: hym.Vec2 = .zero,
             velocity: hym.Vec2 = .zero,
-            shape: ShapeOptions.Type,
+            shape: AddShapeOptions,
             bullet: bool = false,
         };
 
@@ -63,8 +69,12 @@ pub const Phys2 = struct {
     pub const bodyAdd = hyp2BodyAdd;
     pub const eventsReset = hyp2EventsReset;
     pub const hitEventRegister = hyp2HitEventRegister;
+    pub const hitEventDeregister = hyp2HitEventDeregister;
+    pub const hitEventDeregisterAll = hyp2HitEventDeregisterAll;
 
     extern fn hyp2BodyAdd(*Phys2, Body.AddOptions) Body;
     extern fn hyp2EventsReset(*Phys2) void;
-    extern fn hyp2HitEventRegister(*Phys2, Body, *closure.Runnable) void;
+    extern fn hyp2HitEventRegister(*Phys2, Body, *closure.Runnable(HitEvent)) void;
+    extern fn hyp2HitEventDeregister(*Phys2, Body, *closure.Runnable(HitEvent)) void;
+    extern fn hyp2HitEventDeregisterAll(*Phys2, Body) void;
 };

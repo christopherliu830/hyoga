@@ -20,10 +20,12 @@ comptime {
     hym.assertMetaEql(hym.Vec2, b2.Vec2);
 }
 
+const CallbackSet = std.AutoArrayHashMapUnmanaged(*hy.closure.Runnable(anyopaque), void);
+
 allocator: std.mem.Allocator,
 world: b2.World,
 timestep: f32 = 1.0 / 60.0,
-hit_callbacks: std.AutoHashMapUnmanaged(Body, *hy.closure.Runnable) = .{},
+hit_callbacks: std.AutoHashMapUnmanaged(Body, CallbackSet) = .{},
 
 /// accumulated time of simulation in ns since engine start.
 current_time: u64 = 0,
@@ -57,7 +59,16 @@ pub const ShapeType = enum(u32) {
     count,
 };
 
-pub const ShapeOptions = hy.runtime.ExternTaggedUnion(union(enum) {
+pub const AddShapeOptions = extern struct {
+    type: ShapeUnion.Type,
+    density: f32,
+
+    comptime {
+        hy.meta.assertMatches(AddShapeOptions, hy.Phys2.Body.AddShapeOptions);
+    }
+};
+
+pub const ShapeUnion = hy.runtime.ExternTaggedUnion(union(enum) {
     circle: extern struct {
         radius: f32,
         center: hym.Vec2,
@@ -72,7 +83,7 @@ pub const BodyAddOptions = extern struct {
     type: b2.Body.Type,
     position: hym.Vec2,
     velocity: hym.Vec2 = .zero,
-    shape: ShapeOptions.Type,
+    shape: AddShapeOptions,
     bullet: bool = false,
 
     comptime {
@@ -90,13 +101,14 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
         });
     };
 
-    switch (ShapeOptions.revert(opts.shape)) {
+    switch (ShapeUnion.revert(opts.shape.type)) {
         .circle => |c| {
             const circle: b2.Shape.Circle = .{
                 .radius = c.radius,
                 .center = @bitCast(c.center),
             };
             _ = b2.Shape.createCircleShape(body, &.{
+                .density = opts.shape.density,
                 .enable_hit_events = true,
             }, &circle);
             return body;
@@ -104,6 +116,7 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
         .box => |b| {
             const box: b2.Shape.Polygon = .makeBox(b.width, b.height);
             _ = b2.Shape.createPolygonShape(body, &.{
+                .density = opts.shape.density,
                 .enable_hit_events = true,
             }, &box);
         },
@@ -112,17 +125,49 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
     return body;
 }
 
-pub fn hitEventRegister(self: *Phys2, body: Body, cb: *hy.closure.Runnable) void {
-    self.hit_callbacks.put(self.allocator, body, cb) catch hy.err.oom();
+pub fn hitEventRegister(
+    self: *Phys2,
+    body: Body,
+    cb: *hy.closure.Runnable(anyopaque),
+) void {
+    const result = self.hit_callbacks.getOrPut(self.allocator, body) catch hy.err.oom();
+    if (!result.found_existing) {
+        result.value_ptr.* = .empty;
+    }
+    const cbs = result.value_ptr;
+    cbs.put(self.allocator, cb, {}) catch hy.err.oom();
+}
+
+pub fn hitEventDeregister(
+    self: *Phys2,
+    body: Body,
+    cb: *hy.closure.Runnable(anyopaque),
+) void {
+    var cbs = self.hit_callbacks.get(body);
+    if (cbs == null) {
+        return;
+    }
+    _ = cbs.?.swapRemove(cb);
+}
+
+pub fn hitEventDeregisterAll(
+    self: *Phys2,
+    body: Body,
+) void {
+    var cbs = self.hit_callbacks.get(body);
+    if (cbs == null) {
+        return;
+    }
+    cbs.?.clearAndFree(self.allocator);
 }
 
 pub fn step(self: *Phys2) void {
     self.world.step(self.timestep, self.sub_step_count);
     self.current_time += @intFromFloat(self.timestep * std.time.ns_per_s);
-    self.pushContacts();
+    self.emitContacts();
 }
 
-pub fn pushContacts(self: *Phys2) void {
+pub fn emitContacts(self: *Phys2) void {
     const contact_events = self.world.GetContactEvents();
     const hit_events = contact_events.hit_events[0..@intCast(contact_events.hit_count)];
 
@@ -130,23 +175,27 @@ pub fn pushContacts(self: *Phys2) void {
         const body_a = hit.shape_a.GetBody();
         const body_b = hit.shape_b.GetBody();
 
-        if (self.hit_callbacks.get(body_a)) |cb| {
-            const normal: hym.Vec2 = @bitCast(hit.normal);
-            var hit_event: HitEvent = .{
-                .other = body_b,
-                .normal = normal.mul(-1),
-                .point = @bitCast(hit.point),
-            };
-            @call(.auto, cb.runFn, .{ cb, &hit_event });
+        if (self.hit_callbacks.get(body_a)) |cbs| {
+            for (cbs.keys()) |cb| {
+                const normal: hym.Vec2 = @bitCast(hit.normal);
+                var hit_event: HitEvent = .{
+                    .other = body_b,
+                    .normal = normal.mul(-1),
+                    .point = @bitCast(hit.point),
+                };
+                @call(.auto, cb.runFn, .{ cb, &hit_event });
+            }
         }
 
-        if (self.hit_callbacks.get(body_b)) |cb| {
-            var hit_event: HitEvent = .{
-                .other = body_a,
-                .normal = @bitCast(hit.normal),
-                .point = @bitCast(hit.point),
-            };
-            @call(.auto, cb.runFn, .{ cb, &hit_event });
+        if (self.hit_callbacks.get(body_b)) |cbs| {
+            for (cbs.keys()) |cb| {
+                var hit_event: HitEvent = .{
+                    .other = body_a,
+                    .normal = @bitCast(hit.normal),
+                    .point = @bitCast(hit.point),
+                };
+                @call(.auto, cb.runFn, .{ cb, &hit_event });
+            }
         }
     }
 }

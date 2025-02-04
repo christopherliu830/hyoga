@@ -200,7 +200,12 @@ export fn hyioSetGroupEnabled(input: *Input, group: Input.Group.Handle, enabled:
     input.setGroupEnabled(group, enabled);
 }
 
-export fn hyioBind(input: *Input, group: Input.Group.Handle, options: Input.BindOptions, delegate: *hy.closure.Runnable) void {
+export fn hyioBind(
+    input: *Input,
+    group: Input.Group.Handle,
+    options: Input.BindOptions,
+    delegate: *hy.closure.Runnable(anyopaque),
+) void {
     input.bind(group, options, delegate) catch |e| {
         std.log.err("Could not bind delegate: {}", .{e});
     };
@@ -249,8 +254,27 @@ export fn hyp2EventsReset(p2d: *Phys2) void {
     p2d.eventsReset();
 }
 
-export fn hyp2HitEventRegister(p2d: *Phys2, body: Phys2.Body, cb: *hy.closure.Runnable) void {
+export fn hyp2HitEventRegister(
+    p2d: *Phys2,
+    body: Phys2.Body,
+    cb: *hy.closure.Runnable(anyopaque),
+) void {
     p2d.hitEventRegister(body, cb);
+}
+
+export fn hyp2HitEventDeregister(
+    p2d: *Phys2,
+    body: Phys2.Body,
+    cb: *hy.closure.Runnable(anyopaque),
+) void {
+    p2d.hitEventDeregister(body, cb);
+}
+
+export fn hyp2HitEventDeregisterAll(
+    p2d: *Phys2,
+    body: Phys2.Body,
+) void {
+    p2d.hitEventDeregisterAll(body);
 }
 
 export fn hysidAsString(strint: *Strint, str: Strint.ID, len: *usize) [*]const u8 {

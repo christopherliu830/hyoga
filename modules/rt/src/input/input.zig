@@ -51,7 +51,7 @@ pub const BindOptions = extern struct {
     }
 };
 
-pub const DelegateList = std.ArrayListUnmanaged(*hy.closure.Runnable);
+pub const DelegateList = std.ArrayListUnmanaged(*hy.closure.Runnable(anyopaque));
 const ActionSet = std.EnumArray(Action, DelegateList);
 const Mousebinds = std.AutoHashMapUnmanaged(u32, ActionSet);
 const Keybinds = std.AutoHashMapUnmanaged(u32, ActionSet);
@@ -90,7 +90,7 @@ pub const Group = struct {
     pub fn bind(
         group: *Group,
         options: BindOptions,
-        delegate: *hy.closure.Runnable,
+        delegate: *hy.closure.Runnable(anyopaque),
     ) !void {
         const allocator = group.arena.allocator();
         var action_set = group.getCallbacks(options.device, options.button);
@@ -165,7 +165,12 @@ pub fn setGroupEnabled(
     group.enabled = enabled;
 }
 
-pub fn bind(self: *Input, hdl: Group.Handle, options: BindOptions, delegate: *hy.closure.Runnable) !void {
+pub fn bind(
+    self: *Input,
+    hdl: Group.Handle,
+    options: BindOptions,
+    delegate: *hy.closure.Runnable(anyopaque),
+) !void {
     var group = self.groups.getPtr(hdl) orelse std.debug.panic("No input group found", .{});
     group.bind(options, delegate) catch std.debug.panic("failed to bind input", .{});
 }
