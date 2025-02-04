@@ -113,6 +113,7 @@ pub const GpuSprite = extern struct {
     offset: u32,
     len: u32,
     speed: f32,
+    color: [4]f32 = .{ 1, 1, 1, 1 },
 };
 
 pub const Sprite = struct {
@@ -1026,6 +1027,7 @@ pub const SpriteCreateOptions = extern struct {
     offset: u16,
     len: u16,
     speed: f32,
+    color: [4]f32,
 
     comptime {
         hy.meta.assertMatches(SpriteCreateOptions, hy.Gpu.SpriteCreateOptions);
@@ -1036,8 +1038,17 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !RenderItemHandle {
     std.debug.assert(opts.width != 0);
     std.debug.assert(opts.height != 0);
 
-    const tex = try self.textures.read(std.mem.span(opts.atlas));
-    const mat_hdl = self.materials.insert(.billboard, .init(.{ .diffuse = .{ .handle = tex } }));
+    const mat_hdl = blk: {
+        const span = std.mem.span(opts.atlas);
+        if (std.mem.eql(u8, span, "white")) {
+            const tex = self.default_assets.white_texture;
+            break :blk self.materials.insert(.billboard, .init(.{ .diffuse = .{ .target = tex } }));
+        } else {
+            const tex = try self.textures.read(std.mem.span(opts.atlas));
+            break :blk self.materials.insert(.billboard, .init(.{ .diffuse = .{ .handle = tex } }));
+        }
+    };
+
     const quad = try self.models.dupe(self.default_assets.quad, .{ .material = mat_hdl });
     const renderable = try self.renderables.add(.{
         .model = quad,
@@ -1050,6 +1061,7 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !RenderItemHandle {
         .offset = opts.offset,
         .len = if (opts.len == 0) opts.width * opts.height else opts.len,
         .speed = opts.speed,
+        .color = opts.color,
     });
 
     // @memcpy(self.materials.getParams(mat_hdl), &std.mem.toBytes(Gpu.GpuSprite{

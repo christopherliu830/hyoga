@@ -15,6 +15,7 @@ struct Sprite {
     uint start_index;
     uint len;
     uint speed;
+    uint [4]color;
 }
 
 

@@ -7,7 +7,7 @@ import _include.common;
 
 struct VOut {
     float4 position : SV_Position;
-    float3 color;
+    float4 color;
     float2 uv;
 }
 
@@ -61,7 +61,12 @@ VOut vertexMain(Vertex in,
 
     VOut out;
     out.position = final;
-    out.color = final.xyz;
+    out.color = float4(
+        asfloat(sprite.color[0]),
+        asfloat(sprite.color[1]),
+        asfloat(sprite.color[2]),
+        asfloat(sprite.color[3]),
+    );
     out.uv = uv;
     
     return out;
@@ -69,7 +74,7 @@ VOut vertexMain(Vertex in,
 
 [shader("fragment")]
 float4 fragmentMain(VOut in): SV_Target {
-    float4 color = tex_diffuse.Sample(in.uv);
+    float4 color = tex_diffuse.Sample(in.uv) * in.color;
     if (color.w < 0.1) discard;
     return color;
 }

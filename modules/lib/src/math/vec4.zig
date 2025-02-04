@@ -6,10 +6,12 @@ const root = @This();
 const vec3 = @import("vec3.zig");
 const Vec3 = vec3.Vec3;
 
-pub const Vec4 = struct {
+pub const Vec4 = extern struct {
     v: @Vector(4, f32),
 
     pub const of = root.create;
+
+    pub const one: Vec4 = .{ .v = .{ 1, 1, 1, 1 } };
 
     pub inline fn x(self: Vec4) f32 {
         return self.v[0];
@@ -91,13 +93,9 @@ pub const Vec4 = struct {
 pub const zero: Vec4 = .{ .v = .{ 0, 0, 0, 0 } };
 
 pub const one: Vec4 = .{ .v = .{ 1, 1, 1, 1 } };
-
 pub const x: Vec4 = .{ .v = .{ 1, 0, 0, 0 } };
-
 pub const y: Vec4 = .{ .v = .{ 0, 1, 0, 0 } };
-
 pub const z: Vec4 = .{ .v = .{ 0, 0, 1, 0 } };
-
 pub const w: Vec4 = .{ .v = .{ 0, 0, 0, 1 } };
 
 pub inline fn create(i: f32, j: f32, k: f32, l: f32) Vec4 {

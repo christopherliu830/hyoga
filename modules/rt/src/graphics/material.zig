@@ -154,7 +154,9 @@ pub const Material = struct {
     pub fn deinit(self: *Material, textures: *tx.Textures) void {
         var it = self.textures.iterator();
         while (it.next()) |entry| {
-            textures.destroy(entry.value.handle.?);
+            if (entry.value.handle) |hdl| {
+                textures.destroy(hdl);
+            }
         }
     }
 };

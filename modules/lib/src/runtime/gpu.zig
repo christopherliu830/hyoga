@@ -119,6 +119,7 @@ pub const Gpu = opaque {
         offset: u16 = 0,
         len: u16 = 0,
         speed: f32,
+        color: [4]f32 = .{ 1, 1, 1, 1 },
     };
 
     pub const materialCreate = hygpuMaterialCreate;
