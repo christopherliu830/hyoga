@@ -122,9 +122,9 @@ pub const GpuSprite = extern struct {
 };
 
 pub const Sprite = extern struct {
-    sprite: GpuSprite,
     model: Model,
     material: MaterialHandle,
+    is_dupe: bool = false,
 };
 
 const DefaultAssets = struct {
@@ -1032,13 +1032,6 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !RenderItemHandle {
         .{
             .model = quad,
             .material = mat_hdl,
-            .sprite = .{
-                .width = opts.width,
-                .height = opts.height,
-                .offset = opts.offset,
-                .len = if (opts.len == 0) opts.width * opts.height else opts.len,
-                .speed = opts.speed,
-            },
         },
     );
 
@@ -1055,18 +1048,39 @@ pub fn spriteDestroy(self: *Gpu, hdl: RenderItemHandle) void {
     };
 
     self.renderables.remove(hdl);
-    self.materialDestroy(renderable.mesh.material);
-    self.models.remove(sprite.model);
+    if (!sprite.is_dupe) {
+        self.materialDestroy(renderable.mesh.material);
+        self.models.remove(sprite.model);
+    }
     _ = self.sprites.remove(hdl);
 }
 
 pub fn spriteWeakPointer(self: *Gpu, hdl: RenderItemHandle) ?*GpuSprite {
     const mat_hdl = (self.sprites.getPtr(hdl) orelse return null).material;
-    // const model = self.models.get(model_hdl) catch unreachable;
-    // const mat_hdl = model.children[0].material;
     const mat = self.materials.get(mat_hdl) orelse return null;
     const ptr: *Gpu.GpuSprite = @ptrCast(@alignCast(&self.materials.param_buf.items[mat.params_start]));
     return ptr;
+}
+
+pub fn spriteDupe(self: *Gpu, hdl: RenderItemHandle) !RenderItemHandle {
+    const sprite = self.sprites.get(hdl).?;
+
+    const renderable = try self.renderables.add(.{
+        .model = sprite.model,
+        .time = 0,
+    });
+
+    try self.sprites.put(
+        self.gpa,
+        renderable,
+        .{
+            .model = sprite.model,
+            .material = sprite.material,
+            .is_dupe = true,
+        },
+    );
+
+    return renderable;
 }
 
 pub fn materialDestroy(self: *Gpu, handle: SlotMap(mt.Material).Handle) void {

@@ -146,6 +146,7 @@ pub const Gpu = opaque {
     pub const renderableSetTransform = hygpuRenderableSetTransform;
     pub const textureImport = hygpuTextureImport;
     pub const spriteCreate = hygpuSpriteCreate;
+    pub const spriteDupe = hygpuSpriteDupe;
     pub const spriteDestroy = hygpuSpriteDestroy;
     pub const spriteWeakPointer = hygpuSpriteWeakPointer;
     pub const spriteEdit = hygpuSpriteEdit;
@@ -164,6 +165,7 @@ pub const Gpu = opaque {
     extern fn hygpuDeselectRenderable(*Gpu, Renderable) void;
     extern fn hygpuRenderableSetTransform(*Gpu, Renderable, math.Mat4) void;
     extern fn hygpuSpriteCreate(*Gpu, SpriteCreateOptions) Renderable;
+    extern fn hygpuSpriteDupe(*Gpu, Renderable) Renderable;
     extern fn hygpuSpriteDestroy(*Gpu, Renderable) void;
     extern fn hygpuSpriteAtlasIndex(*Gpu, Renderable) u32;
     extern fn hygpuSpriteWeakPointer(*Gpu, Renderable) ?*Sprite;

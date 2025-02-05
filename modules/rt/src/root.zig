@@ -182,6 +182,13 @@ export fn hygpuSpriteWeakPointer(gpu: *Gpu, hdl: Gpu.RenderItemHandle) ?*Gpu.Gpu
     return gpu.spriteWeakPointer(hdl);
 }
 
+export fn hygpuSpriteDupe(gpu: *Gpu, hdl: Gpu.RenderItemHandle) Gpu.RenderItemHandle {
+    return gpu.spriteDupe(hdl) catch |e| {
+        std.log.err("sprite dupe failure: {}", .{e});
+        return .invalid;
+    };
+}
+
 export fn hygpuTextureImport(gpu: *Gpu, path: hy.runtime.ExternSlice(u8)) Gpu.TextureHandle {
     return gpu.textures.read(path.asSliceZ()) catch |e| {
         std.log.err("texture import failure: {}", .{e});

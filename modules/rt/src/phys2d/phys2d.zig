@@ -212,12 +212,10 @@ pub fn emitContacts(self: *Phys2) void {
     const hit_events = contact_events.hit_events[0..@intCast(contact_events.hit_count)];
 
     for (hit_events) |hit| {
-        std.debug.print("desshit: {}\n", .{hit_events.len});
         const body_a = hit.shape_a.GetBody();
         const body_b = hit.shape_b.GetBody();
 
         if (self.hit_callbacks.get(body_a)) |cbs| {
-            std.debug.print("dessbody_a -> body_b\n", .{});
             for (cbs.keys()) |cb| {
                 const normal: hym.Vec2 = @bitCast(hit.normal);
                 var hit_event: HitEvent = .{
@@ -230,7 +228,6 @@ pub fn emitContacts(self: *Phys2) void {
         }
 
         if (self.hit_callbacks.get(body_b)) |cbs| {
-            std.debug.print("dessbody_b -> body_a\n", .{});
             for (cbs.keys()) |cb| {
                 var hit_event: HitEvent = .{
                     .other = body_a,
