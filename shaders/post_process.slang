@@ -56,7 +56,10 @@ float neighborDepthDelta(float w, float h, float2 uv) {
 float4 fragmentMain(VOut input): SV_Target {
 
     // outline
-    float delta = neighborDepthDelta(hy_viewport_size.x, hy_viewport_size.y, input.uv); 
+    float delta = neighborDepthDelta(hy_viewport_size.x, hy_viewport_size.y, input.uv);
+    float2 upper_left = pixelToUv(hy_viewport_size.xy, float2(-1, -2)) + input.uv;
 
-    return tex_diffuse.Sample(input.uv) + float4(delta, delta, delta, 1);
+    float q = step(0.001, tex_diffuse.Sample(upper_left).a);
+    float4 shadow = float4(0, 0, 0, q);
+    return max(shadow, tex_diffuse.Sample(input.uv));
 }

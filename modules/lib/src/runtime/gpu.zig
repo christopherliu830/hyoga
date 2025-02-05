@@ -122,6 +122,16 @@ pub const Gpu = opaque {
         color: [4]f32 = .{ 1, 1, 1, 1 },
     };
 
+    pub const Sprite = extern struct {
+        width: u32,
+        height: u32,
+        offset: u32,
+        len: u32,
+        speed: f32,
+        time_offset: f32,
+        color: [4]f32,
+    };
+
     pub const materialCreate = hygpuMaterialCreate;
     pub const modelImport = hygpuImportModel;
     pub const modelDestroy = hygpuModelDestroy;
@@ -137,6 +147,8 @@ pub const Gpu = opaque {
     pub const textureImport = hygpuTextureImport;
     pub const spriteCreate = hygpuSpriteCreate;
     pub const spriteDestroy = hygpuSpriteDestroy;
+    pub const spriteWeakPointer = hygpuSpriteWeakPointer;
+    pub const spriteEdit = hygpuSpriteEdit;
     pub const clearSelection = hygpuClearSelection;
 
     extern fn hygpuImportModel(*Gpu, [*:0]const u8, ImportSettings) Model;
@@ -153,6 +165,9 @@ pub const Gpu = opaque {
     extern fn hygpuRenderableSetTransform(*Gpu, Renderable, math.Mat4) void;
     extern fn hygpuSpriteCreate(*Gpu, SpriteCreateOptions) Renderable;
     extern fn hygpuSpriteDestroy(*Gpu, Renderable) void;
+    extern fn hygpuSpriteAtlasIndex(*Gpu, Renderable) u32;
+    extern fn hygpuSpriteWeakPointer(*Gpu, Renderable) ?*Sprite;
+    extern fn hygpuSpriteEdit(gpu: *Gpu, Renderable, Sprite) void;
     extern fn hygpuTextureImport(*Gpu, rt.ExternSlice(u8)) TextureHandle;
     extern fn hygpuClearSelection(*Gpu) void;
 };

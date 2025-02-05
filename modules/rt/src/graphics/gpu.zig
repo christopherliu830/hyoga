@@ -113,12 +113,18 @@ pub const GpuSprite = extern struct {
     offset: u32,
     len: u32,
     speed: f32,
+    time_offset: f32 = 0,
     color: [4]f32 = .{ 1, 1, 1, 1 },
+
+    comptime {
+        hy.meta.assertMatches(GpuSprite, hy.Gpu.Sprite);
+    }
 };
 
-pub const Sprite = struct {
+pub const Sprite = extern struct {
     sprite: GpuSprite,
     model: Model,
+    material: MaterialHandle,
 };
 
 const DefaultAssets = struct {
@@ -232,12 +238,6 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
     // Generate default assets
 
-    // const material = mt.readFromPath(self, .{
-    //     .path = "shaders/standard",
-    //     .enable_depth = true,
-    //     .enable_stencil = false,
-    // }, self.gpa) catch panic("error creating standard shader", .{});
-
     // Unloaded texture
     const texture = self.device.createTexture(&.{
         .format = .b8g8r8a8_unorm,
@@ -299,18 +299,10 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .address_mode_u = .clamp_to_edge,
         .address_mode_v = .clamp_to_edge,
         .address_mode_w = .clamp_to_edge,
-        .min_filter = .linear,
-        .mag_filter = .linear,
+        .min_filter = .nearest,
+        .mag_filter = .nearest,
     };
 
-    // const white_material = try self.materials.insert(
-    //     self.gpa,
-    //     mt.Material.fromTemplate(
-    //         material,
-    //         .standard,
-    //         TextureSet.initFull(.{ .target = white_texture }),
-    //     ),
-    // );
     const white_material = self.materials.insert(.standard, .initFull(.{ .target = white_texture }));
 
     const cube = try self.createModel(&primitives.cube.vertices, &primitives.cube.indices, white_material);
@@ -325,13 +317,13 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
     self.default_assets = .{
         .forward_pass = passes.Forward.init(self.device, .{
             .name = "standard",
-            .clear_color = .{ .r = 0.2, .g = 0.2, .b = 0.4, .a = 1 },
+            .clear_color = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
             .depth_enabled = true,
-            .stencil_enabled = false,
             .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
             .dest_usage = .{ .color_target = true, .sampler = true },
-            .dest_tex_width = @intCast(w),
-            .dest_tex_height = @intCast(h),
+            .dest_tex_width = @as(u16, @intCast(w)),
+            .dest_tex_height = @as(u16, @intCast(h)),
+            .dest_tex_scale = 0.6,
         }),
 
         .default_texture = texture,
@@ -513,6 +505,7 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
 
     try self.uploadToBuffer(self.default_assets.sprite_buf.hdl, 0, self.materials.param_buf.items);
 
+    // Render forward pass
     self.doPass(.{
         .cmd = cmd,
         .scene = scene.*,
@@ -521,43 +514,44 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     }) catch unreachable;
 
     // Render selected objects as mask for outline
-    const mask: ?passes.Forward = blk: {
-        if (self.outlined.keys().len == 0) {
-            break :blk null;
-        } else {
-            const mask = passes.Forward.init(self.device, .{
-                .name = "mask",
-                .dest_format = .r8_unorm,
-                .dest_usage = .{ .color_target = true, .sampler = true },
-                .dest_tex_width = @intCast(self.window_state.prev_drawable_w),
-                .dest_tex_height = @intCast(self.window_state.prev_drawable_h),
-            });
+    // const mask: ?passes.Forward = blk: {
+    //     if (self.outlined.keys().len == 0) {
+    //         break :blk null;
+    //     } else {
+    //         const mask = passes.Forward.init(self.device, .{
+    //             .name = "mask",
+    //             .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
+    //             .depth_enabled = true,
+    //             .dest_usage = .{ .color_target = true, .sampler = true },
+    //             .dest_tex_width = @intCast(self.window_state.prev_drawable_w),
+    //             .dest_tex_height = @intCast(self.window_state.prev_drawable_h),
+    //         });
 
-            const items = self.outlined.keys();
-            const pack = try self.renderables.pack(items, self.arena.allocator());
-            const selected_transforms = pack.transforms;
-            try self.uploadToBuffer(self.default_assets.selected_obj_buf.hdl, 0, std.mem.sliceAsBytes(selected_transforms));
+    //         const items = self.outlined.keys();
+    //         const pack = try self.renderables.pack(items, self.arena.allocator());
+    //         const selected_transforms = pack.transforms;
+    //         try self.uploadToBuffer(self.default_assets.selected_obj_buf.hdl, 0, std.mem.sliceAsBytes(selected_transforms));
 
-            const mat = self.materials.createWeak(.bw_mask, .{});
+    //         self.doPass(.{
+    //             .cmd = cmd,
+    //             .scene = scene.*,
+    //             .targets = mask.targets(),
+    //             .items = .{ .pack = pack },
+    //         }) catch unreachable;
 
-            self.doPass(.{
-                .cmd = cmd,
-                .scene = scene.*,
-                .material = mat,
-                .targets = mask.targets(),
-                .items = .{ .pack = pack },
-            }) catch unreachable;
-
-            break :blk mask;
-        }
-    };
-    defer if (mask) |m| m.deinit();
+    //         break :blk mask;
+    //     }
+    // };
+    // defer if (mask) |m| m.deinit();
 
     self.blitToScreen(
         cmd,
         self.default_assets.active_target.?,
         self.default_assets.forward_pass.texture(),
-        if (mask != null) mask.?.texture() else self.default_assets.black_texture,
+        self.default_assets.forward_pass.texture(),
+        // self.default_assets.forward_pass.depthStencilTexture().?,
+        // self.default_assets.black_texture,
+        // if (mask != null) mask.?.texture() else self.default_assets.black_texture,
         self.uniforms.get(self.ids.viewport_size).?.f32x4,
     );
 }
@@ -588,6 +582,7 @@ pub fn blitToScreen(
         .texture = screen_tex,
         .load_op = .clear,
         .store_op = .store,
+        .clear_color = .{ .r = 0.2, .g = 0.4, .b = 0.6, .a = 1 },
         .cycle = false,
     };
 
@@ -638,6 +633,7 @@ pub fn doPass(self: *Gpu, job: PassInfo) !void {
     const color = job.targets.color;
     const depth = job.targets.depth;
     const pass = job.cmd.beginRenderPass(color.ptr, @intCast(color.len), depth).?;
+    pass.setStencilReference(1);
     defer pass.end();
 
     var last_pipeline: ?*sdl.gpu.GraphicsPipeline = null;
@@ -1064,24 +1060,20 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !RenderItemHandle {
         .color = opts.color,
     });
 
-    // @memcpy(self.materials.getParams(mat_hdl), &std.mem.toBytes(Gpu.GpuSprite{
-    //     .width = opts.width,
-    //     .height = opts.height,
-    //     .offset = opts.offset,
-    //     .len = if (opts.len == 0) opts.width * opts.height else opts.len,
-    //     .speed = opts.speed,
-    // }));
-
     try self.sprites.put(
         self.gpa,
         renderable,
-        .{ .model = quad, .sprite = .{
-            .width = opts.width,
-            .height = opts.height,
-            .offset = opts.offset,
-            .len = if (opts.len == 0) opts.width * opts.height else opts.len,
-            .speed = opts.speed,
-        } },
+        .{
+            .model = quad,
+            .material = mat_hdl,
+            .sprite = .{
+                .width = opts.width,
+                .height = opts.height,
+                .offset = opts.offset,
+                .len = if (opts.len == 0) opts.width * opts.height else opts.len,
+                .speed = opts.speed,
+            },
+        },
     );
 
     return renderable;
@@ -1100,6 +1092,15 @@ pub fn spriteDestroy(self: *Gpu, hdl: RenderItemHandle) void {
     self.materialDestroy(renderable.mesh.material);
     self.models.remove(sprite.model);
     _ = self.sprites.remove(hdl);
+}
+
+pub fn spriteWeakPointer(self: *Gpu, hdl: RenderItemHandle) ?*GpuSprite {
+    const mat_hdl = (self.sprites.getPtr(hdl) orelse return null).material;
+    // const model = self.models.get(model_hdl) catch unreachable;
+    // const mat_hdl = model.children[0].material;
+    const mat = self.materials.get(mat_hdl) orelse return null;
+    const ptr: *Gpu.GpuSprite = @ptrCast(@alignCast(&self.materials.param_buf.items[mat.params_start]));
+    return ptr;
 }
 
 pub fn materialDestroy(self: *Gpu, handle: SlotMap(mt.Material).Handle) void {

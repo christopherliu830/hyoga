@@ -37,7 +37,7 @@ pub const Phys2 = struct {
         };
 
         pub const AddShapeOptions = extern struct {
-            type: ShapeOptions.Type,
+            type: ShapeOptions,
             density: f32 = 1,
         };
 

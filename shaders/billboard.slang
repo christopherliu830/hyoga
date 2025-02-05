@@ -37,16 +37,35 @@ VOut vertexMain(Vertex in,
     int vertex_id: SV_VertexID)
 {
     float4x4 object = hy_all_renderables[instance_id];
-    float3 world_position = object[3].xyz; // Object center in world space
+    float3 world_position = object[3].xyz;
+
     float3 object_scale = float3(object[0][0], object[1][1], object[2][2]);
+
 
     float4x4 view = hy_view_matrix;
     float3 camera_right = float3(view[0][0], view[1][0], view[2][0]);
     float3 camera_up = float3(view[0][1], view[1][1], view[2][1]);
 
-    float3 position_world = world_position +
-        camera_right * in.position.x * object_scale.x +
-        camera_up * in.position.y * object_scale.y;
+    float th = object_scale.z;
+    float2x2 rot = (cos(th), -sin(th),
+                    sin(th),  cos(th));
+
+    // float2 position = mul(in.position.xy, rot);
+    float2 position = in.position.xy;
+
+    position = float2(position.x * cos(th) - position.y * sin(th),
+                      position.y * cos(th) + position.x * sin(th));
+
+    float3 position_world = world_position + 
+                            camera_right * position.x * object_scale.x +
+                            camera_up * position.y * object_scale.y;
+
+    // float rotated_x = position_world.x * cos(rot_rad) - position_world.y * sin(rot_rad);
+    // float rotated_y = position_world.y * cos(rot_rad) + position_world.x * sin(rot_rad);
+
+    // position_world.x = rotated_x + world_position.x;
+    // position_world.y = rotated_y + world_position.y;
+    // position_world.z = world_position.z;
 
     float4 final = mul(float4(position_world, 1), mul(view, hy_projection_matrix));
 
@@ -54,7 +73,11 @@ VOut vertexMain(Vertex in,
     Sprite sprite = hy_sprites.Load<Sprite>(hy_material_index);
 
     uint2 num_tiles = uint2(sprite.atlas_size_x, sprite.atlas_size_y);
-    uint index = (uint(hy_time * asfloat(sprite.speed)) + sprite.start_index) % sprite.len;
+
+    uint index = (uint(hy_time * asfloat(sprite.speed) + 
+                  asfloat(sprite.time_offset)) + 
+                  sprite.start_index) % sprite.len;
+
     float2 tile_uv_size = float2(1, 1) / (float2)num_tiles;
     float2 uv = in.uv / (float2)num_tiles +
                 tile_uv_size * float2(index % num_tiles.x, index / num_tiles.x);

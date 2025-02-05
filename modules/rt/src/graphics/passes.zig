@@ -15,6 +15,7 @@ pub const Forward = struct {
     ds_target: ?sdl.gpu.DepthStencilTargetInfo,
     tex_info: sdl.gpu.TextureCreateInfo,
     ds_tex_info: ?sdl.gpu.TextureCreateInfo,
+    ds_tex_scale: f32,
 
     pub const ForwardOptions = struct {
         name: [:0]const u8,
@@ -27,18 +28,24 @@ pub const Forward = struct {
         dest_usage: sdl.gpu.TextureUsageFlags,
         dest_tex_width: u16,
         dest_tex_height: u16,
+        dest_tex_scale: f32 = 1,
 
         depth_enabled: bool = false,
         stencil_enabled: bool = false,
     };
 
     pub fn init(device: *sdl.gpu.Device, options: ForwardOptions) Forward {
+        const w: f32 = @floatFromInt(options.dest_tex_width);
+        const h: f32 = @floatFromInt(options.dest_tex_height);
+        const width: u32 = @intFromFloat(w * options.dest_tex_scale);
+        const height: u32 = @intFromFloat(h * options.dest_tex_scale);
+
         const tex_info = sdl.gpu.TextureCreateInfo{
             .type = .@"2d",
             .format = options.dest_format,
             .usage = options.dest_usage,
-            .width = options.dest_tex_width,
-            .height = options.dest_tex_height,
+            .width = width,
+            .height = height,
             .layer_count_or_depth = 1,
             .num_levels = 1,
             .sample_count = .@"1",
@@ -56,7 +63,7 @@ pub const Forward = struct {
         };
 
         var ds_tex_info: sdl.gpu.TextureCreateInfo = undefined;
-        const depth_stencil_target = blk: {
+        const depth_stencil_target: ?sdl.gpu.DepthStencilTargetInfo = blk: {
             if (!options.depth_enabled and !options.stencil_enabled) {
                 break :blk null;
             } else {
@@ -64,8 +71,8 @@ pub const Forward = struct {
                     .type = .@"2d",
                     .usage = .{ .depth_stencil_target = true },
                     .format = if (options.stencil_enabled) .d32_float_s8_uint else .d32_float,
-                    .width = options.dest_tex_width,
-                    .height = options.dest_tex_height,
+                    .width = width,
+                    .height = height,
                     .layer_count_or_depth = 1,
                     .num_levels = 1,
                     .sample_count = .@"1",
@@ -75,7 +82,7 @@ pub const Forward = struct {
                 const depth_tex = device.createTexture(&ds_tex_info) catch panic("could not create texture", .{});
                 device.setTextureName(depth_tex, options.name.ptr);
 
-                break :blk sdl.gpu.DepthStencilTargetInfo{
+                break :blk .{
                     .clear_depth = 1,
                     .clear_stencil = if (options.stencil_enabled) 1 else 0,
                     .load_op = .clear,
@@ -95,6 +102,7 @@ pub const Forward = struct {
             .tex_info = tex_info,
             .ds_tex_info = ds_tex_info,
             .ds_target = depth_stencil_target,
+            .ds_tex_scale = options.dest_tex_scale,
         };
     }
 
@@ -111,12 +119,14 @@ pub const Forward = struct {
     }
 
     pub fn resize(self: *Forward, w: u32, h: u32) void {
-        self.tex_info.width = w;
-        self.tex_info.height = h;
+        const fw: f32 = @floatFromInt(w);
+        const fh: f32 = @floatFromInt(h);
+        self.tex_info.width = @intFromFloat(fw * self.ds_tex_scale);
+        self.tex_info.height = @intFromFloat(fh * self.ds_tex_scale);
 
         if (self.ds_tex_info) |*info| {
-            info.width = w;
-            info.height = h;
+            info.width = self.tex_info.width;
+            info.height = self.tex_info.height;
         }
 
         self.device.releaseTexture(self.texture());

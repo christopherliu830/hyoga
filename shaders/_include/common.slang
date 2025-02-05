@@ -15,6 +15,7 @@ struct Sprite {
     uint start_index;
     uint len;
     uint speed;
+    uint time_offset; // float. used in sprite animation index
     uint [4]color;
 }
 
@@ -29,3 +30,7 @@ float3x3 adjugate(float4x4 m) {
                     cross(m[2].xyz, m[0].xyz),
                     cross(m[0].xyz, m[1].xyz));
 }
+
+float2 pixelToUv(float2 window_dimensions, float2 pixels) {
+    return pixels / window_dimensions;
+};

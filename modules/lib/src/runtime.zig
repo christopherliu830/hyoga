@@ -94,29 +94,11 @@ pub fn ExternTaggedUnion(Base: type) type {
         .decls = &.{},
     } });
 
-    return struct {
-        pub const Type = @Type(.{
-            .@"struct" = .{
-                .layout = .@"extern",
-                .fields = &.{ .{
-                    .name = "tag",
-                    .type = BaseTag,
-                    .default_value_ptr = null,
-                    .is_comptime = false,
-                    .alignment = @alignOf(type_info.tag_type.?),
-                }, .{
-                    .name = "payload",
-                    .type = Payload,
-                    .default_value_ptr = null,
-                    .is_comptime = false,
-                    .alignment = @alignOf(Payload),
-                } },
-                .decls = &.{},
-                .is_tuple = false,
-            },
-        });
+    return extern struct {
+        tag: BaseTag,
+        payload: Payload,
 
-        pub fn revert(self: Type) Base {
+        pub fn revert(self: @This()) Base {
             switch (self.tag) {
                 inline else => |real_tag| {
                     return @unionInit(Base, @tagName(real_tag), @field(self.payload, @tagName(real_tag)));
@@ -124,12 +106,12 @@ pub fn ExternTaggedUnion(Base: type) type {
             }
         }
 
-        pub fn get(comptime tag: BaseTag, self: Type) std.meta.TagPayloadByName(Base, @tagName(tag)) {
+        pub fn get(comptime tag: BaseTag, self: @This()) std.meta.TagPayloadByName(Base, @tagName(tag)) {
             const val = @unionInit(Base, @tagName(tag), @bitCast(self.payload));
             return @field(val, @tagName(tag));
         }
 
-        pub fn of(comptime tag: BaseTag, value: std.meta.TagPayloadByName(Payload, @tagName(tag))) Type {
+        pub fn of(comptime tag: BaseTag, value: std.meta.TagPayloadByName(Payload, @tagName(tag))) @This() {
             const payload = @unionInit(Payload, @tagName(tag), value);
             return .{
                 .tag = tag,

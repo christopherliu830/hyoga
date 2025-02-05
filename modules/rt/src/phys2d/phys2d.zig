@@ -68,7 +68,7 @@ pub const ShapeType = enum(u32) {
 };
 
 pub const AddShapeOptions = extern struct {
-    type: ShapeUnion.Type,
+    type: ShapeUnion,
     density: f32,
 
     comptime {
@@ -111,7 +111,7 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
         });
     };
 
-    switch (ShapeUnion.revert(opts.shape.type)) {
+    switch (opts.shape.type.revert()) {
         .circle => |c| {
             const circle: b2.Shape.Circle = .{
                 .radius = c.radius,

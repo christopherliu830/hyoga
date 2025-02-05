@@ -150,13 +150,13 @@ pub const RenderList = struct {
 
         const hdls = try allocator.dupe(RenderItemHandle, handles);
         errdefer allocator.free(hdls);
-        const renderables = try allocator.alloc(Renderable, handles.len);
+        const renderables = try allocator.alloc(Renderable, hdls.len);
         for (handles, 0..) |hdl, i| {
             renderables[i] = self.items.get(hdl) orelse unreachable;
         }
         defer allocator.free(renderables);
 
-        const transforms = try allocator.alloc(Mat4, handles.len);
+        const transforms = try allocator.alloc(Mat4, hdls.len);
         errdefer allocator.free(transforms);
 
         std.sort.heapContext(0, renderables.len, SwapContext{ .renderables = renderables, .handles = hdls });

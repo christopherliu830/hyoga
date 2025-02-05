@@ -173,6 +173,10 @@ export fn hygpuSpriteDestroy(gpu: *Gpu, hdl: Gpu.RenderItemHandle) void {
     gpu.spriteDestroy(hdl);
 }
 
+export fn hygpuSpriteWeakPointer(gpu: *Gpu, hdl: Gpu.RenderItemHandle) ?*Gpu.GpuSprite {
+    return gpu.spriteWeakPointer(hdl);
+}
+
 export fn hygpuTextureImport(gpu: *Gpu, path: hy.runtime.ExternSlice(u8)) Gpu.TextureHandle {
     return gpu.textures.read(path.asSliceZ()) catch |e| {
         std.log.err("texture import failure: {}", .{e});
