@@ -24,8 +24,10 @@ const CallbackSet = std.AutoArrayHashMapUnmanaged(*hy.closure.Runnable(anyopaque
 
 allocator: std.mem.Allocator,
 world: b2.World,
-timestep: f32 = 1.0 / 60.0,
+timestep: f32 = 1.0 / 120.0,
+interp_alpha: f32 = 1,
 hit_callbacks: std.AutoHashMapUnmanaged(Body, CallbackSet) = .{},
+prev_positions: std.AutoArrayHashMapUnmanaged(Body, hym.Vec2) = .{},
 
 /// accumulated time of simulation in ns since engine start.
 current_time: u64 = 0,
@@ -47,6 +49,7 @@ pub fn deinit(self: *Phys2) void {
         cbs.deinit(self.allocator);
     }
     self.hit_callbacks.deinit(self.allocator);
+    self.prev_positions.deinit(self.allocator);
 }
 
 pub fn eventsReset(self: *Phys2) void {
@@ -121,7 +124,6 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
                 .density = opts.shape.density,
                 .enable_hit_events = true,
             }, &circle);
-            return body;
         },
         .box => |b| {
             const box: b2.Shape.Polygon = .makeBox(b.width, b.height);
@@ -132,6 +134,7 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
         },
     }
 
+    self.prev_positions.put(self.allocator, body, @bitCast(body.GetPosition())) catch hy.err.oom();
     return body;
 }
 
@@ -176,9 +179,32 @@ pub fn hitEventDeregisterAll(
 }
 
 pub fn step(self: *Phys2) void {
+    var it = self.prev_positions.iterator();
+    while (it.next()) |entry| {
+        const body = entry.key_ptr;
+        const position = entry.value_ptr;
+        if (body.isValid()) {
+            position.* = @bitCast(body.GetPosition());
+        } else {
+            it.index -= 1;
+            it.len -= 1;
+            _ = self.prev_positions.swapRemoveAt(it.index);
+        }
+    }
+
     self.world.step(self.timestep, self.sub_step_count);
     self.current_time += @intFromFloat(self.timestep * std.time.ns_per_s);
+
     self.emitContacts();
+}
+
+pub fn bodyPosition(self: *Phys2, body: Body) hym.Vec2 {
+    const old_pos = self.prev_positions.get(body);
+    const new_pos = body.GetPosition();
+    if (old_pos) |old| {
+        return old.lerp(@bitCast(new_pos), self.interp_alpha);
+    }
+    return @bitCast(body.GetPosition());
 }
 
 pub fn emitContacts(self: *Phys2) void {
@@ -186,10 +212,12 @@ pub fn emitContacts(self: *Phys2) void {
     const hit_events = contact_events.hit_events[0..@intCast(contact_events.hit_count)];
 
     for (hit_events) |hit| {
+        std.debug.print("desshit: {}\n", .{hit_events.len});
         const body_a = hit.shape_a.GetBody();
         const body_b = hit.shape_b.GetBody();
 
         if (self.hit_callbacks.get(body_a)) |cbs| {
+            std.debug.print("dessbody_a -> body_b\n", .{});
             for (cbs.keys()) |cb| {
                 const normal: hym.Vec2 = @bitCast(hit.normal);
                 var hit_event: HitEvent = .{
@@ -202,6 +230,7 @@ pub fn emitContacts(self: *Phys2) void {
         }
 
         if (self.hit_callbacks.get(body_b)) |cbs| {
+            std.debug.print("dessbody_b -> body_a\n", .{});
             for (cbs.keys()) |cb| {
                 var hit_event: HitEvent = .{
                     .other = body_a,

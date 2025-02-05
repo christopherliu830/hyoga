@@ -111,6 +111,10 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
         self.physics.step();
     }
 
+    const physics_ahead: f32 = @floatFromInt(self.physics.current_time - game.current_time);
+    game.interp_alpha = 1 - (physics_ahead / std.time.ns_per_s / self.physics.timestep);
+    self.physics.interp_alpha = game.interp_alpha;
+
     // Game state
 
     game = gi.update(self, game);

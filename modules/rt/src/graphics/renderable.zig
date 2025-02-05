@@ -29,7 +29,7 @@ pub const PackedRenderables = struct {
 pub const Renderable = struct {
     next: ?RenderItemHandle = null, // When models are imported as a group, support adds and removes via this link.
     mesh: Mesh,
-    import_transform: Mat4 = .identity, // Set on import and does not change.
+    transform: Mat4 = .identity,
 
     pub fn lessThan(_: void, lhs: Renderable, rhs: Renderable) bool {
         if (lhs.mesh.buffer.eql(rhs.mesh.buffer))
@@ -94,7 +94,7 @@ pub const RenderList = struct {
             for (model.children) |mesh| {
                 const renderable: Renderable = .{
                     .mesh = mesh,
-                    .import_transform = model.transform,
+                    .transform = model.transform,
                     .next = head,
                 };
                 head = try self.items.insert(self.allocator, renderable);
@@ -184,7 +184,7 @@ pub const RenderList = struct {
         for (0..renderables.len) |i| {
             const renderable = renderables[i];
 
-            transforms[i] = renderable.import_transform;
+            transforms[i] = renderable.transform;
 
             if (distinct_transform_idx == 0 or !renderable.eql(renderables[i - 1])) {
                 meshes[distinct_transform_idx] = renderable.mesh;

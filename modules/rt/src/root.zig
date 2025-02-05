@@ -33,9 +33,14 @@ pub const World = extern struct {
     restart: bool = false,
     scene: Scene,
     current_time: u64 = 0,
+    interp_alpha: f32 = 0,
     render_delta_time: u64 = 0,
     update_delta_time: u64 = 0,
     memory: *anyopaque,
+
+    comptime {
+        hy.meta.assertMatches(World, hy.runtime.World);
+    }
 };
 
 pub const GameInterface = extern struct {
@@ -246,8 +251,8 @@ export fn hyp2BodyUserData(body: Phys2.Body) ?*anyopaque {
     return body.GetUserData();
 }
 
-export fn hyp2BodyGetPosition(body: Phys2.Body) hy.math.Vec2 {
-    return @bitCast(body.GetPosition());
+export fn hyp2BodyGetPosition(p2d: *Phys2, body: Phys2.Body) hy.math.Vec2 {
+    return p2d.bodyPosition(body);
 }
 
 export fn hyp2BodyGetVelocity(body: Phys2.Body) hy.math.Vec2 {

@@ -57,6 +57,7 @@ pub const Vec2 = extern struct {
     pub const sub = root.sub;
     pub const mul = root.mul;
     pub const div = root.div;
+    pub const lerp = root.lerp;
 
     pub inline fn rotate(a: *Vec2, axis: Vec2, amt: f32) void {
         a.v = root.rotate(a, axis, amt).v;
@@ -179,6 +180,10 @@ pub inline fn div(a: Vec2, b: anytype) Vec2 {
         },
         else => @compileError("add not implemented for " ++ @typeName(T)),
     };
+}
+
+pub inline fn lerp(a: Vec2, b: Vec2, t: f32) Vec2 {
+    return b.sub(a).mul(t).add(a);
 }
 
 pub inline fn scale_to(v: Vec2, l: f32) Vec2 {

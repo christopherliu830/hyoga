@@ -33,6 +33,7 @@ pub const World = extern struct {
     restart: bool = false,
     scene: Scene,
     current_time: u64 = 0,
+    interp_alpha: f32 = 0,
     render_delta_time: u64 = 0,
     update_delta_time: u64 = 0,
     memory: *anyopaque,

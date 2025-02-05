@@ -513,45 +513,11 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
         .items = .{ .pack = render_pack },
     }) catch unreachable;
 
-    // Render selected objects as mask for outline
-    // const mask: ?passes.Forward = blk: {
-    //     if (self.outlined.keys().len == 0) {
-    //         break :blk null;
-    //     } else {
-    //         const mask = passes.Forward.init(self.device, .{
-    //             .name = "mask",
-    //             .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
-    //             .depth_enabled = true,
-    //             .dest_usage = .{ .color_target = true, .sampler = true },
-    //             .dest_tex_width = @intCast(self.window_state.prev_drawable_w),
-    //             .dest_tex_height = @intCast(self.window_state.prev_drawable_h),
-    //         });
-
-    //         const items = self.outlined.keys();
-    //         const pack = try self.renderables.pack(items, self.arena.allocator());
-    //         const selected_transforms = pack.transforms;
-    //         try self.uploadToBuffer(self.default_assets.selected_obj_buf.hdl, 0, std.mem.sliceAsBytes(selected_transforms));
-
-    //         self.doPass(.{
-    //             .cmd = cmd,
-    //             .scene = scene.*,
-    //             .targets = mask.targets(),
-    //             .items = .{ .pack = pack },
-    //         }) catch unreachable;
-
-    //         break :blk mask;
-    //     }
-    // };
-    // defer if (mask) |m| m.deinit();
-
     self.blitToScreen(
         cmd,
         self.default_assets.active_target.?,
         self.default_assets.forward_pass.texture(),
         self.default_assets.forward_pass.texture(),
-        // self.default_assets.forward_pass.depthStencilTexture().?,
-        // self.default_assets.black_texture,
-        // if (mask != null) mask.?.texture() else self.default_assets.black_texture,
         self.uniforms.get(self.ids.viewport_size).?.f32x4,
     );
 }
@@ -582,7 +548,7 @@ pub fn blitToScreen(
         .texture = screen_tex,
         .load_op = .clear,
         .store_op = .store,
-        .clear_color = .{ .r = 0.2, .g = 0.4, .b = 0.6, .a = 1 },
+        .clear_color = .{ .r = 0.15, .g = 0.15, .b = 0.15, .a = 1 },
         .cycle = false,
     };
 
@@ -1013,7 +979,7 @@ pub fn renderableSetTransform(
         return;
     };
 
-    renderable.import_transform = transform;
+    renderable.transform = transform;
 }
 
 pub const SpriteCreateOptions = extern struct {

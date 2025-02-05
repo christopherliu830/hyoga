@@ -375,7 +375,7 @@ pub const Body = enum(u64) {
 
     pub const create = b2CreateBody;
     pub const destroy = b2DestroyBody;
-    pub const IsValid = b2Body_IsValid;
+    pub const isValid = b2Body_IsValid;
     pub const GetType = b2Body_GetType;
     pub const SetType = b2Body_SetType;
     pub const SetName = b2Body_SetName;
@@ -1012,7 +1012,7 @@ extern fn b2CreateBody(world: World, def: *const Body.Definition) Body;
 extern fn b2DestroyBody(bodyId: Body) void;
 
 /// Body identifier validation. Can be used to detect orphaned ids. Provides validation for up to 64K allocations.
-extern fn b2Body_IsValid(id: Body) void;
+extern fn b2Body_IsValid(id: Body) bool;
 
 /// Get the body type: static, kinematic, or dynamic
 extern fn b2Body_GetType(bodyId: Body) Body.Type;

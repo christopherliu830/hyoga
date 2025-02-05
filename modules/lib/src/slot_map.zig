@@ -103,6 +103,10 @@ pub fn SlotMap(comptime T: type) type {
             pub fn is_valid(self: SlotMap(T).Handle) bool {
                 return self.generation != 0;
             }
+
+            pub inline fn eql(self: *const SlotMap(T).Handle, other: SlotMap(T).Handle) bool {
+                return self.index == other.index and self.generation == other.generation;
+            }
         };
 
         pub fn deinit(self: *SlotMap(T), allocator: std.mem.Allocator) void {

@@ -65,6 +65,7 @@ pub const Vec3 = extern struct {
     pub const sub = root.sub;
     pub const mul = root.mul;
     pub const div = root.div;
+    pub const lerp = root.lerp;
 
     pub inline fn cross(a: Vec3, b: Vec3) Vec3 {
         return root.cross(a, b);
@@ -216,6 +217,10 @@ pub inline fn div(a: Vec3, b: anytype) Vec3 {
         },
         else => @compileError("add not implemented for " ++ @typeName(T)),
     };
+}
+
+pub inline fn lerp(a: Vec3, b: Vec3, t: f32) Vec3 {
+    return b.sub(a).mul(t).add(a);
 }
 
 pub inline fn scale_to(v: Vec3, l: f32) Vec3 {

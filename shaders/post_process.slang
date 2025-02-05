@@ -57,9 +57,13 @@ float4 fragmentMain(VOut input): SV_Target {
 
     // outline
     float delta = neighborDepthDelta(hy_viewport_size.x, hy_viewport_size.y, input.uv);
-    float2 upper_left = pixelToUv(hy_viewport_size.xy, float2(-1, -2)) + input.uv;
+    float2 upper_left = pixelToUv(hy_viewport_size.xy, float2(-3, -3)) + input.uv;
 
     float q = step(0.001, tex_diffuse.Sample(upper_left).a);
     float4 shadow = float4(0, 0, 0, q);
-    return max(shadow, tex_diffuse.Sample(input.uv));
+    float4 color = tex_diffuse.Sample(input.uv);
+    float use_color = step(0.001, max(max(color.r, color.g), max(color.b, color.a)));
+    return lerp(shadow, color, use_color);
+
+    // return max(shadow, tex_diffuse.Sample(input.uv));
 }
