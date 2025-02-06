@@ -123,6 +123,10 @@ pub const Gpu = opaque {
     };
 
     pub const Sprite = extern struct {
+        pub const Handle = enum(u64) {
+            none = 0,
+        };
+
         width: u32,
         height: u32,
         offset: u32,
@@ -144,9 +148,9 @@ pub const Gpu = opaque {
     pub const selectRenderable = hygpuSelectRenderable;
     pub const deselectRenderable = hygpuDeselectRenderable;
     pub const renderableSetTransform = hygpuRenderableSetTransform;
+    pub const renderableOfSprite = hygpuRenderableOfSprite;
     pub const textureImport = hygpuTextureImport;
     pub const spriteCreate = hygpuSpriteCreate;
-    pub const spriteDupe = hygpuSpriteDupe;
     pub const spriteDestroy = hygpuSpriteDestroy;
     pub const spriteWeakPointer = hygpuSpriteWeakPointer;
     pub const spriteEdit = hygpuSpriteEdit;
@@ -164,10 +168,9 @@ pub const Gpu = opaque {
     extern fn hygpuSelectRenderable(*Gpu, Renderable) void;
     extern fn hygpuDeselectRenderable(*Gpu, Renderable) void;
     extern fn hygpuRenderableSetTransform(*Gpu, Renderable, math.Mat4) void;
-    extern fn hygpuSpriteCreate(*Gpu, SpriteCreateOptions) Renderable;
-    extern fn hygpuSpriteDupe(*Gpu, Renderable) Renderable;
-    extern fn hygpuSpriteDestroy(*Gpu, Renderable) void;
-    extern fn hygpuSpriteAtlasIndex(*Gpu, Renderable) u32;
+    extern fn hygpuRenderableOfSprite(*Gpu, Sprite.Handle) Renderable;
+    extern fn hygpuSpriteCreate(*Gpu, SpriteCreateOptions) Sprite.Handle;
+    extern fn hygpuSpriteDestroy(*Gpu, Sprite.Handle) void;
     extern fn hygpuSpriteWeakPointer(*Gpu, Renderable) ?*Sprite;
     extern fn hygpuSpriteEdit(gpu: *Gpu, Renderable, Sprite) void;
     extern fn hygpuTextureImport(*Gpu, rt.ExternSlice(u8)) TextureHandle;

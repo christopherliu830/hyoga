@@ -27,6 +27,7 @@ const World = @import("../root.zig").World;
 
 const Gpu = @This();
 
+pub const AddRenderableOptions = rbl.RenderList.AddOptions;
 pub const Material = mt.Material;
 pub const MaterialHandle = mt.Handle;
 pub const MaterialTemplate = mt.MaterialTemplate;
@@ -35,7 +36,7 @@ pub const Mesh = mdl.Mesh;
 pub const Model = mdl.Handle;
 pub const Models = mdl.Models;
 pub const RenderItemHandle = rbl.RenderItemHandle;
-pub const AddRenderableOptions = rbl.RenderList.AddOptions;
+pub const SpriteHandle = hy.SlotMap(Sprite).Handle;
 pub const TextureHandle = tx.Handle;
 pub const Textures = tx.Textures;
 pub const TextureSet = tx.TextureSet;
@@ -188,7 +189,7 @@ default_assets: DefaultAssets = undefined,
 window_state: WindowState = .{},
 renderables: rbl.RenderList,
 outlined: std.AutoArrayHashMapUnmanaged(rbl.RenderItemHandle, void),
-sprites: std.AutoHashMapUnmanaged(rbl.RenderItemHandle, Sprite),
+sprites: hy.SlotMap(Sprite),
 speed: f32 = 1,
 textures: tx.Textures,
 models: Models,
@@ -337,7 +338,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .sampler = self.device.createSampler(&sampler_info) orelse std.debug.panic("create sampler failure: {s}", .{sdl.getError()}),
         .obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 512, "Object Mats"),
         .selected_obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 512, "Selected Object Mats"),
-        .sprite_buf = try buf.DynamicBuffer(u128).init(self.device, 512, "Sprite Atlas Sizes"),
+        .sprite_buf = try buf.DynamicBuffer(u128).init(self.device, 1024, "Sprite Atlas Sizes"),
         .active_target = null,
     };
 
@@ -996,7 +997,7 @@ pub const SpriteCreateOptions = extern struct {
     }
 };
 
-pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !RenderItemHandle {
+pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !hy.SlotMap(Sprite).Handle {
     std.debug.assert(opts.width != 0);
     std.debug.assert(opts.height != 0);
 
@@ -1012,10 +1013,6 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !RenderItemHandle {
     };
 
     const quad = try self.models.dupe(self.default_assets.quad, .{ .material = mat_hdl });
-    const renderable = try self.renderables.add(.{
-        .model = quad,
-        .time = 0,
-    });
 
     self.materials.setParams(mat_hdl, &Gpu.GpuSprite{
         .width = opts.width,
@@ -1026,59 +1023,35 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !RenderItemHandle {
         .color = opts.color,
     });
 
-    try self.sprites.put(
-        self.gpa,
-        renderable,
-        .{
-            .model = quad,
-            .material = mat_hdl,
-        },
-    );
+    const sprite_hdl = self.sprites.insert(self.gpa, .{ .model = quad, .material = mat_hdl });
 
-    return renderable;
+    return sprite_hdl;
 }
 
-pub fn spriteDestroy(self: *Gpu, hdl: RenderItemHandle) void {
+pub fn spriteDestroy(self: *Gpu, hdl: hy.SlotMap(Sprite).Handle) void {
     const sprite = self.sprites.get(hdl) orelse {
         std.debug.panic("No sprite found for handle {}", .{hdl});
     };
 
-    const renderable = self.renderables.items.get(hdl) orelse {
-        std.debug.panic("No renderable found for handle {}", .{hdl});
-    };
-
-    self.renderables.remove(hdl);
-    if (!sprite.is_dupe) {
-        self.materialDestroy(renderable.mesh.material);
-        self.models.remove(sprite.model);
-    }
-    _ = self.sprites.remove(hdl);
+    self.materialDestroy(sprite.material);
+    self.models.remove(sprite.model);
 }
 
 pub fn spriteWeakPointer(self: *Gpu, hdl: RenderItemHandle) ?*GpuSprite {
-    const mat_hdl = (self.sprites.getPtr(hdl) orelse return null).material;
+    const renderable = (self.renderables.items.getPtr(hdl) orelse return null);
+    const mat_hdl = renderable.mesh.material;
     const mat = self.materials.get(mat_hdl) orelse return null;
     const ptr: *Gpu.GpuSprite = @ptrCast(@alignCast(&self.materials.param_buf.items[mat.params_start]));
     return ptr;
 }
 
-pub fn spriteDupe(self: *Gpu, hdl: RenderItemHandle) !RenderItemHandle {
+pub fn renderableOfSprite(self: *Gpu, hdl: SpriteHandle) !RenderItemHandle {
     const sprite = self.sprites.get(hdl).?;
 
     const renderable = try self.renderables.add(.{
         .model = sprite.model,
         .time = 0,
     });
-
-    try self.sprites.put(
-        self.gpa,
-        renderable,
-        .{
-            .model = sprite.model,
-            .material = sprite.material,
-            .is_dupe = true,
-        },
-    );
 
     return renderable;
 }
@@ -1092,9 +1065,5 @@ pub fn materialDestroy(self: *Gpu, handle: SlotMap(mt.Material).Handle) void {
 }
 
 pub fn renderableDestroy(self: *Gpu, handle: RenderItemHandle) void {
-    if (self.sprites.contains(handle)) {
-        self.spriteDestroy(handle);
-    }
-
     self.renderables.remove(handle);
 }

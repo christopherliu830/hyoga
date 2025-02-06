@@ -167,14 +167,14 @@ export fn hygpuClearSelection(gpu: *Gpu) void {
     gpu.outlined.clearRetainingCapacity();
 }
 
-export fn hygpuSpriteCreate(gpu: *Gpu, opts: Gpu.SpriteCreateOptions) Gpu.RenderItemHandle {
+export fn hygpuSpriteCreate(gpu: *Gpu, opts: Gpu.SpriteCreateOptions) Gpu.SpriteHandle {
     return gpu.spriteCreate(opts) catch |e| {
         std.log.err("sprite create failure: {}", .{e});
         return .invalid;
     };
 }
 
-export fn hygpuSpriteDestroy(gpu: *Gpu, hdl: Gpu.RenderItemHandle) void {
+export fn hygpuSpriteDestroy(gpu: *Gpu, hdl: Gpu.SpriteHandle) void {
     gpu.spriteDestroy(hdl);
 }
 
@@ -182,8 +182,8 @@ export fn hygpuSpriteWeakPointer(gpu: *Gpu, hdl: Gpu.RenderItemHandle) ?*Gpu.Gpu
     return gpu.spriteWeakPointer(hdl);
 }
 
-export fn hygpuSpriteDupe(gpu: *Gpu, hdl: Gpu.RenderItemHandle) Gpu.RenderItemHandle {
-    return gpu.spriteDupe(hdl) catch |e| {
+export fn hygpuRenderableOfSprite(gpu: *Gpu, hdl: Gpu.SpriteHandle) Gpu.RenderItemHandle {
+    return gpu.renderableOfSprite(hdl) catch |e| {
         std.log.err("sprite dupe failure: {}", .{e});
         return .invalid;
     };
