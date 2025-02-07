@@ -60,13 +60,6 @@ VOut vertexMain(Vertex in,
                             camera_right * position.x * object_scale.x +
                             camera_up * position.y * object_scale.y;
 
-    // float rotated_x = position_world.x * cos(rot_rad) - position_world.y * sin(rot_rad);
-    // float rotated_y = position_world.y * cos(rot_rad) + position_world.x * sin(rot_rad);
-
-    // position_world.x = rotated_x + world_position.x;
-    // position_world.y = rotated_y + world_position.y;
-    // position_world.z = world_position.z;
-
     float4 final = mul(float4(position_world, 1), mul(view, hy_projection_matrix));
 
     // Sprite animation
@@ -74,9 +67,8 @@ VOut vertexMain(Vertex in,
 
     uint2 num_tiles = uint2(sprite.atlas_size_x, sprite.atlas_size_y);
 
-    uint index = (uint(hy_time * asfloat(sprite.speed) + 
-                  asfloat(sprite.time_offset)) + 
-                  sprite.start_index) % sprite.len;
+    uint counter = uint(hy_time * asfloat(sprite.speed) + asfloat(sprite.time_offset));
+    uint index = (counter  % sprite.len) + sprite.start_index;
 
     float2 tile_uv_size = float2(1, 1) / (float2)num_tiles;
     float2 uv = in.uv / (float2)num_tiles +
