@@ -1045,6 +1045,15 @@ pub fn spriteWeakPointer(self: *Gpu, hdl: RenderItemHandle) ?*GpuSprite {
     return ptr;
 }
 
+pub fn spriteCurrentIndex(self: *Gpu, sprite: *GpuSprite) u32 {
+    const time = blk: {
+        if (self.uniforms.get(self.ids.time)) |t| break :blk t.f32 else break :blk 0;
+    };
+    const counter: u32 = @intFromFloat(@max(0, time * sprite.speed + sprite.time_offset));
+    const index = (counter % sprite.len) + sprite.offset;
+    return index;
+}
+
 pub fn renderableOfSprite(self: *Gpu, hdl: SpriteHandle) !RenderItemHandle {
     const sprite = self.sprites.get(hdl).?;
 

@@ -75,8 +75,8 @@ pub const Vec3 = extern struct {
         return root.rotate(a, axis, radians);
     }
 
-    pub inline fn clamp(a: *Vec3, min: f32, max: f32) void {
-        a.v = root.clamp(a.*, min, max).v;
+    pub inline fn clamp(a: *Vec3, min: Vec3, max: Vec3) Vec3 {
+        return root.clamp(a.*, min, max);
     }
 
     pub inline fn append(v: Vec3, n: f32) Vec4 {
@@ -265,10 +265,6 @@ pub inline fn proj(a: Vec3, b: Vec3) Vec3 {
     return mul(b, dot(a, b) / sqlen(b));
 }
 
-pub inline fn clamp(a: Vec3, min: f32, max: f32) Vec3 {
-    return .{ .v = .{
-        @min(@max(a.v[0], min), max),
-        @min(@max(a.v[1], min), max),
-        @min(@max(a.v[2], min), max),
-    } };
+pub inline fn clamp(a: Vec3, min: Vec3, max: Vec3) Vec3 {
+    return .{ .v = @min(@max(a.v, min.v), max.v) };
 }

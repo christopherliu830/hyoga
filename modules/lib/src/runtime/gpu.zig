@@ -153,7 +153,7 @@ pub const Gpu = opaque {
     pub const spriteCreate = hygpuSpriteCreate;
     pub const spriteDestroy = hygpuSpriteDestroy;
     pub const spriteWeakPointer = hygpuSpriteWeakPointer;
-    pub const spriteEdit = hygpuSpriteEdit;
+    pub const spriteCurrentIndex = hygpuSpriteCurrentIndex;
     pub const clearSelection = hygpuClearSelection;
 
     extern fn hygpuImportModel(*Gpu, [*:0]const u8, ImportSettings) Model;
@@ -172,7 +172,7 @@ pub const Gpu = opaque {
     extern fn hygpuSpriteCreate(*Gpu, SpriteCreateOptions) Sprite.Handle;
     extern fn hygpuSpriteDestroy(*Gpu, Sprite.Handle) void;
     extern fn hygpuSpriteWeakPointer(*Gpu, Renderable) ?*Sprite;
-    extern fn hygpuSpriteEdit(gpu: *Gpu, Renderable, Sprite) void;
+    extern fn hygpuSpriteCurrentIndex(*Gpu, *Sprite) u32;
     extern fn hygpuTextureImport(*Gpu, rt.ExternSlice(u8)) TextureHandle;
     extern fn hygpuClearSelection(*Gpu) void;
 };
