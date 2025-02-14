@@ -71,15 +71,16 @@ pub const ShapeType = enum(u32) {
 };
 
 pub const AddShapeOptions = extern struct {
-    type: ShapeUnion,
+    type: ShapeConfig,
     density: f32,
+    sensor: bool = false,
 
     comptime {
         hy.meta.assertMatches(AddShapeOptions, hy.Phys2.Body.AddShapeOptions);
     }
 };
 
-pub const ShapeUnion = hy.runtime.ExternTaggedUnion(union(enum) {
+pub const ShapeConfig = hy.runtime.ExternTaggedUnion(union(enum) {
     circle: extern struct {
         radius: f32,
         center: hym.Vec2,
@@ -122,6 +123,7 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
             };
             _ = b2.Shape.createCircleShape(body, &.{
                 .density = opts.shape.density,
+                .is_sensor = opts.shape.sensor,
                 .enable_hit_events = true,
             }, &circle);
         },
@@ -134,7 +136,7 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
         },
     }
 
-    self.prev_positions.put(self.allocator, body, @bitCast(body.GetPosition())) catch hy.err.oom();
+    self.prev_positions.put(self.allocator, body, @bitCast(body.getPosition())) catch hy.err.oom();
     return body;
 }
 
@@ -184,7 +186,7 @@ pub fn step(self: *Phys2) void {
         const body = entry.key_ptr;
         const position = entry.value_ptr;
         if (body.isValid()) {
-            position.* = @bitCast(body.GetPosition());
+            position.* = @bitCast(body.getPosition());
         } else {
             it.index -= 1;
             it.len -= 1;
@@ -196,19 +198,42 @@ pub fn step(self: *Phys2) void {
     self.current_time += @intFromFloat(self.timestep * std.time.ns_per_s);
 
     self.emitContacts();
+    self.emitOverlaps();
 }
 
+/// Returns an interpolated body position between the last and
+/// current physics step. If the most up to date physics position is needed,
+/// use Body.position(). NOTE: Body.position() may return a result in the future
+/// wrt the current game time.
 pub fn bodyPosition(self: *Phys2, body: Body) hym.Vec2 {
     const old_pos = self.prev_positions.get(body);
-    const new_pos = body.GetPosition();
+    const new_pos = body.getPosition();
     if (old_pos) |old| {
         return old.lerp(@bitCast(new_pos), self.interp_alpha);
     }
-    return @bitCast(body.GetPosition());
+    return @bitCast(body.getPosition());
 }
 
-pub fn emitContacts(self: *Phys2) void {
-    const contact_events = self.world.GetContactEvents();
+pub fn overlap(self: *Phys2, shape: ShapeConfig, origin: hym.Vec2, callback: hy.Phys2.OverlapCallback, ctx: ?*anyopaque) void {
+    switch (shape.revert()) {
+        .circle => |c| {
+            const circle: b2.Shape.Circle = .{
+                .radius = @bitCast(c.radius),
+                .center = @bitCast(c.center),
+            };
+            const transform: b2.Transform = .{
+                .p = @bitCast(origin),
+                .q = .identity,
+            };
+            const filter: b2.QueryFilter = .{};
+            _ = self.world.overlapCircle(&circle, transform, filter, @ptrCast(callback), ctx);
+        },
+        .box => unreachable,
+    }
+}
+
+fn emitContacts(self: *Phys2) void {
+    const contact_events = self.world.getContactEvents();
     const hit_events = contact_events.hit_events[0..@intCast(contact_events.hit_count)];
 
     for (hit_events) |hit| {
@@ -228,12 +253,53 @@ pub fn emitContacts(self: *Phys2) void {
         }
 
         if (self.hit_callbacks.get(body_b)) |cbs| {
+            const hit_event: HitEvent = .{
+                .other = body_a,
+                .normal = @bitCast(hit.normal),
+                .point = @bitCast(hit.point),
+            };
             for (cbs.keys()) |cb| {
-                var hit_event: HitEvent = .{
-                    .other = body_a,
-                    .normal = @bitCast(hit.normal),
-                    .point = @bitCast(hit.point),
-                };
+                @call(.auto, cb.runFn, .{ cb, &hit_event });
+            }
+        }
+    }
+}
+
+fn emitOverlaps(self: *Phys2) void {
+    const sensor_events = self.world.getSensorEvents();
+
+    for (sensor_events.begin_events[0..@intCast(sensor_events.begin_count)]) |ev| {
+        const sensor_body = ev.sensor_shape.GetBody();
+        const dynamic_body = ev.visitor_shape.GetBody();
+
+        if (self.hit_callbacks.get(sensor_body)) |cbs| {
+            const db_pos: hym.Vec2 = @bitCast(dynamic_body.getPosition());
+            const s_pos: hym.Vec2 = @bitCast(sensor_body.getPosition());
+            const normal = s_pos.sub(db_pos).normal();
+
+            const hit_event: HitEvent = .{
+                .other = dynamic_body,
+                .normal = normal,
+                .point = db_pos,
+            };
+
+            for (cbs.keys()) |cb| {
+                @call(.auto, cb.runFn, .{ cb, &hit_event });
+            }
+        }
+
+        if (self.hit_callbacks.get(dynamic_body)) |cbs| {
+            const db_pos: hym.Vec2 = @bitCast(dynamic_body.getPosition());
+            const s_pos: hym.Vec2 = @bitCast(sensor_body.getPosition());
+            const normal = db_pos.sub(s_pos).normal();
+
+            const hit_event: HitEvent = .{
+                .other = sensor_body,
+                .normal = normal,
+                .point = s_pos,
+            };
+
+            for (cbs.keys()) |cb| {
                 @call(.auto, cb.runFn, .{ cb, &hit_event });
             }
         }

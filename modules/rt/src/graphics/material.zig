@@ -149,12 +149,9 @@ pub const Material = struct {
     }
 
     pub fn deinit(self: *Material, textures: *tx.Textures) void {
-        var it = self.textures.iterator();
-        while (it.next()) |entry| {
-            if (entry.value.handle) |hdl| {
-                textures.destroy(hdl);
-            }
-        }
+        // Don't textures here as they might be used elsewhere.
+        _ = self;
+        _ = textures;
     }
 };
 

@@ -39,6 +39,7 @@ pub const Phys2 = struct {
         pub const AddShapeOptions = extern struct {
             type: ShapeOptions,
             density: f32 = 1,
+            sensor: bool = false,
         };
 
         pub const AddOptions = extern struct {
@@ -54,12 +55,16 @@ pub const Phys2 = struct {
         pub const userData = hyp2BodyUserData;
         pub const setVelocity = hyp2BodySetVelocity;
         pub const destroy = hyp2BodyDestroy;
+        pub const position = hyp2BodyRealPosition;
 
         extern fn hyp2BodyGetVelocity(Body) hym.Vec2;
         extern fn hyp2BodySetVelocity(Body, hym.Vec2) void;
         extern fn hyp2BodyUserData(Body) ?*anyopaque;
         extern fn hyp2BodyDestroy(Body) void;
+        extern fn hyp2BodyRealPosition(Body) hym.Vec2;
     };
+
+    pub const Shape = packed struct(u64) { _padding: u64 };
 
     pub const HitEvent = struct {
         other: Body,
@@ -67,12 +72,15 @@ pub const Phys2 = struct {
         point: hym.Vec2,
     };
 
+    pub const OverlapCallback = *const fn (Shape, ?*anyopaque) callconv(.C) bool;
+
     pub const bodyAdd = hyp2BodyAdd;
     pub const bodyPosition = hyp2BodyGetPosition;
     pub const eventsReset = hyp2EventsReset;
     pub const hitEventRegister = hyp2HitEventRegister;
     pub const hitEventDeregister = hyp2HitEventDeregister;
     pub const hitEventDeregisterAll = hyp2HitEventDeregisterAll;
+    pub const overlap = hyp2Overlap;
 
     extern fn hyp2BodyAdd(*Phys2, Body.AddOptions) Body;
     extern fn hyp2BodyGetPosition(*Phys2, Body) hym.Vec2;
@@ -80,4 +88,5 @@ pub const Phys2 = struct {
     extern fn hyp2HitEventRegister(*Phys2, Body, *closure.Runnable(HitEvent)) void;
     extern fn hyp2HitEventDeregister(*Phys2, Body, *closure.Runnable(HitEvent)) void;
     extern fn hyp2HitEventDeregisterAll(*Phys2, Body) void;
+    extern fn hyp2Overlap(*Phys2, ShapeOptions, hym.Vec2, OverlapCallback, ?*anyopaque) void;
 };

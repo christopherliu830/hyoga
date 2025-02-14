@@ -259,19 +259,23 @@ export fn hyp2BodyDestroy(body: Phys2.Body) void {
 }
 
 export fn hyp2BodyUserData(body: Phys2.Body) ?*anyopaque {
-    return body.GetUserData();
+    return body.getUserData();
 }
 
 export fn hyp2BodyGetPosition(p2d: *Phys2, body: Phys2.Body) hy.math.Vec2 {
     return p2d.bodyPosition(body);
 }
 
+export fn hyp2BodyRealPosition(body: Phys2.Body) hy.math.Vec2 {
+    return @bitCast(body.getPosition());
+}
+
 export fn hyp2BodyGetVelocity(body: Phys2.Body) hy.math.Vec2 {
-    return @bitCast(body.GetLinearVelocity());
+    return @bitCast(body.getLinearVelocity());
 }
 
 export fn hyp2BodySetVelocity(body: Phys2.Body, velocity: hy.math.Vec2) void {
-    body.SetLinearVelocity(@bitCast(velocity));
+    body.setLinearVelocity(@bitCast(velocity));
 }
 
 export fn hyp2EventsReset(p2d: *Phys2) void {
@@ -301,6 +305,9 @@ export fn hyp2HitEventDeregisterAll(
     p2d.hitEventDeregisterAll(body);
 }
 
+export fn hyp2Overlap(p2d: *Phys2, shape: Phys2.ShapeConfig, origin: hy.math.Vec2, callback: hy.Phys2.OverlapCallback, ctx: ?*anyopaque) void {
+    p2d.overlap(shape, origin, callback, ctx);
+}
 export fn hysidAsString(strint: *Strint, str: Strint.ID, len: *usize) [*]const u8 {
     const slice = strint.asString(str);
     len.* = slice.len;

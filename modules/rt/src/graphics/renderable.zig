@@ -171,8 +171,6 @@ pub const RenderList = struct {
             break :blk count;
         };
 
-        const material_ids = try allocator.alloc(mt.Handle, num_distinct);
-        errdefer allocator.free(material_ids);
         const meshes = try allocator.alloc(mdl.Mesh, num_distinct);
         errdefer allocator.free(meshes);
         const instance_counts = try allocator.alloc(u32, num_distinct);

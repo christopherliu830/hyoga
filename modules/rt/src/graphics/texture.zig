@@ -93,7 +93,6 @@ pub const Textures = struct {
     }
 
     pub fn read(self: *@This(), path: [:0]const u8) !Handle {
-        const copy = try self.allocator.dupeZ(u8, path);
         const hdl = try self.strint.from(path);
 
         // Cache check
@@ -101,6 +100,7 @@ pub const Textures = struct {
             return hdl;
         }
 
+        const copy = try self.allocator.dupeZ(u8, path);
         try self.loader.run(&self.queue, readTexture, .{ self, copy });
         try self.textures.put(self.allocator, hdl, null);
         return hdl;

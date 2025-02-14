@@ -137,13 +137,24 @@ pub const Manifold = extern struct {
 
 pub const MassData = opaque {};
 
-pub const OverlapResultFcn = opaque {};
+pub const OverlapResultFcn = *const fn (shape: Shape, ctx: ?*anyopaque) callconv(.C) bool;
 
 pub const PreSolveFcn = opaque {};
 
 pub const Profile = opaque {};
 
-pub const QueryFilter = opaque {};
+/// The query filter is used to filter collisions between queries and shapes. For example,
+/// you may want a ray-cast representing a projectile to hit players and the static environment
+/// but not debris.
+/// @ingroup shape
+pub const QueryFilter = extern struct {
+    /// The collision category bits of this query. Normally you would just set one bit.
+    category: u64 = 1,
+
+    /// The collision mask bits. This states the shape categories that this
+    /// query would accept for collision.
+    mask: u64 = std.math.maxInt(u64),
+};
 
 pub const RayCastInput = opaque {};
 
@@ -158,11 +169,47 @@ pub const Rot = extern struct {
     pub const identity: Rot = .{ .c = 1, .s = 0 };
 };
 
-pub const SensorEvents = opaque {};
+/// Sensor events are buffered in the Box2D world and are available
+/// as begin/end overlap event arrays after the time step is complete.
+/// Note: these may become invalid if bodies and/or shapes are destroyed
+pub const SensorEvents = extern struct {
+    /// A begin touch event is generated when a shape starts to overlap a sensor shape.
+    const BeginTouch = extern struct {
+        /// The id of the sensor shape
+        sensor_shape: Shape,
 
-pub const Transform = opaque {};
+        /// The id of the dynamic shape that began touching the sensor shape
+        visitor_shape: Shape,
+    };
 
-pub const TreeStats = opaque {};
+    const EndTouch = extern struct {};
+
+    /// Array of sensor begin touch events
+    begin_events: [*]BeginTouch,
+
+    /// Array of sensor end touch events
+    end_events: [*]EndTouch,
+
+    /// The number of begin touch events
+    begin_count: c_int,
+
+    /// The number of end touch events
+    end_count: c_int,
+};
+
+pub const Transform = extern struct {
+    p: Vec2,
+    q: Rot,
+};
+
+/// These are performance results returned by dynamic tree queries.
+pub const TreeStats = extern struct {
+    /// Number of internal nodes visited during the query
+    node_visits: c_int,
+
+    /// Number of leaf nodes visited during the query
+    leaf_visits: c_int,
+};
 
 pub const TaskCallback = ?*const fn (start_index: c_int, end_index: c_int, worker_index: u32, task_context: ?*anyopaque) void;
 
@@ -255,49 +302,49 @@ pub const World = enum(u32) {
     pub const Destroy = b2DestroyWorld;
     pub const IsValid = b2World_IsValid;
     pub const step = b2World_Step;
-    pub const Draw = b2World_Draw;
-    pub const GetBodyEvents = b2World_GetBodyEvents;
-    pub const GetSensorEvents = b2World_GetSensorEvents;
-    pub const GetContactEvents = b2World_GetContactEvents;
-    pub const OverlapAABB = b2World_OverlapAABB;
-    pub const OverlapPoint = b2World_OverlapPoint;
-    pub const OverlapCircle = b2World_OverlapCircle;
-    pub const OverlapCapsule = b2World_OverlapCapsule;
-    pub const OverlapPolygon = b2World_OverlapPolygon;
-    pub const CastRay = b2World_CastRay;
-    pub const CastRayClosest = b2World_CastRayClosest;
-    pub const CastCircle = b2World_CastCircle;
-    pub const CastCapsule = b2World_CastCapsule;
-    pub const CastPolygon = b2World_CastPolygon;
-    pub const EnableSleeping = b2World_EnableSleeping;
-    pub const IsSleepingEnabled = b2World_IsSleepingEnabled;
-    pub const EnableContinuous = b2World_EnableContinuous;
-    pub const IsContinuousEnabled = b2World_IsContinuousEnabled;
-    pub const SetRestitutionThreshold = b2World_SetRestitutionThreshold;
-    pub const GetRestitutionThreshold = b2World_GetRestitutionThreshold;
-    pub const SetHitEventThreshold = b2World_SetHitEventThreshold;
-    pub const GetHitEventThreshold = b2World_GetHitEventThreshold;
-    pub const SetCustomFilterCallback = b2World_SetCustomFilterCallback;
-    pub const SetPreSolveCallback = b2World_SetPreSolveCallback;
-    pub const SetGravity = b2World_SetGravity;
-    pub const GetGravity = b2World_GetGravity;
-    pub const Explode = b2World_Explode;
-    pub const SetContactTuning = b2World_SetContactTuning;
-    pub const SetJointTuning = b2World_SetJointTuning;
-    pub const SetMaximumLinearSpeed = b2World_SetMaximumLinearSpeed;
-    pub const GetMaximumLinearSpeed = b2World_GetMaximumLinearSpeed;
-    pub const EnableWarmStarting = b2World_EnableWarmStarting;
-    pub const IsWarmStartingEnabled = b2World_IsWarmStartingEnabled;
-    pub const GetAwakeBodyCount = b2World_GetAwakeBodyCount;
-    pub const GetProfile = b2World_GetProfile;
-    pub const GetCounters = b2World_GetCounters;
-    pub const SetUserData = b2World_SetUserData;
-    pub const GetUserData = b2World_GetUserData;
-    pub const SetFrictionCallback = b2World_SetFrictionCallback;
-    pub const SetRestitutionCallback = b2World_SetRestitutionCallback;
-    pub const DumpMemoryStats = b2World_DumpMemoryStats;
-    pub const RebuildStaticTree = b2World_RebuildStaticTree;
-    pub const EnableSpeculative = b2World_EnableSpeculative;
+    pub const draw = b2World_Draw;
+    pub const getBodyEvents = b2World_GetBodyEvents;
+    pub const getSensorEvents = b2World_GetSensorEvents;
+    pub const getContactEvents = b2World_GetContactEvents;
+    pub const overlapAABB = b2World_OverlapAABB;
+    pub const overlapPoint = b2World_OverlapPoint;
+    pub const overlapCircle = b2World_OverlapCircle;
+    pub const overlapCapsule = b2World_OverlapCapsule;
+    pub const overlapPolygon = b2World_OverlapPolygon;
+    pub const castRay = b2World_CastRay;
+    pub const castRayClosest = b2World_CastRayClosest;
+    pub const castCircle = b2World_CastCircle;
+    pub const castCapsule = b2World_CastCapsule;
+    pub const castPolygon = b2World_CastPolygon;
+    pub const enableSleeping = b2World_EnableSleeping;
+    pub const isSleepingEnabled = b2World_IsSleepingEnabled;
+    pub const enableContinuous = b2World_EnableContinuous;
+    pub const isContinuousEnabled = b2World_IsContinuousEnabled;
+    pub const setRestitutionThreshold = b2World_SetRestitutionThreshold;
+    pub const getRestitutionThreshold = b2World_GetRestitutionThreshold;
+    pub const setHitEventThreshold = b2World_SetHitEventThreshold;
+    pub const getHitEventThreshold = b2World_GetHitEventThreshold;
+    pub const setCustomFilterCallback = b2World_SetCustomFilterCallback;
+    pub const setPreSolveCallback = b2World_SetPreSolveCallback;
+    pub const setGravity = b2World_SetGravity;
+    pub const getGravity = b2World_GetGravity;
+    pub const explode = b2World_Explode;
+    pub const setContactTuning = b2World_SetContactTuning;
+    pub const setJointTuning = b2World_SetJointTuning;
+    pub const setMaximumLinearSpeed = b2World_SetMaximumLinearSpeed;
+    pub const getMaximumLinearSpeed = b2World_GetMaximumLinearSpeed;
+    pub const enableWarmStarting = b2World_EnableWarmStarting;
+    pub const isWarmStartingEnabled = b2World_IsWarmStartingEnabled;
+    pub const getAwakeBodyCount = b2World_GetAwakeBodyCount;
+    pub const getProfile = b2World_GetProfile;
+    pub const getCounters = b2World_GetCounters;
+    pub const setUserData = b2World_SetUserData;
+    pub const getUserData = b2World_GetUserData;
+    pub const setFrictionCallback = b2World_SetFrictionCallback;
+    pub const setRestitutionCallback = b2World_SetRestitutionCallback;
+    pub const dumpMemoryStats = b2World_DumpMemoryStats;
+    pub const rebuildStaticTree = b2World_RebuildStaticTree;
+    pub const enableSpeculative = b2World_EnableSpeculative;
 };
 
 pub const Body = enum(u64) {
@@ -376,68 +423,68 @@ pub const Body = enum(u64) {
     pub const create = b2CreateBody;
     pub const destroy = b2DestroyBody;
     pub const isValid = b2Body_IsValid;
-    pub const GetType = b2Body_GetType;
-    pub const SetType = b2Body_SetType;
-    pub const SetName = b2Body_SetName;
-    pub const GetName = b2Body_GetName;
-    pub const SetUserData = b2Body_SetUserData;
-    pub const GetUserData = b2Body_GetUserData;
-    pub const GetPosition = b2Body_GetPosition;
-    pub const GetRotation = b2Body_GetRotation;
-    pub const GetTransform = b2Body_GetTransform;
-    pub const SetTransform = b2Body_SetTransform;
-    pub const GetLocalPoint = b2Body_GetLocalPoint;
-    pub const GetWorldPoint = b2Body_GetWorldPoint;
-    pub const GetLocalVector = b2Body_GetLocalVector;
-    pub const GetWorldVector = b2Body_GetWorldVector;
-    pub const GetLinearVelocity = b2Body_GetLinearVelocity;
-    pub const GetAngularVelocity = b2Body_GetAngularVelocity;
-    pub const SetLinearVelocity = b2Body_SetLinearVelocity;
-    pub const SetAngularVelocity = b2Body_SetAngularVelocity;
-    pub const GetLocalPointVelocity = b2Body_GetLocalPointVelocity;
-    pub const GetWorldPointVelocity = b2Body_GetWorldPointVelocity;
-    pub const ApplyForce = b2Body_ApplyForce;
-    pub const ApplyForceToCenter = b2Body_ApplyForceToCenter;
-    pub const ApplyTorque = b2Body_ApplyTorque;
-    pub const ApplyLinearImpulse = b2Body_ApplyLinearImpulse;
-    pub const ApplyLinearImpulseToCenter = b2Body_ApplyLinearImpulseToCenter;
-    pub const ApplyAngularImpulse = b2Body_ApplyAngularImpulse;
-    pub const GetMass = b2Body_GetMass;
-    pub const GetRotationalInertia = b2Body_GetRotationalInertia;
-    pub const GetLocalCenterOfMass = b2Body_GetLocalCenterOfMass;
-    pub const GetWorldCenterOfMass = b2Body_GetWorldCenterOfMass;
-    pub const SetMassData = b2Body_SetMassData;
-    pub const GetMassData = b2Body_GetMassData;
-    pub const ApplyMassFromShapes = b2Body_ApplyMassFromShapes;
-    pub const SetLinearDamping = b2Body_SetLinearDamping;
-    pub const GetLinearDamping = b2Body_GetLinearDamping;
-    pub const SetAngularDamping = b2Body_SetAngularDamping;
-    pub const GetAngularDamping = b2Body_GetAngularDamping;
-    pub const SetGravityScale = b2Body_SetGravityScale;
-    pub const GetGravityScale = b2Body_GetGravityScale;
-    pub const IsAwake = b2Body_IsAwake;
-    pub const SetAwake = b2Body_SetAwake;
-    pub const EnableSleep = b2Body_EnableSleep;
-    pub const IsSleepEnabled = b2Body_IsSleepEnabled;
-    pub const SetSleepThreshold = b2Body_SetSleepThreshold;
-    pub const GetSleepThreshold = b2Body_GetSleepThreshold;
-    pub const IsEnabled = b2Body_IsEnabled;
-    pub const Disable = b2Body_Disable;
-    pub const Enable = b2Body_Enable;
-    pub const SetFixedRotation = b2Body_SetFixedRotation;
-    pub const IsFixedRotation = b2Body_IsFixedRotation;
-    pub const SetBullet = b2Body_SetBullet;
-    pub const IsBullet = b2Body_IsBullet;
-    pub const EnableContactEvents = b2Body_EnableContactEvents;
-    pub const EnableHitEvents = b2Body_EnableHitEvents;
-    pub const GetWorld = b2Body_GetWorld;
-    pub const GetShapeCount = b2Body_GetShapeCount;
-    pub const GetShapes = b2Body_GetShapes;
-    pub const GetJointCount = b2Body_GetJointCount;
-    pub const GetJoints = b2Body_GetJoints;
-    pub const GetContactCapacity = b2Body_GetContactCapacity;
-    pub const GetContactData = b2Body_GetContactData;
-    pub const ComputeAABB = b2Body_ComputeAABB;
+    pub const getType = b2Body_GetType;
+    pub const setType = b2Body_SetType;
+    pub const setName = b2Body_SetName;
+    pub const getName = b2Body_GetName;
+    pub const setUserData = b2Body_SetUserData;
+    pub const getUserData = b2Body_GetUserData;
+    pub const getPosition = b2Body_GetPosition;
+    pub const getRotation = b2Body_GetRotation;
+    pub const getTransform = b2Body_GetTransform;
+    pub const setTransform = b2Body_SetTransform;
+    pub const getLocalPoint = b2Body_GetLocalPoint;
+    pub const getWorldPoint = b2Body_GetWorldPoint;
+    pub const getLocalVector = b2Body_GetLocalVector;
+    pub const getWorldVector = b2Body_GetWorldVector;
+    pub const getLinearVelocity = b2Body_GetLinearVelocity;
+    pub const getAngularVelocity = b2Body_GetAngularVelocity;
+    pub const setLinearVelocity = b2Body_SetLinearVelocity;
+    pub const setAngularVelocity = b2Body_SetAngularVelocity;
+    pub const getLocalPointVelocity = b2Body_GetLocalPointVelocity;
+    pub const getWorldPointVelocity = b2Body_GetWorldPointVelocity;
+    pub const applyForce = b2Body_ApplyForce;
+    pub const applyForceToCenter = b2Body_ApplyForceToCenter;
+    pub const applyTorque = b2Body_ApplyTorque;
+    pub const applyLinearImpulse = b2Body_ApplyLinearImpulse;
+    pub const applyLinearImpulseToCenter = b2Body_ApplyLinearImpulseToCenter;
+    pub const applyAngularImpulse = b2Body_ApplyAngularImpulse;
+    pub const getMass = b2Body_GetMass;
+    pub const getRotationalInertia = b2Body_GetRotationalInertia;
+    pub const getLocalCenterOfMass = b2Body_GetLocalCenterOfMass;
+    pub const getWorldCenterOfMass = b2Body_GetWorldCenterOfMass;
+    pub const setMassData = b2Body_SetMassData;
+    pub const getMassData = b2Body_GetMassData;
+    pub const applyMassFromShapes = b2Body_ApplyMassFromShapes;
+    pub const setLinearDamping = b2Body_SetLinearDamping;
+    pub const getLinearDamping = b2Body_GetLinearDamping;
+    pub const setAngularDamping = b2Body_SetAngularDamping;
+    pub const getAngularDamping = b2Body_GetAngularDamping;
+    pub const setGravityScale = b2Body_SetGravityScale;
+    pub const getGravityScale = b2Body_GetGravityScale;
+    pub const isAwake = b2Body_IsAwake;
+    pub const setAwake = b2Body_SetAwake;
+    pub const enableSleep = b2Body_EnableSleep;
+    pub const isSleepEnabled = b2Body_IsSleepEnabled;
+    pub const setSleepThreshold = b2Body_SetSleepThreshold;
+    pub const getSleepThreshold = b2Body_GetSleepThreshold;
+    pub const isEnabled = b2Body_IsEnabled;
+    pub const disable = b2Body_Disable;
+    pub const enable = b2Body_Enable;
+    pub const setFixedRotation = b2Body_SetFixedRotation;
+    pub const isFixedRotation = b2Body_IsFixedRotation;
+    pub const setBullet = b2Body_SetBullet;
+    pub const isBullet = b2Body_IsBullet;
+    pub const enableContactEvents = b2Body_EnableContactEvents;
+    pub const enableHitEvents = b2Body_EnableHitEvents;
+    pub const getWorld = b2Body_GetWorld;
+    pub const getShapeCount = b2Body_GetShapeCount;
+    pub const getShapes = b2Body_GetShapes;
+    pub const getJointCount = b2Body_GetJointCount;
+    pub const getJoints = b2Body_GetJoints;
+    pub const getContactCapacity = b2Body_GetContactCapacity;
+    pub const getContactData = b2Body_GetContactData;
+    pub const computeAABB = b2Body_ComputeAABB;
 };
 
 pub const Shape = packed struct(u64) {

@@ -57,25 +57,25 @@ pub fn mul(a: anytype, b: anytype) MulResult(@TypeOf(a), @TypeOf(b)) {
     if (ta == Mat4 and tb == Vec4) return mat4.mulv(a, b);
 }
 
-/// 
+///
 pub fn assertMetaEql(A: type, B: type) void {
     if (A == B) return;
 
-    const vec_len = switch(A) {
+    const vec_len = switch (A) {
         Vec2 => 2,
         Vec3 => 3,
         Vec4 => 4,
         else => @compileError(std.fmt.comptimePrint("{s} is not a hym vector type", .{@typeName(A)})),
     };
 
-    const err_msg = std.fmt.comptimePrint("Vector type {s} not equal to {s}", .{@typeName(B), @typeName(A)});
+    const err_msg = std.fmt.comptimePrint("Vector type {s} not equal to {s}", .{ @typeName(B), @typeName(A) });
 
     if (@sizeOf(B) != @sizeOf(A)) {
         @compileError(err_msg);
     }
 
     const type_info = @typeInfo(B);
-    switch(type_info) {
+    switch (type_info) {
         .@"struct" => |s| {
             if (vec_len != s.fields.len) {
                 @compileError(err_msg);
@@ -93,4 +93,8 @@ pub fn assertMetaEql(A: type, B: type) void {
         },
         else => @compileError(std.fmt.comptimePrint("Type {s} is not a vector type", .{@typeName(B)})),
     }
+}
+
+pub fn lerp(a: anytype, b: @TypeOf(a), t: f32) @TypeOf(a) {
+    return ((b - a) * t) + a;
 }
