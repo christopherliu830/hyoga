@@ -51,7 +51,34 @@ pub const TabItemFlags = c_int;
 pub const TableFlags = c_int;
 pub const TableColumnFlags = c_int;
 pub const TableRowFlags = c_int;
-pub const TreeNodeFlags = c_int;
+
+pub const TreeNodeFlags = packed struct(u32) {
+    none: bool = false,
+    selected: bool = false,
+    framed: bool = false,
+    allow_overlap: bool = false,
+    no_tree_push_on_open: bool = false,
+    no_auto_open_on_log: bool = false,
+    default_open: bool = false,
+    open_on_double_click: bool = false,
+    open_on_arrow: bool = false,
+    leaf: bool = false,
+    bullet: bool = false,
+    frame_padding: bool = false,
+    span_avail_width: bool = false,
+    span_full_width: bool = false,
+    span_text_width: bool = false,
+    span_all_columns: bool = false,
+    nav_left_jumps_back_here: bool = false,
+    allow_item_overlap: bool = false,
+    _padding: u14 = 0,
+
+    pub const collapsing_header: TreeNodeFlags = .{
+        .framed = true,
+        .no_tree_push_on_open = true,
+        .no_auto_open_on_log = true,
+    };
+};
 pub const ViewportFlags = c_int;
 
 pub const WindowFlags = packed struct(u32) {
