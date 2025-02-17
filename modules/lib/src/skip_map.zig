@@ -33,8 +33,8 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             element: *Slot,
             skip: *Skip,
 
-            pub inline fn unwrap(self: Cursor) ?*T {
-                if (self.skip.value != 0) return null;
+            pub inline fn unwrap(self: Cursor) *T {
+                if (self.skip.value != 0) std.debug.panic("unwrap of empty value", .{});
                 return &self.element.data;
             }
         };

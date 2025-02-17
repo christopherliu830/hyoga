@@ -72,7 +72,7 @@ pub const Phys2 = struct {
         point: hym.Vec2,
     };
 
-    pub const OverlapCallback = *const fn (Shape, ?*anyopaque) callconv(.C) bool;
+    pub const OverlapCallback = *const fn (Body, ?*anyopaque) callconv(.C) bool;
 
     pub const bodyAdd = hyp2BodyAdd;
     pub const bodyPosition = hyp2BodyGetPosition;

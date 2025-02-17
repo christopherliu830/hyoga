@@ -215,6 +215,19 @@ pub fn bodyPosition(self: *Phys2, body: Body) hym.Vec2 {
 }
 
 pub fn overlap(self: *Phys2, shape: ShapeConfig, origin: hym.Vec2, callback: hy.Phys2.OverlapCallback, ctx: ?*anyopaque) void {
+    const Handler = struct {
+        cb: hy.Phys2.OverlapCallback,
+        ctx: ?*anyopaque,
+
+        fn handle(hit_shape: b2.Shape, inner_ctx: ?*anyopaque) callconv(.C) bool {
+            const handler: *@This() = @ptrCast(@alignCast(inner_ctx));
+            const body = hit_shape.GetBody();
+            return handler.cb(@enumFromInt(@intFromEnum(body)), handler.ctx);
+        }
+    };
+
+    var handler: Handler = .{ .cb = callback, .ctx = ctx };
+
     switch (shape.revert()) {
         .circle => |c| {
             const circle: b2.Shape.Circle = .{
@@ -226,7 +239,7 @@ pub fn overlap(self: *Phys2, shape: ShapeConfig, origin: hym.Vec2, callback: hy.
                 .q = .identity,
             };
             const filter: b2.QueryFilter = .{};
-            _ = self.world.overlapCircle(&circle, transform, filter, @ptrCast(callback), ctx);
+            _ = self.world.overlapCircle(&circle, transform, filter, Handler.handle, &handler);
         },
         .box => unreachable,
     }
