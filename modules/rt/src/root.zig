@@ -270,6 +270,14 @@ export fn hyp2BodyRealPosition(body: Phys2.Body) hy.math.Vec2 {
     return @bitCast(body.getPosition());
 }
 
+export fn hyp2BodyGetType(body: Phys2.Body) Phys2.Body.Type {
+    return @enumFromInt(@intFromEnum(body.getType()));
+}
+
+export fn hyp2BodySetType(body: Phys2.Body, body_type: Phys2.Body.Type) void {
+    body.setType(@enumFromInt(@intFromEnum(body_type)));
+}
+
 export fn hyp2BodyGetVelocity(body: Phys2.Body) hy.math.Vec2 {
     return @bitCast(body.getLinearVelocity());
 }
