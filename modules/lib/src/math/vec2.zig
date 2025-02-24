@@ -59,8 +59,8 @@ pub const Vec2 = extern struct {
     pub const div = root.div;
     pub const lerp = root.lerp;
 
-    pub inline fn rotate(a: *Vec2, axis: Vec2, amt: f32) void {
-        a.v = root.rotate(a, axis, amt).v;
+    pub inline fn rotate(a: Vec2, amt: f32) Vec2 {
+        return root.rotate(a, amt);
     }
 
     pub inline fn clamp(a: *Vec2, min: f32, max: f32) void {
@@ -154,7 +154,7 @@ pub inline fn sub(a: Vec2, b: anytype) Vec2 {
             const bv: @TypeOf(a.v) = @splat(b);
             break :blk .{ .v = a.v - bv };
         },
-        else => @compileError("add not implemented for " ++ @typeName(T)),
+        else => @compileError("sub not implemented for " ++ @typeName(T)),
     };
 }
 
@@ -204,6 +204,8 @@ pub inline fn rotate(v: Vec2, amt: f32) Vec2 {
 
     ret.v[0] = c * v.v[0] - s * v.v[1];
     ret.v[1] = s * v.v[0] + c * v.v[1];
+
+    return ret;
 }
 
 /// project a onto b.

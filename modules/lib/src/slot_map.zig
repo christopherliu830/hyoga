@@ -107,6 +107,12 @@ pub fn SlotMap(comptime T: type) type {
             pub inline fn eql(self: *const SlotMap(T).Handle, other: SlotMap(T).Handle) bool {
                 return self.index == other.index and self.generation == other.generation;
             }
+
+            pub inline fn toStr(self: SlotMap(T).Handle) [:0]const u8 {
+                var buf: [32:0]u8 = undefined;
+                const slice = std.fmt.bufPrintZ(&buf, "[{}/{}]", .{ self.generation, self.index }) catch unreachable;
+                return slice;
+            }
         };
 
         pub fn deinit(self: *SlotMap(T), allocator: std.mem.Allocator) void {
