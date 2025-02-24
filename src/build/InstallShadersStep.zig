@@ -37,7 +37,7 @@ pub fn init(b: *Build, wf: *Step.WriteFile, options: Options) !void {
                 if (std.mem.startsWith(u8, entry.basename, "_")) {
                     var item = it.stack.pop();
                     if (it.stack.items.len != 0) {
-                        item.iter.dir.close();
+                        item.?.iter.dir.close();
                     }
                     continue;
                 }
