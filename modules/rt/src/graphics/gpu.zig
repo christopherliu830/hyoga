@@ -125,7 +125,6 @@ pub const GpuSprite = extern struct {
 pub const Sprite = extern struct {
     model: Model,
     material: MaterialHandle,
-    is_dupe: bool = false,
 };
 
 const DefaultAssets = struct {
@@ -1052,6 +1051,20 @@ pub fn spriteCurrentIndex(self: *Gpu, sprite: *GpuSprite) u32 {
     const counter: u32 = @intFromFloat(@max(0, time * sprite.speed + sprite.time_offset));
     const index = (counter % sprite.len) + sprite.offset;
     return index;
+}
+
+pub fn spriteDupe(self: *Gpu, hdl: SpriteHandle) SpriteHandle {
+    const sprite = self.sprites.getPtr(hdl).?;
+    const mat_hdl = sprite.material;
+    const mat = self.materials.get(mat_hdl).?;
+
+    const duped_mat = self.materials.insert(.billboard, mat.textures);
+    const sprite_data: *align(1) GpuSprite = @ptrCast(&self.materials.param_buf.items[mat.params_start]);
+    self.materials.setParams(duped_mat, sprite_data);
+
+    const quad = self.models.dupe(self.default_assets.quad, .{ .material = duped_mat }) catch hy.err.oom();
+    const sprite_hdl = self.sprites.insert(self.gpa, .{ .model = quad, .material = duped_mat }) catch hy.err.oom();
+    return sprite_hdl;
 }
 
 pub fn renderableOfSprite(self: *Gpu, hdl: SpriteHandle) !RenderItemHandle {

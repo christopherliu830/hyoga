@@ -186,6 +186,10 @@ export fn hygpuSpriteCurrentIndex(gpu: *Gpu, hdl: *Gpu.GpuSprite) u32 {
     return gpu.spriteCurrentIndex(hdl);
 }
 
+export fn hygpuSpriteDupe(gpu: *Gpu, hdl: Gpu.SpriteHandle) Gpu.SpriteHandle {
+    return gpu.spriteDupe(hdl);
+}
+
 export fn hygpuRenderableOfSprite(gpu: *Gpu, hdl: Gpu.SpriteHandle) Gpu.RenderItemHandle {
     return gpu.renderableOfSprite(hdl) catch |e| {
         std.log.err("sprite dupe failure: {}", .{e});
