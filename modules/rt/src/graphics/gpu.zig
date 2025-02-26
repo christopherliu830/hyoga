@@ -730,26 +730,21 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
         },
     }};
 
-    const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = &.{switch (params.pass) {
-        .default => .{
+    const vertex_buffer_desc: []const sdl.gpu.VertexBufferDescription = switch (params.pass) {
+        .default => &.{.{
             .slot = 0,
             .input_rate = .vertex,
             .instance_step_rate = 0,
             .pitch = @sizeOf(Vertex),
-        },
-        .post_process => .{
-            .slot = 0,
-            .input_rate = .vertex,
-            .instance_step_rate = 0,
-            .pitch = @sizeOf(f32) * 4, // vec2 pos, vec2 uv
-        },
-        .ui => .{
+        }},
+        .post_process => &.{},
+        .ui => &.{.{
             .slot = 0,
             .input_rate = .vertex,
             .instance_step_rate = 0,
             .pitch = @sizeOf(f32) * 8, // from IMGUI: vec2 pos, vec2 uv, vec4 col
-        },
-    }};
+        }},
+    };
 
     const vertex_attributes: []const sdl.gpu.VertexAttribute = switch (params.pass) {
         .default => &.{ .{
@@ -768,20 +763,7 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
             .location = 2,
             .offset = @offsetOf(Vertex, "uv"),
         } },
-        .post_process => &.{
-            .{
-                .buffer_slot = 0,
-                .format = .float2,
-                .location = 0,
-                .offset = 0,
-            },
-            .{
-                .buffer_slot = 0,
-                .format = .float2,
-                .location = 1,
-                .offset = 8,
-            },
-        },
+        .post_process => &.{},
         .ui => &.{
             .{
                 .buffer_slot = 0,
