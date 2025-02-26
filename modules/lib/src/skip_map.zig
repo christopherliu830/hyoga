@@ -1,3 +1,11 @@
+//! A skipmap retains the memory addresses of members as it grows
+//! while maintaining a O(n) iteration time. A skipmap consists of
+//! a doubly-linked list of blocks that contain an array of
+//! members an associated metadata. Each new allocated block is
+//! double the size of the previous block.
+//! Insertions make use of a free list, both per-block as well
+//! as a skipmap-wide open group list.
+
 const std = @import("std");
 
 const EntryType = enum {
@@ -5,13 +13,6 @@ const EntryType = enum {
     occupied,
 };
 
-// A skipmap retains the memory addresses of members as it grows
-// while maintaining a O(n) iteration time. A skipmap consists of
-// a doubly-linked list of blocks that contain an array of
-// members an associated metadata. Each new allocated block is
-// double the size of the previous block.
-// Insertions make use of a free list, both per-block as well
-// as a second the skipmap maintains of
 pub fn SkipMap(comptime T: type) type {
     const Size = blk: {
         if (@sizeOf(T) > 10 or @alignOf(T) > 10) {
@@ -639,83 +640,15 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                 {
                     const found_element: *Slot = @ptrCast(element);
 
-                    return Cursor{ .element = found_element, .group = group, .skip = group.skipfieldStart().right(group.indexOf(found_element).unwrap().?) };
+                    return Cursor{
+                        .element = found_element,
+                        .group = group,
+                        .skip = group.skipfieldStart().right(group.indexOf(found_element).unwrap().?),
+                    };
                 }
                 node = group.previous_group;
             }
             return null;
-        }
-
-        pub fn dump(self: *Self) void {
-            if (self.groups.head) |head| {
-                var q_group: ?*Group = head.group;
-                while (q_group) |group| {
-                    std.debug.print("grp: {}\n", .{group.group_no});
-                    var last = false;
-                    std.debug.print("i:\t", .{});
-                    for (0..group.capacity) |i| {
-                        if (group.skipfieldStart().right(i) == self.groups.tail.?.skip) {
-                            std.debug.print("END\t", .{});
-                            last = true;
-                            break;
-                        }
-
-                        std.debug.print("{}\t", .{i});
-                    }
-                    std.debug.print("\ns:\t", .{});
-                    for (group.skipfield[0..group.capacity]) |*skip| {
-                        if (skip == self.groups.tail.?.skip) {
-                            last = true;
-                            std.debug.print("END\t", .{});
-                            break;
-                        }
-
-                        const v = skip.value;
-                        std.debug.print("{}\t", .{v});
-                    }
-                    std.debug.print("\ne:\t", .{});
-                    for (group.elements[0..group.capacity], 0..) |e, i| {
-                        if (group.skipfieldStart().right(i) == self.groups.tail.?.skip) {
-                            std.debug.print("END\t", .{});
-                            last = true;
-                            break;
-                        }
-
-                        if (group.skipfieldStart().right(i).value == 0) {
-                            std.debug.print("{}\t", .{e.data});
-                        } else {
-                            std.debug.print("_\t", .{});
-                        }
-                    }
-
-                    std.debug.print("\nfree:\t", .{});
-                    var q_node = group.free_list_head.unwrap();
-                    while (q_node) |node| {
-                        std.debug.print("{}->", .{node});
-                        q_node = group.elements[node].free_node.next.unwrap();
-                    }
-
-                    q_group = group.next_group;
-                    std.debug.print("\n", .{});
-                }
-
-                q_group = head.group;
-                std.debug.print("\ngr:", .{});
-                while (q_group) |group| {
-                    std.debug.print("{}->", .{group.group_no});
-                    q_group = group.next_group;
-                }
-                q_group = self.open_groups_head;
-                std.debug.print("\nva:", .{});
-                while (q_group) |group| {
-                    std.debug.print("{}->", .{group.group_no});
-                    q_group = group.next_open_group;
-                }
-                std.debug.print("\nhead at: {}\n", .{head.group.indexOf(head.element)});
-
-                std.debug.print("\n", .{});
-                std.debug.print("\n", .{});
-            }
         }
 
         fn closeGroup(self: *Self, group: *Group) void {
@@ -729,8 +662,6 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                 next.prev_open_group = group.prev_open_group;
             }
         }
-
-        // Group operations
 
         fn createGroup(self: *Self, prev_group: ?*Group, capacity: Size) !*Group {
             _ = prev_group;
@@ -800,5 +731,3 @@ test "skipmap.reuse" {
     try std.testing.expectEqual(3, it.next().?.*);
     try std.testing.expectEqual(null, it.next());
 }
-
-test "skipmap.basic" {}
