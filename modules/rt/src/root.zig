@@ -1,7 +1,3 @@
-pub const std_options = std.Options{
-    .fmt_max_depth = 4, // printing struct { [4]@Vector(4, f32) } breaks with default max depth
-};
-
 const std = @import("std");
 const sdl = @import("sdl");
 const imgui = @import("imgui");
@@ -10,6 +6,7 @@ const hy = @import("hyoga-lib");
 const math = hy.math;
 
 const Engine = @import("Engine.zig");
+const Audio = Engine.Audio;
 const Input = Engine.Input;
 const Gpu = Engine.Gpu;
 const Phys2 = Engine.Phys2;
@@ -96,6 +93,14 @@ export fn hyeWindow(engine: *Engine) *Window {
 
 export fn hyeGameAllocator(engine: *Engine) hy.runtime.ExternAllocator {
     return engine.gameAllocator();
+}
+
+export fn hyaudSoundRead(path: hy.runtime.ExternSliceConst(u8)) Audio.Sound {
+    return Engine.Audio.Sound.read(path.asSliceZ());
+}
+
+export fn hyaudSoundPlay(sound: Audio.Sound) void {
+    sound.play();
 }
 
 export fn hygpuImportModel(gpu: *Gpu, path: [*:0]const u8, settings: Gpu.Models.ImportSettings) Gpu.Model {

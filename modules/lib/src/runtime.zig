@@ -4,6 +4,7 @@
 const std = @import("std");
 
 pub const input = @import("runtime/input.zig");
+pub const aud = @import("runtime/audio.zig");
 pub const gpu = @import("runtime/gpu.zig");
 pub const p2 = @import("runtime/phys2.zig");
 pub const strint = @import("runtime/strint.zig");
@@ -51,6 +52,25 @@ pub const ExternAllocator = extern struct {
     }
 };
 
+pub fn ExternSliceConst(T: type) type {
+    return extern struct {
+        ptr: [*]const T,
+        len: usize,
+
+        pub fn make(slice: []const T) ExternSliceConst(T) {
+            return .{ .ptr = slice.ptr, .len = slice.len };
+        }
+
+        pub fn asSlice(self: ExternSliceConst(T)) []const T {
+            return self.ptr[0..self.len];
+        }
+
+        pub fn asSliceZ(self: ExternSliceConst(T)) [:0]const T {
+            std.debug.assert(self.ptr[self.len] == 0);
+            return self.ptr[0..self.len :0];
+        }
+    };
+}
 pub fn ExternSlice(T: type) type {
     return extern struct {
         ptr: [*]T,

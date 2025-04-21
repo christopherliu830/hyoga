@@ -217,7 +217,7 @@ pub const channels = 8;
 pub const default_frequency = 44100;
 pub const default_format: sdl.audio.Format = .s16;
 pub const default_channels = 2;
-pub const max_volume = 128; // Volume of a chunk
+pub const max_volume = 64; // Volume of a chunk
 //
 
 /// Open an audio device for playback.
@@ -420,7 +420,7 @@ pub const loadWavIo = Mix_LoadWAV_IO;
 /// \sa Mix_LoadWAV_IO
 /// \sa Mix_FreeChunk
 ///
-pub extern fn Mix_LoadWAV(file: [*]const u8) *Chunk;
+pub extern fn Mix_LoadWAV(file: [*]const u8) ?*Chunk;
 pub const loadWav = Mix_LoadWAV;
 
 /// Load a supported audio format into a music object.

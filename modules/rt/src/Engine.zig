@@ -52,7 +52,7 @@ pub fn init() !*Engine {
         .gpu = try Gpu.init(&self.window, &self.loader, &self.strint, self.gpa.allocator()),
         .physics = .init(self.gpa.allocator()),
         .ui = try UI.init(.{ .gpu = self.gpu, .window = &self.window, .allocator = self.gpa.allocator() }),
-        .audio = try Audio.init(),
+        .audio = try Audio.init(.{}),
         .loader = undefined, // Init after in place, I don't know why but it crashes otherwise.
         .timer = std.time.Timer.start() catch unreachable,
         .frame_timer = std.time.Timer.start() catch unreachable,
@@ -65,6 +65,7 @@ pub fn init() !*Engine {
 }
 
 pub fn shutdown(self: *Engine) void {
+    Audio.shutdown();
     self.loader.deinit();
     self.ui.shutdown();
     self.gpu.shutdown();
