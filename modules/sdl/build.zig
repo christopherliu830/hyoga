@@ -34,8 +34,16 @@ pub fn build(b: *std.Build) !void {
         .link_libc = true,
     });
 
-    const sdl_lib = sdl_dep.artifact("SDL3");
-    sdl.linkLibrary(sdl_lib);
+    sdl.linkLibrary(sdl_dep.artifact("SDL3"));
+
+    const sdl_lib = b.addLibrary(.{
+        .name = "sdl",
+        .root_module = sdl,
+    });
+
+    sdl_lib.installHeadersDirectory(sdl_dep.path("include"), ".", .{});
+
+    b.installArtifact(sdl_lib);
 
     const dll_wf = b.addNamedWriteFiles("dlls");
 

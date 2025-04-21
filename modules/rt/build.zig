@@ -57,6 +57,11 @@ pub fn build(b: *std.Build) !void {
         .dxc = dxc,
     });
 
+    const sdl_mixer = b.dependency("sdl_mixer", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const assimp = b.dependency("assimp", .{
         .target = target,
         .optimize = optimize,
@@ -78,6 +83,7 @@ pub fn build(b: *std.Build) !void {
     rt.root_module.addImport("hyoga-lib", hylib.module("hyoga-lib"));
     rt.root_module.addImport("sdl", sdl.module("sdl"));
     rt.root_module.addImport("sdl_shadercross", sdl.module("sdl_shadercross"));
+    rt.root_module.addImport("sdl_mixer", sdl_mixer.module("sdl_mixer"));
     rt.root_module.addImport("imgui", imgui.module("imgui"));
     rt.root_module.addImport("implot", imgui.module("implot"));
     rt.root_module.addImport("stb_image", stb_image.module("stb_image"));

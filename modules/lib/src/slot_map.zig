@@ -110,7 +110,7 @@ pub fn SlotMap(comptime T: type) type {
 
             pub inline fn toStr(self: SlotMap(T).Handle) [:0]const u8 {
                 var buf: [32:0]u8 = undefined;
-                const slice = std.fmt.bufPrintZ(&buf, "[{}/{}]", .{ self.generation, self.index }) catch unreachable;
+                const slice = std.fmt.bufPrintZ(&buf, "[{}/{}]", .{ self.index, self.generation }) catch unreachable;
                 return slice;
             }
         };

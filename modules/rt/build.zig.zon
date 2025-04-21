@@ -1,11 +1,11 @@
 .{
-    .name = "hyoga-rt",
+    .name = .hyoga_rt,
     .version = "0.0.0",
     .dependencies = .{
         .box2d = .{ .path = "../box2d" },
         .imgui = .{ .path = "../imgui" },
         .sdl = .{ .path = "../sdl" },
-        .sdl_shadercross = .{ .path = "../sdl_shadercross" },
+        .sdl_mixer = .{ .path = "../sdl_mixer" },
         .assimp = .{ .path = "../assimp" },
         .stb_image = .{ .path = "../stb_image" },
         .ztracy = .{ .path = "../ztracy" },

@@ -1,4 +1,5 @@
 pub const c = @import("c.zig");
+pub const audio = @import("audio.zig");
 pub const events = @import("events.zig");
 pub const gpu = @import("gpu.zig");
 pub const hints = @import("hints.zig");

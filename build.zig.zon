@@ -1,5 +1,6 @@
 .{
-    .name = "hyoga",
+    .name = .hyoga,
+    .fingerprint = 0x2ad50434bc71b3e7,
     .version = "0.0.0",
     .dependencies = .{
         .hyoga_lib = .{

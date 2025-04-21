@@ -5,6 +5,7 @@ pub const Gpu = @import("graphics/gpu.zig");
 pub const Loader = @import("graphics/loader.zig");
 pub const Window = @import("window.zig");
 pub const Strint = @import("strintern.zig");
+pub const Audio = @import("audio/audio.zig");
 pub const Phys2 = @import("phys2d/phys2d.zig");
 
 const std = @import("std");
@@ -29,6 +30,7 @@ input: Input,
 gpu: *Gpu,
 physics: Phys2,
 ui: UI,
+audio: Audio,
 loader: Loader,
 timer: std.time.Timer, // time since engine init in nanoseconds.
 frame_timer: std.time.Timer, // time duration of last game state update.
@@ -50,6 +52,7 @@ pub fn init() !*Engine {
         .gpu = try Gpu.init(&self.window, &self.loader, &self.strint, self.gpa.allocator()),
         .physics = .init(self.gpa.allocator()),
         .ui = try UI.init(.{ .gpu = self.gpu, .window = &self.window, .allocator = self.gpa.allocator() }),
+        .audio = try Audio.init(),
         .loader = undefined, // Init after in place, I don't know why but it crashes otherwise.
         .timer = std.time.Timer.start() catch unreachable,
         .frame_timer = std.time.Timer.start() catch unreachable,

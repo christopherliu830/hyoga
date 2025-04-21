@@ -1,5 +1,5 @@
 .{
-    .name = "hyoga-imgui",
+    .name = .hyoga_imgui,
     .version = "0.0.0",
     .dependencies = .{
         .imgui = .{

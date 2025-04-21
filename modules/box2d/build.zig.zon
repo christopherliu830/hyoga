@@ -1,5 +1,5 @@
 .{
-    .name = "hyoga-box2d",
+    .name = .hyoga_box2d,
     .version = "0.0.0",
     .dependencies = .{
         .box2d = .{
