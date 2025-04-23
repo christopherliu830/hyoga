@@ -96,7 +96,7 @@ export fn hyeGameAllocator(engine: *Engine) hy.runtime.ExternAllocator {
 }
 
 export fn hyaudSoundRead(path: hy.runtime.ExternSliceConst(u8)) Audio.Sound {
-    return Engine.Audio.Sound.read(path.asSliceZ());
+    return Engine.Audio.read(path.asSliceZ());
 }
 
 export fn hyaudSoundPlay(sound: Audio.Sound) void {

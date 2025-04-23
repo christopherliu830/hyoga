@@ -13,6 +13,7 @@ pub const w = @import("runtime/window.zig");
 
 pub const Input = input.Input;
 pub const Gpu = gpu.Gpu;
+pub const Audio = aud;
 pub const Phys2 = p2.Phys2;
 pub const Strint = strint;
 pub const Window = w.Window;

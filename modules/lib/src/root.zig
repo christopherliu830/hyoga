@@ -19,6 +19,7 @@ pub const SlotMap = slot_map.SlotMap;
 pub const SkipMap = skip_map.SkipMap;
 pub const Engine = runtime.Engine;
 pub const GameInterface = runtime.GameInterface;
+pub const Audio = runtime.Audio;
 pub const World = runtime.World;
 pub const Input = runtime.Input;
 pub const Gpu = runtime.Gpu;
