@@ -627,10 +627,10 @@ pub const Col = enum(c_int) {
     nav_windowing_dim_bg = 0x38,
     modal_window_dim_bg = 0x39,
     count = 0x3a,
-    tab_active = 0x23,
-    tab_unfocused = 0x25,
-    tab_unfocused_active = 0x26,
-    nav_highlight = 0x36,
+    pub const tab_active = .tab_selected;
+    pub const tab_unfocused = .tab_dimmed;
+    pub const tab_unfocused_active = .tab_dimmed_selected;
+    pub const nav_highlight = .nav_cursor;
 };
 
 pub const StyleVar = enum(c_int) {
@@ -1285,6 +1285,7 @@ pub const WindowClass = extern struct {
     DockingAlwaysTabBar: bool = @import("std").mem.zeroes(bool),
     DockingAllowUnclassed: bool = @import("std").mem.zeroes(bool),
 };
+
 pub const Payload = extern struct {
     Data: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
     DataSize: c_int = @import("std").mem.zeroes(c_int),
@@ -1299,6 +1300,7 @@ pub const Payload = extern struct {
     pub const IsPreview = ImGuiPayload_IsPreview;
     pub const IsDelivery = ImGuiPayload_IsDelivery;
 };
+
 pub const TextFilter_TextRange = extern struct {
     b: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
     e: [*c]const u8 = @import("std").mem.zeroes([*c]const u8),
@@ -2175,10 +2177,10 @@ pub extern fn igLogButtons() void;
 pub extern fn igLogText(fmt: [*c]const u8, ...) void;
 // pub extern fn igLogTextV(fmt: [*c]const u8, args: va_list) void;
 pub extern fn igBeginDragDropSource(flags: DragDropFlags) bool;
-pub extern fn igSetDragDropPayload(type: [*c]const u8, data: [*c]const void, sz: usize, cond: Cond) bool;
+pub extern fn igSetDragDropPayload(type: [*c]const u8, data: *anyopaque, sz: usize, cond: Cond) bool;
 pub extern fn igEndDragDropSource() void;
 pub extern fn igBeginDragDropTarget() bool;
-pub extern fn igAcceptDragDropPayload(type: [*c]const u8, flags: DragDropFlags) [*c]const Payload;
+pub extern fn igAcceptDragDropPayload(type: [*c]const u8, flags: DragDropFlags) ?*const Payload;
 pub extern fn igEndDragDropTarget() void;
 pub extern fn igGetDragDropPayload() [*c]const Payload;
 pub extern fn igBeginDisabled(disabled: bool) void;

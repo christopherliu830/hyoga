@@ -57,7 +57,7 @@ pub fn eventsReset(self: *Phys2) void {
     while (it.next()) |cbs| {
         cbs.deinit(self.allocator);
     }
-    self.hit_callbacks.deinit(self.allocator);
+    self.hit_callbacks.clearRetainingCapacity();
 }
 
 pub const ShapeType = enum(u32) {

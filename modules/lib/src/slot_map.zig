@@ -100,7 +100,7 @@ pub fn SlotMap(comptime T: type) type {
 
             pub const invalid = SlotMap(T).Handle{ .generation = 0, .index = 0 };
 
-            pub fn is_valid(self: SlotMap(T).Handle) bool {
+            pub fn valid(self: SlotMap(T).Handle) bool {
                 return self.generation != 0;
             }
 

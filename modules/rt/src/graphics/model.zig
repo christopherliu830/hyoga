@@ -123,7 +123,7 @@ pub const Models = struct {
         var copy = (try self.get(model)).*;
         const meshes = try self.allocator.dupe(Mesh, copy.children);
         for (meshes) |*mesh| {
-            if (options.material.is_valid()) {
+            if (options.material.valid()) {
                 mesh.material = options.material;
             }
         }
