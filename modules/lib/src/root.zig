@@ -5,6 +5,7 @@ pub const debug = @import("debug.zig");
 pub const meta = @import("meta.zig");
 pub const event = @import("event.zig");
 pub const key = @import("key.zig");
+pub const list = @import("list.zig");
 pub const math = @import("math/math.zig");
 pub const runtime = @import("runtime.zig");
 pub const slot_map = @import("slot_map.zig");

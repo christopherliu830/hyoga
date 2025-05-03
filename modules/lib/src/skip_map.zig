@@ -313,27 +313,18 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
         len: usize = 0,
         block_capacity: Size = 8,
         max_block_capacity: Size = @min(std.math.maxInt(Size) - 1, 8192),
-        allocator: std.mem.Allocator,
 
-        pub const CreateOptions = struct {
-            initial_block_capacity: Size = 32,
+        pub const empty: SkipMap(T) = .{
+            .groups = .{},
+            .block_capacity = 8,
         };
 
-        pub fn create(allocator: std.mem.Allocator, options: CreateOptions) !SkipMap(T) {
-            const skipmap = SkipMap(T){
-                .groups = .{},
-                .allocator = allocator,
-                .block_capacity = options.initial_block_capacity,
-            };
-            return skipmap;
-        }
-
-        pub fn deinit(self: *Self) void {
+        pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
             if (self.groups.size > 0) {
                 while (self.groups.head) |*head| {
                     const g = head.group;
                     self.groups.remove(head.group);
-                    g.deinit(self.allocator);
+                    g.deinit(allocator);
                 }
             }
         }
@@ -354,12 +345,12 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             };
         }
 
-        pub fn insert(self: *Self, value: T) !Cursor {
+        pub fn insert(self: *Self, allocator: std.mem.Allocator, value: T) !Cursor {
             // First element
             if (self.groups.head == null) {
                 var group: *Group = undefined;
                 const capacity = @min(self.block_capacity, self.max_block_capacity);
-                group = try self.createGroup(null, capacity);
+                group = try self.createGroup(allocator, null, capacity);
 
                 self.groups.prepend(group);
 
@@ -435,7 +426,10 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                     .element = slot,
                     .skip = skip,
                 };
-            } else if (self.groups.tail != null and self.groups.tail.?.element != self.groups.tail.?.group.elementsEnd()) {
+            }
+
+            // Insert into empty slot in tail group.
+            else if (self.groups.tail != null and self.groups.tail.?.element != self.groups.tail.?.group.elementsEnd()) {
                 const tail = &(self.groups.tail.?);
                 const cursor = tail.*;
                 tail.element.* = .{ .data = value };
@@ -450,7 +444,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             else {
                 self.block_capacity = @min(@as(usize, @intCast(self.block_capacity)) * 2, self.max_block_capacity);
 
-                const group = try self.createGroup(self.groups.tail.?.group, self.block_capacity);
+                const group = try self.createGroup(allocator, self.groups.tail.?.group, self.block_capacity);
                 self.groups.append(group);
 
                 var tail = &self.groups.tail.?;
@@ -468,7 +462,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             }
         }
 
-        pub fn remove(self: *Self, cursor: Cursor) void {
+        pub fn remove(self: *Self, allocator: std.mem.Allocator, cursor: Cursor) void {
             std.debug.assert(self.len != 0);
             std.debug.assert(cursor.element != self.groups.tail.?.element);
             std.debug.assert(cursor.skip.value == 0);
@@ -623,7 +617,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
                     }
 
                     self.total_capacity -= group.capacity;
-                    group.deinit(self.allocator);
+                    group.deinit(allocator);
                 }
             }
         }
@@ -663,11 +657,12 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             }
         }
 
-        fn createGroup(self: *Self, prev_group: ?*Group, capacity: Size) !*Group {
+        fn createGroup(self: *Self, allocator: std.mem.Allocator, prev_group: ?*Group, capacity: Size) !*Group {
+            _ = self; // autofix
             _ = prev_group;
-            var group = try self.allocator.create(Group);
-            errdefer self.allocator.destroy(group);
-            try group.init(capacity, null, self.allocator);
+            var group = try allocator.create(Group);
+            errdefer allocator.destroy(group);
+            try group.init(capacity, null, allocator);
             return group;
         }
     };
