@@ -12,7 +12,22 @@ pub const BodyEvents = opaque {};
 
 pub const CastOutput = opaque {};
 
-pub const CastResultFcn = opaque {};
+/// Prototype callback for ray casts.
+/// Called for each shape found in the query. You control how the ray cast
+/// proceeds by returning a float:
+/// return -1: ignore this shape and continue
+/// return 0: terminate the ray cast
+/// return fraction: clip the ray to this point
+/// return 1: don't clip the ray and continue
+/// @param shapeId the shape hit by the ray
+/// @param point the point of initial intersection
+/// @param normal the normal vector at the point of intersection
+/// @param fraction the fraction along the ray at the point of intersection
+/// @param context the user context
+/// @return -1 to filter, 0 to terminate, fraction to clip the ray for closest hit, 1 to continue
+/// @see b2World_CastRay
+/// @ingroup world
+pub const CastResultFcn = *const fn (shape: Shape, point: Vec2, normal: Vec2, fraction: f32, ctx: ?*anyopaque) callconv(.C) f32;
 
 pub const ContactEvents = extern struct {
     pub const BeginTouch = extern struct {
@@ -592,52 +607,52 @@ pub const Shape = packed struct(u64) {
     };
 
     pub const createCircleShape = b2CreateCircleShape;
-    pub const CreateSegmentShape = b2CreateSegmentShape;
-    pub const CreateCapsuleShape = b2CreateCapsuleShape;
+    pub const createSegmentShape = b2CreateSegmentShape;
+    pub const createCapsuleShape = b2CreateCapsuleShape;
     pub const createPolygonShape = b2CreatePolygonShape;
-    pub const DestroyShape = b2DestroyShape;
-    pub const IsValid = b2Shape_IsValid;
-    pub const GetType = b2Shape_GetType;
-    pub const GetBody = b2Shape_GetBody;
-    pub const GetWorld = b2Shape_GetWorld;
-    pub const IsSensor = b2Shape_IsSensor;
-    pub const SetUserData = b2Shape_SetUserData;
-    pub const GetUserData = b2Shape_GetUserData;
-    pub const SetDensity = b2Shape_SetDensity;
-    pub const GetDensity = b2Shape_GetDensity;
-    pub const SetFriction = b2Shape_SetFriction;
-    pub const GetFriction = b2Shape_GetFriction;
-    pub const SetRestitution = b2Shape_SetRestitution;
-    pub const GetRestitution = b2Shape_GetRestitution;
-    pub const SetMaterial = b2Shape_SetMaterial;
-    pub const GetMaterial = b2Shape_GetMaterial;
-    pub const GetFilter = b2Shape_GetFilter;
-    pub const SetFilter = b2Shape_SetFilter;
-    pub const EnableContactEvents = b2Shape_EnableContactEvents;
-    pub const AreContactEventsEnabled = b2Shape_AreContactEventsEnabled;
-    pub const EnablePreSolveEvents = b2Shape_EnablePreSolveEvents;
-    pub const ArePreSolveEventsEnabled = b2Shape_ArePreSolveEventsEnabled;
-    pub const EnableHitEvents = b2Shape_EnableHitEvents;
-    pub const AreHitEventsEnabled = b2Shape_AreHitEventsEnabled;
-    pub const TestPoint = b2Shape_TestPoint;
-    pub const RayCast = b2Shape_RayCast;
-    pub const GetCircle = b2Shape_GetCircle;
-    pub const GetSegment = b2Shape_GetSegment;
-    pub const GetChainSegment = b2Shape_GetChainSegment;
-    pub const GetCapsule = b2Shape_GetCapsule;
-    pub const GetPolygon = b2Shape_GetPolygon;
-    pub const SetCircle = b2Shape_SetCircle;
-    pub const SetCapsule = b2Shape_SetCapsule;
-    pub const SetSegment = b2Shape_SetSegment;
-    pub const SetPolygon = b2Shape_SetPolygon;
-    pub const GetParentChain = b2Shape_GetParentChain;
-    pub const GetContactCapacity = b2Shape_GetContactCapacity;
-    pub const GetContactData = b2Shape_GetContactData;
-    pub const GetSensorCapacity = b2Shape_GetSensorCapacity;
-    pub const GetSensorOverlaps = b2Shape_GetSensorOverlaps;
-    pub const GetAABB = b2Shape_GetAABB;
-    pub const GetMassData = b2Shape_GetMassData;
-    pub const GetClosestPoint = b2Shape_GetClosestPoint;
+    pub const destroyShape = b2DestroyShape;
+    pub const isValid = b2Shape_IsValid;
+    pub const getType = b2Shape_GetType;
+    pub const getBody = b2Shape_GetBody;
+    pub const getWorld = b2Shape_GetWorld;
+    pub const isSensor = b2Shape_IsSensor;
+    pub const setUserData = b2Shape_SetUserData;
+    pub const getUserData = b2Shape_GetUserData;
+    pub const setDensity = b2Shape_SetDensity;
+    pub const getDensity = b2Shape_GetDensity;
+    pub const setFriction = b2Shape_SetFriction;
+    pub const getFriction = b2Shape_GetFriction;
+    pub const setRestitution = b2Shape_SetRestitution;
+    pub const getRestitution = b2Shape_GetRestitution;
+    pub const setMaterial = b2Shape_SetMaterial;
+    pub const getMaterial = b2Shape_GetMaterial;
+    pub const getFilter = b2Shape_GetFilter;
+    pub const setFilter = b2Shape_SetFilter;
+    pub const enableContactEvents = b2Shape_EnableContactEvents;
+    pub const areContactEventsEnabled = b2Shape_AreContactEventsEnabled;
+    pub const enablePreSolveEvents = b2Shape_EnablePreSolveEvents;
+    pub const arePreSolveEventsEnabled = b2Shape_ArePreSolveEventsEnabled;
+    pub const enableHitEvents = b2Shape_EnableHitEvents;
+    pub const areHitEventsEnabled = b2Shape_AreHitEventsEnabled;
+    pub const testPoint = b2Shape_TestPoint;
+    pub const rayCast = b2Shape_RayCast;
+    pub const getCircle = b2Shape_GetCircle;
+    pub const getSegment = b2Shape_GetSegment;
+    pub const getChainSegment = b2Shape_GetChainSegment;
+    pub const getCapsule = b2Shape_GetCapsule;
+    pub const getPolygon = b2Shape_GetPolygon;
+    pub const setCircle = b2Shape_SetCircle;
+    pub const setCapsule = b2Shape_SetCapsule;
+    pub const setSegment = b2Shape_SetSegment;
+    pub const setPolygon = b2Shape_SetPolygon;
+    pub const getParentChain = b2Shape_GetParentChain;
+    pub const getContactCapacity = b2Shape_GetContactCapacity;
+    pub const getContactData = b2Shape_GetContactData;
+    pub const getSensorCapacity = b2Shape_GetSensorCapacity;
+    pub const getSensorOverlaps = b2Shape_GetSensorOverlaps;
+    pub const getAABB = b2Shape_GetAABB;
+    pub const getMassData = b2Shape_GetMassData;
+    pub const getClosestPoint = b2Shape_GetClosestPoint;
 };
 
 const Chain = enum(u64) {

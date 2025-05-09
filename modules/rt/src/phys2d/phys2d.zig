@@ -5,7 +5,20 @@ pub const b2 = @import("box2d");
 
 const Phys2 = @This();
 
+allocator: std.mem.Allocator,
+world: b2.World,
+timestep: f32 = 1.0 / 120.0,
+interp_alpha: f32 = 1,
+hit_callbacks: std.AutoHashMapUnmanaged(Body, CallbackSet) = .{},
+prev_positions: std.AutoArrayHashMapUnmanaged(Body, hym.Vec2) = .{},
+
+/// accumulated time of simulation in ns since engine start.
+current_time: u64 = 0,
+
+sub_step_count: c_int = 4,
+
 pub const Body = b2.Body;
+
 pub const HitEvent = extern struct {
     other: b2.Body,
     normal: hym.Vec2,
@@ -22,17 +35,12 @@ comptime {
 
 const CallbackSet = std.AutoArrayHashMapUnmanaged(*hy.closure.Runnable(anyopaque), void);
 
-allocator: std.mem.Allocator,
-world: b2.World,
-timestep: f32 = 1.0 / 120.0,
-interp_alpha: f32 = 1,
-hit_callbacks: std.AutoHashMapUnmanaged(Body, CallbackSet) = .{},
-prev_positions: std.AutoArrayHashMapUnmanaged(Body, hym.Vec2) = .{},
-
-/// accumulated time of simulation in ns since engine start.
-current_time: u64 = 0,
-
-sub_step_count: c_int = 4,
+pub const RaycastHit = struct {
+    shape: b2.Shape,
+    point: hym.Vec2,
+    normal: hym.Vec2,
+    fraction: f32,
+};
 
 pub fn init(allocator: std.mem.Allocator) Phys2 {
     return .{
@@ -74,6 +82,7 @@ pub const AddShapeOptions = extern struct {
     type: ShapeConfig,
     density: f32,
     sensor: bool = false,
+    filter: b2.Filter = .{},
 
     comptime {
         hy.meta.assertMatches(AddShapeOptions, hy.Phys2.Body.AddShapeOptions);
@@ -121,10 +130,12 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
                 .radius = c.radius,
                 .center = @bitCast(c.center),
             };
+
             _ = b2.Shape.createCircleShape(body, &.{
                 .density = opts.shape.density,
                 .is_sensor = opts.shape.sensor,
                 .enable_hit_events = true,
+                .filter = opts.shape.filter,
             }, &circle);
         },
         .box => |b| {
@@ -132,6 +143,7 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
             _ = b2.Shape.createPolygonShape(body, &.{
                 .density = opts.shape.density,
                 .enable_hit_events = true,
+                .filter = opts.shape.filter,
             }, &box);
         },
     }
@@ -221,7 +233,7 @@ pub fn overlap(self: *Phys2, shape: ShapeConfig, origin: hym.Vec2, callback: hy.
 
         fn handle(hit_shape: b2.Shape, inner_ctx: ?*anyopaque) callconv(.C) bool {
             const handler: *@This() = @ptrCast(@alignCast(inner_ctx));
-            const body = hit_shape.GetBody();
+            const body = hit_shape.getBody();
             return handler.cb(@enumFromInt(@intFromEnum(body)), handler.ctx);
         }
     };
@@ -245,13 +257,63 @@ pub fn overlap(self: *Phys2, shape: ShapeConfig, origin: hym.Vec2, callback: hy.
     }
 }
 
+const RaycastContext = struct {
+    arena: std.mem.Allocator,
+    results: std.ArrayListUnmanaged(RaycastHit),
+};
+
+pub const RaycastOptions = extern struct {
+    origin: hym.Vec2,
+    direction: hym.Vec2,
+    category: u64 = 1,
+    mask: u64 = std.math.maxInt(u64),
+
+    comptime {
+        hy.meta.assertMatches(@This(), hy.Phys2.RaycastOptions);
+    }
+};
+
+pub fn raycastLeaky(
+    self: *Phys2,
+    arena: std.mem.Allocator,
+    opts: RaycastOptions,
+) []RaycastHit {
+    var ctx: RaycastContext = .{
+        .arena = arena,
+        .results = .empty,
+    };
+
+    _ = self.world.castRay(
+        @bitCast(opts.origin),
+        @bitCast(opts.direction),
+        .{ .category = opts.category, .mask = opts.mask },
+        raycastHitsCollect,
+        @ptrCast(&ctx),
+    );
+
+    return ctx.results.toOwnedSlice(arena) catch unreachable;
+}
+
+fn raycastHitsCollect(shape: b2.Shape, point: b2.Vec2, normal: b2.Vec2, fraction: f32, ctx: ?*anyopaque) callconv(.C) f32 {
+    const collector: *RaycastContext = @ptrCast(@alignCast(ctx));
+
+    collector.results.append(collector.arena, .{
+        .shape = shape,
+        .point = @bitCast(point),
+        .normal = @bitCast(normal),
+        .fraction = fraction,
+    }) catch return 0;
+
+    return 1;
+}
+
 fn emitContacts(self: *Phys2) void {
     const contact_events = self.world.getContactEvents();
     const hit_events = contact_events.hit_events[0..@intCast(contact_events.hit_count)];
 
     for (hit_events) |hit| {
-        const body_a = hit.shape_a.GetBody();
-        const body_b = hit.shape_b.GetBody();
+        const body_a = hit.shape_a.getBody();
+        const body_b = hit.shape_b.getBody();
 
         if (self.hit_callbacks.get(body_a)) |cbs| {
             for (cbs.keys()) |cb| {
@@ -282,8 +344,8 @@ fn emitOverlaps(self: *Phys2) void {
     const sensor_events = self.world.getSensorEvents();
 
     for (sensor_events.begin_events[0..@intCast(sensor_events.begin_count)]) |ev| {
-        const sensor_body = ev.sensor_shape.GetBody();
-        const dynamic_body = ev.visitor_shape.GetBody();
+        const sensor_body = ev.sensor_shape.getBody();
+        const dynamic_body = ev.visitor_shape.getBody();
 
         if (self.hit_callbacks.get(sensor_body)) |cbs| {
             const db_pos: hym.Vec2 = @bitCast(dynamic_body.getPosition());

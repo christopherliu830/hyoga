@@ -325,6 +325,15 @@ export fn hyp2HitEventDeregisterAll(
 export fn hyp2Overlap(p2d: *Phys2, shape: Phys2.ShapeConfig, origin: hy.math.Vec2, callback: hy.Phys2.OverlapCallback, ctx: ?*anyopaque) void {
     p2d.overlap(shape, origin, callback, ctx);
 }
+
+export fn hyp2Raycast(
+    p2d: *Phys2,
+    arena: hy.runtime.ExternAllocator,
+    opts: Phys2.RaycastOptions,
+) hy.runtime.ExternSlice(Phys2.RaycastHit) {
+    return .make(p2d.raycastLeaky(arena.allocator(), opts));
+}
+
 export fn hysidAsString(strint: *Strint, str: Strint.ID, len: *usize) [*]const u8 {
     const slice = strint.asString(str);
     len.* = slice.len;

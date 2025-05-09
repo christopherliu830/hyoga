@@ -36,10 +36,17 @@ pub const Phys2 = struct {
             count,
         };
 
+        pub const Filter = extern struct {
+            category_bits: u64 = 1,
+            mask_bits: u64 = std.math.maxInt(u64),
+            group_index: i32 = 0,
+        };
+
         pub const AddShapeOptions = extern struct {
             type: ShapeOptions,
             density: f32 = 1,
             sensor: bool = false,
+            filter: Filter = .{},
         };
 
         pub const AddOptions = extern struct {
@@ -76,6 +83,20 @@ pub const Phys2 = struct {
         point: hym.Vec2,
     };
 
+    pub const RaycastHit = struct {
+        shape: Shape,
+        point: hym.Vec2,
+        normal: hym.Vec2,
+        fraction: f32,
+    };
+
+    pub const RaycastOptions = extern struct {
+        origin: hym.Vec2,
+        direction: hym.Vec2,
+        category: u64 = 1,
+        mask: u64 = std.math.maxInt(u64),
+    };
+
     pub const OverlapCallback = *const fn (Body, ?*anyopaque) callconv(.C) bool;
 
     pub const bodyAdd = hyp2BodyAdd;
@@ -85,6 +106,9 @@ pub const Phys2 = struct {
     pub const hitEventDeregister = hyp2HitEventDeregister;
     pub const hitEventDeregisterAll = hyp2HitEventDeregisterAll;
     pub const overlap = hyp2Overlap;
+    pub fn raycast(phys2: *Phys2, arena: std.mem.Allocator, opts: RaycastOptions) []RaycastHit {
+        return hyp2Raycast(phys2, .of(arena), opts).asSlice();
+    }
 
     extern fn hyp2BodyAdd(*Phys2, Body.AddOptions) Body;
     extern fn hyp2BodyGetPosition(*Phys2, Body) hym.Vec2;
@@ -93,4 +117,6 @@ pub const Phys2 = struct {
     extern fn hyp2HitEventDeregister(*Phys2, Body, *closure.Runnable(HitEvent)) void;
     extern fn hyp2HitEventDeregisterAll(*Phys2, Body) void;
     extern fn hyp2Overlap(*Phys2, ShapeOptions, hym.Vec2, OverlapCallback, ?*anyopaque) void;
+
+    extern fn hyp2Raycast(phys2: *Phys2, arena: rt.ExternAllocator, opts: RaycastOptions) rt.ExternSlice(RaycastHit);
 };

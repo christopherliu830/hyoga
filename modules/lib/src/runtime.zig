@@ -51,6 +51,10 @@ pub const ExternAllocator = extern struct {
             .vtable = self.vtable,
         };
     }
+
+    pub fn of(src: std.mem.Allocator) ExternAllocator {
+        return .{ .ptr = src.ptr, .vtable = src.vtable };
+    }
 };
 
 pub fn ExternSliceConst(T: type) type {
