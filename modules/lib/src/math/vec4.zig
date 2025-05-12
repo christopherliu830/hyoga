@@ -65,22 +65,6 @@ pub const Vec4 = extern struct {
         return root.cross(self, other);
     }
 
-    pub inline fn add(self: *Vec4, other: anytype) void {
-        self.v = root.add(self, other).v;
-    }
-
-    pub inline fn sub(self: *Vec4, other: anytype) void {
-        self.v = root.sub(self, other).v;
-    }
-
-    pub inline fn mul(self: *Vec4, other: anytype) void {
-        self.v = root.mul(self, other).v;
-    }
-
-    pub inline fn div(self: *Vec4, other: anytype) void {
-        self.v = root.div(self, other).v;
-    }
-
     pub inline fn rotate(self: *Vec4, axis: Vec4, amt: f32) void {
         self.v = root.rotate(self, axis, amt).v;
     }
@@ -88,6 +72,12 @@ pub const Vec4 = extern struct {
     pub inline fn clamp(self: *Vec4, min: f32, max: f32) void {
         self.v = root.clamp(self, min, max).v;
     }
+
+    pub const add = root.add;
+    pub const sub = root.sub;
+    pub const mul = root.mul;
+    pub const div = root.div;
+    pub const lerp = root.lerp;
 };
 
 pub const zero: Vec4 = .{ .v = .{ 0, 0, 0, 0 } };
@@ -194,6 +184,10 @@ pub inline fn div(a: Vec4, b: anytype) Vec4 {
         .float, .comptime_float, .comptime_int, .int => return a.v / b,
         else => @compileError("add not implemented for " ++ @typeName(T)),
     }
+}
+
+pub inline fn lerp(a: Vec4, b: Vec4, t: f32) Vec4 {
+    return b.sub(a).mul(t).add(a);
 }
 
 pub inline fn scale_to(v: Vec4, l: f32) Vec4 {

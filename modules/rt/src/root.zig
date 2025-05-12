@@ -91,16 +91,20 @@ export fn hyeWindow(engine: *Engine) *Window {
     return &engine.window;
 }
 
-export fn hyeGameAllocator(engine: *Engine) hy.runtime.ExternAllocator {
+export fn hyeGameAllocator(engine: *Engine) hy.ExternAllocator {
     return engine.gameAllocator();
 }
 
-export fn hyaudSoundRead(path: hy.runtime.ExternSliceConst(u8)) Audio.Sound {
+export fn hyaudSoundRead(path: hy.ExternSliceConst(u8)) Audio.Sound {
     return Engine.Audio.read(path.asSliceZ());
 }
 
 export fn hyaudSoundPlay(sound: Audio.Sound) void {
     sound.play();
+}
+
+export fn hygpuClearColorSet(gpu: *Gpu, color: hy.math.Vec4) void {
+    gpu.clearColorSet(color);
 }
 
 export fn hygpuImportModel(gpu: *Gpu, path: [*:0]const u8, settings: Gpu.Models.ImportSettings) Gpu.Model {
@@ -202,7 +206,7 @@ export fn hygpuRenderableOfSprite(gpu: *Gpu, hdl: Gpu.SpriteHandle) Gpu.RenderIt
     };
 }
 
-export fn hygpuTextureImport(gpu: *Gpu, path: hy.runtime.ExternSlice(u8)) Gpu.TextureHandle {
+export fn hygpuTextureImport(gpu: *Gpu, path: hy.ExternSlice(u8)) Gpu.TextureHandle {
     return gpu.textures.read(path.asSliceZ()) catch |e| {
         std.log.err("texture import failure: {}", .{e});
         return .invalid;
@@ -322,16 +326,20 @@ export fn hyp2HitEventDeregisterAll(
     p2d.hitEventDeregisterAll(body);
 }
 
-export fn hyp2Overlap(p2d: *Phys2, shape: Phys2.ShapeConfig, origin: hy.math.Vec2, callback: hy.Phys2.OverlapCallback, ctx: ?*anyopaque) void {
-    p2d.overlap(shape, origin, callback, ctx);
+export fn hyp2OverlapLeaky(p2d: *Phys2, arena: hy.ExternAllocator, shape: Phys2.ShapeConfig, origin: hy.math.Vec2) hy.ExternSlice(Phys2.b2.Shape) {
+    return .make(p2d.overlapLeaky(arena.allocator(), shape, origin));
 }
 
-export fn hyp2Raycast(
+export fn hyp2RaycastLeaky(
     p2d: *Phys2,
-    arena: hy.runtime.ExternAllocator,
+    arena: hy.ExternAllocator,
     opts: Phys2.RaycastOptions,
-) hy.runtime.ExternSlice(Phys2.RaycastHit) {
+) hy.ExternSlice(Phys2.RaycastHit) {
     return .make(p2d.raycastLeaky(arena.allocator(), opts));
+}
+
+export fn hyp2ShapeBody(shape: Phys2.b2.Shape) Phys2.Body {
+    return shape.getBody();
 }
 
 export fn hysidAsString(strint: *Strint, str: Strint.ID, len: *usize) [*]const u8 {

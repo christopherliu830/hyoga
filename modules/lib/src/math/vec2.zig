@@ -58,13 +58,10 @@ pub const Vec2 = extern struct {
     pub const mul = root.mul;
     pub const div = root.div;
     pub const lerp = root.lerp;
+    pub const clamp = root.clamp;
 
     pub inline fn rotate(a: Vec2, amt: f32) Vec2 {
         return root.rotate(a, amt);
-    }
-
-    pub inline fn clamp(a: *Vec2, min: f32, max: f32) void {
-        a.v = root.clamp(a, min, max).v;
     }
 
     pub inline fn append(v: Vec2, n: f32) Vec3 {
@@ -217,6 +214,5 @@ pub inline fn clamp(a: Vec2, min: f32, max: f32) Vec2 {
     return .{ .v = .{
         @min(@max(a.v[0], min), max),
         @min(@max(a.v[1], min), max),
-        @min(@max(a.v[2], min), max),
     } };
 }

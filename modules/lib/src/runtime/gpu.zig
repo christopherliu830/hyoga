@@ -156,7 +156,9 @@ pub const Gpu = opaque {
     pub const spriteCurrentIndex = hygpuSpriteCurrentIndex;
     pub const spriteDupe = hygpuSpriteDupe;
     pub const clearSelection = hygpuClearSelection;
+    pub const clearColorSet = hygpuClearColorSet;
 
+    extern fn hygpuClearColorSet(*Gpu, math.Vec4) void;
     extern fn hygpuImportModel(*Gpu, [*:0]const u8, ImportSettings) Model;
     extern fn hygpuMaterialCreate(*Gpu, MaterialType, *const TextureArray) MaterialHandle;
     extern fn hygpuModelBounds(*Gpu, Model) math.AxisAligned;

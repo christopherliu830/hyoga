@@ -164,7 +164,7 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
     return game;
 }
 
-pub fn gameAllocator(self: *Engine) hy.runtime.ExternAllocator {
+pub fn gameAllocator(self: *Engine) hy.ExternAllocator {
     const allocator = self.gpa.allocator();
     return .{
         .ptr = allocator.ptr,

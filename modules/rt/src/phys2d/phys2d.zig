@@ -89,7 +89,7 @@ pub const AddShapeOptions = extern struct {
     }
 };
 
-pub const ShapeConfig = hy.runtime.ExternTaggedUnion(union(enum) {
+pub const ShapeConfig = hy.ExternTaggedUnion(union(enum) {
     circle: extern struct {
         radius: f32,
         center: hym.Vec2,
@@ -226,19 +226,13 @@ pub fn bodyPosition(self: *Phys2, body: Body) hym.Vec2 {
     return @bitCast(body.getPosition());
 }
 
-pub fn overlap(self: *Phys2, shape: ShapeConfig, origin: hym.Vec2, callback: hy.Phys2.OverlapCallback, ctx: ?*anyopaque) void {
-    const Handler = struct {
-        cb: hy.Phys2.OverlapCallback,
-        ctx: ?*anyopaque,
+const OverlapContext = struct {
+    arena: std.mem.Allocator,
+    results: std.ArrayListUnmanaged(b2.Shape),
+};
 
-        fn handle(hit_shape: b2.Shape, inner_ctx: ?*anyopaque) callconv(.C) bool {
-            const handler: *@This() = @ptrCast(@alignCast(inner_ctx));
-            const body = hit_shape.getBody();
-            return handler.cb(@enumFromInt(@intFromEnum(body)), handler.ctx);
-        }
-    };
-
-    var handler: Handler = .{ .cb = callback, .ctx = ctx };
+pub fn overlapLeaky(self: *Phys2, arena: std.mem.Allocator, shape: ShapeConfig, origin: hym.Vec2) []b2.Shape {
+    var ctx: OverlapContext = .{ .arena = arena, .results = .empty };
 
     switch (shape.revert()) {
         .circle => |c| {
@@ -251,10 +245,18 @@ pub fn overlap(self: *Phys2, shape: ShapeConfig, origin: hym.Vec2, callback: hy.
                 .q = .identity,
             };
             const filter: b2.QueryFilter = .{};
-            _ = self.world.overlapCircle(&circle, transform, filter, Handler.handle, &handler);
+            _ = self.world.overlapCircle(&circle, transform, filter, overlapsCollect, &ctx);
         },
         .box => unreachable,
     }
+
+    return ctx.results.toOwnedSlice(arena) catch unreachable;
+}
+
+fn overlapsCollect(hit_shape: b2.Shape, ctx_ptr: ?*anyopaque) callconv(.C) bool {
+    const ctx: *OverlapContext = @ptrCast(@alignCast(ctx_ptr));
+    ctx.results.append(ctx.arena, hit_shape) catch return false;
+    return true;
 }
 
 const RaycastContext = struct {
@@ -359,6 +361,7 @@ fn emitOverlaps(self: *Phys2) void {
             };
 
             for (cbs.keys()) |cb| {
+                // if (!dynamic_body.isValid() or !sensor_body.isValid()) { break :blk; }
                 @call(.auto, cb.runFn, .{ cb, &hit_event });
             }
         }
@@ -375,6 +378,7 @@ fn emitOverlaps(self: *Phys2) void {
             };
 
             for (cbs.keys()) |cb| {
+                // if (!dynamic_body.isValid() or !sensor_body.isValid()) break :blk;
                 @call(.auto, cb.runFn, .{ cb, &hit_event });
             }
         }

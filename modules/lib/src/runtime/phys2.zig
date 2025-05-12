@@ -1,10 +1,10 @@
 const std = @import("std");
-const rt = @import("../runtime.zig");
+const hy = @import("../root.zig");
+const hym = hy.math;
 const closure = @import("../closure.zig");
-const hym = @import("../math/math.zig");
 
 pub const Phys2 = struct {
-    pub const ShapeOptions = rt.ExternTaggedUnion(union(enum) {
+    pub const ShapeOptions = hy.ExternTaggedUnion(union(enum) {
         circle: extern struct {
             radius: f32,
             center: hym.Vec2,
@@ -75,7 +75,10 @@ pub const Phys2 = struct {
         extern fn hyp2BodyRealPosition(Body) hym.Vec2;
     };
 
-    pub const Shape = packed struct(u64) { _padding: u64 };
+    pub const Shape = packed struct(u64) {
+        _padding: u64,
+        pub const body = hyp2ShapeBody;
+    };
 
     pub const HitEvent = struct {
         other: Body,
@@ -105,9 +108,13 @@ pub const Phys2 = struct {
     pub const hitEventRegister = hyp2HitEventRegister;
     pub const hitEventDeregister = hyp2HitEventDeregister;
     pub const hitEventDeregisterAll = hyp2HitEventDeregisterAll;
-    pub const overlap = hyp2Overlap;
-    pub fn raycast(phys2: *Phys2, arena: std.mem.Allocator, opts: RaycastOptions) []RaycastHit {
-        return hyp2Raycast(phys2, .of(arena), opts).asSlice();
+
+    pub fn overlapLeaky(phys2: *Phys2, arena: std.mem.Allocator, shape: ShapeOptions, origin: hym.Vec2) []Shape {
+        return hyp2OverlapLeaky(phys2, .of(arena), shape, origin).asSlice();
+    }
+
+    pub fn raycastLeaky(phys2: *Phys2, arena: std.mem.Allocator, opts: RaycastOptions) []RaycastHit {
+        return hyp2RaycastLeaky(phys2, .of(arena), opts).asSlice();
     }
 
     extern fn hyp2BodyAdd(*Phys2, Body.AddOptions) Body;
@@ -116,7 +123,7 @@ pub const Phys2 = struct {
     extern fn hyp2HitEventRegister(*Phys2, Body, *closure.Runnable(HitEvent)) void;
     extern fn hyp2HitEventDeregister(*Phys2, Body, *closure.Runnable(HitEvent)) void;
     extern fn hyp2HitEventDeregisterAll(*Phys2, Body) void;
-    extern fn hyp2Overlap(*Phys2, ShapeOptions, hym.Vec2, OverlapCallback, ?*anyopaque) void;
-
-    extern fn hyp2Raycast(phys2: *Phys2, arena: rt.ExternAllocator, opts: RaycastOptions) rt.ExternSlice(RaycastHit);
+    extern fn hyp2OverlapLeaky(phys2: *Phys2, arena: hy.ExternAllocator, shape: ShapeOptions, hym.Vec2) hy.ExternSlice(Shape);
+    extern fn hyp2RaycastLeaky(phys2: *Phys2, arena: hy.ExternAllocator, opts: RaycastOptions) hy.ExternSlice(RaycastHit);
+    extern fn hyp2ShapeBody(Shape) Body;
 };

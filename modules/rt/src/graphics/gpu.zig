@@ -195,6 +195,7 @@ models: Models,
 materials: mt.Materials,
 uniforms: std.AutoHashMapUnmanaged(Strint.ID, Uniform),
 ids: StringIDs,
+clear_color: hym.Vec4 = .of(0.15, 0.15, 0.15, 1),
 
 pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allocator) !*Gpu {
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
@@ -548,7 +549,7 @@ pub fn blitToScreen(
         .texture = screen_tex,
         .load_op = .clear,
         .store_op = .store,
-        .clear_color = .{ .r = 0.15, .g = 0.15, .b = 0.15, .a = 1 },
+        .clear_color = @bitCast(self.clear_color),
         .cycle = false,
     };
 
@@ -1070,4 +1071,8 @@ pub fn materialDestroy(self: *Gpu, handle: SlotMap(mt.Material).Handle) void {
 
 pub fn renderableDestroy(self: *Gpu, handle: RenderItemHandle) void {
     self.renderables.remove(handle);
+}
+
+pub fn clearColorSet(self: *Gpu, color: hym.Vec4) void {
+    self.clear_color = color;
 }

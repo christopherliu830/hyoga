@@ -1,4 +1,4 @@
-const ExternSliceConst = @import("../runtime.zig").ExternSliceConst;
+const ExternSliceConst = @import("../root.zig").ExternSliceConst;
 
 pub const Sound = extern struct {
     chunk: *anyopaque,
