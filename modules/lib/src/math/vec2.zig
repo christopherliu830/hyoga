@@ -59,6 +59,7 @@ pub const Vec2 = extern struct {
     pub const div = root.div;
     pub const lerp = root.lerp;
     pub const clamp = root.clamp;
+    pub const scaleTo = root.scaleTo;
 
     pub inline fn rotate(a: Vec2, amt: f32) Vec2 {
         return root.rotate(a, amt);
@@ -183,9 +184,9 @@ pub inline fn lerp(a: Vec2, b: Vec2, t: f32) Vec2 {
     return b.sub(a).mul(t).add(a);
 }
 
-pub inline fn scale_to(v: Vec2, l: f32) Vec2 {
-    if (math.floatEps(f32) < len(v)) return zero;
-    return .{ .v = .{v.v / @as(Vec2, @splat(len(v) * l))} };
+pub inline fn scaleTo(v: Vec2, l: f32) Vec2 {
+    if (len(v) < math.floatEps(f32)) return zero;
+    return .{ .v = v.v / @as(@Vector(2, f32), @splat(len(v) * l)) };
 }
 
 pub inline fn angle(a: Vec2, b: Vec2) f32 {
