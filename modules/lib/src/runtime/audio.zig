@@ -1,7 +1,7 @@
 const ExternSliceConst = @import("../root.zig").ExternSliceConst;
 
-pub const Sound = extern struct {
-    chunk: *anyopaque,
+pub const Sound = enum(usize) {
+    _,
 
     pub const play = hyaudSoundPlay;
 };
