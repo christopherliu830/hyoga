@@ -19,10 +19,10 @@ pub fn Queue(comptime T: type) type {
         mutex: std.Thread.Mutex = .{},
         items: std.SinglyLinkedList(T) = .{},
 
-        pub fn init(self: *@This(), in_allocator: std.mem.Allocator) void {
+        pub fn init(self: *@This(), in_allocator: std.heap.ThreadSafeAllocator) void {
             self.items = .{};
+            self.tsa = in_allocator;
             self.mutex = .{};
-            self.tsa = .{ .child_allocator = in_allocator, .mutex = self.mutex };
         }
 
         pub fn push(self: *@This(), value: T) !void {

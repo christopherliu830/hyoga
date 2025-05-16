@@ -69,6 +69,7 @@ pub const RenderList = struct {
 
     pub const AddOptions = extern struct {
         model: ModelHandle,
+        /// Max sleep time for the model to load
         time: u64 = 0,
 
         comptime {

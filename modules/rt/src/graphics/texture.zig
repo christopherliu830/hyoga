@@ -42,7 +42,7 @@ pub const tex_to_hyoga_type = std.EnumMap(ai.TextureType, TextureType).init(.{
 });
 
 pub const Textures = struct {
-    allocator: std.mem.Allocator,
+    tsa: std.heap.ThreadSafeAllocator,
     device: *sdl.gpu.Device,
     loader: *Loader,
     queue: Loader.Queue(TextureLoadJob),
@@ -50,26 +50,25 @@ pub const Textures = struct {
     strint: *Strint,
     image_loader: stbi,
 
-    pub fn init(device: *sdl.gpu.Device, loader: *Loader, strint: *Strint, allocator: std.mem.Allocator) Textures {
-        var t: Textures = undefined;
-        t.allocator = allocator;
-        t.queue.init(allocator);
+    pub fn init(t: *Textures, device: *sdl.gpu.Device, loader: *Loader, strint: *Strint, allocator: std.mem.Allocator) void {
+        t.tsa = .{ .child_allocator = allocator };
+        t.queue.init(t.tsa);
         t.device = device;
         t.textures = .{};
         t.strint = strint;
         t.loader = loader;
-        t.image_loader = stbi.init(t.allocator);
-        return t;
+        t.image_loader = stbi.init(t.tsa.allocator());
     }
 
     pub fn deinit(self: *@This()) void {
+        const allocator = self.tsa.allocator();
         self.image_loader.deinit();
         self.flushQueue() catch std.debug.panic("Could not flush queue", .{});
         var it = self.textures.valueIterator();
         while (it.next()) |entry| {
             self.device.releaseTexture(entry.*);
         }
-        self.textures.deinit(self.allocator);
+        self.textures.deinit(allocator);
     }
 
     pub fn get(self: *@This(), id: Handle) !?*sdl.gpu.Texture {
@@ -93,6 +92,7 @@ pub const Textures = struct {
     }
 
     pub fn read(self: *@This(), path: [:0]const u8) !Handle {
+        const allocator = self.tsa.allocator();
         const hdl = try self.strint.from(path);
 
         // Cache check
@@ -100,16 +100,17 @@ pub const Textures = struct {
             return hdl;
         }
 
-        const copy = try self.allocator.dupeZ(u8, path);
+        const copy = try allocator.dupeZ(u8, path);
         try self.loader.run(&self.queue, readTexture, .{ self, copy });
-        try self.textures.put(self.allocator, hdl, null);
+        try self.textures.put(allocator, hdl, null);
         return hdl;
     }
 
     pub fn flushQueue(self: *@This()) !void {
+        const allocator = self.tsa.allocator();
         while (self.queue.pop()) |entry| {
             const tex_strint = try self.strint.from(entry.path);
-            defer self.allocator.free(entry.path);
+            defer allocator.free(entry.path);
 
             const maybe_tex_slot = self.textures.get(tex_strint);
 
@@ -120,7 +121,7 @@ pub const Textures = struct {
                     self.device.releaseTexture(entry.target);
                 } else {
                     // This job was first to finish reading the texture.
-                    try self.textures.put(self.allocator, tex_strint, entry.target);
+                    try self.textures.put(allocator, tex_strint, entry.target);
                 }
             } else {
                 std.log.warn("Texture {s} removed before it was finished loading, was this intentional?", .{entry.path});

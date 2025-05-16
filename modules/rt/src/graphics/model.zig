@@ -14,7 +14,6 @@ const tx = @import("texture.zig");
 const Vertex = @import("vertex.zig").Vertex;
 const Strint = @import("../strintern.zig");
 
-pub const Arena = SlotMap(ImportModel);
 pub const Handle = SlotMap(?Model).Handle;
 
 const Buffer = buf.VertexIndexBuffer;
@@ -41,7 +40,7 @@ const ModelLoadJob = struct {
 const Queue = Loader.Queue(ModelLoadJob.Result);
 
 pub const Model = struct {
-    bounds: hy.math.AxisAligned,
+    bounds: hy.math.AxisAligned = .{},
     children: []Mesh,
     transform: mat4.Mat4 = mat4.identity,
 };
@@ -63,16 +62,16 @@ const ImportMesh = struct {
 };
 
 pub const Models = struct {
-    allocator: std.mem.Allocator,
+    tsa: std.heap.ThreadSafeAllocator,
     queue: Queue,
     models: SlotMap(?Model),
     strint: *Strint,
     loader: *Loader,
 
-    pub fn create(loader: *Loader, strint: *Strint, allocator: std.mem.Allocator) Models {
+    pub fn init(loader: *Loader, strint: *Strint, allocator: std.mem.Allocator) Models {
         var m: Models = undefined;
-        m.allocator = allocator;
-        m.queue.init(allocator);
+        m.tsa = .{ .child_allocator = allocator };
+        m.queue.init(m.tsa);
         m.strint = strint;
         m.loader = loader;
         m.models = .empty;
@@ -81,14 +80,15 @@ pub const Models = struct {
 
     pub fn deinit(self: *@This()) void {
         self.flushQueue() catch std.debug.panic("Could not flush queue", .{});
+        const allocator = self.tsa.allocator();
 
         if (self.models.num_items > 0) {
             var it = self.models.iterator();
             while (it.next()) |model| {
                 self.models.remove(it.handle());
-                self.allocator.free(model.?.children);
+                allocator.free(model.?.children);
             }
-            self.models.deinit(self.allocator);
+            self.models.deinit(allocator);
         }
     }
 
@@ -100,14 +100,15 @@ pub const Models = struct {
     }
 
     pub fn add(self: *@This(), model: Model) Handle {
-        return self.models.insert(self.allocator, model) catch |e| std.debug.panic("add model failure: {}", .{e});
+        return self.models.insert(self.tsa.allocator(), model) catch |e| std.debug.panic("add model failure: {}", .{e});
     }
 
     pub fn remove(self: *@This(), hdl: Handle) void {
+        const allocator = self.tsa.allocator();
         if (self.models.get(hdl)) |maybe_model| {
             if (maybe_model) |model| {
                 std.debug.assert(model.children.len > 0);
-                self.allocator.free(model.children);
+                allocator.free(model.children);
             }
             self.models.remove(hdl);
         } else {
@@ -120,8 +121,9 @@ pub const Models = struct {
     };
 
     pub fn dupe(self: *@This(), model: Handle, options: DupeModelOptions) !Handle {
+        const allocator = self.tsa.allocator();
         var copy = (try self.get(model)).*;
-        const meshes = try self.allocator.dupe(Mesh, copy.children);
+        const meshes = try allocator.dupe(Mesh, copy.children);
         for (meshes) |*mesh| {
             if (options.material.valid()) {
                 mesh.material = options.material;
@@ -129,6 +131,49 @@ pub const Models = struct {
         }
         copy.children = meshes;
         return self.add(copy);
+    }
+
+    pub const CreateOptions = struct {
+        gpu: *Gpu,
+        verts: []const Vertex,
+        indices: []const u32,
+        material: mt.Handle,
+    };
+
+    pub fn create(self: *Models, opts: CreateOptions) !Handle {
+        const gpu = opts.gpu;
+        const allocator = self.tsa.allocator();
+        const buffer_allocator = &gpu.buffer_allocator;
+        const verts = opts.verts;
+        const indices = opts.indices;
+        const material = opts.material;
+
+        const alloc_buffer = try buffer_allocator.alloc(@intCast(@sizeOf(Vertex) * verts.len + @sizeOf(u32) * indices.len));
+
+        const buffer: buf.VertexIndexBuffer = .{
+            .hdl = alloc_buffer.hdl,
+            .size = alloc_buffer.size,
+            .offset = alloc_buffer.offset,
+            .idx_start = @intCast(alloc_buffer.offset + @sizeOf(Vertex) * verts.len),
+        };
+
+        try gpu.uploadToBuffer(buffer.hdl, buffer.offset, std.mem.sliceAsBytes(verts));
+        try gpu.uploadToBuffer(buffer.hdl, buffer.idx_start, std.mem.sliceAsBytes(indices));
+
+        var mesh = try allocator.alloc(Mesh, 1);
+        errdefer allocator.destroy(mesh);
+
+        mesh[0] = .{
+            .buffer = buffer,
+            .material = material,
+        };
+
+        const model: Model = .{
+            .children = mesh,
+            .transform = mat4.identity,
+        };
+
+        return self.add(model);
     }
 
     pub const ImportSettings = extern struct {
@@ -140,13 +185,14 @@ pub const Models = struct {
     /// Once the model is finished loading, the handle's value will be set to the model
     /// data. Trying to get the model before it's finished loading will return an error.
     pub fn read(self: *@This(), scene: *ai.Scene, mats: []mt.Handle, import: ImportSettings) !Handle {
-        const hdl = try self.models.insert(self.allocator, null);
+        const allocator = self.tsa.allocator();
+        const hdl = try self.models.insert(allocator, null);
 
-        const job = ModelLoadJob{
+        const job: ModelLoadJob = .{
             .dest_hdl = hdl,
-            .allocator = self.allocator,
+            .allocator = allocator,
             .scene = scene,
-            .mats = try self.allocator.dupe(mt.Handle, mats),
+            .mats = try allocator.dupe(mt.Handle, mats),
             .settings = import,
         };
 
@@ -190,7 +236,7 @@ fn doRead(queue: *Queue, self: *Models, job: ModelLoadJob) void {
         .max = hy.math.vec(.{ min, min, min }),
     };
 
-    var in_model: ImportModel = .{
+    var in_model: AssimpModel = .{
         .total_index_count = 0,
         .total_vertex_count = 0,
         .meshes = .{},
@@ -266,14 +312,14 @@ fn doRead(queue: *Queue, self: *Models, job: ModelLoadJob) void {
     }) catch |err| std.log.err("[GPU] model load failure: {}", .{err});
 }
 
-const ImportModel = struct {
+const AssimpModel = struct {
     total_vertex_count: u32 = 0,
     total_index_count: u32 = 0,
     buffer: ?Buffer = null,
     meshes: std.ArrayListUnmanaged(ImportMesh) = .{},
     transform: mat4.Mat4 = mat4.identity,
 
-    pub fn deinit(self: *ImportModel, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *AssimpModel, allocator: std.mem.Allocator) void {
         for (self.meshes.items) |*mesh| {
             mesh.deinit(allocator);
         }
@@ -289,8 +335,8 @@ const ImportModel = struct {
         root_bounds: *hy.math.AxisAligned,
     };
 
-    pub fn deepCopy(old: ImportModel, allocator: std.mem.Allocator) !ImportModel {
-        var copy: ImportModel = .{
+    pub fn deepCopy(old: AssimpModel, allocator: std.mem.Allocator) !AssimpModel {
+        var copy: AssimpModel = .{
             .total_index_count = old.total_index_count,
             .total_vertex_count = old.total_vertex_count,
         };
@@ -316,7 +362,7 @@ const ImportModel = struct {
         return copy;
     }
 
-    fn processNode(self: *ImportModel, params: ProcessModelParams) !void {
+    fn processNode(self: *AssimpModel, params: ProcessModelParams) !void {
         const node = params.node;
         try self.meshes.ensureTotalCapacity(params.allocator, node.num_meshes);
         for (node.meshes[0..node.num_meshes]) |idx_mesh| {
@@ -339,7 +385,7 @@ const ImportModel = struct {
         }
     }
 
-    fn processMesh(model: *ImportModel, params: ProcessModelParams) !ImportMesh {
+    fn processMesh(model: *AssimpModel, params: ProcessModelParams) !ImportMesh {
         const in_mesh = params.mesh.?;
 
         var out_mesh = ImportMesh{ .material = params.materials[in_mesh.material_index] };

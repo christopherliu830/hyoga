@@ -225,14 +225,16 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .window = window,
         .window_state = .{},
         .ids = .init(self.strint),
-        .textures = .init(self.device, loader, strint, self.gpa),
-        .models = .create(loader, strint, self.gpa),
+        .textures = undefined,
+        .models = .init(loader, strint, self.gpa),
         .materials = .init(self),
         .renderables = .init(self, self.gpa),
         .outlined = .{},
         .sprites = .empty,
         .uniforms = .empty,
     };
+
+    self.textures.init(self.device, loader, strint, self.gpa);
 
     sdlsc.init() catch |e| panic("sdl shader compiler init failure: {}", .{e});
     self.textures.image_loader.use();
@@ -306,10 +308,27 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
     const white_material = self.materials.insert(.standard, .initFull(.{ .target = white_texture }));
 
-    const cube = try self.createModel(&primitives.cube.vertices, &primitives.cube.indices, white_material);
-    const quad = try self.createModel(&primitives.quad.vertices, &primitives.quad.indices, white_material);
+    const cube = try self.models.create(.{
+        .gpu = self,
+        .verts = &primitives.cube.vertices,
+        .indices = &primitives.cube.indices,
+        .material = white_material,
+    });
+
+    const quad = try self.models.create(.{
+        .gpu = self,
+        .verts = &primitives.quad.vertices,
+        .indices = &primitives.quad.indices,
+        .material = white_material,
+    });
+
     const sphere_primitive = primitives.createSphere();
-    const sphere = try self.createModel(&sphere_primitive.vertices, &sphere_primitive.indices, white_material);
+    const sphere = try self.models.create(.{
+        .gpu = self,
+        .verts = &sphere_primitive.vertices,
+        .indices = &sphere_primitive.indices,
+        .material = white_material,
+    });
 
     var w: c_int = 0;
     var h: c_int = 0;
@@ -905,39 +924,6 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSetti
 
     const model = try self.models.read(import, materials_array, settings);
     return model;
-}
-
-pub fn createModel(self: *Gpu, verts: []const Vertex, indices: []const u32, material: mt.Handle) !Model {
-    const alloc_buffer = try self.buffer_allocator.alloc(
-        @intCast(@sizeOf(Vertex) * verts.len +
-            @sizeOf(u32) * indices.len),
-    );
-
-    const buffer: buf.VertexIndexBuffer = .{
-        .hdl = alloc_buffer.hdl,
-        .size = alloc_buffer.size,
-        .offset = alloc_buffer.offset,
-        .idx_start = @intCast(alloc_buffer.offset + @sizeOf(Vertex) * verts.len),
-    };
-
-    try self.uploadToBuffer(buffer.hdl, buffer.offset, std.mem.sliceAsBytes(verts));
-    try self.uploadToBuffer(buffer.hdl, buffer.idx_start, std.mem.sliceAsBytes(indices));
-
-    var mesh = try self.models.allocator.alloc(Mesh, 1);
-    errdefer self.models.allocator.destroy(mesh);
-
-    mesh[0] = .{
-        .buffer = buffer,
-        .material = material,
-    };
-
-    const model: mdl.Model = .{
-        .children = mesh,
-        .transform = mat4.identity,
-        .bounds = primitives.Cube.bounds,
-    };
-
-    return self.models.add(model);
 }
 
 pub fn modelPrimitive(self: *Gpu, shape: primitives.Shape) Model {
