@@ -33,6 +33,10 @@ pub const Vec3 = extern struct {
         return self.v[2];
     }
 
+    pub inline fn eql(self: Vec3, other: Vec3) bool {
+        return @reduce(.And, self.v == other.v);
+    }
+
     pub inline fn data(self: *Vec3) *@Vector(3, f32) {
         return &self.v;
     }

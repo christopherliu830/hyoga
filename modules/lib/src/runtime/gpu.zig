@@ -1,12 +1,19 @@
 //! All datatypes within this file are hand-written
 //! and must be manually kept in sync with the runtime datatypes!
 const std = @import("std");
+const hy = @import("../root.zig");
 const rt = @import("../runtime.zig");
 
 const math = @import("../math/math.zig");
 const mat4 = math.mat4;
 
 pub const Gpu = opaque {
+    pub const Vertex = struct {
+        pos: [3]f32,
+        normal: [3]f32,
+        uv: [2]f32,
+    };
+
     pub const Model = enum(u64) {
         none = 0,
     };
@@ -140,11 +147,16 @@ pub const Gpu = opaque {
     pub const modelImport = hygpuImportModel;
     pub const modelDestroy = hygpuModelDestroy;
     pub const modelBounds = hygpuModelBounds;
+
+    pub fn modelCreate(gpu: *Gpu, verts: []const Vertex, indices: []const u32, mat_hdl: MaterialHandle) Model {
+        return hygpuModelCreate(gpu, .make(verts), .make(indices), mat_hdl);
+    }
+
     pub const modelDupe = hygpuModelDupe;
     pub const modelPrimitive = hygpuModelPrimitive;
     pub const modelWaitLoad = hygpuModelWaitLoad;
-    pub const addRenderable = hygpuAddRenderable;
-    pub const renderableDestroy = hygpuRenderableDestroy;
+    pub const renderableAdd = hygpuAddRenderable;
+    pub const renderableRemove = hygpuRenderableDestroy;
     pub const selectRenderable = hygpuSelectRenderable;
     pub const deselectRenderable = hygpuDeselectRenderable;
     pub const renderableSetTransform = hygpuRenderableSetTransform;
@@ -162,6 +174,7 @@ pub const Gpu = opaque {
     extern fn hygpuImportModel(*Gpu, [*:0]const u8, ImportSettings) Model;
     extern fn hygpuMaterialCreate(*Gpu, MaterialType, *const TextureArray) MaterialHandle;
     extern fn hygpuModelBounds(*Gpu, Model) math.AxisAligned;
+    extern fn hygpuModelCreate(*Gpu, hy.ExternSliceConst(Vertex), hy.ExternSliceConst(u32), MaterialHandle) Model;
     extern fn hygpuModelDupe(*Gpu, Model, ModelDupeOptions) Model;
     extern fn hygpuModelDestroy(*Gpu, Model) void;
     extern fn hygpuModelPrimitive(*Gpu, PrimitiveShape) Model;

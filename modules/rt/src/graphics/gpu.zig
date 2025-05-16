@@ -19,7 +19,6 @@ const tx = @import("texture.zig");
 const mt = @import("material.zig");
 const Loader = @import("loader.zig");
 const Strint = @import("../strintern.zig");
-const Vertex = @import("vertex.zig").Vertex;
 const passes = @import("passes.zig");
 const rbl = @import("renderable.zig");
 const Scene = @import("../root.zig").Scene;
@@ -42,6 +41,7 @@ pub const Textures = tx.Textures;
 pub const TextureSet = tx.TextureSet;
 pub const TextureArray = tx.TextureArray;
 pub const TextureSetCreateInfo = tx.TextureSetCreateInfo;
+pub const Vertex = @import("vertex.zig").Vertex;
 pub const primitives = @import("primitives.zig");
 
 const log = std.log.scoped(.gpu);
@@ -378,7 +378,7 @@ pub fn shutdown(self: *Gpu) void {
     self.device.releaseWindow(self.window.hdl);
 
     self.textures.deinit();
-    self.models.deinit();
+    self.models.deinit(&self.buffer_allocator);
     self.materials.deinit();
     self.renderables.deinit();
 
@@ -1002,7 +1002,7 @@ pub fn spriteDestroy(self: *Gpu, hdl: hy.SlotMap(Sprite).Handle) void {
     };
 
     self.materialDestroy(sprite.material);
-    self.models.remove(sprite.model);
+    self.models.remove(&self.buffer_allocator, sprite.model);
 }
 
 pub fn spriteWeakPointer(self: *Gpu, hdl: RenderItemHandle) ?*GpuSprite {

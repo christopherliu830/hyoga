@@ -14,6 +14,7 @@ pub const BufferAllocator = struct {
     pub const Buf = struct {
         hdl: *sdl.gpu.Buffer,
         size: u32,
+        num_allocations: u32 = 0,
     };
 
     const BufNode = std.SinglyLinkedList(Buf).Node;
@@ -54,12 +55,14 @@ pub const BufferAllocator = struct {
             first_node
         else
             try self.createNode(0, n);
+
         while (true) {
             const offset = self.end_index;
             const end_offset = offset + n;
 
             if (end_offset <= cur_node.data.size) {
                 self.end_index = end_offset;
+                cur_node.data.num_allocations += 1;
                 return .{
                     .hdl = cur_node.data.hdl,
                     .offset = offset,
@@ -73,7 +76,21 @@ pub const BufferAllocator = struct {
 
     fn resize() void {}
 
-    fn free() void {}
+    pub fn destroy(self: *BufferAllocator, buffer: Buffer) void {
+        var it = self.buffer_list.first;
+        while (it) |buf| : (it = buf.next) {
+            if (buf.data.hdl == buffer.hdl) {
+                buf.data.num_allocations -= 1;
+
+                if (buf.data.num_allocations == 0) {
+                    self.device.releaseBuffer(buf.data.hdl);
+                    self.buffer_list.remove(buf);
+                    self.node_allocator.destroy(buf);
+                }
+                break;
+            }
+        }
+    }
 };
 
 pub const VertexIndexBuffer = struct {
@@ -97,6 +114,14 @@ pub const VertexIndexBuffer = struct {
 
     pub inline fn idxCount(self: VertexIndexBuffer) u32 {
         return (self.size - (self.idx_start - self.offset)) / @sizeOf(u32);
+    }
+
+    pub fn buffer(self: *const VertexIndexBuffer) Buffer {
+        return .{
+            .hdl = self.hdl,
+            .size = self.size,
+            .offset = self.offset,
+        };
     }
 
     pub fn eql(lhs: VertexIndexBuffer, rhs: VertexIndexBuffer) bool {

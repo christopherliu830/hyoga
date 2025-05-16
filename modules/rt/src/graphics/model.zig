@@ -78,15 +78,15 @@ pub const Models = struct {
         return m;
     }
 
-    pub fn deinit(self: *@This()) void {
+    pub fn deinit(self: *@This(), buffer_allocator: *buf.BufferAllocator) void {
         self.flushQueue() catch std.debug.panic("Could not flush queue", .{});
         const allocator = self.tsa.allocator();
 
         if (self.models.num_items > 0) {
             var it = self.models.iterator();
-            while (it.next()) |model| {
-                self.models.remove(it.handle());
-                allocator.free(model.?.children);
+
+            while (it.next()) |_| {
+                self.remove(buffer_allocator, it.handle());
             }
             self.models.deinit(allocator);
         }
@@ -103,11 +103,16 @@ pub const Models = struct {
         return self.models.insert(self.tsa.allocator(), model) catch |e| std.debug.panic("add model failure: {}", .{e});
     }
 
-    pub fn remove(self: *@This(), hdl: Handle) void {
+    pub fn remove(self: *@This(), buffer_allocator: *buf.BufferAllocator, hdl: Handle) void {
         const allocator = self.tsa.allocator();
+        // Double null here means model doesn't exist
+        // Single null (maybe_model) means model isn't loaded
         if (self.models.get(hdl)) |maybe_model| {
             if (maybe_model) |model| {
                 std.debug.assert(model.children.len > 0);
+                for (model.children) |mesh| {
+                    buffer_allocator.destroy(mesh.buffer.buffer());
+                }
                 allocator.free(model.children);
             }
             self.models.remove(hdl);
@@ -175,6 +180,12 @@ pub const Models = struct {
 
         return self.add(model);
     }
+
+    pub const UpdateOptions = struct {
+        gpu: *Gpu,
+        verts: []const Vertex,
+        indices: []const u32,
+    };
 
     pub const ImportSettings = extern struct {
         transform: mat4.Mat4 = mat4.identity,

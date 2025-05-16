@@ -114,8 +114,17 @@ export fn hygpuImportModel(gpu: *Gpu, path: [*:0]const u8, settings: Gpu.Models.
     };
 }
 
+export fn hygpuModelCreate(gpu: *Gpu, verts: hy.ExternSliceConst(Gpu.Vertex), indices: hy.ExternSliceConst(u32), mat: Gpu.MaterialHandle) Gpu.Model {
+    return gpu.models.create(.{
+        .gpu = gpu,
+        .verts = verts.asSlice(),
+        .indices = indices.asSlice(),
+        .material = mat,
+    }) catch unreachable;
+}
+
 export fn hygpuModelDestroy(gpu: *Gpu, model: Gpu.Model) void {
-    gpu.models.remove(model);
+    gpu.models.remove(&gpu.buffer_allocator, model);
 }
 
 export fn hygpuModelBounds(gpu: *Gpu, model: Gpu.Model) hy.math.AxisAligned {
