@@ -83,9 +83,13 @@ pub const BufferAllocator = struct {
                 buf.data.num_allocations -= 1;
 
                 if (buf.data.num_allocations == 0) {
-                    self.device.releaseBuffer(buf.data.hdl);
-                    self.buffer_list.remove(buf);
-                    self.node_allocator.destroy(buf);
+                    if (buf == self.buffer_list.first) {
+                        self.end_index = 0;
+                    } else {
+                        self.buffer_list.remove(buf);
+                        self.device.releaseBuffer(buf.data.hdl);
+                        self.node_allocator.destroy(buf);
+                    }
                 }
                 break;
             }
