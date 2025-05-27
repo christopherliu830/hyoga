@@ -125,13 +125,14 @@ pub const Models = struct {
         material: mt.Handle = mt.Handle.invalid,
     };
 
-    pub fn dupe(self: *@This(), model: Handle, options: DupeModelOptions) !Handle {
+    pub fn dupe(self: *@This(), buffer_allocator: *buf.BufferAllocator, model: Handle, options: DupeModelOptions) !Handle {
         const allocator = self.tsa.allocator();
         var copy = (try self.get(model)).*;
         const meshes = try allocator.dupe(Mesh, copy.children);
         for (meshes) |*mesh| {
             if (options.material.valid()) {
                 mesh.material = options.material;
+                buffer_allocator.dupe(mesh.buffer.buffer());
             }
         }
         copy.children = meshes;

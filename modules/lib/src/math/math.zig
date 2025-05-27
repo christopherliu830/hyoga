@@ -98,3 +98,16 @@ pub fn assertMetaEql(A: type, B: type) void {
 pub fn lerp(a: anytype, b: @TypeOf(a), t: f32) @TypeOf(a) {
     return ((b - a) * t) + a;
 }
+
+pub fn peak(alpha: anytype, t: anytype) f32 {
+    return (alpha * std.math.e) / std.math.pow(f32, std.math.e, alpha * t) * t;
+}
+
+pub fn nsTime(ns: u64) f32 {
+    const t: f32 = @floatFromInt(ns);
+    return t / std.time.ns_per_s;
+}
+
+pub inline fn nanos(sec: f32) u64 {
+    return @intFromFloat(std.time.ns_per_s * sec);
+}

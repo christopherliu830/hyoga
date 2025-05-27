@@ -2020,3 +2020,60 @@ extern fn b2WheelJoint_GetMotorTorque(jointId: Joint) f32;
 
 pub const makeBox = b2MakeBox;
 extern fn b2MakeBox(width: f32, height: f32) Shape.Polygon;
+
+pub inline fn makeRot(radians: f32) Rot {
+    const cs = computeCosSin(radians);
+    return .{ .c = cs.cosine, .s = cs.sine };
+}
+
+pub const CosSin = struct {
+    cosine: f32,
+    sine: f32,
+};
+
+pub inline fn computeCosSin(radians: f32) CosSin {
+    const x: f32 = unwindLargeAngle(radians);
+    const pi2: f32 = std.math.pi * std.math.pi;
+
+    // cosine needs angle in [-pi/2, pi/2]
+    var c: f32 = undefined;
+    if (x < -0.5 * std.math.pi) {
+        const y = x + std.math.pi;
+        const y2 = y * y;
+        c = -(pi2 - 4.0 * y2) / (pi2 + y2);
+    } else if (x > 0.5 * std.math.pi) {
+        const y = x - std.math.pi;
+        const y2: f32 = y * y;
+        c = -(pi2 - 4.0 * y2) / (pi2 + y2);
+    } else {
+        const y2 = x * x;
+        c = (pi2 - 4.0 * y2) / (pi2 + y2);
+    }
+
+    // sine needs angle in [0, pi]
+    var s: f32 = undefined;
+    if (x < 0.0) {
+        const y = x + std.math.pi;
+        s = -16.0 * y * (std.math.pi - y) / (5.0 * pi2 - 4.0 * y * (std.math.pi - y));
+    } else {
+        s = 16.0 * x * (std.math.pi - x) / (5.0 * pi2 - 4.0 * x * (std.math.pi - x));
+    }
+
+    const mag = @sqrt(s * s + c * c);
+    const invMag = if (mag > 0.0) 1.0 / mag else 0.0;
+    const cs: CosSin = .{ .cosine = c * invMag, .sine = s * invMag };
+    return cs;
+}
+
+pub inline fn unwindLargeAngle(radians: f32) f32 {
+    var r = radians;
+    while (r > std.math.pi) {
+        r -= 2.0 * std.math.pi;
+    }
+
+    while (r < -std.math.pi) {
+        r += 2.0 * std.math.pi;
+    }
+
+    return r;
+}

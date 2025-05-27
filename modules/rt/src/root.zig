@@ -99,8 +99,12 @@ export fn hyaudSoundRead(path: hy.ExternSliceConst(u8)) Audio.Sound {
     return Engine.Audio.read(path.asSliceZ());
 }
 
-export fn hyaudSoundPlay(sound: Audio.Sound) void {
+export fn hyaudSoundPlay(sound: *Audio.Sound) void {
     sound.play();
+}
+
+export fn hyaudSoundStop(sound: *Audio.Sound) void {
+    sound.stop();
 }
 
 export fn hygpuClearColorSet(gpu: *Gpu, color: hy.math.Vec4) void {
@@ -137,7 +141,7 @@ export fn hygpuModelBounds(gpu: *Gpu, model: Gpu.Model) hy.math.AxisAligned {
 }
 
 export fn hygpuModelDupe(gpu: *Gpu, model: Gpu.Model, options: Gpu.Models.DupeModelOptions) Gpu.Model {
-    return gpu.models.dupe(model, options) catch |e| {
+    return gpu.models.dupe(&gpu.buffer_allocator, model, options) catch |e| {
         std.log.err("dupe model failure: {}", .{e});
         return Gpu.Model.invalid;
     };
@@ -151,6 +155,9 @@ export fn hygpuModelWaitLoad(gpu: *Gpu, model: Gpu.Model, max: u64) bool {
     return gpu.models.waitLoad(model, max);
 }
 
+export fn hygpuMaterialDefaultCreate(gpu: *Gpu) Gpu.MaterialHandle {
+    return gpu.materialDefaultCreate();
+}
 export fn hygpuMaterialCreate(gpu: *Gpu, mt_type: Gpu.MaterialType, tx_set: *const Gpu.TextureArray) Gpu.MaterialHandle {
     return gpu.materialCreate(mt_type, tx_set) catch |e| {
         std.log.err("material create failure: {}", .{e});
@@ -169,20 +176,8 @@ export fn hygpuRenderableDestroy(gpu: *Gpu, item: Gpu.RenderItemHandle) void {
     gpu.renderableDestroy(item);
 }
 
-export fn hygpuSelectRenderable(gpu: *Gpu, item: Gpu.RenderItemHandle) void {
-    gpu.selectRenderable(item);
-}
-
-export fn hygpuDeselectRenderable(gpu: *Gpu, item: Gpu.RenderItemHandle) void {
-    _ = gpu.outlined.swapRemove(item);
-}
-
 export fn hygpuRenderableSetTransform(gpu: *Gpu, item: Gpu.RenderItemHandle, transform: hy.math.Mat4) void {
     gpu.renderableSetTransform(item, transform);
-}
-
-export fn hygpuClearSelection(gpu: *Gpu) void {
-    gpu.outlined.clearRetainingCapacity();
 }
 
 export fn hygpuSpriteCreate(gpu: *Gpu, opts: Gpu.SpriteCreateOptions) Gpu.SpriteHandle {
@@ -200,8 +195,8 @@ export fn hygpuSpriteWeakPointer(gpu: *Gpu, hdl: Gpu.RenderItemHandle) ?*Gpu.Gpu
     return gpu.spriteWeakPointer(hdl);
 }
 
-export fn hygpuSpriteCurrentIndex(gpu: *Gpu, hdl: *Gpu.GpuSprite) u32 {
-    return gpu.spriteCurrentIndex(hdl);
+export fn hygpuSpriteCurrentAnimationFrame(gpu: *Gpu, hdl: *Gpu.GpuSprite) u32 {
+    return gpu.spriteCurrentAnimationFrame(hdl);
 }
 
 export fn hygpuSpriteDupe(gpu: *Gpu, hdl: Gpu.SpriteHandle) Gpu.SpriteHandle {

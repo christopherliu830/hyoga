@@ -12,6 +12,7 @@ pub const Phys2 = struct {
         box: extern struct {
             width: f32,
             height: f32,
+            rot: f32 = 0,
         },
     });
 

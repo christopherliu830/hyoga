@@ -4,11 +4,21 @@ const mix = @import("sdl_mixer");
 
 pub const Audio = @This();
 
+pub const Channel = enum(c_int) { none = -1, _ };
+
 pub const Sound = extern struct {
     chunk: *mix.Chunk,
+    current_channel: Channel = .none,
 
-    pub fn play(self: Sound) void {
-        _ = mix.channelPlay(-1, self.chunk, 0);
+    pub fn play(self: *Sound) void {
+        self.current_channel = @enumFromInt(mix.channelPlay(-1, self.chunk, 0));
+    }
+
+    pub fn stop(self: *Sound) void {
+        if (self.current_channel != .none) {
+            mix.channelHalt(@intFromEnum(self.current_channel));
+            self.current_channel = .none;
+        }
     }
 };
 

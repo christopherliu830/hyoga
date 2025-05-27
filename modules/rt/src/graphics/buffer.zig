@@ -8,6 +8,7 @@ pub const BufferAllocator = struct {
     device: *sdl.gpu.Device,
     usage: sdl.gpu.BufferUsageFlags,
     buffer_list: std.SinglyLinkedList(Buf) = .{},
+    free_buffer_list: std.SinglyLinkedList(Buf) = .{},
     node_allocator: std.mem.Allocator,
     end_index: u32 = 0,
 
@@ -18,6 +19,8 @@ pub const BufferAllocator = struct {
     };
 
     const BufNode = std.SinglyLinkedList(Buf).Node;
+
+    const min_buffer_size = 2 * 1024 * 1024;
 
     pub fn init(device: *sdl.gpu.Device, usage: sdl.gpu.BufferUsageFlags, allocator: std.mem.Allocator) BufferAllocator {
         return .{
@@ -30,13 +33,25 @@ pub const BufferAllocator = struct {
     pub fn deinit(self: *BufferAllocator) void {
         var maybe_node = self.buffer_list.popFirst();
         while (maybe_node) |node| : (maybe_node = self.buffer_list.popFirst()) {
-            const buf = node.data;
-            self.device.releaseBuffer(buf.hdl);
+            self.device.releaseBuffer(node.data.hdl);
+            self.node_allocator.destroy(node);
+        }
+        maybe_node = self.free_buffer_list.popFirst();
+        while (maybe_node) |node| : (maybe_node = self.free_buffer_list.popFirst()) {
+            self.device.releaseBuffer(node.data.hdl);
             self.node_allocator.destroy(node);
         }
     }
 
     fn createNode(self: *BufferAllocator, prev_len: u32, min_size: u32) sdl.gpu.Error!*BufNode {
+        if (self.free_buffer_list.first != null and
+            self.free_buffer_list.first.?.data.size > min_size)
+        {
+            const node = self.free_buffer_list.popFirst().?;
+            self.buffer_list.prepend(node);
+            self.end_index = 0;
+            return node;
+        }
         const len = (prev_len + min_size) + (prev_len + min_size) / 2;
         const buf = try self.device.createBuffer(&.{ .size = len, .usage = self.usage });
         self.device.setBufferName(buf, "Buffer Allocator Buffer");
@@ -54,7 +69,7 @@ pub const BufferAllocator = struct {
         var cur_node = if (self.buffer_list.first) |first_node|
             first_node
         else
-            try self.createNode(0, n);
+            try self.createNode(0, @min(min_buffer_size, n));
 
         while (true) {
             const offset = self.end_index;
@@ -87,10 +102,19 @@ pub const BufferAllocator = struct {
                         self.end_index = 0;
                     } else {
                         self.buffer_list.remove(buf);
-                        self.device.releaseBuffer(buf.data.hdl);
-                        self.node_allocator.destroy(buf);
+                        self.free_buffer_list.prepend(buf);
                     }
                 }
+                break;
+            }
+        }
+    }
+
+    pub fn dupe(self: *BufferAllocator, buffer: Buffer) void {
+        var it = self.buffer_list.first;
+        while (it) |buf| : (it = buf.next) {
+            if (buf.data.hdl == buffer.hdl) {
+                buf.data.num_allocations += 1;
                 break;
             }
         }

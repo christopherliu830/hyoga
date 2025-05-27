@@ -99,6 +99,7 @@ pub fn SlotMap(comptime T: type) type {
             index: u32 = 0,
 
             pub const invalid = SlotMap(T).Handle{ .generation = 0, .index = 0 };
+            pub const none = SlotMap(T).Handle{ .generation = 0, .index = 0 };
 
             pub fn valid(self: SlotMap(T).Handle) bool {
                 return self.generation != 0;

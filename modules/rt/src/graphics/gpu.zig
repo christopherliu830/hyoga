@@ -187,7 +187,6 @@ window: *Window,
 default_assets: DefaultAssets = undefined,
 window_state: WindowState = .{},
 renderables: rbl.RenderList,
-outlined: std.AutoArrayHashMapUnmanaged(rbl.RenderItemHandle, void),
 sprites: hy.SlotMap(Sprite),
 speed: f32 = 1,
 textures: tx.Textures,
@@ -229,7 +228,6 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .models = .init(loader, strint, self.gpa),
         .materials = .init(self),
         .renderables = .init(self, self.gpa),
-        .outlined = .{},
         .sprites = .empty,
         .uniforms = .empty,
     };
@@ -393,7 +391,6 @@ pub fn shutdown(self: *Gpu) void {
     self.device.releaseTexture(self.default_assets.white_texture);
     self.device.releaseSampler(self.default_assets.sampler);
 
-    self.outlined.deinit(self.gpa);
     self.sprites.deinit(self.gpa);
     self.uniforms.deinit(self.gpa);
     self.arena.deinit();
@@ -860,6 +857,14 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
     return pipeline;
 }
 
+pub fn materialDefaultCreate(self: *Gpu) MaterialHandle {
+    const tex = self.default_assets.white_texture;
+    return self.materials.insert(.standard, .init(.{
+        .diffuse = .{ .target = tex },
+        .specular = .{ .target = tex },
+    }));
+}
+
 pub fn materialCreate(self: *Gpu, mt_type: mt.Material.Type, txs: *const TextureArray) !MaterialHandle {
     var map: tx.TextureSet = .{};
 
@@ -935,7 +940,8 @@ pub fn modelPrimitive(self: *Gpu, shape: primitives.Shape) Model {
 }
 
 pub fn selectRenderable(self: *Gpu, handle: rbl.RenderItemHandle) void {
-    self.outlined.put(self.gpa, handle, {}) catch hy.err.oom();
+    _ = self;
+    _ = handle;
 }
 
 pub fn renderableSetTransform(
@@ -980,7 +986,7 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !hy.SlotMap(Sprite).H
         }
     };
 
-    const quad = try self.models.dupe(self.default_assets.quad, .{ .material = mat_hdl });
+    const quad = try self.models.dupe(&self.buffer_allocator, self.default_assets.quad, .{ .material = mat_hdl });
 
     self.materials.setParams(mat_hdl, &Gpu.GpuSprite{
         .width = opts.width,
@@ -1013,7 +1019,7 @@ pub fn spriteWeakPointer(self: *Gpu, hdl: RenderItemHandle) ?*GpuSprite {
     return ptr;
 }
 
-pub fn spriteCurrentIndex(self: *Gpu, sprite: *GpuSprite) u32 {
+pub fn spriteCurrentAnimationFrame(self: *Gpu, sprite: *GpuSprite) u32 {
     const time = blk: {
         if (self.uniforms.get(self.ids.time)) |t| break :blk t.f32 else break :blk 0;
     };
@@ -1031,7 +1037,7 @@ pub fn spriteDupe(self: *Gpu, hdl: SpriteHandle) SpriteHandle {
     const sprite_data: *align(1) GpuSprite = @ptrCast(&self.materials.param_buf.items[mat.params_start]);
     self.materials.setParams(duped_mat, sprite_data);
 
-    const quad = self.models.dupe(self.default_assets.quad, .{ .material = duped_mat }) catch hy.err.oom();
+    const quad = self.models.dupe(&self.buffer_allocator, self.default_assets.quad, .{ .material = duped_mat }) catch hy.err.oom();
     const sprite_hdl = self.sprites.insert(self.gpa, .{ .model = quad, .material = duped_mat }) catch hy.err.oom();
     return sprite_hdl;
 }

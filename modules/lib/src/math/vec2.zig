@@ -60,6 +60,8 @@ pub const Vec2 = extern struct {
     pub const lerp = root.lerp;
     pub const clamp = root.clamp;
     pub const scaleTo = root.scaleTo;
+    pub const angle = root.angle;
+    pub const angleSlow = root.angleSlow;
 
     pub inline fn rotate(a: Vec2, amt: f32) Vec2 {
         return root.rotate(a, amt);
@@ -192,9 +194,16 @@ pub inline fn scaleTo(v: Vec2, l: f32) Vec2 {
 pub inline fn angle(a: Vec2, b: Vec2) f32 {
     const v_dot = dot(a, b) / (a.len() * b.len());
     if (v_dot > 1.0) return 0;
-    if (v_dot < 1.0) return math.pi;
+    if (v_dot < -1.0) return math.pi;
     return math.acos(v_dot);
 }
+
+pub inline fn angleSlow(a: Vec2, b: Vec2) f32 {
+    const atan_a = math.atan2(a.y(), a.x());
+    const atan_b = math.atan2(b.y(), b.x());
+    return atan_a - atan_b;
+}
+
 pub inline fn rotate(v: Vec2, amt: f32) Vec2 {
     var ret = zero;
     const c = @cos(amt);

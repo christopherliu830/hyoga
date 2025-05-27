@@ -97,6 +97,7 @@ pub const ShapeConfig = hy.ExternTaggedUnion(union(enum) {
     box: extern struct {
         width: f32,
         height: f32,
+        rot: f32,
     },
 });
 
@@ -247,7 +248,15 @@ pub fn overlapLeaky(self: *Phys2, arena: std.mem.Allocator, shape: ShapeConfig, 
             const filter: b2.QueryFilter = .{};
             _ = self.world.overlapCircle(&circle, transform, filter, overlapsCollect, &ctx);
         },
-        .box => unreachable,
+        .box => |b| {
+            const box: b2.Shape.Polygon = .makeBox(b.width, b.height);
+            const transform: b2.Transform = .{
+                .p = @bitCast(origin),
+                .q = b2.makeRot(b.rot),
+            };
+            const filter: b2.QueryFilter = .{};
+            _ = self.world.overlapPolygon(&box, transform, filter, overlapsCollect, &ctx);
+        },
     }
 
     return ctx.results.toOwnedSlice(arena) catch unreachable;

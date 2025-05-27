@@ -21,7 +21,6 @@ const Options = struct {
 const ShaderArgs = struct {
     stage: []const u8,
     ext: []const u8,
-    entry: []const u8,
 };
 
 pub fn init(b: *Build, wf: *Step.WriteFile, options: Options) !void {
@@ -42,25 +41,25 @@ pub fn init(b: *Build, wf: *Step.WriteFile, options: Options) !void {
                     continue;
                 }
             },
-            .file => if (std.mem.endsWith(u8, entry.path, ".slang")) {
+            .file => if (std.mem.endsWith(u8, entry.path, ".vert") or
+                std.mem.endsWith(u8, entry.path, ".frag"))
+            {
                 const src_name = entry.path;
                 const shader_args: []const ShaderArgs = blk: {
-                    if (std.mem.endsWith(u8, src_name, ".vert.slang")) {
+                    if (std.mem.endsWith(u8, src_name, ".vert")) {
                         break :blk &.{
-                            .{ .stage = "", .ext = ext_from_target.get(options.target).?, .entry = "vertexMain" },
+                            .{
+                                .stage = "",
+                                .ext = ".vert.spv",
+                            },
                         };
-                    } else if (std.mem.endsWith(u8, src_name, ".frag.slang")) {
+                    } else if (std.mem.endsWith(u8, src_name, ".frag")) {
                         break :blk &.{.{
                             .stage = "",
-                            .ext = ext_from_target.get(options.target).?,
-                            .entry = "fragmentMain",
+                            .ext = ".frag.spv",
                         }};
                     } else {
-                        break :blk &.{ .{ .stage = ".vert", .ext = ext_from_target.get(options.target).?, .entry = "vertexMain" }, .{
-                            .stage = ".frag",
-                            .ext = ext_from_target.get(options.target).?,
-                            .entry = "fragmentMain",
-                        } };
+                        continue;
                     }
                 };
 
@@ -71,16 +70,9 @@ pub fn init(b: *Build, wf: *Step.WriteFile, options: Options) !void {
                     const run = Step.Run.create(b, name);
                     run.has_side_effects = options.always_generate;
                     const input = try options.source_path.join(b.allocator, entry.path);
-                    run.addArg("slangc");
+                    run.addArg("glslc");
                     run.addFileArg(input);
-                    run.addArgs(&.{
-                        "-matrix-layout-row-major",
-                        "-entry",
-                        args.entry,
-                        "-fvk-use-entrypoint-name",
-                        "-target",
-                        options.target,
-                    });
+                    run.addArgs(&.{ "-o", "-" });
                     const out = run.captureStdOut();
                     const install_file_name = b.pathJoin(&.{ options.dest_path, out_basename });
                     _ = wf.addCopyFile(out, install_file_name);

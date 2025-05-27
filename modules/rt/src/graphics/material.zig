@@ -43,10 +43,6 @@ pub const Materials = struct {
                     .post_process = readFromPath(gpu, .{
                         .path = "shaders/post_process",
                     }, gpu.gpa) catch panic("error creating post process shader", .{}),
-                    .bw_mask = readFromPath(gpu, .{
-                        .path = "shaders/outline",
-                        .format = .r8_unorm,
-                    }, gpu.gpa) catch panic("error creating bw shader", .{}),
                     .billboard = readFromPath(gpu, .{
                         .path = "shaders/billboard",
                         .enable_depth = true,
@@ -102,7 +98,6 @@ pub const Materials = struct {
     }
 
     pub fn deinit(self: *Materials) void {
-        self.gpu.device.releaseGraphicsPipeline(self.templates.get(.bw_mask).pipeline);
         self.gpu.device.releaseGraphicsPipeline(self.templates.get(.post_process).pipeline);
         self.gpu.device.releaseGraphicsPipeline(self.templates.get(.standard).pipeline);
         self.gpu.device.releaseGraphicsPipeline(self.templates.get(.billboard).pipeline);
@@ -117,7 +112,6 @@ pub const Material = struct {
         standard,
         sprite,
         post_process,
-        bw_mask,
         billboard,
 
         comptime {
@@ -321,7 +315,7 @@ pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []c
 
     return try sdlsc.compileGraphicsShaderFromSpirv(device, sdlsc_stage, .{
         .bytecode = code,
-        .entrypoint = if (stage == .vertex) "vertexMain" else "fragmentMain",
+        .entrypoint = "main",
         .debug = true,
         .name = "hyoga shader",
     }, &info);
