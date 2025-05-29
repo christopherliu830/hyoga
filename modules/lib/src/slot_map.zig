@@ -109,6 +109,12 @@ pub fn SlotMap(comptime T: type) type {
                 return self.index == other.index and self.generation == other.generation;
             }
 
+            pub fn order(self: SlotMap(T).Handle, rhs: SlotMap(T).Handle) std.math.Order {
+                const ord = std.math.order(self.index, rhs.index);
+                if (ord == .eq) return std.math.order(self.generation, rhs.generation);
+                return ord;
+            }
+
             pub inline fn toStr(self: SlotMap(T).Handle) [:0]const u8 {
                 var buf: [32:0]u8 = undefined;
                 const slice = std.fmt.bufPrintZ(&buf, "[{}/{}]", .{ self.index, self.generation }) catch unreachable;
