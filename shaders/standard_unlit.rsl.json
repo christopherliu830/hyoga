@@ -1,0 +1,16 @@
+{
+    "pass": 0,
+    "vertex": {
+        "storage_buffers": [
+            "hy_all_renderables"
+        ],
+        "uniforms": [
+            "hy_view_projection_matrix"
+        ]
+    },
+    "fragment": {
+        "samplers": [
+            "diffuse"
+        ]
+    }
+}

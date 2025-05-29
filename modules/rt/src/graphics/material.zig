@@ -36,13 +36,17 @@ pub const Materials = struct {
                         .path = "shaders/standard",
                         .enable_depth = true,
                     }, gpu.gpa) catch panic("error creating standard shader", .{}),
+                    .standard_unlit = readFromPath(gpu, .{
+                        .path = "shaders/standard_unlit",
+                        .enable_depth = true,
+                    }, gpu.gpa) catch panic("error creating standard_unlit shader", .{}),
                     .sprite = readFromPath(gpu, .{
                         .path = "shaders/sprite",
                         .enable_depth = true,
                     }, gpu.gpa) catch panic("error creating sprite shader", .{}),
                     .post_process = readFromPath(gpu, .{
                         .path = "shaders/post_process",
-                    }, gpu.gpa) catch panic("error creating post process shader", .{}),
+                    }, gpu.gpa) catch panic("error creating post_process shader", .{}),
                     .billboard = readFromPath(gpu, .{
                         .path = "shaders/billboard",
                         .enable_depth = true,
@@ -100,6 +104,7 @@ pub const Materials = struct {
     pub fn deinit(self: *Materials) void {
         self.gpu.device.releaseGraphicsPipeline(self.templates.get(.post_process).pipeline);
         self.gpu.device.releaseGraphicsPipeline(self.templates.get(.standard).pipeline);
+        self.gpu.device.releaseGraphicsPipeline(self.templates.get(.standard_unlit).pipeline);
         self.gpu.device.releaseGraphicsPipeline(self.templates.get(.billboard).pipeline);
         self.gpu.device.releaseGraphicsPipeline(self.templates.get(.sprite).pipeline);
         self.param_buf.deinit(self.gpu.gpa);
@@ -110,6 +115,7 @@ pub const Materials = struct {
 pub const Material = struct {
     pub const Type = enum(u32) {
         standard,
+        standard_unlit,
         sprite,
         post_process,
         billboard,

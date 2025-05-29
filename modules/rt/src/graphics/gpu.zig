@@ -297,9 +297,9 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
     // Sampler
     const sampler_info: sdl.gpu.SamplerCreateInfo = .{
-        .address_mode_u = .clamp_to_edge,
-        .address_mode_v = .clamp_to_edge,
-        .address_mode_w = .clamp_to_edge,
+        .address_mode_u = .repeat,
+        .address_mode_v = .repeat,
+        .address_mode_w = .repeat,
         .min_filter = .nearest,
         .mag_filter = .nearest,
     };

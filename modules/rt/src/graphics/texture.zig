@@ -141,7 +141,20 @@ pub const Textures = struct {
         const h: u32 = @intCast(c_h);
         const d: u32 = 4;
 
-        const texture_info = sdl.gpu.TextureCreateInfo{ .type = .@"2d", .format = .r8g8b8a8_unorm, .usage = .{ .sampler = true }, .height = h, .width = w, .layer_count_or_depth = 1, .num_levels = 1, .sample_count = .@"1", .props = 0 };
+        std.debug.print("{s}\n", .{pathZ});
+        std.debug.assert(w > 0 and h > 0);
+
+        const texture_info = sdl.gpu.TextureCreateInfo{
+            .type = .@"2d",
+            .format = .r8g8b8a8_unorm,
+            .usage = .{ .sampler = true },
+            .height = h,
+            .width = w,
+            .layer_count_or_depth = 1,
+            .num_levels = 1,
+            .sample_count = .@"1",
+            .props = 0,
+        };
 
         const tex = device.createTexture(&texture_info) catch @panic("could not create texture");
         device.setTextureName(tex, pathZ);

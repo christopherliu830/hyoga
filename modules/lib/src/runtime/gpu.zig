@@ -32,6 +32,7 @@ pub const Gpu = opaque {
 
     pub const MaterialType = enum(u32) {
         standard,
+        standard_unlit,
         sprite,
         post_process,
         billboard,
@@ -120,11 +121,11 @@ pub const Gpu = opaque {
 
     pub const SpriteCreateOptions = extern struct {
         atlas: [*:0]const u8,
-        width: u16,
-        height: u16,
+        width: u16 = 1,
+        height: u16 = 1,
         offset: u16 = 0,
-        len: u16 = 0,
-        speed: f32,
+        len: u16 = 1,
+        speed: f32 = 0,
         color: [4]f32 = .{ 1, 1, 1, 1 },
     };
 
