@@ -64,6 +64,7 @@ pub const Phys2 = struct {
         pub const setVelocity = hyp2BodySetVelocity;
         pub const destroy = hyp2BodyDestroy;
         pub const position = hyp2BodyRealPosition;
+        pub const positionSet = hyp2BodyPositionSet;
         pub const getType = hyp2BodyGetType;
         pub const setType = hyp2BodySetType;
 
@@ -74,6 +75,7 @@ pub const Phys2 = struct {
         extern fn hyp2BodyUserData(Body) ?*anyopaque;
         extern fn hyp2BodyDestroy(Body) void;
         extern fn hyp2BodyRealPosition(Body) hym.Vec2;
+        extern fn hyp2BodyPositionSet(body: Phys2.Body, pos: hy.math.Vec2) void;
     };
 
     pub const Shape = packed struct(u64) {

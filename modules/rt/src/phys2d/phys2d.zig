@@ -227,6 +227,10 @@ pub fn bodyPosition(self: *Phys2, body: Body) hym.Vec2 {
     return @bitCast(body.getPosition());
 }
 
+pub fn bodyPositionSet(body: Body, pos: hym.Vec2) void {
+    body.setTransform(@bitCast(pos), body.getRotation());
+}
+
 const OverlapContext = struct {
     arena: std.mem.Allocator,
     results: std.ArrayListUnmanaged(b2.Shape),

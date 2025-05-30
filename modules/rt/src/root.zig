@@ -283,6 +283,10 @@ export fn hyp2BodyGetPosition(p2d: *Phys2, body: Phys2.Body) hy.math.Vec2 {
     return p2d.bodyPosition(body);
 }
 
+export fn hyp2BodyPositionSet(body: Phys2.Body, pos: hy.math.Vec2) void {
+    Phys2.bodyPositionSet(body, pos);
+}
+
 export fn hyp2BodyRealPosition(body: Phys2.Body) hy.math.Vec2 {
     return @bitCast(body.getPosition());
 }

@@ -141,7 +141,6 @@ pub const Textures = struct {
         const h: u32 = @intCast(c_h);
         const d: u32 = 4;
 
-        std.debug.print("{s}\n", .{pathZ});
         std.debug.assert(w > 0 and h > 0);
 
         const texture_info = sdl.gpu.TextureCreateInfo{
