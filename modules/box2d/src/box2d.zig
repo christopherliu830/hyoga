@@ -97,6 +97,11 @@ pub const Filter = extern struct {
     group_index: i32 = 0,
 };
 
+pub const Hull = extern struct {
+    points: [MAX_POLYGON_VERTICES]Vec2,
+    count: c_int,
+};
+
 pub const Manifold = extern struct {
     /// A manifold point is a contact point belonging to a contact manifold.
     /// It holds details related to the geometry and dynamics of the contact points.
@@ -2020,6 +2025,12 @@ extern fn b2WheelJoint_GetMotorTorque(jointId: Joint) f32;
 
 pub const makeBox = b2MakeBox;
 extern fn b2MakeBox(width: f32, height: f32) Shape.Polygon;
+
+pub const computeHull = b2ComputeHull;
+extern fn b2ComputeHull(points: *const Vec2, count: c_int) Hull;
+
+pub const makePolygon = b2MakePolygon;
+extern fn b2MakePolygon(hull: *const Hull, radius: f32) Shape.Polygon;
 
 pub inline fn makeRot(radians: f32) Rot {
     const cs = computeCosSin(radians);

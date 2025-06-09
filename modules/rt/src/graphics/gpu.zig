@@ -353,7 +353,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .sphere = sphere,
 
         .sampler = self.device.createSampler(&sampler_info) orelse std.debug.panic("create sampler failure: {s}", .{sdl.getError()}),
-        .obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 512, "Object Mats"),
+        .obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 1024 * 16, "Object Mats"),
         .selected_obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 512, "Selected Object Mats"),
         .sprite_buf = try buf.DynamicBuffer(u128).init(self.device, 1024, "Sprite Atlas Sizes"),
         .active_target = null,
@@ -1011,10 +1011,18 @@ pub fn spriteDestroy(self: *Gpu, hdl: hy.SlotMap(Sprite).Handle) void {
     self.models.remove(&self.buffer_allocator, sprite.model);
 }
 
-pub fn spriteWeakPointer(self: *Gpu, hdl: RenderItemHandle) ?*GpuSprite {
+pub fn spriteRenderableWeakPtr(self: *Gpu, hdl: RenderItemHandle) ?*GpuSprite {
     const renderable = (self.renderables.items.getPtr(hdl) orelse return null);
     const mat_hdl = renderable.mesh.material;
     const mat = self.materials.get(mat_hdl) orelse return null;
+    const ptr: *Gpu.GpuSprite = @ptrCast(@alignCast(&self.materials.param_buf.items[mat.params_start]));
+    return ptr;
+}
+
+pub fn spriteWeakPtr(self: *Gpu, hdl: SpriteHandle) ?*GpuSprite {
+    const sprite = self.sprites.getPtr(hdl).?;
+    const mat_hdl = sprite.material;
+    const mat = self.materials.get(mat_hdl).?;
     const ptr: *Gpu.GpuSprite = @ptrCast(@alignCast(&self.materials.param_buf.items[mat.params_start]));
     return ptr;
 }

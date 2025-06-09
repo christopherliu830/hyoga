@@ -99,6 +99,9 @@ pub const ShapeConfig = hy.ExternTaggedUnion(union(enum) {
         height: f32,
         rot: f32,
     },
+    polygon: extern struct {
+        points: hy.ExternSliceConst(hym.Vec2),
+    },
 });
 
 pub const BodyAddOptions = extern struct {
@@ -147,6 +150,15 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
                 .filter = opts.shape.filter,
             }, &box);
         },
+        .polygon => |p| {
+            const hull = b2.computeHull(@ptrCast(p.points.ptr), @intCast(p.points.len));
+            const polygon = b2.makePolygon(&hull, 0);
+            _ = b2.Shape.createPolygonShape(body, &.{
+                .density = opts.shape.density,
+                .enable_hit_events = true,
+                .filter = opts.shape.filter,
+            }, &polygon);
+        }
     }
 
     self.prev_positions.put(self.allocator, body, @bitCast(body.getPosition())) catch hy.err.oom();
@@ -261,6 +273,16 @@ pub fn overlapLeaky(self: *Phys2, arena: std.mem.Allocator, shape: ShapeConfig, 
             const filter: b2.QueryFilter = .{};
             _ = self.world.overlapPolygon(&box, transform, filter, overlapsCollect, &ctx);
         },
+        .polygon => |p| {
+            const transform: b2.Transform = .{
+                .p = @bitCast(origin),
+                .q = .identity,
+            };
+            const hull = b2.computeHull(@ptrCast(p.points.ptr), @intCast(p.points.len));
+            const polygon = b2.makePolygon(&hull, 0);
+            const filter: b2.QueryFilter = .{};
+            _ = self.world.overlapPolygon(&polygon, transform, filter, overlapsCollect, &ctx);
+        }
     }
 
     return ctx.results.toOwnedSlice(arena) catch unreachable;
@@ -275,6 +297,7 @@ fn overlapsCollect(hit_shape: b2.Shape, ctx_ptr: ?*anyopaque) callconv(.C) bool 
 const RaycastContext = struct {
     arena: std.mem.Allocator,
     results: std.ArrayListUnmanaged(RaycastHit),
+    collection_type: RaycastOptions.CollectionType,
 };
 
 pub const RaycastOptions = extern struct {
@@ -282,6 +305,13 @@ pub const RaycastOptions = extern struct {
     direction: hym.Vec2,
     category: u64 = 1,
     mask: u64 = std.math.maxInt(u64),
+    collection_type: CollectionType,
+
+    pub const CollectionType = enum(u32) {
+        all,
+        first,
+        closest,
+    };
 
     comptime {
         hy.meta.assertMatches(@This(), hy.Phys2.RaycastOptions);
@@ -295,6 +325,7 @@ pub fn raycastLeaky(
 ) []RaycastHit {
     var ctx: RaycastContext = .{
         .arena = arena,
+        .collection_type = opts.collection_type,
         .results = .empty,
     };
 
@@ -317,9 +348,16 @@ fn raycastHitsCollect(shape: b2.Shape, point: b2.Vec2, normal: b2.Vec2, fraction
         .point = @bitCast(point),
         .normal = @bitCast(normal),
         .fraction = fraction,
-    }) catch return 0;
+    }) catch {
+        std.log.err("Ran out of memory during raycastHitsCollect", .{});
+        return 0;
+    };
 
-    return 1;
+    return switch (collector.collection_type) {
+        .first => 0,
+        .closest => 0.5,
+        .all => 1,
+    };
 }
 
 fn emitContacts(self: *Phys2) void {

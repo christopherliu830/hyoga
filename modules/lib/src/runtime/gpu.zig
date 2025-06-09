@@ -132,6 +132,7 @@ pub const Gpu = opaque {
     pub const Sprite = extern struct {
         pub const Handle = enum(u64) {
             none = 0,
+            _,
         };
 
         width: u32,
@@ -165,7 +166,8 @@ pub const Gpu = opaque {
     }
     pub const spriteCreate = hygpuSpriteCreate;
     pub const spriteDestroy = hygpuSpriteDestroy;
-    pub const spriteWeakPointer = hygpuSpriteWeakPointer;
+    pub const spriteWeakPtr = hygpuSpriteWeakPtr;
+    pub const spriteRenderableWeakPtr = hygpuSpriteRenderableWeakPtr;
     pub const spriteCurrentAnimationFrame = hygpuSpriteCurrentAnimationFrame;
     pub const spriteDupe = hygpuSpriteDupe;
     pub const clearColorSet = hygpuClearColorSet;
@@ -188,7 +190,8 @@ pub const Gpu = opaque {
     extern fn hygpuRenderableOfSprite(*Gpu, Sprite.Handle) Renderable;
     extern fn hygpuSpriteCreate(*Gpu, SpriteCreateOptions) Sprite.Handle;
     extern fn hygpuSpriteDestroy(*Gpu, Sprite.Handle) void;
-    extern fn hygpuSpriteWeakPointer(*Gpu, Renderable) ?*Sprite;
+    extern fn hygpuSpriteWeakPtr(*Gpu, Sprite.Handle) ?*Sprite;
+    extern fn hygpuSpriteRenderableWeakPtr(*Gpu, Renderable) ?*Sprite;
     extern fn hygpuSpriteCurrentAnimationFrame(*Gpu, *Sprite) u32;
     extern fn hygpuSpriteDupe(*Gpu, Sprite.Handle) Sprite.Handle;
     extern fn hygpuTextureImport(*Gpu, hy.ExternSliceConst(u8)) TextureHandle;

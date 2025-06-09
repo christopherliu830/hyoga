@@ -3,12 +3,9 @@ struct Sprite {
     uint atlas_size_y;
     uint start_index;
     uint len;
-    uint speed;
-    uint time_offset; // float. used in sprite animation index
-    uint color_x;
-    uint color_y;
-    uint color_z;
-    uint color_w;
+    float speed;
+    float time_offset; // Used in sprite animation index.
+    vec4 color; // Tint color
 };
 
 mat3 adjugate(mat4 m) {

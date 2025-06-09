@@ -14,6 +14,9 @@ pub const Phys2 = struct {
             height: f32,
             rot: f32 = 0,
         },
+        polygon: extern struct {
+            points: hy.ExternSliceConst(hym.Vec2),
+        },
     });
 
     pub const Body = enum(u64) {
@@ -101,6 +104,9 @@ pub const Phys2 = struct {
         direction: hym.Vec2,
         category: u64 = 1,
         mask: u64 = std.math.maxInt(u64),
+        collection_type: CollectionType,
+
+        pub const CollectionType = enum(u32) { all, first };
     };
 
     pub const OverlapCallback = *const fn (Body, ?*anyopaque) callconv(.C) bool;

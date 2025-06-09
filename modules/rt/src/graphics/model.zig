@@ -154,6 +154,9 @@ pub const Models = struct {
         const indices = opts.indices;
         const material = opts.material;
 
+        std.debug.assert(verts.len > 0);
+        std.debug.assert(indices.len > 0);
+
         const alloc_buffer = try buffer_allocator.alloc(@intCast(@sizeOf(Vertex) * verts.len + @sizeOf(u32) * indices.len));
 
         const buffer: buf.VertexIndexBuffer = .{

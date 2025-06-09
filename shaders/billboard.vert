@@ -40,12 +40,12 @@ Sprite hy_sprite_load(uint byte_offset) {
     s.atlas_size_y = hy_sprites[index + 1];
     s.start_index  = hy_sprites[index + 2];
     s.len          = hy_sprites[index + 3];
-    s.speed        = hy_sprites[index + 4];
-    s.time_offset  = hy_sprites[index + 5];
-    s.color_x      = hy_sprites[index + 6];
-    s.color_y      = hy_sprites[index + 7];
-    s.color_z      = hy_sprites[index + 8];
-    s.color_w      = hy_sprites[index + 9];
+    s.speed        = uintBitsToFloat(hy_sprites[index + 4]);
+    s.time_offset  = uintBitsToFloat(hy_sprites[index + 5]);
+    s.color.r      = uintBitsToFloat(hy_sprites[index + 6]);
+    s.color.g      = uintBitsToFloat(hy_sprites[index + 7]);
+    s.color.b      = uintBitsToFloat(hy_sprites[index + 8]);
+    s.color.a      = uintBitsToFloat(hy_sprites[index + 9]);
     return s;
 }
 
@@ -76,7 +76,7 @@ void main() {
 
     uvec2 num_tiles = uvec2(sprite.atlas_size_x, sprite.atlas_size_y);
 
-    uint counter = uint(hy_time * uintBitsToFloat(sprite.speed) + uintBitsToFloat(sprite.time_offset));
+    uint counter = uint(hy_time * sprite.speed + sprite.time_offset);
     uint index = (counter  % sprite.len) + sprite.start_index;
 
     vec2 tile_uv_size = vec2(1, 1) / vec2(num_tiles);
@@ -84,12 +84,7 @@ void main() {
                 tile_uv_size * vec2(index % num_tiles.x, index / num_tiles.x);
 
     gl_Position = final;
-    out_color = vec4(
-        uintBitsToFloat(sprite.color_x),
-        uintBitsToFloat(sprite.color_y),
-        uintBitsToFloat(sprite.color_z),
-        uintBitsToFloat(sprite.color_w)
-    );
+    out_color = sprite.color;
     out_uv = uv;
 }
 

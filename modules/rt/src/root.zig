@@ -191,8 +191,12 @@ export fn hygpuSpriteDestroy(gpu: *Gpu, hdl: Gpu.SpriteHandle) void {
     gpu.spriteDestroy(hdl);
 }
 
-export fn hygpuSpriteWeakPointer(gpu: *Gpu, hdl: Gpu.RenderItemHandle) ?*Gpu.GpuSprite {
-    return gpu.spriteWeakPointer(hdl);
+export fn hygpuSpriteWeakPtr(gpu: *Gpu, hdl: Gpu.SpriteHandle) ?*Gpu.GpuSprite {
+    return gpu.spriteWeakPtr(hdl);
+}
+
+export fn hygpuSpriteRenderableWeakPtr(gpu: *Gpu, hdl: Gpu.RenderItemHandle) ?*Gpu.GpuSprite {
+    return gpu.spriteRenderableWeakPtr(hdl);
 }
 
 export fn hygpuSpriteCurrentAnimationFrame(gpu: *Gpu, hdl: *Gpu.GpuSprite) u32 {

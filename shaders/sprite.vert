@@ -39,10 +39,10 @@ Sprite hy_sprite_load(uint byte_offset) {
     s.len          = hy_sprites[index + 3];
     s.speed        = hy_sprites[index + 4];
     s.time_offset  = hy_sprites[index + 5];
-    s.color_x      = hy_sprites[index + 6];
-    s.color_y      = hy_sprites[index + 7];
-    s.color_z      = hy_sprites[index + 8];
-    s.color_w      = hy_sprites[index + 9];
+    s.color.x      = hy_sprites[index + 6];
+    s.color.y      = hy_sprites[index + 7];
+    s.color.z      = hy_sprites[index + 8];
+    s.color.w      = hy_sprites[index + 9];
     return s;
 }
 
