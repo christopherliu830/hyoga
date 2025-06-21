@@ -3,7 +3,7 @@ const sdl = @import("sdl");
 const imgui = @import("imgui");
 
 const hy = @import("hyoga-lib");
-const math = hy.math;
+const hym = hy.math;
 
 const Engine = @import("Engine.zig");
 const Audio = Engine.Audio;
@@ -15,10 +15,10 @@ const UI = Engine.UI;
 const Window = Engine.Window;
 
 pub const Scene = extern struct {
-    view: math.Mat4,
-    proj: math.Mat4,
-    light_dir: math.Vec3,
-    camera_world_pos: math.Vec3,
+    view: hym.Mat4,
+    proj: hym.Mat4,
+    light_dir: hym.Vec3,
+    camera_world_pos: hym.Vec3,
 
     comptime {
         hy.meta.assertMatches(Scene, hy.runtime.Scene);
@@ -107,7 +107,7 @@ export fn hyaudSoundStop(sound: *Audio.Sound) void {
     sound.stop();
 }
 
-export fn hygpuClearColorSet(gpu: *Gpu, color: hy.math.Vec4) void {
+export fn hygpuClearColorSet(gpu: *Gpu, color: hym.Vec4) void {
     gpu.clearColorSet(color);
 }
 
@@ -131,7 +131,7 @@ export fn hygpuModelDestroy(gpu: *Gpu, model: Gpu.Model) void {
     gpu.models.remove(&gpu.buffer_allocator, model);
 }
 
-export fn hygpuModelBounds(gpu: *Gpu, model: Gpu.Model) hy.math.AxisAligned {
+export fn hygpuModelBounds(gpu: *Gpu, model: Gpu.Model) hym.AxisAligned {
     if (gpu.models.get(model)) |m| {
         return m.bounds;
     } else |e| {
@@ -176,7 +176,7 @@ export fn hygpuRenderableDestroy(gpu: *Gpu, item: Gpu.RenderItemHandle) void {
     gpu.renderableDestroy(item);
 }
 
-export fn hygpuRenderableSetTransform(gpu: *Gpu, item: Gpu.RenderItemHandle, transform: hy.math.Mat4) void {
+export fn hygpuRenderableSetTransform(gpu: *Gpu, item: Gpu.RenderItemHandle, transform: hym.Mat4) void {
     gpu.renderableSetTransform(item, transform);
 }
 
@@ -256,7 +256,7 @@ export fn hyioQueryMouse(input: *Input, button: hy.key.MouseButton) bool {
     return input.queryMouse(button);
 }
 
-export fn hyioQueryMousePosition(input: *Input) hy.math.Vec2 {
+export fn hyioQueryMousePosition(input: *Input) hym.Vec2 {
     return input.queryMousePosition();
 }
 
@@ -283,15 +283,15 @@ export fn hyp2BodyUserData(body: Phys2.Body) ?*anyopaque {
     return body.getUserData();
 }
 
-export fn hyp2BodyGetPosition(p2d: *Phys2, body: Phys2.Body) hy.math.Vec2 {
+export fn hyp2BodyGetPosition(p2d: *Phys2, body: Phys2.Body) hym.Vec2 {
     return p2d.bodyPosition(body);
 }
 
-export fn hyp2BodyPositionSet(body: Phys2.Body, pos: hy.math.Vec2) void {
+export fn hyp2BodyPositionSet(body: Phys2.Body, pos: hym.Vec2) void {
     Phys2.bodyPositionSet(body, pos);
 }
 
-export fn hyp2BodyRealPosition(body: Phys2.Body) hy.math.Vec2 {
+export fn hyp2BodyRealPosition(body: Phys2.Body) hym.Vec2 {
     return @bitCast(body.getPosition());
 }
 
@@ -303,11 +303,11 @@ export fn hyp2BodySetType(body: Phys2.Body, body_type: Phys2.Body.Type) void {
     body.setType(@enumFromInt(@intFromEnum(body_type)));
 }
 
-export fn hyp2BodyGetVelocity(body: Phys2.Body) hy.math.Vec2 {
+export fn hyp2BodyGetVelocity(body: Phys2.Body) hym.Vec2 {
     return @bitCast(body.getLinearVelocity());
 }
 
-export fn hyp2BodySetVelocity(body: Phys2.Body, velocity: hy.math.Vec2) void {
+export fn hyp2BodySetVelocity(body: Phys2.Body, velocity: hym.Vec2) void {
     body.setLinearVelocity(@bitCast(velocity));
 }
 
@@ -338,7 +338,7 @@ export fn hyp2HitEventDeregisterAll(
     p2d.hitEventDeregisterAll(body);
 }
 
-export fn hyp2OverlapLeaky(p2d: *Phys2, arena: hy.ExternAllocator, shape: Phys2.ShapeConfig, origin: hy.math.Vec2) hy.ExternSlice(Phys2.b2.Shape) {
+export fn hyp2OverlapLeaky(p2d: *Phys2, arena: hy.ExternAllocator, shape: Phys2.ShapeConfig, origin: hym.Vec2) hy.ExternSlice(Phys2.b2.Shape) {
     return .make(p2d.overlapLeaky(arena.allocator(), shape, origin));
 }
 
@@ -370,10 +370,18 @@ export fn hyuiGetGlobalState(ui: *UI) UI.GlobalState {
     return ui.getGlobalState();
 }
 
+export fn hyuiInputState(ui: *UI) UI.InputState {
+    return ui.inputState();
+}
+
 export fn hywSetRelativeMouseMode(window: *Window, on_off: bool) void {
     window.setRelativeMouseMode(on_off);
 }
 
-export fn hywDimensions(window: *Window) hy.math.Vec2 {
+export fn hywDimensions(window: *Window) hym.Vec2 {
     return window.dimensions();
+}
+
+export fn hywProjectionMatrix(window: *Window) hym.Mat4 {
+    return window.projectionMatrix();
 }

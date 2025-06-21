@@ -17,18 +17,14 @@ pub const FPoint = extern struct {
 };
 //pub const SDL_FPoint = struct_SDL_FPoint;
 //pub const struct_SDL_Rect = extern struct {
+
 pub const Rect = extern struct {
-    //    x: c_int = @import("std").mem.zeroes(c_int),
-    x: c_int = @import("std").mem.zeroes(c_int),
-    //    y: c_int = @import("std").mem.zeroes(c_int),
-    y: c_int = @import("std").mem.zeroes(c_int),
-    //    w: c_int = @import("std").mem.zeroes(c_int),
-    w: c_int = @import("std").mem.zeroes(c_int),
-    //    h: c_int = @import("std").mem.zeroes(c_int),
-    h: c_int = @import("std").mem.zeroes(c_int),
-    //};
+    x: c_int = 0,
+    y: c_int = 0,
+    w: c_int = 0,
+    h: c_int = 0,
 };
-//pub const SDL_Rect = struct_SDL_Rect;
+
 //pub const struct_SDL_FRect = extern struct {
 pub const FRect = extern struct {
     //    x: f32 = @import("std").mem.zeroes(f32),

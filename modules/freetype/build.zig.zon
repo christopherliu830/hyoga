@@ -1,0 +1,12 @@
+.{
+    .name = .hyoga_freetype,
+    .fingerprint = 0x2abb8940dc6ef582,
+    .version = "0.0.0",
+    .dependencies = .{
+        .freetype = .{
+            .url = "https://gitlab.freedesktop.org/freetype/freetype/-/archive/04f68052f0d20e6f269cdc7d79a4fa5bb755d574/freetype-04f68052f0d20e6f269cdc7d79a4fa5bb755d574.tar.gz",
+            .hash = "N-V-__8AAML8qQBViCth7j9b7c0hjm0ckeo6vC6djLqVk90o",
+        }
+    },
+    .paths = .{""},
+}

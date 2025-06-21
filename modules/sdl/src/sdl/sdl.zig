@@ -13,6 +13,13 @@ pub const scancode = @import("scancode.zig");
 pub const video = @import("video.zig");
 pub const init = @import("init.zig");
 
+pub const Event = events.Event;
+pub const Color = pixels.Color;
+pub const FColor = pixels.FColor;
+pub const FPoint = rect.FPoint;
+pub const Rect = rect.Rect;
+pub const Surface = video.Surface;
+
 pub const PropertiesID = properties.PropertiesID;
 pub const Window = video.Window;
 

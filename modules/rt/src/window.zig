@@ -29,12 +29,25 @@ pub fn deinit(window: Window) void {
 }
 
 pub fn dimensions(window: Window) hym.Vec2 {
-    var x: c_int = 0;
-    var y: c_int = 0;
-    if (!sdl.video.getWindowSizeInPixels(window.hdl, &x, &y)) {
-        std.log.err("Unable to get window size: {s}", .{sdl.getError()});
-    }
-    return hym.vec2.create(@floatFromInt(x), @floatFromInt(y));
+    const dims = sdl.video.windowSizeInPixels(window.hdl) catch unreachable;
+    return hym.vec2.create(@floatFromInt(dims[0]), @floatFromInt(dims[1]));
+}
+
+pub fn projectionMatrix(window: *const Window) hym.Mat4 {
+    const dims = window.dimensions();
+    const l: f32 = 0;
+    const r: f32 = dims.x();
+    const t: f32 = dims.y();
+    const b: f32 = 0;
+
+    const transform: hym.Mat4 = @bitCast([16]f32{
+        2 / (r - l),       0,                 0,  0,
+        0,                 2 / (t - b),       0,  0,
+        0,                 0,                 -1, 0,
+        (r + l) / (l - r), (t + b) / (b - t), 0,  1,
+    });
+
+    return transform;
 }
 
 pub fn setRelativeMouseMode(self: Window, mode: bool) void {

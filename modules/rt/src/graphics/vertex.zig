@@ -5,3 +5,9 @@ pub const Vertex = struct {
     normal: [3]f32,
     uv: [2]f32,
 };
+
+pub const UIVertex = struct {
+    pos: [2]f32 = .{ 0, 0 },
+    uv: [2]f32 = .{ 0, 0 },
+    color: [4]f32 = .{ 0, 0, 0, 0 },
+};

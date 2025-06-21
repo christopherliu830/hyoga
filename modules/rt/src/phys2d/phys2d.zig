@@ -108,7 +108,7 @@ pub const BodyAddOptions = extern struct {
     type: b2.Body.Type,
     position: hym.Vec2,
     velocity: hym.Vec2 = .zero,
-    shape: AddShapeOptions,
+    shape: hy.ExternSliceConst(AddShapeOptions),
     bullet: bool = false,
     user_data: ?*anyopaque = null,
 
@@ -128,36 +128,38 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
         });
     };
 
-    switch (opts.shape.type.revert()) {
-        .circle => |c| {
-            const circle: b2.Shape.Circle = .{
-                .radius = c.radius,
-                .center = @bitCast(c.center),
-            };
+    for (opts.shape.asSlice()) |shape| {
+        switch (shape.type.revert()) {
+            .circle => |c| {
+                const circle: b2.Shape.Circle = .{
+                    .radius = c.radius,
+                    .center = @bitCast(c.center),
+                };
 
-            _ = b2.Shape.createCircleShape(body, &.{
-                .density = opts.shape.density,
-                .is_sensor = opts.shape.sensor,
-                .enable_hit_events = true,
-                .filter = opts.shape.filter,
-            }, &circle);
-        },
-        .box => |b| {
-            const box: b2.Shape.Polygon = .makeBox(b.width, b.height);
-            _ = b2.Shape.createPolygonShape(body, &.{
-                .density = opts.shape.density,
-                .enable_hit_events = true,
-                .filter = opts.shape.filter,
-            }, &box);
-        },
-        .polygon => |p| {
-            const hull = b2.computeHull(@ptrCast(p.points.ptr), @intCast(p.points.len));
-            const polygon = b2.makePolygon(&hull, 0);
-            _ = b2.Shape.createPolygonShape(body, &.{
-                .density = opts.shape.density,
-                .enable_hit_events = true,
-                .filter = opts.shape.filter,
-            }, &polygon);
+                _ = b2.Shape.createCircleShape(body, &.{
+                    .density = shape.density,
+                    .is_sensor = shape.sensor,
+                    .enable_hit_events = true,
+                    .filter = shape.filter,
+                }, &circle);
+            },
+            .box => |b| {
+                const box: b2.Shape.Polygon = .makeBox(b.width, b.height);
+                _ = b2.Shape.createPolygonShape(body, &.{
+                    .density = shape.density,
+                    .enable_hit_events = true,
+                    .filter = shape.filter,
+                }, &box);
+            },
+            .polygon => |p| {
+                const hull = b2.computeHull(@ptrCast(p.points.ptr), @intCast(p.points.len));
+                const polygon = b2.makePolygon(&hull, 0);
+                _ = b2.Shape.createPolygonShape(body, &.{
+                    .density = shape.density,
+                    .enable_hit_events = true,
+                    .filter = shape.filter,
+                }, &polygon);
+            }
         }
     }
 

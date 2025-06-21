@@ -10,6 +10,7 @@ pub const Phys2 = @import("phys2d/phys2d.zig");
 
 const std = @import("std");
 const sdl = @import("sdl");
+const sdl_ttf = @import("sdl_ttf");
 const hy = @import("hyoga-lib");
 
 const Engine = @This();
@@ -42,6 +43,16 @@ pub fn init() !*Engine {
     var self_gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
     var self = self_gpa.allocator().create(Engine) catch hy.err.oom();
 
+    if (!sdl_ttf.init()) {
+        sdl.log("Error initializing sdl_ttf: %s", sdl.getError());
+        return error.SdlError;
+    }
+    var a: c_int = 0;
+    var b: c_int = 0;
+    var c: c_int = 0;
+    sdl_ttf.versionHarfBuzz(&a, &b, &c);
+    sdl_ttf.versionFreeType(&a, &b, &c);
+
     self.* = .{
         .gpa = self_gpa,
         .static_arena = std.heap.ArenaAllocator.init(self.gpa.allocator()),
@@ -67,7 +78,7 @@ pub fn init() !*Engine {
 pub fn shutdown(self: *Engine) void {
     Audio.shutdown();
     self.loader.deinit();
-    self.ui.shutdown();
+    self.ui.shutdown(self.gpa.allocator());
     self.gpu.shutdown();
     self.physics.deinit();
     self.input.shutdown();
@@ -79,6 +90,8 @@ pub fn shutdown(self: *Engine) void {
     var gpa = self.gpa;
     gpa.allocator().destroy(self);
     _ = gpa.detectLeaks();
+
+    sdl_ttf.quit();
 }
 
 pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
@@ -95,11 +108,11 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
         self.ui.processEvent(event) catch |err|
             std.log.err("[UI] processEvent failure: {}", .{err});
 
-        if (!self.ui.wantsKeyboard()) self.input.updateKeyboard(event);
-        if (!self.ui.wantsMouse()) self.input.updateMouse(event);
+        if (!self.ui.wantsCaptureKeyboard()) self.input.updateKeyboard(event);
+        if (!self.ui.wantsCaptureMouse()) self.input.updateMouse(event);
 
         switch (event.type) {
-            sdl.events.type.quit => {
+            .quit => {
                 game.quit = true;
                 return game;
             },
@@ -136,11 +149,12 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
 
     // If no command buffer, too many frames are in flight - skip rendering.
     if (maybe_cmd) |cmd| {
-        self.ui.beginFrame() catch |err|
+        self.ui.beginFrame(game.update_delta_time) catch |err|
             std.log.err("[UI] Failed to begin frame for render: {}", .{err});
 
         gi.render(self, game);
 
+        self.ui.clay_ui.end();
         self.gpu.render(cmd, &game.scene, game.current_time) catch |err|
             std.log.err("[GPU] failed to finish render: {}", .{err});
         self.ui.render(cmd) catch |err|

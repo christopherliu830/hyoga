@@ -18,7 +18,7 @@ pub const Audio = aud;
 pub const Phys2 = p2.Phys2;
 pub const Strint = strint;
 pub const Window = w.Window;
-pub const UI = ui;
+pub const UI = ui.UI;
 
 const math = @import("math/math.zig");
 const key = @import("key.zig");

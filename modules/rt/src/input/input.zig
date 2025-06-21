@@ -207,7 +207,7 @@ pub fn post(self: *Input, device: Device, key: u32, mods: types.Keymod, action: 
 
 pub fn updateKeyboard(self: *Input, event: sdl.events.Event) void {
     switch (event.type) {
-        sdl.events.type.key_down => {
+        .key_down => {
             const key = types.fromSdl(event.key.key);
             self.keys_down.insert(key);
             self.post(
@@ -219,7 +219,7 @@ pub fn updateKeyboard(self: *Input, event: sdl.events.Event) void {
             );
         },
 
-        sdl.events.type.key_up => {
+        .key_up => {
             const key = types.fromSdl(event.key.key);
             _ = self.keys_down.remove(key);
 
@@ -241,7 +241,7 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
     self.mouse_state.remove(.wheel);
 
     switch (event.type) {
-        sdl.events.type.mouse_button_down => {
+        .mouse_button_down => {
             const button: MouseButton = switch (event.button.button) {
                 0 => unreachable,
                 1 => .left,
@@ -260,7 +260,7 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
             );
         },
 
-        sdl.events.type.mouse_button_up => {
+        .mouse_button_up => {
             const button: MouseButton = switch (event.button.button) {
                 0 => unreachable,
                 1 => .left,
@@ -279,7 +279,7 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
             );
         },
 
-        sdl.events.type.mouse_motion => {
+        .mouse_motion => {
             self.mouse_state.insert(.motion);
             const m = event.motion;
             self.post(
@@ -294,7 +294,7 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
             );
         },
 
-        sdl.events.type.mouse_wheel => {
+        .mouse_wheel => {
             self.post(
                 .mouse,
                 @intFromEnum(MouseButton.wheel),

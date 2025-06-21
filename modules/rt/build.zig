@@ -62,6 +62,11 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
+    const sdl_ttf = b.dependency("sdl_ttf", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const assimp = b.dependency("assimp", .{
         .target = target,
         .optimize = optimize,
@@ -74,6 +79,11 @@ pub fn build(b: *std.Build) !void {
         .enable_fibers = true,
     });
 
+    const zclay = b.dependency("zclay", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     if (enable_tracy) {
         rt.linkLibrary(ztracy.artifact("tracy"));
     }
@@ -84,15 +94,36 @@ pub fn build(b: *std.Build) !void {
     rt.root_module.addImport("sdl", sdl.module("sdl"));
     rt.root_module.addImport("sdl_shadercross", sdl.module("sdl_shadercross"));
     rt.root_module.addImport("sdl_mixer", sdl_mixer.module("sdl_mixer"));
+    rt.root_module.addImport("sdl_ttf", sdl_ttf.module("sdl_ttf"));
     rt.root_module.addImport("imgui", imgui.module("imgui"));
     rt.root_module.addImport("implot", imgui.module("implot"));
     rt.root_module.addImport("stb_image", stb_image.module("stb_image"));
     rt.root_module.addImport("ztracy", ztracy.module("root"));
+    rt.root_module.addImport("clay", zclay.module("clay"));
     rt.root_module.addImport("build_options", options_module);
+
+    b.modules.put(b.dupe("imgui"), imgui.module("imgui")) catch @panic("OOM");
+    b.modules.put(b.dupe("implot"), imgui.module("implot")) catch @panic("OOM");
+    b.modules.put(b.dupe("ztracy"), ztracy.module("root")) catch @panic("OOM");
+    b.modules.put(b.dupe("clay"), zclay.module("clay")) catch @panic("OOM");
 
     b.installArtifact(rt);
 
     const wf = b.addNamedWriteFiles("bin_files");
     _ = wf.addCopyDirectory(assimp.namedWriteFiles("dlls").getDirectory(), ".", .{});
     _ = wf.addCopyDirectory(sdl.namedWriteFiles("dlls").getDirectory(), ".", .{});
+
+    // Language server
+
+    const exe_check = b.addExecutable(.{
+        .name = "run",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    exe_check.linkLibrary(rt);
+
+    const check = b.step("check", "check if run compiles");
+    check.dependOn(&exe_check.step);
 }

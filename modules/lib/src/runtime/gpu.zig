@@ -4,14 +4,20 @@ const std = @import("std");
 const hy = @import("../root.zig");
 const rt = @import("../runtime.zig");
 
-const math = @import("../math/math.zig");
-const mat4 = math.mat4;
+const hym = @import("../math/math.zig");
+const mat4 = hym.mat4;
 
 pub const Gpu = opaque {
     pub const Vertex = struct {
-        pos: [3]f32,
-        normal: [3]f32,
-        uv: [2]f32,
+        pos: [3]f32 = .{ 0, 0, 0 },
+        normal: [3]f32 = .{ 0, 0, 0 },
+        uv: [2]f32 = .{ 0, 0 },
+    };
+
+    pub const UIVertex = struct {
+        pos: [2]f32 = .{ 0, 0 },
+        uv: [2]f32 = .{ 0, 0 },
+        color: [4]f32 = .{ 0, 0, 0, 0 },
     };
 
     pub const Model = enum(u64) {
@@ -35,7 +41,10 @@ pub const Gpu = opaque {
         standard_unlit,
         sprite,
         post_process,
+        screen_blit,
         billboard,
+        ui,
+        ui_sdf,
     };
 
     pub const TextureType = enum(u32) {
@@ -161,22 +170,24 @@ pub const Gpu = opaque {
     pub const renderableRemove = hygpuRenderableDestroy;
     pub const renderableSetTransform = hygpuRenderableSetTransform;
     pub const renderableOfSprite = hygpuRenderableOfSprite;
-    pub fn textureImport(gpu: *Gpu, path: []const u8) TextureHandle {
-        return hygpuTextureImport(gpu, .make(path));
-    }
     pub const spriteCreate = hygpuSpriteCreate;
     pub const spriteDestroy = hygpuSpriteDestroy;
     pub const spriteWeakPtr = hygpuSpriteWeakPtr;
     pub const spriteRenderableWeakPtr = hygpuSpriteRenderableWeakPtr;
     pub const spriteCurrentAnimationFrame = hygpuSpriteCurrentAnimationFrame;
     pub const spriteDupe = hygpuSpriteDupe;
+
+    pub fn textureImport(gpu: *Gpu, path: []const u8) TextureHandle {
+        return hygpuTextureImport(gpu, .make(path));
+    }
+
     pub const clearColorSet = hygpuClearColorSet;
 
-    extern fn hygpuClearColorSet(*Gpu, math.Vec4) void;
+    extern fn hygpuClearColorSet(*Gpu, hym.Vec4) void;
     extern fn hygpuImportModel(*Gpu, [*:0]const u8, ImportSettings) Model;
     extern fn hygpuMaterialDefaultCreate(*Gpu) MaterialHandle;
     extern fn hygpuMaterialCreate(*Gpu, MaterialType, *const TextureArray) MaterialHandle;
-    extern fn hygpuModelBounds(*Gpu, Model) math.AxisAligned;
+    extern fn hygpuModelBounds(*Gpu, Model) hym.AxisAligned;
     extern fn hygpuModelCreate(*Gpu, hy.ExternSliceConst(Vertex), hy.ExternSliceConst(u32), MaterialHandle) Model;
     extern fn hygpuModelDupe(*Gpu, Model, ModelDupeOptions) Model;
     extern fn hygpuModelDestroy(*Gpu, Model) void;
@@ -186,7 +197,7 @@ pub const Gpu = opaque {
     extern fn hygpuRenderableDestroy(*Gpu, Renderable) void;
     extern fn hygpuSelectRenderable(*Gpu, Renderable) void;
     extern fn hygpuDeselectRenderable(*Gpu, Renderable) void;
-    extern fn hygpuRenderableSetTransform(*Gpu, Renderable, math.Mat4) void;
+    extern fn hygpuRenderableSetTransform(*Gpu, Renderable, hym.Mat4) void;
     extern fn hygpuRenderableOfSprite(*Gpu, Sprite.Handle) Renderable;
     extern fn hygpuSpriteCreate(*Gpu, SpriteCreateOptions) Sprite.Handle;
     extern fn hygpuSpriteDestroy(*Gpu, Sprite.Handle) void;

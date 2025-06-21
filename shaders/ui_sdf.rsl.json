@@ -1,0 +1,14 @@
+{
+    "pass": 2,
+    "vertex": {
+        "uniforms": [
+            "hy_immediate_mvp"
+        ]
+    },
+    "fragment": {
+        "samplers": [
+            "diffuse"
+        ]
+    }
+}
+

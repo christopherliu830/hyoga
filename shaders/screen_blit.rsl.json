@@ -1,0 +1,6 @@
+{
+    "pass": 1,
+    "fragment": {
+        "samplers": ["diffuse"]
+    }
+}

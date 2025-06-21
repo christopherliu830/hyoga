@@ -3,18 +3,8 @@
     .fingerprint = 0x2ad50434bc71b3e7,
     .version = "0.0.0",
     .dependencies = .{
-        .hyoga_lib = .{
-            .path = "modules/lib",
-        },
-        .hyoga_rt = .{
-            .path = "modules/rt",
-        },
-        .imgui = .{
-            .path = "modules/imgui",
-        },
-        .ztracy = .{
-            .path = "modules/ztracy",
-        },
+        .hyoga_lib = .{ .path = "modules/lib" },
+        .hyoga_rt = .{ .path = "modules/rt" },
     },
     .paths = .{""},
 }

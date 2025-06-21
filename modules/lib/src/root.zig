@@ -1,5 +1,6 @@
 pub const array_group = @import("array_group.zig");
 pub const closure = @import("closure.zig");
+pub const color = @import("color.zig");
 pub const err = @import("debug.zig");
 pub const debug = @import("debug.zig");
 pub const meta = @import("meta.zig");
@@ -17,6 +18,7 @@ pub const gpu = runtime.gpu;
 
 pub const ArrayGroup = array_group.ArrayGroup;
 pub const CircleQueue = circle_queue.CircleQueue;
+pub const Color = color.Color;
 pub const SlotMap = slot_map.SlotMap;
 pub const SkipMap = skip_map.SkipMap;
 pub const ExternAllocator = @"extern".ExternAllocator;
@@ -30,6 +32,7 @@ pub const World = runtime.World;
 pub const Input = runtime.Input;
 pub const Gpu = runtime.Gpu;
 pub const Phys2 = runtime.Phys2;
+pub const UI = runtime.UI;
 pub const Window = runtime.Window;
 pub const Keycode = key.Keycode;
 pub const Keymod = key.Keymod;

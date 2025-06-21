@@ -6,10 +6,13 @@
         .imgui = .{ .path = "../imgui" },
         .sdl = .{ .path = "../sdl" },
         .sdl_mixer = .{ .path = "../sdl_mixer" },
+        .sdl_ttf = .{ .path = "../sdl_ttf" },
         .assimp = .{ .path = "../assimp" },
         .stb_image = .{ .path = "../stb_image" },
         .ztracy = .{ .path = "../ztracy" },
         .hyoga_lib = .{ .path = "../lib" },
+
+        .zclay = .{ .path = "../clay" },
     },
     .paths = .{""},
 }

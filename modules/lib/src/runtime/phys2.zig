@@ -57,7 +57,7 @@ pub const Phys2 = struct {
             type: Type = .dynamic,
             position: hym.Vec2 = .zero,
             velocity: hym.Vec2 = .zero,
-            shape: AddShapeOptions,
+            shape: hy.ExternSliceConst(AddShapeOptions),
             bullet: bool = false,
             user_data: ?*anyopaque = null,
         };

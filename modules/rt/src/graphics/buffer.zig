@@ -20,6 +20,17 @@ pub const BufferAllocator = struct {
 
     const BufNode = std.SinglyLinkedList(Buf).Node;
 
+    pub const Iterator = struct {
+        current: *BufNode,
+
+        pub fn next(self: *Iterator) ?*Buf {
+            if (self.current) |*buf| {
+                self.current = self.current.next;
+                return buf;
+            }
+        }
+    };
+
     const min_buffer_size = 2 * 1024 * 1024;
 
     pub fn init(device: *sdl.gpu.Device, usage: sdl.gpu.BufferUsageFlags, allocator: std.mem.Allocator) BufferAllocator {
@@ -31,6 +42,23 @@ pub const BufferAllocator = struct {
     }
 
     pub fn deinit(self: *BufferAllocator) void {
+        var maybe_node = self.buffer_list.popFirst();
+        while (maybe_node) |node| : (maybe_node = self.buffer_list.popFirst()) {
+            self.device.releaseBuffer(node.data.hdl);
+            self.node_allocator.destroy(node);
+        }
+        maybe_node = self.free_buffer_list.popFirst();
+        while (maybe_node) |node| : (maybe_node = self.free_buffer_list.popFirst()) {
+            self.device.releaseBuffer(node.data.hdl);
+            self.node_allocator.destroy(node);
+        }
+    }
+
+    pub fn iterator(self: *const BufferAllocator) Iterator {
+        return .{ .current = self.buffer_list.head };
+    }
+
+    pub fn reset(self: *BufferAllocator) void {
         var maybe_node = self.buffer_list.popFirst();
         while (maybe_node) |node| : (maybe_node = self.buffer_list.popFirst()) {
             self.device.releaseBuffer(node.data.hdl);

@@ -1,3 +1,4 @@
+const sdl = @import("sdl.zig");
 const PixelFormat = @import("pixels.zig").PixelFormat;
 const Rect = @import("rect.zig").Rect;
 const PropertiesID = @import("properties.zig").PropertiesID;
@@ -230,6 +231,16 @@ pub const GLContextResetNotification = enum(c_uint) {
     gl_context_reset_lose_context,
 };
 
+pub fn windowSizeInPixels(window: *Window) ![2]u32 {
+    var w: c_int = 0;
+    var h: c_int = 0;
+    if (!SDL_GetWindowSizeInPixels(window, &w, &h)) {
+        sdl.log("Error getting window size: %s", sdl.getError());
+        return error.SdlError;
+    }
+    return .{ @intCast(w), @intCast(h) };
+}
+
 //pub const SDL_GLContextResetNotification = enum_SDL_GLContextResetNotification;
 //pub extern fn SDL_GetNumVideoDrivers() c_int;
 pub extern fn SDL_GetNumVideoDrivers() c_int;
@@ -369,10 +380,9 @@ pub const getWindowAspectRatio = SDL_GetWindowAspectRatio;
 //pub extern fn SDL_GetWindowBordersSize(window: ?*SDL_Window, top: [*c]c_int, left: [*c]c_int, bottom: [*c]c_int, right: [*c]c_int) SDL_bool;
 pub extern fn SDL_GetWindowBordersSize(window: ?*Window, top: [*c]c_int, left: [*c]c_int, bottom: [*c]c_int, right: [*c]c_int) bool;
 pub const getWindowBordersSize = SDL_GetWindowBordersSize;
-//pub extern fn SDL_GetWindowSizeInPixels(window: ?*SDL_Window, w: [*c]c_int, h: [*c]c_int) SDL_bool;
-pub extern fn SDL_GetWindowSizeInPixels(window: ?*Window, w: [*c]c_int, h: [*c]c_int) bool;
-pub const getWindowSizeInPixels = SDL_GetWindowSizeInPixels;
-//pub extern fn SDL_SetWindowMinimumSize(window: ?*SDL_Window, min_w: c_int, min_h: c_int) SDL_bool;
+
+pub extern fn SDL_GetWindowSizeInPixels(window: *Window, w: [*c]c_int, h: [*c]c_int) bool;
+
 pub extern fn SDL_SetWindowMinimumSize(window: ?*Window, min_w: c_int, min_h: c_int) bool;
 pub const setWindowMinimumSize = SDL_SetWindowMinimumSize;
 //pub extern fn SDL_GetWindowMinimumSize(window: ?*SDL_Window, w: [*c]c_int, h: [*c]c_int) SDL_bool;

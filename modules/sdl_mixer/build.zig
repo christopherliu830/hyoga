@@ -65,7 +65,6 @@ pub fn build(b: *Build) !void {
         }},
     });
 
-    // sdl_mixer.addIncludePath(sdl_dep.namedLazyPath("include"));
     sdl_mixer.linkLibrary(sdl_dep.artifact("sdl"));
     sdl_mixer.addIncludePath(sdl_mixer_dep.path("src"));
     sdl_mixer.addIncludePath(sdl_mixer_dep.path("src/codecs"));

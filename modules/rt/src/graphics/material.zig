@@ -47,10 +47,19 @@ pub const Materials = struct {
                     .post_process = readFromPath(gpu, .{
                         .path = "shaders/post_process",
                     }, gpu.gpa) catch panic("error creating post_process shader", .{}),
+                    .screen_blit = readFromPath(gpu, .{
+                        .path = "shaders/screen_blit",
+                    }, gpu.gpa) catch panic("error creating screen_blit shader", .{}),
                     .billboard = readFromPath(gpu, .{
                         .path = "shaders/billboard",
                         .enable_depth = true,
                     }, gpu.gpa) catch panic("error creating billboard shader", .{}),
+                    .ui = readFromPath(gpu, .{
+                        .path = "shaders/ui",
+                    }, gpu.gpa) catch panic("error creating ui shader", .{}),
+                    .ui_sdf = readFromPath(gpu, .{
+                        .path = "shaders/ui_sdf",
+                    }, gpu.gpa) catch panic("error creating ui shader", .{}),
                 },
             ),
         };
@@ -66,21 +75,22 @@ pub const Materials = struct {
     }
 
     pub fn remove(self: *Materials, hdl: Handle) void {
-        const mat = self.materials.get(hdl).?;
-        const rm_start = mat.params_start;
-        const rm_len = paramsSize(mat.params_type);
+        if (self.materials.get(hdl)) |mat| {
+            const rm_start = mat.params_start;
+            const rm_len = paramsSize(mat.params_type);
 
-        if (rm_len > 0) {
-            self.param_buf.replaceRangeAssumeCapacity(rm_start, rm_len, &.{});
-            var it = self.materials.iterator();
-            while (it.nextPtr()) |m| {
-                if (m.params_start > rm_start) {
-                    m.params_start -= rm_len;
+            if (rm_len > 0) {
+                self.param_buf.replaceRangeAssumeCapacity(rm_start, rm_len, &.{});
+                var it = self.materials.iterator();
+                while (it.nextPtr()) |m| {
+                    if (m.params_start > rm_start) {
+                        m.params_start -= rm_len;
+                    }
                 }
             }
-        }
 
-        self.materials.remove(hdl);
+            self.materials.remove(hdl);
+        }
     }
 
     /// No guarantees for the lifetime of this generated material
@@ -102,11 +112,9 @@ pub const Materials = struct {
     }
 
     pub fn deinit(self: *Materials) void {
-        self.gpu.device.releaseGraphicsPipeline(self.templates.get(.post_process).pipeline);
-        self.gpu.device.releaseGraphicsPipeline(self.templates.get(.standard).pipeline);
-        self.gpu.device.releaseGraphicsPipeline(self.templates.get(.standard_unlit).pipeline);
-        self.gpu.device.releaseGraphicsPipeline(self.templates.get(.billboard).pipeline);
-        self.gpu.device.releaseGraphicsPipeline(self.templates.get(.sprite).pipeline);
+        inline for (std.meta.fields(Material.Type)) |tag| {
+            self.gpu.device.releaseGraphicsPipeline(self.templates.get(@enumFromInt(tag.value)).pipeline);
+        }
         self.param_buf.deinit(self.gpu.gpa);
         self.materials.deinit(self.gpu.gpa);
     }
@@ -118,7 +126,10 @@ pub const Material = struct {
         standard_unlit,
         sprite,
         post_process,
+        screen_blit,
         billboard,
+        ui,
+        ui_sdf,
 
         comptime {
             hy.meta.assertMatches(Type, hy.Gpu.MaterialType);
@@ -146,12 +157,6 @@ pub const Material = struct {
             .params_start = param_start,
             .params_type = template_type,
         };
-    }
-
-    pub fn deinit(self: *Material, textures: *tx.Textures) void {
-        // Don't textures here as they might be used elsewhere.
-        _ = self;
-        _ = textures;
     }
 };
 

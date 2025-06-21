@@ -779,7 +779,7 @@ pub const BlitInfo = extern struct {
     source: BlitRegion = @import("std").mem.zeroes(BlitRegion),
     destination: BlitRegion = @import("std").mem.zeroes(BlitRegion),
     load_op: LoadOp = @import("std").mem.zeroes(LoadOp),
-    clear_color: FColor = @import("std").mem.zeroes(FColor),
+    clear_color: FColor = .{},
     flip_mode: FlipMode = @import("std").mem.zeroes(FlipMode),
     filter: Filter = @import("std").mem.zeroes(Filter),
     cycle: bool = @import("std").mem.zeroes(bool),
@@ -851,7 +851,7 @@ extern fn SDL_PushGPUComputeUniformData(command_buffer: *CommandBuffer, slot_ind
 extern fn SDL_BeginGPURenderPass(command_buffer: *CommandBuffer, color_target_infos: [*c]const ColorTargetInfo, num_color_targets: u32, depth_stencil_target_info: [*c]const DepthStencilTargetInfo) ?*RenderPass;
 extern fn SDL_BindGPUGraphicsPipeline(render_pass: *RenderPass, graphics_pipeline: ?*GraphicsPipeline) void;
 extern fn SDL_SetGPUViewport(render_pass: *RenderPass, viewport: [*c]const Viewport) void;
-extern fn SDL_SetGPUScissor(render_pass: *RenderPass, scissor: [*c]const Rect) void;
+extern fn SDL_SetGPUScissor(render_pass: *RenderPass, scissor: ?*const Rect) void;
 extern fn SDL_SetGPUBlendConstants(render_pass: *RenderPass, blend_constants: FColor) void;
 extern fn SDL_SetGPUStencilReference(render_pass: *RenderPass, reference: u8) void;
 extern fn SDL_BindGPUVertexBuffers(render_pass: *RenderPass, first_slot: u32, bindings: [*c]const BufferBinding, num_bindings: u32) void;
@@ -886,7 +886,7 @@ extern fn SDL_DownloadFromGPUTexture(copy_pass: *CopyPass, source: [*c]const Tex
 extern fn SDL_DownloadFromGPUBuffer(copy_pass: *CopyPass, source: [*c]const BufferRegion, destination: [*c]const TransferBufferLocation) void;
 extern fn SDL_EndGPUCopyPass(copy_pass: *CopyPass) void;
 extern fn SDL_GenerateMipmapsForGPUTexture(command_buffer: *CommandBuffer, texture: ?*Texture) void;
-extern fn SDL_BlitGPUTexture(command_buffer: *CommandBuffer, info: [*c]const BlitInfo) void;
+extern fn SDL_BlitGPUTexture(command_buffer: *CommandBuffer, info: *const BlitInfo) void;
 extern fn SDL_WindowSupportsGPUSwapchainComposition(device: DeviceHdl, window: ?*Window, swapchain_composition: SwapchainComposition) bool;
 extern fn SDL_WindowSupportsGPUPresentMode(device: DeviceHdl, window: ?*Window, present_mode: PresentMode) bool;
 extern fn SDL_ClaimWindowForGPUDevice(device: DeviceHdl, window: ?*Window) bool;

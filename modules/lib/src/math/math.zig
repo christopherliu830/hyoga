@@ -9,6 +9,7 @@ pub const vec3 = @import("vec3.zig");
 pub const f32x3 = @Vector(3, f32);
 pub const vec4 = @import("vec4.zig");
 pub const AxisAligned = bounds.AxisAligned;
+pub const AxisAligned2D = bounds.AxisAligned2D;
 pub const Mat4 = mat4.Mat4;
 pub const Ray = ray.Ray;
 pub const Vec2 = vec2.Vec2;

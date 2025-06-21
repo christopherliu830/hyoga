@@ -3,6 +3,7 @@ const mdl = @import("model.zig");
 const hy = @import("hyoga-lib");
 const sdl = @import("sdl");
 const sdlsc = @import("sdl_shadercross");
+const ttf = @import("sdl_ttf");
 const ai = @import("assimp");
 const build_options = @import("build_options");
 
@@ -21,6 +22,7 @@ const Loader = @import("loader.zig");
 const Strint = @import("../strintern.zig");
 const passes = @import("passes.zig");
 const rbl = @import("renderable.zig");
+const imm = @import("immediate_mode.zig");
 const Scene = @import("../root.zig").Scene;
 const World = @import("../root.zig").World;
 
@@ -42,6 +44,7 @@ pub const TextureSet = tx.TextureSet;
 pub const TextureArray = tx.TextureArray;
 pub const TextureSetCreateInfo = tx.TextureSetCreateInfo;
 pub const Vertex = @import("vertex.zig").Vertex;
+pub const UIVertex = @import("vertex.zig").UIVertex;
 pub const primitives = @import("primitives.zig");
 
 const log = std.log.scoped(.gpu);
@@ -55,6 +58,7 @@ pub const StringIDs = struct {
     view: Strint.ID,
     projection: Strint.ID,
     view_projection: Strint.ID, // RH, y-up view projection matrix. note that SDL_gpu flips viewports to ensure consistency among all backends.
+    immediate_mvp: Strint.ID,
     camera_world_position: Strint.ID,
     light_direction: Strint.ID,
     viewport_size: Strint.ID,
@@ -71,6 +75,7 @@ pub const StringIDs = struct {
             .view = strint.from("hy_view_matrix") catch hy.err.oom(),
             .projection = strint.from("hy_projection_matrix") catch hy.err.oom(),
             .view_projection = strint.from("hy_view_projection_matrix") catch hy.err.oom(),
+            .immediate_mvp = strint.from("hy_immediate_mvp") catch hy.err.oom(),
             .camera_world_position = strint.from("hy_camera_world_position") catch hy.err.oom(),
             .light_direction = strint.from("hy_light_direction") catch hy.err.oom(),
             .viewport_size = strint.from("hy_viewport_size") catch hy.err.oom(),
@@ -129,6 +134,9 @@ pub const Sprite = extern struct {
 
 const DefaultAssets = struct {
     forward_pass: passes.Forward,
+    ui_pass: passes.Forward,
+
+    font: *ttf.Font,
 
     default_texture: *sdl.gpu.Texture,
     black_texture: *sdl.gpu.Texture,
@@ -145,6 +153,7 @@ const DefaultAssets = struct {
     sprite_buf: buf.DynamicBuffer(u128),
     scene: *Scene = undefined,
     active_target: ?*sdl.gpu.Texture,
+    resolve_tex: ?*sdl.gpu.Texture,
     pending_submit_result: ?RenderSubmitResult = null,
 };
 
@@ -177,22 +186,29 @@ const Uniform = union(enum) {
     buffer: *sdl.gpu.Buffer,
 };
 
-device: *sdl.gpu.Device,
+// Allocators
 gpa: std.mem.Allocator,
-arena: std.heap.ArenaAllocator,
+arena: std.heap.ArenaAllocator, // Reset after every submit().
 buffer_allocator: buf.BufferAllocator,
+
+// Engine resources
+device: *sdl.gpu.Device,
 loader: *Loader,
 strint: *Strint,
 window: *Window,
 default_assets: DefaultAssets = undefined,
 window_state: WindowState = .{},
+text_engine: *ttf.TextEngine,
+
+// Renderable State
 renderables: rbl.RenderList,
 sprites: hy.SlotMap(Sprite),
-speed: f32 = 1,
 textures: tx.Textures,
 models: Models,
 materials: mt.Materials,
 uniforms: std.AutoHashMapUnmanaged(Strint.ID, Uniform),
+im: imm.Context,
+
 ids: StringIDs,
 clear_color: hym.Vec4 = .of(0.15, 0.15, 0.15, 1),
 
@@ -216,26 +232,35 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
     self.* = .{
         .gpa = gpa,
-        .device = device,
         .arena = .init(gpa),
-        .buffer_allocator = .init(self.device, .{ .vertex = true, .index = true }, self.gpa),
+        .buffer_allocator = .init(device, .{ .vertex = true, .index = true }, self.gpa),
+
+        .device = device,
         .loader = loader,
         .strint = strint,
         .window = window,
         .window_state = .{},
+        .text_engine = ttf.TextEngine.gpuCreate(device) orelse {
+            sdl.log("Error creating text engine: %s", sdl.getError());
+            return error.SdlError;
+        },
         .ids = .init(self.strint),
+        .renderables = .init(self, self.gpa),
+        .sprites = .empty,
         .textures = undefined,
         .models = .init(loader, strint, self.gpa),
         .materials = .init(self),
-        .renderables = .init(self, self.gpa),
-        .sprites = .empty,
         .uniforms = .empty,
+        .im = .{
+            .arena = .init(gpa),
+            .buffer_allocator = .init(self.device, .{ .vertex = true, .index = true }, self.gpa),
+        },
     };
 
     self.textures.init(self.device, loader, strint, self.gpa);
+    self.textures.image_loader.use();
 
     sdlsc.init() catch |e| panic("sdl shader compiler init failure: {}", .{e});
-    self.textures.image_loader.use();
 
     // Generate default assets
 
@@ -291,6 +316,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .sample_count = .@"1",
         .usage = .{ .sampler = true },
     }) catch panic("error creating texture", .{});
+
     self.device.setTextureName(white_texture, "white_tex");
 
     try self.uploadToTexture(white_texture, 1, 1, &std.mem.toBytes([_]u32{white}));
@@ -328,20 +354,35 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .material = white_material,
     });
 
-    var w: c_int = 0;
-    var h: c_int = 0;
-    _ = sdl.video.getWindowSizeInPixels(window.hdl, &w, &h);
+    // Font
 
+    const font = ttf.fontOpen("assets/WonderType-Regular.otf", 256) catch unreachable;
+
+    const dims = sdl.video.windowSizeInPixels(window.hdl) catch unreachable;
     self.default_assets = .{
+        .font = font,
+
         .forward_pass = passes.Forward.init(self.device, .{
             .name = "standard",
             .clear_color = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
             .depth_enabled = true,
             .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
             .dest_usage = .{ .color_target = true, .sampler = true },
-            .dest_tex_width = @as(u16, @intCast(w)),
-            .dest_tex_height = @as(u16, @intCast(h)),
+            .dest_tex_width = @as(u16, @intCast(dims[0])),
+            .dest_tex_height = @as(u16, @intCast(dims[1])),
             .dest_tex_scale = 0.6,
+        }),
+
+        .ui_pass = passes.Forward.init(self.device, .{
+            .name = "ui",
+            .clear_color = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+            .sample_count = .@"4",
+            .depth_enabled = false,
+            .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
+            .dest_usage = .{ .color_target = true },
+            .dest_tex_width = @as(u16, @intCast(dims[0])),
+            .dest_tex_height = @as(u16, @intCast(dims[1])),
+            .dest_tex_scale = 1,
         }),
 
         .default_texture = texture,
@@ -357,24 +398,38 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .selected_obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 512, "Selected Object Mats"),
         .sprite_buf = try buf.DynamicBuffer(u128).init(self.device, 1024, "Sprite Atlas Sizes"),
         .active_target = null,
+        .resolve_tex = try device.createTexture(&.{
+            .type = .@"2d",
+            .format = .b8g8r8a8_unorm,
+            .width = @intCast(dims[0]),
+            .height = @intCast(dims[1]),
+            .layer_count_or_depth = 1,
+            .num_levels = 1,
+            .sample_count = .@"1",
+            .usage = .{ .color_target = true, .sampler = true },
+        }),
     };
 
     try self.uniforms.put(self.gpa, self.ids.all_renderables, .{ .buffer = self.default_assets.obj_buf.hdl });
     try self.uniforms.put(self.gpa, self.ids.selected_renderables, .{ .buffer = self.default_assets.selected_obj_buf.hdl });
     try self.uniforms.put(self.gpa, self.ids.sprites, .{ .buffer = self.default_assets.sprite_buf.hdl });
+    try self.uniforms.put(self.gpa, self.ids.all_renderables, .{ .buffer = self.default_assets.obj_buf.hdl });
 
     return self;
 }
 
 pub fn shutdown(self: *Gpu) void {
-    sdlsc.quit();
-
     self.device.waitForIdle() catch {
         std.debug.panic("Could not wait for idle: {s}", .{sdl.getError()});
     };
 
+    sdlsc.quit();
+
+    self.text_engine.gpuDestroy();
+
     self.device.releaseWindow(self.window.hdl);
 
+    self.im.deinit();
     self.textures.deinit();
     self.models.deinit(&self.buffer_allocator);
     self.materials.deinit();
@@ -383,20 +438,22 @@ pub fn shutdown(self: *Gpu) void {
     self.buffer_allocator.deinit();
 
     self.default_assets.forward_pass.deinit();
+    self.default_assets.ui_pass.deinit();
     self.device.releaseBuffer(self.default_assets.obj_buf.hdl);
     self.device.releaseBuffer(self.default_assets.selected_obj_buf.hdl);
     self.device.releaseBuffer(self.default_assets.sprite_buf.hdl);
     self.device.releaseTexture(self.default_assets.default_texture);
     self.device.releaseTexture(self.default_assets.black_texture);
     self.device.releaseTexture(self.default_assets.white_texture);
+    self.device.releaseTexture(self.default_assets.resolve_tex);
     self.device.releaseSampler(self.default_assets.sampler);
 
     self.sprites.deinit(self.gpa);
     self.uniforms.deinit(self.gpa);
-    self.arena.deinit();
 
     self.device.destroy();
 
+    self.arena.deinit();
     const gpa = self.gpa;
     gpa.destroy(self);
 }
@@ -476,7 +533,7 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
 
     const cmd = self.device.acquireCommandBuffer() orelse {
         std.log.err("could not acquire command buffer", .{});
-        return error.SDLError;
+        return error.SdlError;
     };
 
     var swapchain: ?*sdl.gpu.Texture = null;
@@ -486,6 +543,18 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
     } else if (swapchain) |s| {
         if (self.window_state.prev_drawable_w != drawable_w or self.window_state.prev_drawable_h != drawable_h) {
             self.default_assets.forward_pass.resize(drawable_w, drawable_h);
+            self.default_assets.ui_pass.resize(drawable_w, drawable_h);
+            self.device.releaseTexture(self.default_assets.resolve_tex);
+            self.default_assets.resolve_tex = try self.device.createTexture(&.{
+                .type = .@"2d",
+                .format = .b8g8r8a8_unorm,
+                .width = drawable_w,
+                .height = drawable_h,
+                .layer_count_or_depth = 1,
+                .num_levels = 1,
+                .sample_count = .@"1",
+                .usage = .{ .color_target = true, .sampler = true },
+            });
         }
 
         self.window_state.prev_drawable_w = drawable_w;
@@ -497,7 +566,7 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
         // No swapchain was acquired, probably too many frames in flight.
         if (!cmd.cancel()) {
             std.log.err("could not cancel command buffer", .{});
-            return error.SDLError;
+            return error.SdlError;
         }
         return null;
     }
@@ -519,24 +588,52 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     const render_pack = try self.renderables.packAll(arena);
     const transforms = render_pack.transforms;
     try self.uploadToBuffer(self.default_assets.obj_buf.hdl, 0, std.mem.sliceAsBytes(transforms));
-
     try self.uploadToBuffer(self.default_assets.sprite_buf.hdl, 0, self.materials.param_buf.items);
 
     // Render forward pass
-    self.doPass(.{
+    try self.doPass(.{
         .cmd = cmd,
-        .scene = scene.*,
         .targets = self.default_assets.forward_pass.targets(),
-        .items = .{ .pack = render_pack },
-    }) catch unreachable;
+        .pack = render_pack,
+    });
 
-    self.blitToScreen(
+    self.postProcessBlit(
         cmd,
         self.default_assets.active_target.?,
         self.default_assets.forward_pass.texture(),
         self.default_assets.forward_pass.texture(),
         self.uniforms.get(self.ids.viewport_size).?.f32x4,
     );
+
+    try self.im.draw(
+        self,
+        cmd,
+        self.default_assets.ui_pass.texture(),
+        self.default_assets.resolve_tex.?,
+    );
+
+    // Blit UI Immediates
+    const color: sdl.gpu.ColorTargetInfo = .{
+        .texture = self.default_assets.active_target.?,
+        .load_op = .load,
+        .store_op = .store,
+        .clear_color = @bitCast(self.clear_color),
+        .cycle = false,
+    };
+
+    const pass = cmd.beginRenderPass((&color)[0..1], 1, null) orelse
+        panic("error begin render pass {s}", .{sdl.getError()});
+    defer pass.end();
+
+    pass.bindGraphicsPipeline(self.materials.templates.get(.screen_blit).pipeline);
+
+    const binding = [_]sdl.gpu.TextureSamplerBinding{
+        .{ .sampler = self.default_assets.sampler, .texture = self.default_assets.resolve_tex.? },
+    };
+
+    pass.bindFragmentSamplers(0, &binding, 1);
+
+    pass.drawPrimitives(3, 1, 0, 0);
 }
 
 pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
@@ -545,20 +642,21 @@ pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
 
     _ = cmd.submit();
     _ = self.arena.reset(.retain_capacity);
+    self.im.reset();
     const result = self.default_assets.pending_submit_result.?;
     self.default_assets.pending_submit_result = null;
     self.default_assets.active_target = null;
     return result;
 }
 
-/// The vertex data for blitToScreen is hard coded into the shader,
+/// The vertex data for postProcessBlit is hard coded into the shader,
 /// so we only need to supply textures and draw 3 vertices.
-pub fn blitToScreen(
+pub fn postProcessBlit(
     self: *Gpu,
     cmd: *sdl.gpu.CommandBuffer,
     screen_tex: *sdl.gpu.Texture,
     scene_tex: *sdl.gpu.Texture,
-    mask_tex: *sdl.gpu.Texture,
+    mask_tex: *sdl.gpu.Texture, // Used for post processing the shadows.
     viewport_size: [4]f32,
 ) void {
     const color: sdl.gpu.ColorTargetInfo = .{
@@ -601,12 +699,9 @@ pub const PassTargets = struct {
 
 const PassInfo = struct {
     cmd: *sdl.gpu.CommandBuffer,
-
-    items: PassIterator,
-
-    material: ?mt.Material = null, // force every object to use the same material
+    pack: rbl.PackedRenderables,
+    material: ?mt.Material = null, // if null, objects use their own material
     targets: PassTargets,
-    scene: Scene,
 };
 
 pub fn doPass(self: *Gpu, job: PassInfo) !void {
@@ -616,51 +711,51 @@ pub fn doPass(self: *Gpu, job: PassInfo) !void {
     const color = job.targets.color;
     const depth = job.targets.depth;
     const pass = job.cmd.beginRenderPass(color.ptr, @intCast(color.len), depth).?;
-    pass.setStencilReference(1);
     defer pass.end();
+    pass.setStencilReference(1);
 
     var last_pipeline: ?*sdl.gpu.GraphicsPipeline = null;
 
-    switch (job.items) {
-        .renderables => |items| for (items, 0..) |item, i| {
-            try self.draw(&job, pass, @intCast(i), 1, item.mesh, &last_pipeline);
-        },
-        .handles => |handles| for (handles) |hdl| {
-            const item = self.renderables.items.get(hdl) orelse continue;
-            try self.draw(&job, pass, @intCast(hdl.index), 1, item.mesh, &last_pipeline);
-        },
-        .iterator => |iterator| {
-            var it = iterator;
-            while (it.next()) |value| {
-                try self.draw(&job, pass, @intCast(it.index()), 1, value.mesh, &last_pipeline);
-            }
-        },
-        .pack => |pack| {
-            var total_instances_rendered: u32 = 0;
-            for (0..pack.len) |i| {
-                const mesh = pack.meshes[i];
-                try self.draw(&job, pass, total_instances_rendered, pack.instance_counts[i], mesh, &last_pipeline);
-                total_instances_rendered += pack.instance_counts[i];
-            }
-        },
+    var total_instances_rendered: u32 = 0;
+    for (0..job.pack.len) |i| {
+        const mesh = job.pack.meshes[i];
+        try self.draw(.{
+            .cmd = job.cmd,
+            .pass = pass,
+            .num_first_instance = total_instances_rendered,
+            .num_instances = job.pack.instance_counts[i],
+            .mesh = mesh,
+            .last_pipeline = &last_pipeline,
+        });
+        total_instances_rendered += job.pack.instance_counts[i];
     }
 }
 
-fn draw(
-    self: *Gpu,
-    job: *const PassInfo,
+pub const DrawOptions = struct {
+    cmd: *sdl.gpu.CommandBuffer,
     pass: *sdl.gpu.RenderPass,
-    num_first_instance: u32,
-    num_instances: u32,
+    material: ?Material = null,
+    num_first_instance: u32 = 0,
+    num_instances: u32 = 1,
     mesh: Mesh,
     last_pipeline: *?*sdl.gpu.GraphicsPipeline,
-) !void {
+};
+
+pub fn draw(self: *Gpu, opts: DrawOptions) !void {
     const zone = @import("ztracy").ZoneN(@src(), "RenderInstanced");
     defer zone.End();
 
-    const material = if (job.material) |m| m else self.materials.get(mesh.material) orelse {
+    const cmd = opts.cmd;
+    const pass = opts.pass;
+    const num_first_instance = opts.num_first_instance;
+    const num_instances = opts.num_instances;
+    const mesh = opts.mesh;
+    const last_pipeline = opts.last_pipeline;
+
+    const material = if (opts.material) |m| m else self.materials.get(mesh.material) orelse {
         std.debug.panic("No valid material found", .{});
     };
+
     const buffer = mesh.buffer;
 
     if (last_pipeline.* != material.pipeline) {
@@ -699,13 +794,13 @@ fn draw(
             if (self.uniforms.get(uniform_name)) |value| {
                 const idx: u32 = @intCast(i);
                 switch (value) {
-                    .u32 => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
-                    .u32x4 => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
-                    .f32 => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
-                    .f64 => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
-                    .f32x3 => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
-                    .f32x4 => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
-                    .mat4x4 => |*data| pushUniform(job.cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .u32 => |*data| pushUniform(cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .u32x4 => |*data| pushUniform(cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .f32 => |*data| pushUniform(cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .f64 => |*data| pushUniform(cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .f32x3 => |*data| pushUniform(cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .f32x4 => |*data| pushUniform(cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
+                    .mat4x4 => |*data| pushUniform(cmd, idx, std.mem.asBytes(data), @sizeOf(@TypeOf(data.*))),
                     .buffer => unreachable,
                 }
             }
@@ -732,7 +827,10 @@ fn draw(
 }
 
 pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
-    const sample_count = .@"1";
+    const sample_count: sdl.gpu.SampleCount = switch (params.pass) {
+        .ui => .@"4",
+        else => .@"1",
+    };
 
     const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{.{
         .format = params.format orelse self.device.getSwapchainTextureFormat(self.window.hdl),
@@ -759,7 +857,7 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
             .slot = 0,
             .input_rate = .vertex,
             .instance_step_rate = 0,
-            .pitch = @sizeOf(f32) * 8, // from IMGUI: vec2 pos, vec2 uv, vec4 col
+            .pitch = @sizeOf(UIVertex), // from IMGUI: vec2 pos, vec2 uv, vec4 col
         }},
     };
 
@@ -796,7 +894,7 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
             },
             .{
                 .buffer_slot = 0,
-                .format = .ubyte4_norm,
+                .format = .float4,
                 .location = 2,
                 .offset = 16,
             },
@@ -873,6 +971,10 @@ pub fn materialCreate(self: *Gpu, mt_type: mt.Material.Type, txs: *const Texture
     }
 
     return self.materials.insert(mt_type, map);
+}
+
+pub fn materialDestroy(self: *Gpu, handle: SlotMap(mt.Material).Handle) void {
+    self.materials.remove(handle);
 }
 
 pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSettings) !Model {
@@ -955,6 +1057,18 @@ pub fn renderableSetTransform(
     };
 
     renderable.transform = transform;
+}
+
+pub fn textSize(self: *Gpu, glyphs: []const u8) hym.Vec2 {
+    var w: c_int = 0;
+    var h: c_int = 0;
+    const result = self.default_assets.font.stringSize(glyphs.ptr, glyphs.len, &w, &h);
+    if (!result) unreachable;
+    return .of(@floatFromInt(w), @floatFromInt(h));
+}
+
+pub fn textFontPtSize(self: *Gpu) f32 {
+    return self.default_assets.font.size();
 }
 
 pub const SpriteCreateOptions = extern struct {
@@ -1059,14 +1173,6 @@ pub fn renderableOfSprite(self: *Gpu, hdl: SpriteHandle) !RenderItemHandle {
     });
 
     return renderable;
-}
-
-pub fn materialDestroy(self: *Gpu, handle: SlotMap(mt.Material).Handle) void {
-    var mat = self.materials.get(handle) orelse {
-        std.debug.panic("No material found for handle {}", .{handle});
-    };
-    mat.deinit(&self.textures);
-    self.materials.remove(handle);
 }
 
 pub fn renderableDestroy(self: *Gpu, handle: RenderItemHandle) void {

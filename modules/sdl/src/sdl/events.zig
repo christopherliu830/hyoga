@@ -19,125 +19,136 @@ const TouchID = @import("touch.zig").TouchID;
 const WindowID = @import("video.zig").WindowID;
 const Window = @import("video.zig").Window;
 
-pub const EventType = u32;
-pub const @"type" = struct {
-    pub const first = 0;
-    pub const quit = 256;
-    pub const terminating = 257;
-    pub const low_memory = 258;
-    pub const will_enter_background = 259;
-    pub const did_enter_background = 260;
-    pub const will_enter_foreground = 261;
-    pub const did_enter_foreground = 262;
-    pub const locale_changed = 263;
-    pub const system_theme_changed = 264;
-    pub const display_orientation = 337;
-    pub const display_added = 338;
-    pub const display_removed = 339;
-    pub const display_moved = 340;
-    pub const display_desktop_mode_changed = 341;
-    pub const display_current_mode_changed = 342;
-    pub const display_content_scale_changed = 343;
-    pub const display_first = 337;
-    pub const display_last = 343;
-    pub const window_shown = 514;
-    pub const window_hidden = 515;
-    pub const window_exposed = 516;
-    pub const window_moved = 517;
-    pub const window_resized = 518;
-    pub const window_pixel_size_changed = 519;
-    pub const window_metal_view_resized = 520;
-    pub const window_minimized = 521;
-    pub const window_maximized = 522;
-    pub const window_restored = 523;
-    pub const window_mouse_enter = 524;
-    pub const window_mouse_leave = 525;
-    pub const window_focus_gained = 526;
-    pub const window_focus_lost = 527;
-    pub const window_close_requested = 528;
-    pub const window_hit_test = 529;
-    pub const window_iccprof_changed = 530;
-    pub const window_display_changed = 531;
-    pub const window_display_scale_changed = 532;
-    pub const window_safe_area_changed = 533;
-    pub const window_occluded = 534;
-    pub const window_enter_fullscreen = 535;
-    pub const window_leave_fullscreen = 536;
-    pub const window_destroyed = 537;
-    pub const window_hdr_state_changed = 538;
-    pub const window_first = 514;
-    pub const window_last = 538;
-    pub const key_down = 768;
-    pub const key_up = 769;
-    pub const text_editing = 770;
-    pub const text_input = 771;
-    pub const keymap_changed = 772;
-    pub const keyboard_added = 773;
-    pub const keyboard_removed = 774;
-    pub const text_editing_candidates = 775;
-    pub const mouse_motion = 1024;
-    pub const mouse_button_down = 1025;
-    pub const mouse_button_up = 1026;
-    pub const mouse_wheel = 1027;
-    pub const mouse_added = 1028;
-    pub const mouse_removed = 1029;
-    pub const joystick_axis_motion = 1536;
-    pub const joystick_ball_motion = 1537;
-    pub const joystick_hat_motion = 1538;
-    pub const joystick_button_down = 1539;
-    pub const joystick_button_up = 1540;
-    pub const joystick_added = 1541;
-    pub const joystick_removed = 1542;
-    pub const joystick_battery_updated = 1543;
-    pub const joystick_update_complete = 1544;
-    pub const gamepad_axis_motion = 1616;
-    pub const gamepad_button_down = 1617;
-    pub const gamepad_button_up = 1618;
-    pub const gamepad_added = 1619;
-    pub const gamepad_removed = 1620;
-    pub const gamepad_remapped = 1621;
-    pub const gamepad_touchpad_down = 1622;
-    pub const gamepad_touchpad_motion = 1623;
-    pub const gamepad_touchpad_up = 1624;
-    pub const gamepad_sensor_update = 1625;
-    pub const gamepad_update_complete = 1626;
-    pub const gamepad_steam_handle_updated = 1627;
-    pub const finger_down = 1792;
-    pub const finger_up = 1793;
-    pub const finger_motion = 1794;
-    pub const clipboard_update = 2304;
-    pub const drop_file = 4096;
-    pub const drop_text = 4097;
-    pub const drop_begin = 4098;
-    pub const drop_complete = 4099;
-    pub const drop_position = 4100;
-    pub const audio_device_added = 4352;
-    pub const audio_device_removed = 4353;
-    pub const audio_device_format_changed = 4354;
-    pub const sensor_update = 4608;
-    pub const pen_proximity_in = 4864;
-    pub const pen_proximity_out = 4865;
-    pub const pen_down = 4866;
-    pub const pen_up = 4867;
-    pub const pen_button_down = 4868;
-    pub const pen_button_up = 4869;
-    pub const pen_motion = 4870;
-    pub const pen_axis = 4871;
-    pub const camera_device_added = 5120;
-    pub const camera_device_removed = 5121;
-    pub const camera_device_approved = 5122;
-    pub const camera_device_denied = 5123;
-    pub const render_targets_reset = 8192;
-    pub const render_device_reset = 8193;
-    pub const render_device_lost = 8194;
-    pub const private0 = 16384;
-    pub const private1 = 16385;
-    pub const private2 = 16386;
-    pub const private3 = 16387;
-    pub const poll_sentinel = 32512;
-    pub const user = 32768;
-    pub const last = 65535;
-    pub const enum_padding = 2147483647;
+pub const EventType = enum(c_int) {
+    first = 0,
+    quit = 0x100,
+    terminating,
+    low_memory,
+    will_enter_background,
+    did_enter_background,
+    will_enter_foreground,
+    did_enter_foreground,
+    locale_changed,
+    system_theme_changed,
+
+    display_orientation = 0x151,
+    display_added,
+    display_removed,
+    display_moved,
+    display_desktop_mode_changed,
+    display_current_mode_changed,
+    display_content_scale_changed,
+
+    window_shown = 0x202,
+    window_hidden,
+    window_exposed,
+    window_moved,
+    window_resized,
+    window_pixel_size_changed,
+    window_metal_view_resized,
+    window_minimized,
+    window_maximized,
+    window_restored,
+    window_mouse_enter,
+    window_mouse_leave,
+    window_focus_gained,
+    window_focus_lost,
+    window_close_requested,
+    window_hit_test,
+    window_iccprof_changed,
+    window_display_changed,
+    window_display_scale_changed,
+    window_safe_area_changed,
+    window_occluded,
+    window_enter_fullscreen,
+    window_leave_fullscreen,
+    window_destroyed,
+    window_hdr_state_changed,
+
+    key_down = 0x300,
+    key_up,
+    text_editing,
+    text_input,
+    keymap_changed,
+    keyboard_added,
+    keyboard_removed,
+    text_editing_candidates,
+
+    mouse_motion = 0x400,
+    mouse_button_down,
+    mouse_button_up,
+    mouse_wheel,
+    mouse_added,
+    mouse_removed,
+
+    joystick_axis_motion = 0x600,
+    joystick_ball_motion,
+    joystick_hat_motion,
+    joystick_button_down,
+    joystick_button_up,
+    joystick_added,
+    joystick_removed,
+    joystick_battery_updated,
+    joystick_update_complete,
+
+    gamepad_axis_motion = 0x650,
+    gamepad_button_down,
+    gamepad_button_up,
+    gamepad_added,
+    gamepad_removed,
+    gamepad_remapped,
+    gamepad_touchpad_down,
+    gamepad_touchpad_motion,
+    gamepad_touchpad_up,
+    gamepad_sensor_update,
+    gamepad_update_complete,
+    gamepad_steam_handle_updated,
+
+    finger_down = 0x700,
+    finger_up,
+    finger_motion,
+
+    clipboard_update = 0x900,
+
+    drop_file = 0x1000,
+    drop_text,
+    drop_begin,
+    drop_complete,
+    drop_position,
+
+    audio_device_added = 0x1100,
+    audio_device_removed,
+    audio_device_format_changed,
+
+    sensor_update = 0x1200,
+    pen_proximity_in = 0x1300,
+    pen_proximity_out,
+    pen_down,
+    pen_up,
+    pen_button_down,
+    pen_button_up,
+    pen_motion,
+    pen_axis,
+    camera_device_added = 0x1400,
+    camera_device_removed,
+    camera_device_approved,
+    camera_device_denied,
+    render_targets_reset = 0x2000,
+    render_device_reset,
+    render_device_lost,
+    private0 = 0x4000,
+    private1,
+    private2,
+    private3,
+    poll_sentinel = 0x7F00,
+    user = 0x8000,
+    last = 0xFFFF,
+    enum_padding = 0x7FFFFFF,
+
+    pub const display_first: EventType = .display_orientation;
+    pub const display_last: EventType = .display_content_scale_changed;
+    pub const window_first: EventType = .window_shown;
+    pub const window_last: EventType = .window_hdr_state_changed;
 };
 
 pub const EventAction = enum(c_uint) {
@@ -523,7 +534,7 @@ pub const UserEvent = extern struct {
 };
 
 pub const Event = extern union {
-    type: u32,
+    type: EventType,
     common: CommonEvent,
     display: DisplayEvent,
     window: WindowEvent,

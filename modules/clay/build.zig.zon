@@ -1,0 +1,12 @@
+.{
+    .name = .hyoga_clay,
+    .fingerprint = 0x7eeae432f9f87cea,
+    .version = "0.0.0",
+    .dependencies = .{
+        .clay = .{
+            .url = "https://github.com/christopherliu830/clay/archive/refs/heads/main.tar.gz",
+            .hash = "N-V-__8AANvnZwClFkwsLEPGTn1snl2JTf3DCo8EfzwSFwNu",
+        },
+    },
+    .paths = .{""},
+}

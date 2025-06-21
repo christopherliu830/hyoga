@@ -23,6 +23,7 @@ pub const Forward = struct {
 
         load_op: sdl.gpu.LoadOp = .clear,
         store_op: sdl.gpu.StoreOp = .store,
+        sample_count: sdl.gpu.SampleCount = .@"1",
 
         dest_format: sdl.gpu.TextureFormat,
         dest_usage: sdl.gpu.TextureUsageFlags,
@@ -48,7 +49,7 @@ pub const Forward = struct {
             .height = height,
             .layer_count_or_depth = 1,
             .num_levels = 1,
-            .sample_count = .@"1",
+            .sample_count = options.sample_count,
         };
 
         const dest_tex = device.createTexture(&tex_info) catch panic("could not create texture", .{});
@@ -75,7 +76,7 @@ pub const Forward = struct {
                     .height = height,
                     .layer_count_or_depth = 1,
                     .num_levels = 1,
-                    .sample_count = .@"1",
+                    .sample_count = options.sample_count,
                     .props = 0,
                 };
 

@@ -161,7 +161,7 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
     const io = imgui.GetIO().?;
 
     switch (event.type) {
-        sdl.events.type.mouse_motion => {
+        .mouse_motion => {
             if (getViewportForWindowID(event.motion.windowID) == null) {
                 return false;
             }
@@ -180,7 +180,7 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             io.AddMousePosEvent(mouse_pos.x, mouse_pos.y);
             return true;
         },
-        sdl.events.type.mouse_wheel => {
+        .mouse_wheel => {
             if (getViewportForWindowID(event.motion.windowID) == null) {
                 return false;
             }
@@ -192,7 +192,7 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             io.AddMouseWheelEvent(wheel_x, wheel_y);
             return true;
         },
-        sdl.events.type.mouse_button_down, sdl.events.type.mouse_button_up => {
+        .mouse_button_down, .mouse_button_up => {
             if (getViewportForWindowID(event.motion.windowID) == null) {
                 return false;
             }
@@ -219,31 +219,31 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
 
             const source = if (event.motion.which == sdl.c.SDL_TOUCH_MOUSEID) imgui.MouseSource.touch_screen else imgui.MouseSource.mouse;
             io.AddMouseSourceEvent(source);
-            io.AddMouseButtonEvent(mouse_button, (event.type == sdl.events.type.mouse_button_down));
+            io.AddMouseButtonEvent(mouse_button, (event.type == .mouse_button_down));
             const mask = @as(i32, 1) << @intCast(mouse_button);
-            bd.mouse_buttons_down = if (event.type == sdl.events.type.mouse_button_down) bd.mouse_buttons_down | mask else bd.mouse_buttons_down & ~mask;
+            bd.mouse_buttons_down = if (event.type == .mouse_button_down) bd.mouse_buttons_down | mask else bd.mouse_buttons_down & ~mask;
             return true;
         },
-        sdl.events.type.text_input => {
+        .text_input => {
             if (getViewportForWindowID(event.text.windowID) == null) {
                 return false;
             }
             imgui.ImGuiIO_AddInputCharactersUTF8(io, event.text.text);
             return true;
         },
-        sdl.events.type.key_down, sdl.events.type.key_up => {
+        .key_down, .key_up => {
             if (getViewportForWindowID(event.key.windowID) == null) {
                 return false;
             }
             updateKeyModifiers(event.key.mod);
             const key = keyEventToImGuiKey(event.key.key, event.key.scancode);
-            imgui.ImGuiIO_AddKeyEvent(io, key, event.type == sdl.events.type.key_down);
+            imgui.ImGuiIO_AddKeyEvent(io, key, event.type == .key_down);
         },
-        sdl.events.type.display_orientation, sdl.events.type.display_added, sdl.events.type.display_removed, sdl.events.type.display_moved, sdl.events.type.display_content_scale_changed => {
+        .display_orientation, .display_added, .display_removed, .display_moved, .display_content_scale_changed => {
             bd.want_update_monitors = true;
             return true;
         },
-        sdl.events.type.window_mouse_enter => {
+        .window_mouse_enter => {
             if (getViewportForWindowID(event.window.windowID) == null) {
                 return false;
             }
@@ -251,34 +251,34 @@ pub fn processEvent(event: *const sdl.events.Event) !bool {
             bd.mouse_pending_leave_frame = 0;
             return true;
         },
-        sdl.events.type.window_mouse_leave => {
+        .window_mouse_leave => {
             if (getViewportForWindowID(event.window.windowID) == null) {
                 return false;
             }
             bd.mouse_pending_leave_frame = imgui.GetFrameCount() + 1;
             return true;
         },
-        sdl.events.type.window_focus_gained, sdl.events.type.window_focus_lost => {
+        .window_focus_gained, .window_focus_lost => {
             if (getViewportForWindowID(event.window.windowID) == null) {
                 return false;
             }
-            imgui.ImGuiIO_AddFocusEvent(io, event.type == sdl.events.type.window_focus_gained);
+            imgui.ImGuiIO_AddFocusEvent(io, event.type == .window_focus_gained);
             return true;
         },
-        sdl.events.type.window_close_requested, sdl.events.type.window_moved, sdl.events.type.window_resized => {
+        .window_close_requested, .window_moved, .window_resized => {
             const viewport = getViewportForWindowID(event.window.windowID) orelse return false;
-            if (event.type == sdl.events.type.window_close_requested) {
+            if (event.type == .window_close_requested) {
                 viewport.PlatformRequestClose = true;
             }
-            if (event.type == sdl.events.type.window_moved) {
+            if (event.type == .window_moved) {
                 viewport.PlatformRequestMove = true;
             }
-            if (event.type == sdl.events.type.window_resized) {
+            if (event.type == .window_resized) {
                 viewport.PlatformRequestResize = true;
             }
             return true;
         },
-        sdl.events.type.gamepad_added, sdl.events.type.gamepad_removed => {
+        .gamepad_added, .gamepad_removed => {
             bd.want_update_gamepads_list = true;
             return true;
         },
@@ -293,14 +293,16 @@ pub fn newFrame() !void {
 
     var w: i32 = undefined;
     var h: i32 = undefined;
-    var display_w: i32 = undefined;
-    var display_h: i32 = undefined;
     _ = sdl.video.getWindowSize(bd.window, &w, &h);
     if (sdl.video.getWindowFlags(bd.window).minimized) {
         w = 0;
         h = 0;
     }
-    _ = sdl.video.getWindowSizeInPixels(bd.window, &display_w, &display_h);
+
+    const dims = sdl.video.windowSizeInPixels(bd.window.?) catch unreachable;
+    const display_w: i32 = @intCast(dims[0]);
+    const display_h: i32 = @intCast(dims[1]);
+
     io.DisplaySize = imgui.Vec2{ .x = @floatFromInt(w), .y = @floatFromInt(h) };
     if (w > 0 and h > 0) {
         const scale_x: f32 = @as(f32, @floatFromInt(display_w)) / @as(f32, @floatFromInt(w));

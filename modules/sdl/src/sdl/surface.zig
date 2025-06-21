@@ -15,51 +15,30 @@ pub const SurfaceFlags = packed struct(c_int) {
     _padding: u28 = 0,
 };
 
-//pub const SDL_SCALEMODE_NEAREST: c_int = 0;
-//pub const SDL_SCALEMODE_LINEAR: c_int = 1;
-//pub const enum_SDL_ScaleMode = c_uint;
 pub const ScaleMode = enum(c_uint) {
     nearest,
     linear,
 };
 
-//pub const SDL_ScaleMode = enum_SDL_ScaleMode;
-//pub const SDL_FLIP_NONE: c_int = 0;
-//pub const SDL_FLIP_HORIZONTAL: c_int = 1;
-//pub const SDL_FLIP_VERTICAL: c_int = 2;
-//pub const enum_SDL_FlipMode = c_uint;
 pub const FlipMode = enum(c_uint) {
-    flip_none,
-    flip_horizontal,
-    flip_vertical,
+    none,
+    horizontal,
+    vertical,
 };
 
-//pub const SDL_FlipMode = enum_SDL_FlipMode;
-//pub const struct_SDL_SurfaceData = opaque {};
 pub const SurfaceData = opaque {};
 
-//pub const SDL_SurfaceData = struct_SDL_SurfaceData;
-//pub const struct_SDL_Surface = extern struct {
 pub const Surface = extern struct {
-    //    flags: SDL_SurfaceFlags = @import("std").mem.zeroes(SDL_SurfaceFlags),
-    flags: SurfaceFlags = @import("std").mem.zeroes(SurfaceFlags),
-    //    format: SDL_PixelFormat = @import("std").mem.zeroes(SDL_PixelFormat),
-    format: PixelFormat = @import("std").mem.zeroes(PixelFormat),
-    //    w: c_int = @import("std").mem.zeroes(c_int),
-    w: c_int = @import("std").mem.zeroes(c_int),
-    //    h: c_int = @import("std").mem.zeroes(c_int),
-    h: c_int = @import("std").mem.zeroes(c_int),
-    //    pitch: c_int = @import("std").mem.zeroes(c_int),
-    pitch: c_int = @import("std").mem.zeroes(c_int),
-    //    pixels: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
-    pixels: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
-    //    refcount: c_int = @import("std").mem.zeroes(c_int),
-    refcount: c_int = @import("std").mem.zeroes(c_int),
-    //    internal: ?*SDL_SurfaceData = @import("std").mem.zeroes(?*SDL_SurfaceData),
-    internal: ?*SurfaceData = @import("std").mem.zeroes(?*SurfaceData),
-    //};
+    flags: SurfaceFlags = .{},
+    format: PixelFormat = .unknown,
+    w: c_int = 0,
+    h: c_int = 0,
+    pitch: c_int = 0,
+    pixels: ?*anyopaque = null,
+    refcount: c_int = 0,
+    internal: ?*SurfaceData = null,
 };
-//pub const SDL_Surface = struct_SDL_Surface;
+
 //pub extern fn SDL_CreateSurface(width: c_int, height: c_int, format: SDL_PixelFormat) [*c]SDL_Surface;
 pub extern fn SDL_CreateSurface(width: c_int, height: c_int, format: PixelFormat) [*c]Surface;
 pub const createSurface = SDL_CreateSurface;

@@ -1,0 +1,22 @@
+.{
+    .name = .hyoga_sdl_ttf,
+    .fingerprint = 0xe85d47ffe143441d,
+    .version = "0.0.0",
+    .dependencies = .{
+        .sdl = .{
+            .path = "../sdl",
+        },
+        .freetype = .{
+            .path = "../freetype",
+        },
+        .sdl_ttf = .{
+            .url = "https://github.com/libsdl-org/SDL_ttf/archive/refs/tags/release-3.2.2.tar.gz",
+            .hash = "N-V-__8AAF2JgAA_Y5Qzm3b226N8y7ivM-qFVpCo9NkbfO8Y",
+        },
+        .harfbuzz = .{
+            .url = "https://github.com/harfbuzz/harfbuzz/archive/refs/tags/11.2.1.tar.gz",
+            .hash = "n-v-__8aaiitgqx-chthna-95ttoujogawzsr4envt80btdy",                
+        }
+    },
+    .paths = .{""},
+}

@@ -26,22 +26,11 @@ pub fn build(b: *std.Build) !void {
         .dxc = dxc,
     });
 
-    const imgui = b.dependency("imgui", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const ztracy = b.dependency("ztracy", .{
-        .target = target,
-        .optimize = optimize,
-        .enable_ztracy = enable_tracy,
-        .enable_fibers = true,
-    });
-
     b.modules.put(b.dupe("lib"), lib.module("hyoga-lib")) catch @panic("OOM");
-    b.modules.put(b.dupe("imgui"), imgui.module("imgui")) catch @panic("OOM");
-    b.modules.put(b.dupe("implot"), imgui.module("implot")) catch @panic("OOM");
-    b.modules.put(b.dupe("ztracy"), ztracy.module("root")) catch @panic("OOM");
+    b.modules.put(b.dupe("imgui"), rt.module("imgui")) catch @panic("OOM");
+    b.modules.put(b.dupe("implot"), rt.module("implot")) catch @panic("OOM");
+    b.modules.put(b.dupe("ztracy"), rt.module("ztracy")) catch @panic("OOM");
+    b.modules.put(b.dupe("clay"), rt.module("clay")) catch @panic("OOM");
 
     b.installArtifact(rt.artifact("rt"));
 
@@ -57,6 +46,7 @@ pub fn build(b: *std.Build) !void {
         .profile = "spirv_1_3",
     });
     _ = wf.addCopyDirectory(b.path("shaders"), "shaders", .{ .include_extensions = &.{".json"} });
+    _ = wf.addCopyDirectory(b.path("assets"), "assets", .{});
 
     // Language server
 
