@@ -4,8 +4,8 @@
     .version = "0.0.0",
     .dependencies = .{
         .clay = .{
-            .url = "https://github.com/christopherliu830/clay/archive/refs/heads/main.tar.gz",
-            .hash = "N-V-__8AANvnZwClFkwsLEPGTn1snl2JTf3DCo8EfzwSFwNu",
+            .url = "https://github.com/christopherliu830/clay/archive/f77f8939748701259319da9d0ad282c1cf86875a.tar.gz",
+            .hash = "N-V-__8AAK_oZwCCIUKhX1xhOVXiYJ64ktSb1Xdp958_qa5Z",
         },
     },
     .paths = .{""},

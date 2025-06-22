@@ -31,7 +31,6 @@ pub const UI = struct {
         const arena = clay.createArenaWithCapacityAndMemory(memory);
         const context = clay.initialize(arena, .{ .w = 1920, .h = 1080 }, .{ .error_handler_function = errorHandler });
         clay.setMeasureTextFunction(*Gpu, gpu, measureText);
-        clay.setDebugModeEnabled(true);
 
         return .{ .arena = arena, .context = context, .gpu = gpu, .window = window };
     }
