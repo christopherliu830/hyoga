@@ -848,7 +848,7 @@ extern fn SDL_AcquireGPUCommandBuffer(device: DeviceHdl) ?*CommandBuffer;
 extern fn SDL_PushGPUVertexUniformData(command_buffer: *CommandBuffer, slot_index: u32, data: ?*const anyopaque, length: u32) void;
 extern fn SDL_PushGPUFragmentUniformData(command_buffer: *CommandBuffer, slot_index: u32, data: ?*const anyopaque, length: u32) void;
 extern fn SDL_PushGPUComputeUniformData(command_buffer: *CommandBuffer, slot_index: u32, data: ?*const anyopaque, length: u32) void;
-extern fn SDL_BeginGPURenderPass(command_buffer: *CommandBuffer, color_target_infos: [*c]const ColorTargetInfo, num_color_targets: u32, depth_stencil_target_info: [*c]const DepthStencilTargetInfo) ?*RenderPass;
+extern fn SDL_BeginGPURenderPass(command_buffer: *CommandBuffer, color_target_infos: [*]const ColorTargetInfo, num_color_targets: u32, depth_stencil_target_info: ?*const DepthStencilTargetInfo) ?*RenderPass;
 extern fn SDL_BindGPUGraphicsPipeline(render_pass: *RenderPass, graphics_pipeline: ?*GraphicsPipeline) void;
 extern fn SDL_SetGPUViewport(render_pass: *RenderPass, viewport: [*c]const Viewport) void;
 extern fn SDL_SetGPUScissor(render_pass: *RenderPass, scissor: ?*const Rect) void;

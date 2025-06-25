@@ -28,8 +28,21 @@ pub const Gpu = opaque {
         none = std.math.maxInt(u32),
     };
 
-    pub const Renderable = enum(u64) {
-        none = 0,
+    pub const Renderable = extern struct {
+        pass: PassType,
+        index: enum(u64) {
+            none = 0,
+            _,
+        },
+
+        pub const none: Renderable = .{
+            .pass = .default,
+            .index = .none,
+        };
+
+        pub fn valid(self: Renderable) bool {
+            return self.index != .none;
+        }
     };
 
     pub const MaterialHandle = enum(u64) {
@@ -45,6 +58,7 @@ pub const Gpu = opaque {
         billboard,
         ui,
         ui_sdf,
+        xor_surf2,
     };
 
     pub const TextureType = enum(u32) {
@@ -118,10 +132,17 @@ pub const Gpu = opaque {
         },
     };
 
+    pub const PassType = enum(u32) {
+        default,
+        outlined,
+        ui,
+    };
+
     // Time to wait for model load in nanoseconds.
     pub const AddRenderableOptions = extern struct {
         model: Model,
         time: u64 = 0,
+        pass: PassType,
     };
 
     pub const ModelDupeOptions = extern struct {
@@ -166,7 +187,7 @@ pub const Gpu = opaque {
     pub const modelDupe = hygpuModelDupe;
     pub const modelPrimitive = hygpuModelPrimitive;
     pub const modelWaitLoad = hygpuModelWaitLoad;
-    pub const renderableAdd = hygpuAddRenderable;
+    pub const renderableAdd = hygpuRenderableAdd;
     pub const renderableRemove = hygpuRenderableDestroy;
     pub const renderableSetTransform = hygpuRenderableSetTransform;
     pub const renderableOfSprite = hygpuRenderableOfSprite;
@@ -193,7 +214,7 @@ pub const Gpu = opaque {
     extern fn hygpuModelDestroy(*Gpu, Model) void;
     extern fn hygpuModelPrimitive(*Gpu, PrimitiveShape) Model;
     extern fn hygpuModelWaitLoad(*Gpu, Model, u64) bool;
-    extern fn hygpuAddRenderable(*Gpu, AddRenderableOptions) Renderable;
+    extern fn hygpuRenderableAdd(*Gpu, AddRenderableOptions) Renderable;
     extern fn hygpuRenderableDestroy(*Gpu, Renderable) void;
     extern fn hygpuSelectRenderable(*Gpu, Renderable) void;
     extern fn hygpuDeselectRenderable(*Gpu, Renderable) void;

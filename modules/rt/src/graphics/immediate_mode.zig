@@ -28,6 +28,7 @@ pub const Context = struct {
     buffer_src: std.ArrayListUnmanaged(u8) = .empty,
     buffer_allocator: buf.BufferAllocator,
     items: std.ArrayListUnmanaged(Item) = .empty,
+    needs_clear: bool = false,
 
     pub fn reset(self: *Context) void {
         self.buffer_allocator.reset();
@@ -47,26 +48,42 @@ pub const Context = struct {
         cmd: *sdl.gpu.CommandBuffer,
         render_tex: *sdl.gpu.Texture,
         resolve_tex: *sdl.gpu.Texture,
-    ) !void {
+    ) !bool {
+        if (im.items.items.len == 0) {
+            if (im.needs_clear) {
+                const color: sdl.gpu.ColorTargetInfo = .{
+                    .texture = render_tex,
+                    .load_op = .clear,
+                    .store_op = .resolve,
+                    .clear_color = .{},
+                    .cycle = false,
+                    .resolve_texture = resolve_tex,
+                };
+
+                const pass = cmd.beginRenderPass(&.{color}, 1, null).?;
+                defer pass.end();
+
+                im.needs_clear = false;
+            }
+            return false;
+        }
+
         const buffer_allocator = &im.buffer_allocator;
         const alloc_buffer = buffer_allocator.alloc(@intCast(im.buffer_src.items.len)) catch unreachable;
+        defer buffer_allocator.destroy(alloc_buffer);
         try gpu.uploadToBuffer(alloc_buffer.hdl, alloc_buffer.offset, im.buffer_src.items);
 
         // Render UI immediates
-        const targets: Gpu.PassTargets = .{
-            .color = (&sdl.gpu.ColorTargetInfo{
-                .texture = render_tex,
-                .load_op = .clear,
-                .store_op = .resolve,
-                .clear_color = .{},
-                .cycle = false,
-                .resolve_texture = resolve_tex,
-            })[0..1],
-            .depth = null,
+        const color: sdl.gpu.ColorTargetInfo = .{
+            .texture = render_tex,
+            .load_op = .clear,
+            .store_op = .resolve,
+            .clear_color = .{},
+            .cycle = false,
+            .resolve_texture = resolve_tex,
         };
 
-        const color = targets.color;
-        const pass = cmd.beginRenderPass(color.ptr, @intCast(color.len), null).?;
+        const pass = cmd.beginRenderPass(&.{color}, 1, null).?;
         defer pass.end();
         pass.setStencilReference(1);
 
@@ -105,6 +122,9 @@ pub const Context = struct {
                 },
             }
         }
+
+        im.needs_clear = true;
+        return true;
     }
 
     pub const ImmediateDrawOptions = struct {

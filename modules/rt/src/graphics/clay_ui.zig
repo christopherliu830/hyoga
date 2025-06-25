@@ -123,9 +123,13 @@ pub const UI = struct {
             switch (command.command_type) {
                 .rectangle => {
                     const config = &command.render_data.rectangle;
-                    const color = @as(@Vector(4, f32), config.background_color) / [_]f32{ 256, 256, 256, 256 };
-                    if (config.corner_radius.top_left > 0) {
-                        drawRoundedRect(gpu, rect, config.corner_radius.top_left, config.background_color, transform);
+                    const color = @as(@Vector(4, f32), config.background_color) / [_]f32{ 255, 255, 255, 255 };
+                    if (config.corner_radius.top_left > 0 or
+                        config.corner_radius.top_right > 0 or
+                        config.corner_radius.bottom_left > 0 or
+                        config.corner_radius.bottom_right > 0)
+                    {
+                        drawRoundedRect(gpu, rect, config.corner_radius, color, transform);
                     } else {
                         drawRect(gpu, rect, color, transform);
                     }
@@ -135,7 +139,7 @@ pub const UI = struct {
                     const ex = rect.extents();
 
                     const min_radius = @min(ex.x(), ex.y()) / 2;
-                    const color = @as(@Vector(4, f32), config.color) / [_]f32{ 256, 256, 256, 256 };
+                    const color = @as(@Vector(4, f32), config.color) / [_]f32{ 255, 255, 255, 255 };
 
                     const clamped_radii: clay.CornerRadius = .{
                         .top_left = @min(config.corner_radius.top_left, min_radius),
@@ -184,29 +188,33 @@ pub const UI = struct {
                         }, color, transform);
                     }
 
-                    if (config.corner_radius.top_left > 0) {
+                    const tl_radius: f32 = @floatFromInt(@max(config.width.top, config.width.left));
+                    if (config.corner_radius.top_left > 0 and tl_radius > 0) {
                         const center: hym.Vec2 = .of(rect.min.x() + clamped_radii.top_left, rect.max.y() - clamped_radii.top_left);
-                        drawArc(gpu, center, clamped_radii.top_left, 90, 180, @floatFromInt(config.width.top), config.color, transform);
+                        drawArc(gpu, center, clamped_radii.top_left, 90, 180, tl_radius, color, transform);
                     }
 
-                    if (config.corner_radius.top_right > 0) {
+                    const tr_radius: f32 = @floatFromInt(@max(config.width.top, config.width.right));
+                    if (config.corner_radius.top_right > 0 and tr_radius > 0) {
                         const center: hym.Vec2 = .of(rect.max.x() - clamped_radii.top_right, rect.max.y() - clamped_radii.top_right);
-                        drawArc(gpu, center, clamped_radii.top_right, 0, 90, @floatFromInt(config.width.top), config.color, transform);
+                        drawArc(gpu, center, clamped_radii.top_right, 0, 90, tr_radius, color, transform);
                     }
 
-                    if (config.corner_radius.bottom_left > 0) {
+                    const bl_radius: f32 = @floatFromInt(@max(config.width.bottom, config.width.left));
+                    if (config.corner_radius.bottom_left > 0 and bl_radius > 0) {
                         const center: hym.Vec2 = .of(rect.min.x() + clamped_radii.bottom_left, rect.min.y() + clamped_radii.bottom_left);
-                        drawArc(gpu, center, clamped_radii.bottom_left, 180, 270, @floatFromInt(config.width.bottom), config.color, transform);
+                        drawArc(gpu, center, clamped_radii.bottom_left, 180, 270, bl_radius, color, transform);
                     }
 
-                    if (config.corner_radius.bottom_right > 0) {
+                    const br_radius: f32 = @floatFromInt(@max(config.width.bottom, config.width.right));
+                    if (config.corner_radius.bottom_right > 0 and br_radius > 0) {
                         const center: hym.Vec2 = .of(rect.max.x() - clamped_radii.bottom_right, rect.min.y() + clamped_radii.bottom_right);
-                        drawArc(gpu, center, clamped_radii.bottom_right, 270, 360, @floatFromInt(config.width.bottom), config.color, transform);
+                        drawArc(gpu, center, clamped_radii.bottom_right, 270, 360, br_radius, color, transform);
                     }
                 },
                 .text => {
                     const config = &command.render_data.text;
-                    const color = @as(@Vector(4, f32), config.text_color) / [_]f32{ 256, 256, 256, 256 };
+                    const color = @as(@Vector(4, f32), config.text_color) / [_]f32{ 255, 255, 255, 255 };
                     const text_start: hym.Vec2 = .of(rect.min.x(), rect.max.y());
                     const scale_factor = @as(f32, @floatFromInt(config.font_size)) / gpu.textFontPtSize();
                     const scale: hym.Mat4 = hym.mat4.identity.scale(.of(scale_factor, scale_factor, scale_factor));
@@ -221,7 +229,7 @@ pub const UI = struct {
                 },
                 .image => {
                     const config = &command.render_data.image;
-                    const color = @as(@Vector(4, f32), config.background_color) / [_]f32{ 256, 256, 256, 256 };
+                    const color = @as(@Vector(4, f32), config.background_color) / [_]f32{ 255, 255, 255, 255 };
                     drawRect(gpu, rect, color, transform);
                     const texture: Gpu.TextureHandle = .{ .value = @intCast(@intFromPtr(config.image_data)) };
                     const start = hym.vec2.create(rect.min.x(), rect.min.y());
@@ -247,7 +255,30 @@ pub const UI = struct {
                 .scissor_end => {
                     gpu.im.scissorEnd();
                 },
-                else => {},
+                .custom => {
+                    const config = &command.render_data.custom;
+                    switch (@intFromPtr(config.custom_data)) {
+                        1 => {
+                            const color = @as(@Vector(4, f32), config.background_color) / [_]f32{ 255, 255, 255, 255 };
+                            const ax = rect.min.x();
+                            const ay = rect.min.y();
+                            const bx = rect.max.x();
+                            const by = rect.max.y();
+
+                            const verts: []const Gpu.UIVertex = &.{
+                                .{ .pos = .{ ax, ay }, .color = color },
+                                .{ .pos = .{ bx, ay }, .color = color },
+                                .{ .pos = .{ bx, by }, .color = color },
+                                .{ .pos = .{ ax, by }, .color = color },
+                            };
+                            const indices: []const u32 = &.{ 0, 1, 2, 2, 3, 0 };
+                            const material = gpu.materials.createWeak(.xor_surf2, .{});
+                            gpu.im.drawVerts(verts, indices, .{ .transform = transform, .material = &material });
+                        },
+                        else => {},
+                    }
+                },
+                .none => {},
             }
         }
     }
@@ -274,7 +305,7 @@ pub const UI = struct {
         gpu.im.drawVerts(verts, indices, .{ .transform = transform });
     }
 
-    fn drawRoundedRect(gpu: *Gpu, box: hym.AxisAligned2D, corner_radius: f32, color: [4]f32, transform: hym.Mat4) void {
+    fn drawRoundedRect(gpu: *Gpu, box: hym.AxisAligned2D, corner_radius: clay.CornerRadius, color: [4]f32, transform: hym.Mat4) void {
         const sin = std.math.sin;
         const cos = std.math.cos;
         var fixed_buffer: [8192]u8 = @splat(0);
@@ -284,7 +315,12 @@ pub const UI = struct {
         var indices: std.ArrayListUnmanaged(u32) = .empty;
 
         const min_radius = @min(box.extents().x(), box.extents().y()) / 2.0;
-        const radius = @min(corner_radius, min_radius);
+        const radii: [4]f32 = .{
+            @min(corner_radius.top_left, min_radius),
+            @min(corner_radius.top_right, min_radius),
+            @min(corner_radius.bottom_left, min_radius),
+            @min(corner_radius.bottom_right, min_radius),
+        };
 
         // Outer == with border. Inner == without border
         // lrbt == left right bottom top
@@ -292,13 +328,13 @@ pub const UI = struct {
         const or_x = box.max.x();
         const ob_y = box.min.y();
         const ot_y = box.max.y();
-        const il_x = ol_x + radius;
-        const ir_x = or_x - radius;
-        const ib_y = ob_y + radius;
-        const it_y = ot_y - radius;
+        const il_x = ol_x + @max(radii[0], radii[2]);
+        const ir_x = or_x - @max(radii[1], radii[3]);
+        const ib_y = ob_y + @max(radii[2], radii[3]);
+        const it_y = ot_y - @max(radii[0], radii[1]);
 
         // Main
-        inline for (.{
+        for ([_][4]f32{
             .{ il_x, ir_x, ib_y, it_y },
             .{ ol_x, il_x, ib_y, it_y },
             .{ ir_x, or_x, ib_y, it_y },
@@ -311,6 +347,8 @@ pub const UI = struct {
             const y2 = iter[3];
             const i: u32 = @intCast(verts.items.len);
 
+            if (x1 == x2 or y1 == y2) continue;
+
             verts.appendSlice(allocator, &.{
                 .{ .pos = .{ x1, y1 }, .color = color },
                 .{ .pos = .{ x2, y1 }, .color = color },
@@ -321,33 +359,36 @@ pub const UI = struct {
         }
 
         inline for (.{
-            .{ box.min.x() + radius, box.max.y() - radius, 90, 180 },
-            .{ box.max.x() - radius, box.max.y() - radius, 0, 90 },
-            .{ box.min.x() + radius, box.min.y() + radius, 180, 270 },
-            .{ box.max.x() - radius, box.min.y() + radius, 270, 360 },
+            .{ corner_radius.top_left, box.min.x() + corner_radius.top_left, box.max.y() - corner_radius.top_left, 90, 180 },
+            .{ corner_radius.top_right, box.max.x() - corner_radius.top_right, box.max.y() - corner_radius.top_right, 0, 90 },
+            .{ corner_radius.bottom_left, box.min.x() + corner_radius.bottom_left, box.min.y() + corner_radius.bottom_left, 180, 270 },
+            .{ corner_radius.bottom_right, box.max.x() - corner_radius.bottom_right, box.min.y() + corner_radius.bottom_right, 270, 360 },
         }) |iter| {
-            const center_x = iter[0];
-            const center_y = iter[1];
-            const a = iter[2] * std.math.rad_per_deg;
-            const b = iter[3] * std.math.rad_per_deg;
+            const radius = iter[0];
+            if (radius > 0) {
+                const center_x = iter[1];
+                const center_y = iter[2];
+                const a = iter[3] * std.math.rad_per_deg;
+                const b = iter[4] * std.math.rad_per_deg;
 
-            const center_idx: u32 = @intCast(verts.items.len);
-            verts.appendSlice(allocator, &.{
-                .{ .pos = .{ center_x, center_y }, .color = color },
-                .{ .pos = .{ center_x + cos(a) * radius, center_y + sin(a) * radius }, .color = color },
-            }) catch unreachable;
-
-            var t: f32 = 0.1;
-            while (t <= 1) : (t += 0.1) {
-                const i: u32 = @intCast(verts.items.len);
-                const angle = (t + 0.1) * (b - a) + a;
+                const center_idx: u32 = @intCast(verts.items.len);
                 verts.appendSlice(allocator, &.{
-                    .{
-                        .pos = .{ center_x + cos(angle) * radius, center_y + sin(angle) * radius },
-                        .color = color,
-                    },
+                    .{ .pos = .{ center_x, center_y }, .color = color },
+                    .{ .pos = .{ center_x + cos(a) * radius, center_y + sin(a) * radius }, .color = color },
                 }) catch unreachable;
-                indices.appendSlice(allocator, &.{ center_idx, i - 1, i }) catch unreachable;
+
+                var t: f32 = 0.1;
+                while (t <= 1) : (t += 0.1) {
+                    const i: u32 = @intCast(verts.items.len);
+                    const angle = (t + 0.1) * (b - a) + a;
+                    verts.appendSlice(allocator, &.{
+                        .{
+                            .pos = .{ center_x + cos(angle) * radius, center_y + sin(angle) * radius },
+                            .color = color,
+                        },
+                    }) catch unreachable;
+                    indices.appendSlice(allocator, &.{ center_idx, i - 1, i }) catch unreachable;
+                }
             }
         }
 

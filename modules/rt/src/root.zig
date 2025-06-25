@@ -165,10 +165,13 @@ export fn hygpuMaterialCreate(gpu: *Gpu, mt_type: Gpu.MaterialType, tx_set: *con
     };
 }
 
-export fn hygpuAddRenderable(gpu: *Gpu, options: Gpu.AddRenderableOptions) Gpu.RenderItemHandle {
-    return gpu.renderables.add(options) catch |e| {
+export fn hygpuRenderableAdd(gpu: *Gpu, options: Gpu.AddRenderableOptions) Gpu.RenderItemHandle {
+    return gpu.renderableAdd(options) catch |e| {
         std.log.err("add renderable failure: {}", .{e});
-        return .invalid;
+        return .{
+            .pass = .default,
+            .index = .none,
+        };
     };
 }
 
@@ -210,7 +213,10 @@ export fn hygpuSpriteDupe(gpu: *Gpu, hdl: Gpu.SpriteHandle) Gpu.SpriteHandle {
 export fn hygpuRenderableOfSprite(gpu: *Gpu, hdl: Gpu.SpriteHandle) Gpu.RenderItemHandle {
     return gpu.renderableOfSprite(hdl) catch |e| {
         std.log.err("sprite dupe failure: {}", .{e});
-        return .invalid;
+        return .{
+            .pass = .default,
+            .index = .none,
+        };
     };
 }
 

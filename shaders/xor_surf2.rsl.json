@@ -1,0 +1,15 @@
+{
+    "pass": 2,
+    "vertex": {
+        "uniforms": [
+            "hy_immediate_mvp"
+        ]
+    },
+    "fragment": {
+        "uniforms": [
+            "hy_time",
+            "hy_viewport_size"
+        ]
+    }
+}
+

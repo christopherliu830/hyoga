@@ -20,7 +20,7 @@ const tx = @import("texture.zig");
 const mt = @import("material.zig");
 const Loader = @import("loader.zig");
 const Strint = @import("../strintern.zig");
-const passes = @import("passes.zig");
+const pss = @import("passes.zig");
 const rbl = @import("renderable.zig");
 const imm = @import("immediate_mode.zig");
 const Scene = @import("../root.zig").Scene;
@@ -28,7 +28,6 @@ const World = @import("../root.zig").World;
 
 const Gpu = @This();
 
-pub const AddRenderableOptions = rbl.RenderList.AddOptions;
 pub const Material = mt.Material;
 pub const MaterialHandle = mt.Handle;
 pub const MaterialTemplate = mt.MaterialTemplate;
@@ -36,7 +35,6 @@ pub const MaterialType = mt.Material.Type;
 pub const Mesh = mdl.Mesh;
 pub const Model = mdl.Handle;
 pub const Models = mdl.Models;
-pub const RenderItemHandle = rbl.RenderItemHandle;
 pub const SpriteHandle = hy.SlotMap(Sprite).Handle;
 pub const TextureHandle = tx.Handle;
 pub const Textures = tx.Textures;
@@ -96,7 +94,13 @@ pub const RenderSubmitResult = struct {
     num_draw_calls: u32 = 0,
 };
 
-pub const PassType = enum {
+pub const PassType = enum(u32) {
+    default,
+    outlined,
+    ui,
+};
+
+pub const PipelineType = enum {
     default,
     post_process,
     ui,
@@ -106,7 +110,7 @@ pub const BuildPipelineParams = struct {
     format: ?sdl.gpu.TextureFormat,
     vert: *sdl.gpu.Shader,
     frag: *sdl.gpu.Shader,
-    pass: PassType,
+    pass: PipelineType,
     enable_depth: bool,
     enable_stencil: bool,
     fill_mode: sdl.gpu.FillMode,
@@ -133,9 +137,6 @@ pub const Sprite = extern struct {
 };
 
 const DefaultAssets = struct {
-    forward_pass: passes.Forward,
-    ui_pass: passes.Forward,
-
     font: *ttf.Font,
 
     default_texture: *sdl.gpu.Texture,
@@ -148,8 +149,6 @@ const DefaultAssets = struct {
 
     sampler: *sdl.gpu.Sampler = undefined,
 
-    obj_buf: buf.DynamicBuffer(mat4.Mat4),
-    selected_obj_buf: buf.DynamicBuffer(mat4.Mat4),
     sprite_buf: buf.DynamicBuffer(u128),
     scene: *Scene = undefined,
     active_target: ?*sdl.gpu.Texture,
@@ -201,7 +200,7 @@ window_state: WindowState = .{},
 text_engine: *ttf.TextEngine,
 
 // Renderable State
-renderables: rbl.RenderList,
+passes: std.EnumArray(PassType, pss.Forward),
 sprites: hy.SlotMap(Sprite),
 textures: tx.Textures,
 models: Models,
@@ -228,6 +227,8 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
     log.info("[GPU] Selected backend: {s}", .{device.getDeviceDriver()});
 
+    const dims = sdl.video.windowSizeInPixels(window.hdl) catch unreachable;
+
     var self = gpa.create(Gpu) catch hy.err.oom();
 
     self.* = .{
@@ -245,7 +246,6 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
             return error.SdlError;
         },
         .ids = .init(self.strint),
-        .renderables = .init(self, self.gpa),
         .sprites = .empty,
         .textures = undefined,
         .models = .init(loader, strint, self.gpa),
@@ -255,6 +255,43 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
             .arena = .init(gpa),
             .buffer_allocator = .init(self.device, .{ .vertex = true, .index = true }, self.gpa),
         },
+
+        .passes = .init(.{
+            .default = .init(self.device, .{
+                .name = "standard",
+                .gpu = self,
+                .depth_enabled = true,
+                .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
+                .dest_usage = .{ .color_target = true, .sampler = true },
+                .dest_tex_width = @as(u16, @intCast(dims[0])),
+                .dest_tex_height = @as(u16, @intCast(dims[1])),
+                .dest_tex_scale = 0.6,
+            }),
+
+            .outlined = .init(self.device, .{
+                .name = "outline",
+                .gpu = self,
+                .depth_enabled = false,
+                .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
+                .dest_usage = .{ .color_target = true, .sampler = true },
+                .dest_tex_width = @as(u16, @intCast(dims[0])),
+                .dest_tex_height = @as(u16, @intCast(dims[1])),
+                .dest_tex_scale = 0.6,
+                .depth_load_op = .load,
+            }),
+
+            .ui = .init(self.device, .{
+                .name = "ui",
+                .gpu = self,
+                .sample_count = .@"4",
+                .depth_enabled = false,
+                .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
+                .dest_usage = .{ .color_target = true },
+                .dest_tex_width = @as(u16, @intCast(dims[0])),
+                .dest_tex_height = @as(u16, @intCast(dims[1])),
+                .dest_tex_scale = 1,
+            }),
+        }),
     };
 
     self.textures.init(self.device, loader, strint, self.gpa);
@@ -358,32 +395,8 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
     const font = ttf.fontOpen("assets/WonderType-Regular.otf", 256) catch unreachable;
 
-    const dims = sdl.video.windowSizeInPixels(window.hdl) catch unreachable;
     self.default_assets = .{
         .font = font,
-
-        .forward_pass = passes.Forward.init(self.device, .{
-            .name = "standard",
-            .clear_color = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
-            .depth_enabled = true,
-            .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
-            .dest_usage = .{ .color_target = true, .sampler = true },
-            .dest_tex_width = @as(u16, @intCast(dims[0])),
-            .dest_tex_height = @as(u16, @intCast(dims[1])),
-            .dest_tex_scale = 0.6,
-        }),
-
-        .ui_pass = passes.Forward.init(self.device, .{
-            .name = "ui",
-            .clear_color = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
-            .sample_count = .@"4",
-            .depth_enabled = false,
-            .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
-            .dest_usage = .{ .color_target = true },
-            .dest_tex_width = @as(u16, @intCast(dims[0])),
-            .dest_tex_height = @as(u16, @intCast(dims[1])),
-            .dest_tex_scale = 1,
-        }),
 
         .default_texture = texture,
         .black_texture = black_texture,
@@ -394,8 +407,6 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .sphere = sphere,
 
         .sampler = self.device.createSampler(&sampler_info) orelse std.debug.panic("create sampler failure: {s}", .{sdl.getError()}),
-        .obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 1024 * 16, "Object Mats"),
-        .selected_obj_buf = try buf.DynamicBuffer(mat4.Mat4).init(self.device, 512, "Selected Object Mats"),
         .sprite_buf = try buf.DynamicBuffer(u128).init(self.device, 1024, "Sprite Atlas Sizes"),
         .active_target = null,
         .resolve_tex = try device.createTexture(&.{
@@ -410,10 +421,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         }),
     };
 
-    try self.uniforms.put(self.gpa, self.ids.all_renderables, .{ .buffer = self.default_assets.obj_buf.hdl });
-    try self.uniforms.put(self.gpa, self.ids.selected_renderables, .{ .buffer = self.default_assets.selected_obj_buf.hdl });
     try self.uniforms.put(self.gpa, self.ids.sprites, .{ .buffer = self.default_assets.sprite_buf.hdl });
-    try self.uniforms.put(self.gpa, self.ids.all_renderables, .{ .buffer = self.default_assets.obj_buf.hdl });
 
     return self;
 }
@@ -433,14 +441,15 @@ pub fn shutdown(self: *Gpu) void {
     self.textures.deinit();
     self.models.deinit(&self.buffer_allocator);
     self.materials.deinit();
-    self.renderables.deinit();
 
     self.buffer_allocator.deinit();
 
-    self.default_assets.forward_pass.deinit();
-    self.default_assets.ui_pass.deinit();
-    self.device.releaseBuffer(self.default_assets.obj_buf.hdl);
-    self.device.releaseBuffer(self.default_assets.selected_obj_buf.hdl);
+    {
+        var it = self.passes.iterator();
+        while (it.next()) |kv| {
+            kv.value.deinit();
+        }
+    }
     self.device.releaseBuffer(self.default_assets.sprite_buf.hdl);
     self.device.releaseTexture(self.default_assets.default_texture);
     self.device.releaseTexture(self.default_assets.black_texture);
@@ -542,8 +551,13 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
         return error.AcquireSwapchainError;
     } else if (swapchain) |s| {
         if (self.window_state.prev_drawable_w != drawable_w or self.window_state.prev_drawable_h != drawable_h) {
-            self.default_assets.forward_pass.resize(drawable_w, drawable_h);
-            self.default_assets.ui_pass.resize(drawable_w, drawable_h);
+            {
+                var it = self.passes.iterator();
+                while (it.next()) |kv| {
+                    kv.value.resize(drawable_w, drawable_h);
+                }
+            }
+
             self.device.releaseTexture(self.default_assets.resolve_tex);
             self.default_assets.resolve_tex = try self.device.createTexture(&.{
                 .type = .@"2d",
@@ -575,7 +589,6 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
 pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64) !void {
     const zone = @import("ztracy").Zone(@src());
     defer zone.End();
-    const arena = self.arena.allocator();
 
     try self.uniforms.put(self.gpa, self.ids.view, .{ .mat4x4 = scene.view.m });
     try self.uniforms.put(self.gpa, self.ids.projection, .{ .mat4x4 = scene.proj.m });
@@ -585,55 +598,83 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     try self.uniforms.put(self.gpa, self.ids.viewport_size, .{ .f32x4 = .{ @floatFromInt(self.window_state.prev_drawable_w), @floatFromInt(self.window_state.prev_drawable_h), 0, 0 } });
     try self.uniforms.put(self.gpa, self.ids.time, .{ .f32 = @as(f32, @floatFromInt(time)) / std.time.ns_per_s });
 
-    const render_pack = try self.renderables.packAll(arena);
-    const transforms = render_pack.transforms;
-    try self.uploadToBuffer(self.default_assets.obj_buf.hdl, 0, std.mem.sliceAsBytes(transforms));
     try self.uploadToBuffer(self.default_assets.sprite_buf.hdl, 0, self.materials.param_buf.items);
 
-    // Render forward pass
-    try self.doPass(.{
-        .cmd = cmd,
-        .targets = self.default_assets.forward_pass.targets(),
-        .pack = render_pack,
-    });
+    // Default pass
+    const fp = self.passes.getPtr(.default);
+    {
+        try fp.render(cmd);
 
+        const fp_color: sdl.gpu.ColorTargetInfo = .{
+            .texture = self.default_assets.active_target.?,
+            .load_op = .clear,
+            .store_op = .store,
+            .clear_color = @bitCast(self.clear_color),
+            .cycle = false,
+        };
+
+        const fp_pass = cmd.beginRenderPass(&.{fp_color}, 1, null) orelse
+            panic("error begin render pass {s}", .{sdl.getError()});
+        defer fp_pass.end();
+
+        fp_pass.bindGraphicsPipeline(self.materials.templates.get(.screen_blit).pipeline);
+
+        const binding = [_]sdl.gpu.TextureSamplerBinding{
+            .{ .sampler = self.default_assets.sampler, .texture = self.passes.getPtr(.default).texture() },
+        };
+
+        fp_pass.bindFragmentSamplers(0, &binding, 1);
+
+        fp_pass.drawPrimitives(3, 1, 0, 0);
+    }
+    const op = self.passes.getPtr(.outlined);
+    op.ds_target = fp.ds_target;
+    op.ds_target.?.load_op = .load;
+    op.ds_target.?.cycle = false;
+    defer op.ds_target = null;
+
+    try self.passes.getPtr(.outlined).render(cmd);
+
+    // Blit forward pass onto screen
     self.postProcessBlit(
         cmd,
         self.default_assets.active_target.?,
-        self.default_assets.forward_pass.texture(),
-        self.default_assets.forward_pass.texture(),
+        self.passes.getPtr(.outlined).texture(),
+        self.passes.getPtr(.outlined).texture(),
         self.uniforms.get(self.ids.viewport_size).?.f32x4,
     );
 
-    try self.im.draw(
+    const im_drawn = try self.im.draw(
         self,
         cmd,
-        self.default_assets.ui_pass.texture(),
+        self.passes.getPtr(.ui).texture(),
         self.default_assets.resolve_tex.?,
     );
 
-    // Blit UI Immediates
-    const color: sdl.gpu.ColorTargetInfo = .{
-        .texture = self.default_assets.active_target.?,
-        .load_op = .load,
-        .store_op = .store,
-        .clear_color = @bitCast(self.clear_color),
-        .cycle = false,
-    };
+    if (im_drawn) {
+        // Blit UI Immediates onto screen
+        const color: sdl.gpu.ColorTargetInfo = .{
+            .texture = self.default_assets.active_target.?,
+            .load_op = .load,
+            .store_op = .store,
+            .clear_color = @bitCast(self.clear_color),
+            .cycle = false,
+        };
 
-    const pass = cmd.beginRenderPass((&color)[0..1], 1, null) orelse
-        panic("error begin render pass {s}", .{sdl.getError()});
-    defer pass.end();
+        const pass = cmd.beginRenderPass((&color)[0..1], 1, null) orelse
+            panic("error begin render pass {s}", .{sdl.getError()});
+        defer pass.end();
 
-    pass.bindGraphicsPipeline(self.materials.templates.get(.screen_blit).pipeline);
+        pass.bindGraphicsPipeline(self.materials.templates.get(.screen_blit).pipeline);
 
-    const binding = [_]sdl.gpu.TextureSamplerBinding{
-        .{ .sampler = self.default_assets.sampler, .texture = self.default_assets.resolve_tex.? },
-    };
+        const binding = [_]sdl.gpu.TextureSamplerBinding{
+            .{ .sampler = self.default_assets.sampler, .texture = self.default_assets.resolve_tex.? },
+        };
 
-    pass.bindFragmentSamplers(0, &binding, 1);
+        pass.bindFragmentSamplers(0, &binding, 1);
 
-    pass.drawPrimitives(3, 1, 0, 0);
+        pass.drawPrimitives(3, 1, 0, 0);
+    }
 }
 
 pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
@@ -661,7 +702,7 @@ pub fn postProcessBlit(
 ) void {
     const color: sdl.gpu.ColorTargetInfo = .{
         .texture = screen_tex,
-        .load_op = .clear,
+        .load_op = .load,
         .store_op = .store,
         .clear_color = @bitCast(self.clear_color),
         .cycle = false,
@@ -683,52 +724,6 @@ pub fn postProcessBlit(
     cmd.pushFragmentUniformData(0, std.mem.asBytes(&viewport_size), @sizeOf(@TypeOf(viewport_size)));
 
     pass.drawPrimitives(3, 1, 0, 0);
-}
-
-const PassIterator = union(enum) {
-    renderables: []const rbl.Renderable,
-    handles: []const rbl.RenderItemHandle,
-    iterator: rbl.RenderList.Iterator,
-    pack: rbl.PackedRenderables,
-};
-
-pub const PassTargets = struct {
-    color: []const sdl.gpu.ColorTargetInfo,
-    depth: ?*const sdl.gpu.DepthStencilTargetInfo,
-};
-
-const PassInfo = struct {
-    cmd: *sdl.gpu.CommandBuffer,
-    pack: rbl.PackedRenderables,
-    material: ?mt.Material = null, // if null, objects use their own material
-    targets: PassTargets,
-};
-
-pub fn doPass(self: *Gpu, job: PassInfo) !void {
-    const zone = @import("ztracy").Zone(@src());
-    defer zone.End();
-
-    const color = job.targets.color;
-    const depth = job.targets.depth;
-    const pass = job.cmd.beginRenderPass(color.ptr, @intCast(color.len), depth).?;
-    defer pass.end();
-    pass.setStencilReference(1);
-
-    var last_pipeline: ?*sdl.gpu.GraphicsPipeline = null;
-
-    var total_instances_rendered: u32 = 0;
-    for (0..job.pack.len) |i| {
-        const mesh = job.pack.meshes[i];
-        try self.draw(.{
-            .cmd = job.cmd,
-            .pass = pass,
-            .num_first_instance = total_instances_rendered,
-            .num_instances = job.pack.instance_counts[i],
-            .mesh = mesh,
-            .last_pipeline = &last_pipeline,
-        });
-        total_instances_rendered += job.pack.instance_counts[i];
-    }
 }
 
 pub const DrawOptions = struct {
@@ -1041,17 +1036,34 @@ pub fn modelPrimitive(self: *Gpu, shape: primitives.Shape) Model {
     };
 }
 
-pub fn selectRenderable(self: *Gpu, handle: rbl.RenderItemHandle) void {
-    _ = self;
-    _ = handle;
+pub const RenderItemHandle = extern struct {
+    pass: PassType,
+    index: rbl.RenderItemHandle,
+};
+
+pub const AddRenderableOptions = extern struct {
+    model: mdl.Handle,
+    time: u64 = 0,
+    pass: PassType,
+
+    comptime {
+        hy.meta.assertMatches(AddRenderableOptions, hy.Gpu.AddRenderableOptions);
+    }
+};
+
+pub fn renderableAdd(self: *Gpu, opts: AddRenderableOptions) !RenderItemHandle {
+    return .{
+        .pass = opts.pass,
+        .index = try self.passes.getPtr(opts.pass).items.add(.{ .model = opts.model, .time = opts.time }),
+    };
 }
 
 pub fn renderableSetTransform(
     self: *Gpu,
-    handle: rbl.RenderItemHandle,
+    item: RenderItemHandle,
     transform: mat4.Mat4,
 ) void {
-    const renderable = self.renderables.items.getPtr(handle) orelse {
+    const renderable = self.passes.getPtr(item.pass).items.items.getPtr(item.index) orelse {
         log.warn("Renderable set transform called when no renderable exists", .{});
         return;
     };
@@ -1125,8 +1137,9 @@ pub fn spriteDestroy(self: *Gpu, hdl: hy.SlotMap(Sprite).Handle) void {
     self.models.remove(&self.buffer_allocator, sprite.model);
 }
 
-pub fn spriteRenderableWeakPtr(self: *Gpu, hdl: RenderItemHandle) ?*GpuSprite {
-    const renderable = (self.renderables.items.getPtr(hdl) orelse return null);
+pub fn spriteRenderableWeakPtr(self: *Gpu, item: RenderItemHandle) ?*GpuSprite {
+    const renderables = &self.passes.getPtr(item.pass).items;
+    const renderable = (renderables.items.getPtr(item.index) orelse return null);
     const mat_hdl = renderable.mesh.material;
     const mat = self.materials.get(mat_hdl) orelse return null;
     const ptr: *Gpu.GpuSprite = @ptrCast(@alignCast(&self.materials.param_buf.items[mat.params_start]));
@@ -1167,16 +1180,21 @@ pub fn spriteDupe(self: *Gpu, hdl: SpriteHandle) SpriteHandle {
 pub fn renderableOfSprite(self: *Gpu, hdl: SpriteHandle) !RenderItemHandle {
     const sprite = self.sprites.get(hdl).?;
 
-    const renderable = try self.renderables.add(.{
+    const renderables = &self.passes.getPtr(.outlined).items;
+    const renderable = try renderables.add(.{
         .model = sprite.model,
         .time = 0,
     });
 
-    return renderable;
+    return .{
+        .pass = .outlined,
+        .index = renderable,
+    };
 }
 
 pub fn renderableDestroy(self: *Gpu, handle: RenderItemHandle) void {
-    self.renderables.remove(handle);
+    const renderables = &self.passes.getPtr(handle.pass).items;
+    renderables.remove(handle.index);
 }
 
 pub fn clearColorSet(self: *Gpu, color: hym.Vec4) void {

@@ -51,30 +51,24 @@ pub const Renderable = struct {
 pub const RenderList = struct {
     gpu: *Gpu,
     items: RenderItems,
-    allocator: std.mem.Allocator,
 
     pub const Iterator = RenderItems.ValidItemsIterator;
 
-    pub fn init(gpu: *Gpu, allocator: std.mem.Allocator) RenderList {
+    pub fn init(gpu: *Gpu) RenderList {
         return .{
             .gpu = gpu,
             .items = .empty,
-            .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *RenderList) void {
-        self.items.deinit(self.allocator);
+        self.items.deinit(self.gpu.gpa);
     }
 
     pub const AddOptions = extern struct {
         model: ModelHandle,
         /// Max sleep time for the model to load
         time: u64 = 0,
-
-        comptime {
-            hy.meta.assertMatches(AddOptions, hy.Gpu.AddRenderableOptions);
-        }
     };
 
     pub fn add(self: *RenderList, options: AddOptions) !RenderItemHandle {
@@ -98,7 +92,7 @@ pub const RenderList = struct {
                     .transform = model.transform,
                     .next = head,
                 };
-                head = try self.items.insert(self.allocator, renderable);
+                head = try self.items.insert(self.gpu.gpa, renderable);
             }
             if (head) |h| return h else return error.ModelEmpty;
         }

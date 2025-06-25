@@ -60,6 +60,9 @@ pub const Materials = struct {
                     .ui_sdf = readFromPath(gpu, .{
                         .path = "shaders/ui_sdf",
                     }, gpu.gpa) catch panic("error creating ui shader", .{}),
+                    .xor_surf2 = readFromPath(gpu, .{
+                        .path = "shaders/xor_surf2",
+                    }, gpu.gpa) catch panic("error creating xor_surf2 shader", .{}),
                 },
             ),
         };
@@ -130,6 +133,7 @@ pub const Material = struct {
         billboard,
         ui,
         ui_sdf,
+        xor_surf2,
 
         comptime {
             hy.meta.assertMatches(Type, hy.Gpu.MaterialType);
@@ -178,7 +182,7 @@ pub const MaterialSpec = struct {
         storage_buffers: ?[][]const u8 = null,
     };
 
-    pass: Gpu.PassType,
+    pass: Gpu.PipelineType,
     vertex: ?ProgramInfo = null,
     fragment: ?ProgramInfo = null,
 };
