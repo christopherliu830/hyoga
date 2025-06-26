@@ -37,3 +37,7 @@ pub const Window = runtime.Window;
 pub const Keycode = key.Keycode;
 pub const Keymod = key.Keymod;
 pub const MouseButton = key.MouseButton;
+
+pub inline fn @"f32"(int: u32) f32 {
+    return @floatFromInt(int);
+}

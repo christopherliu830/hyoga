@@ -16,11 +16,16 @@ pub const Color = struct {
     }
 
     pub inline fn hueSet(self: *const Color, h: f32) Color {
-        return .{ .data = .{ h, self.data[1], self.data[2], self.data[3] } };
+        const clipped_h = @mod(h, 360);
+        return .{ .data = .{ clipped_h, self.data[1], self.data[2], self.data[3] } };
     }
 
     pub inline fn saturation(self: *const Color) f32 {
         return self.data[1];
+    }
+
+    pub inline fn saturationSet(self: *const Color, s: f32) Color {
+        return .{ .data = .{ self.data[0], @max(0, @min(1, s)), self.data[2], self.data[3] } };
     }
 
     pub inline fn value(self: *const Color) f32 {
