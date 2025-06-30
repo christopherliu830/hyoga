@@ -6,6 +6,7 @@ const sdlsc = @import("sdl_shadercross");
 const ttf = @import("sdl_ttf");
 const ai = @import("assimp");
 const build_options = @import("build_options");
+const root = @import("root.zig");
 
 const SlotMap = @import("hyoga-lib").SlotMap;
 const hym = @import("hyoga-lib").math;
@@ -40,7 +41,6 @@ pub const TextureHandle = tx.Handle;
 pub const Textures = tx.Textures;
 pub const TextureSet = tx.TextureSet;
 pub const TextureArray = tx.TextureArray;
-pub const TextureSetCreateInfo = tx.TextureSetCreateInfo;
 pub const Vertex = @import("vertex.zig").Vertex;
 pub const UIVertex = @import("vertex.zig").UIVertex;
 pub const primitives = @import("primitives.zig");
@@ -100,19 +100,14 @@ pub const PassType = enum(u32) {
     ui,
 };
 
-pub const PipelineType = enum {
-    default,
-    post_process,
-    ui,
-};
-
 pub const BuildPipelineParams = struct {
     format: ?sdl.gpu.TextureFormat,
     vert: *sdl.gpu.Shader,
     frag: *sdl.gpu.Shader,
-    pass: PipelineType,
+    pass: root.PipelineType,
     enable_depth: bool,
     enable_stencil: bool,
+    enable_blend: bool,
     fill_mode: sdl.gpu.FillMode,
     primitive_type: sdl.gpu.PrimitiveType,
 };
@@ -598,7 +593,7 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     try self.uniforms.put(self.gpa, self.ids.viewport_size, .{ .f32x4 = .{ @floatFromInt(self.window_state.prev_drawable_w), @floatFromInt(self.window_state.prev_drawable_h), 0, 0 } });
     try self.uniforms.put(self.gpa, self.ids.time, .{ .f32 = @as(f32, @floatFromInt(time)) / std.time.ns_per_s });
 
-    try self.uploadToBuffer(self.default_assets.sprite_buf.hdl, 0, self.materials.param_buf.items);
+    try self.uploadToBuffer(self.default_assets.sprite_buf.hdl, 0, std.mem.sliceAsBytes(self.materials.param_buf.items));
 
     // Default pass
     const fp = self.passes.getPtr(.default);
@@ -830,7 +825,7 @@ pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsP
     const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{.{
         .format = params.format orelse self.device.getSwapchainTextureFormat(self.window.hdl),
         .blend_state = .{
-            .enable_blend = true,
+            .enable_blend = params.enable_blend,
             .src_color_blendfactor = .src_alpha,
             .dst_color_blendfactor = .one_minus_src_alpha,
             .color_blend_op = .add,
@@ -958,7 +953,11 @@ pub fn materialDefaultCreate(self: *Gpu) MaterialHandle {
     }));
 }
 
-pub fn materialCreate(self: *Gpu, mt_type: mt.Material.Type, txs: *const TextureArray) !MaterialHandle {
+pub fn materialLoad(self: *Gpu, path: [:0]const u8) !MaterialHandle {
+    return try self.materials.load(path);
+}
+
+pub fn materialCreate(self: *Gpu, mt_type: mt.Material.Type, txs: *const TextureArray) MaterialHandle {
     var map: tx.TextureSet = .{};
 
     for (std.meta.tags(tx.TextureType), 0..) |tag, i| {

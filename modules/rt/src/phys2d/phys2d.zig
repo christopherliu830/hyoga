@@ -4,6 +4,7 @@ const hym = hy.math;
 pub const b2 = @import("box2d");
 
 const Phys2 = @This();
+const gfx = @import("../graphics/root.zig");
 
 allocator: std.mem.Allocator,
 world: b2.World,
@@ -11,6 +12,7 @@ timestep: f32 = 1.0 / 120.0,
 interp_alpha: f32 = 1,
 hit_callbacks: std.AutoHashMapUnmanaged(Body, CallbackSet) = .{},
 prev_positions: std.AutoArrayHashMapUnmanaged(Body, hym.Vec2) = .{},
+gpu: *gfx.Gpu,
 
 /// accumulated time of simulation in ns since engine start.
 current_time: u64 = 0,
@@ -42,12 +44,13 @@ pub const RaycastHit = struct {
     fraction: f32,
 };
 
-pub fn init(allocator: std.mem.Allocator) Phys2 {
+pub fn init(allocator: std.mem.Allocator, gpu: *gfx.Gpu) Phys2 {
     return .{
         .allocator = allocator,
         .world = .create(&.{
             .gravity = .zero,
         }),
+        .gpu = gpu,
     };
 }
 
@@ -70,7 +73,6 @@ pub fn eventsReset(self: *Phys2) void {
 
 pub const ShapeType = enum(u32) {
     circle,
-    box,
     capsule,
     segment,
     polygon,
@@ -103,6 +105,8 @@ pub const ShapeConfig = hy.ExternTaggedUnion(union(enum) {
         points: hy.ExternSliceConst(hym.Vec2),
     },
 });
+
+pub const ShapeExtra = hy.Phys2.ShapeExtra;
 
 pub const BodyAddOptions = extern struct {
     type: b2.Body.Type,
@@ -245,6 +249,30 @@ pub fn bodyPositionSet(body: Body, pos: hym.Vec2) void {
     body.setTransform(@bitCast(pos), body.getRotation());
 }
 
+pub fn shapeExtra(shape: b2.Shape) ShapeExtra {
+    const shape_type = shape.getType();
+    return blk: switch (shape_type) {
+        .circle => {
+            const extra = shape.getCircle();
+            break :blk .of(.circle, .{
+                .center = @bitCast(extra.center),
+                .radius = @bitCast(extra.radius),
+            });
+        },
+        .polygon => {
+            const extra = shape.getPolygon();
+            break :blk .of(.polygon, .{
+                .vertices = @bitCast(extra.vertices),
+                .normals = @bitCast(extra.normals),
+                .centroid = @bitCast(extra.centroid),
+                .radius = extra.radius,
+                .count = @intCast(extra.count),
+            });
+        },
+        else => unreachable
+    };
+}
+
 const OverlapContext = struct {
     arena: std.mem.Allocator,
     results: std.ArrayListUnmanaged(b2.Shape),
@@ -331,15 +359,76 @@ pub fn raycastLeaky(
         .results = .empty,
     };
 
-    _ = self.world.castRay(
-        @bitCast(opts.origin),
+    if (opts.collection_type == .closest) {
+        const result = self.world.castRayClosest(
+            @bitCast(opts.origin),
+            @bitCast(opts.direction),
+            .{ .category = opts.category, .mask = opts.mask },
+        );
+
+        if (result.hit) {
+            ctx.results.append(arena, .{
+                .shape = result.shape,
+                .point = @bitCast(result.point),
+                .normal = @bitCast(result.normal),
+                .fraction = result.fraction,
+            }) catch unreachable;
+        }
+    } else {
+        _ = self.world.castRay(
+            @bitCast(opts.origin),
+            @bitCast(opts.direction),
+            .{ .category = opts.category, .mask = opts.mask },
+            raycastHitsCollect,
+            @ptrCast(&ctx),
+        );
+    }
+
+    return ctx.results.toOwnedSlice(arena) catch unreachable;
+}
+
+pub const CastCircleOptions = extern struct {
+    circle: hy.Phys2.Circle,
+    direction: hym.Vec2,
+    category: u64 = 1,
+    mask: u64 = std.math.maxInt(u64),
+    collection_type: RaycastOptions.CollectionType,
+
+    comptime {
+        hy.meta.assertMatches(@This(), hy.Phys2.CastCircleOptions);
+    }
+};
+
+pub fn castCircleLeaky(self: *Phys2, arena: std.mem.Allocator, opts: CastCircleOptions) []RaycastHit {
+    var ctx: RaycastContext = .{
+        .arena = arena,
+        .collection_type = opts.collection_type,
+        .results = .empty,
+    };
+
+    const transform: b2.Transform = .{
+        .p = .{ .x = 0, .y = 0 },
+        .q = b2.makeRot(0),
+    };
+
+    _ = self.world.castCircle(
+        &.{ .center = @bitCast(opts.circle.center), .radius = @bitCast(opts.circle.radius) },
+        transform,
         @bitCast(opts.direction),
         .{ .category = opts.category, .mask = opts.mask },
         raycastHitsCollect,
-        @ptrCast(&ctx),
+        &ctx,
     );
-
     return ctx.results.toOwnedSlice(arena) catch unreachable;
+}
+
+pub fn render(self: *Phys2) void {
+    self.world.draw(&.{
+        .drawSolidPolygon = debugDrawSolidPolygon,
+        .drawSolidCircle = drawSolidCircle,
+        .context = self,
+        .draw_shapes = true,
+    });
 }
 
 fn raycastHitsCollect(shape: b2.Shape, point: b2.Vec2, normal: b2.Vec2, fraction: f32, ctx: ?*anyopaque) callconv(.C) f32 {
@@ -357,7 +446,7 @@ fn raycastHitsCollect(shape: b2.Shape, point: b2.Vec2, normal: b2.Vec2, fraction
 
     return switch (collector.collection_type) {
         .first => 0,
-        .closest => 0.5,
+        .closest => fraction,
         .all => 1,
     };
 }
@@ -436,4 +525,95 @@ fn emitOverlaps(self: *Phys2) void {
             }
         }
     }
+}
+
+fn debugDrawSolidPolygon(transform: b2.Transform, vertices: [*]const b2.Vec2, vertex_count: c_int, radius: f32, hex_color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+    _ = radius;
+    const len: u32 = @intCast(vertex_count);
+    const p2: *Phys2 = @ptrCast(@alignCast(context));
+    const arena = p2.gpu.arena.allocator();
+
+    var verts = arena.alloc(gfx.Gpu.UIVertex, len + 1) catch unreachable;
+    var indices = arena.alloc(u32, len * 3) catch unreachable;
+
+    var min_x = vertices[0].x;
+    var max_x = vertices[0].x;
+    var min_y = vertices[0].y;
+    var max_y = vertices[0].y;
+
+    for (vertices[0..len], 0..) |v, i| {
+        verts[i] = .{
+            .pos = .{ v.x + transform.p.x, v.y + transform.p.y },
+            .color = hy.Color.hex(@intCast(@intFromEnum(hex_color))).alphaSet(1).asf32x4Norm(),
+        };
+        min_x = @min(min_x, vertices[i].x);
+        max_x = @max(max_x, vertices[i].x);
+        min_y = @min(min_y, vertices[i].y);
+        max_y = @max(max_y, vertices[i].y);
+
+        indices[i * 3 + 0] = len; // center
+        indices[i * 3 + 1] = @intCast(i); // vertex pos
+        indices[i * 3 + 2] = @intCast((i + 1) % len); // next vertex
+    }
+
+    const center_x = (min_x + max_x) / 2 + transform.p.x;
+    const center_y = (min_y + max_y) / 2 + transform.p.y;
+
+    verts[len] = .{
+        .pos = .{ center_x, center_y },
+        .color = hy.Color.hex(@intCast(@intFromEnum(hex_color))).alphaSet(0).asf32x4Norm(),
+    };
+
+    const view_proj: hym.Mat4 = blk: {
+        break :blk .{ .m = (p2.gpu.uniforms.get(p2.gpu.ids.view_projection) orelse break :blk .identity).mat4x4 };
+    };
+    p2.gpu.im.drawVerts(verts, indices, .{ .transform = view_proj });
+}
+
+fn drawPolygon(vertices: [*]const b2.Vec2, vertex_count: c_int, hex_color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+    _ = vertices; // autofix
+    _ = vertex_count; // autofix
+    _ = hex_color; // autofix
+    _ = context; // autofix
+}
+fn drawCircle(center: b2.Vec2, radius: f32, color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+    _ = center; // autofix
+    _ = radius; // autofix
+    _ = color; // autofix
+    _ = context; // autofix
+}
+fn drawSolidCircle(transform: b2.Transform, radius: f32, color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+    _ = transform; // autofix
+    _ = radius; // autofix
+    _ = color; // autofix
+    _ = context; // autofix
+}
+fn drawSolidCapsule(p1: b2.Vec2, p2: b2.Vec2, radius: f32, color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+    _ = p1; // autofix
+    _ = p2; // autofix
+    _ = radius; // autofix
+    _ = color; // autofix
+    _ = context; // autofix
+}
+fn drawSegment(p1: b2.Vec2, p2: b2.Vec2, color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+    _ = p1; // autofix
+    _ = p2; // autofix
+    _ = color; // autofix
+    _ = context; // autofix
+}
+fn drawTransform(transform: b2.Transform, context: ?*anyopaque) callconv(.C) void {
+    _ = transform; // autofix
+    _ = context; // autofix
+}
+fn drawPoint(p: b2.Vec2, size: f32, color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+    _ = p; // autofix
+    _ = size; // autofix
+    _ = color; // autofix
+    _ = context; // autofix
+}
+fn drawString(p: b2.Vec2, s: [*]const u8, color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+    _ = p; // autofix
+    _ = s; // autofix
+    _ = color; // autofix
+    _ = context; // autofix
 }

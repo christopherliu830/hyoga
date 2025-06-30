@@ -4,7 +4,9 @@ const math = @import("std").math;
 const root = @This();
 
 const vec3 = @import("vec3.zig");
+const vec2 = @import("vec2.zig");
 const Vec3 = vec3.Vec3;
+const Vec2 = vec2.Vec2;
 
 pub const Vec4 = extern struct {
     v: @Vector(4, f32),
@@ -36,6 +38,10 @@ pub const Vec4 = extern struct {
     }
     pub inline fn a(self: Vec4) f32 {
         return self.v[3];
+    }
+
+    pub inline fn xy(self: Vec4) Vec2 {
+        return .of(self.v[0], self.v[1]);
     }
     pub inline fn xyz(self: Vec4) Vec3 {
         return vec3.create(self.v[0], self.v[1], self.v[2]);

@@ -4,11 +4,27 @@ const hym = hy.math;
 const closure = @import("../closure.zig");
 
 pub const Phys2 = struct {
+    pub const Transform = extern struct {
+        p: hym.Vec2 = .zero,
+        q: hym.Vec2 = .zero,
+    };
+
+    pub const Circle = extern struct {
+        radius: f32,
+        center: hym.Vec2,
+    };
+
+    pub const Polygon = extern struct {
+        pub const max_vertices = 8;
+        vertices: [max_vertices]hym.Vec2,
+        normals: [max_vertices]hym.Vec2,
+        centroid: hym.Vec2,
+        radius: f32,
+        count: u32,
+    };
+
     pub const ShapeOptions = hy.ExternTaggedUnion(union(enum) {
-        circle: extern struct {
-            radius: f32,
-            center: hym.Vec2,
-        },
+        circle: Circle,
         box: extern struct {
             width: f32,
             height: f32,
@@ -27,16 +43,6 @@ pub const Phys2 = struct {
             static,
             kinematic,
             dynamic,
-            count,
-        };
-
-        pub const ShapeType = enum(u32) {
-            circle,
-            box,
-            capsule,
-            segment,
-            polygon,
-            chain_segment,
             count,
         };
 
@@ -84,7 +90,26 @@ pub const Phys2 = struct {
     pub const Shape = packed struct(u64) {
         _padding: u64,
         pub const body = hyp2ShapeBody;
+        pub const extra = hyp2ShapeExtra;
     };
+
+    pub const ShapeType = enum(u32) {
+        circle,
+        capsule,
+        segment,
+        polygon,
+        chain_segment,
+        count,
+    };
+
+    pub const ShapeExtra = hy.ExternTaggedUnion(union(ShapeType) {
+        circle: hy.Phys2.Circle,
+        capsule: void,
+        segment: void,
+        polygon: hy.Phys2.Polygon,
+        chain_segment: void,
+        count: void,
+    });
 
     pub const HitEvent = struct {
         other: Body,
@@ -106,7 +131,15 @@ pub const Phys2 = struct {
         mask: u64 = std.math.maxInt(u64),
         collection_type: CollectionType,
 
-        pub const CollectionType = enum(u32) { all, first };
+        pub const CollectionType = enum(u32) { all, first, closest };
+    };
+
+    pub const CastCircleOptions = extern struct {
+        circle: hy.Phys2.Circle,
+        direction: hym.Vec2,
+        category: u64 = 1,
+        mask: u64 = std.math.maxInt(u64),
+        collection_type: RaycastOptions.CollectionType,
     };
 
     pub const OverlapCallback = *const fn (Body, ?*anyopaque) callconv(.C) bool;
@@ -126,13 +159,19 @@ pub const Phys2 = struct {
         return hyp2RaycastLeaky(phys2, .of(arena), opts).asSlice();
     }
 
+    pub fn castCircleLeaky(phys2: *Phys2, arena: std.mem.Allocator, opts: CastCircleOptions) []RaycastHit {
+        return hyp2CastCircleLeaky(phys2, .of(arena), opts).asSlice();
+    }
+
     extern fn hyp2BodyAdd(*Phys2, Body.AddOptions) Body;
     extern fn hyp2BodyGetPosition(*Phys2, Body) hym.Vec2;
+    extern fn hyp2ShapeExtra(Shape) ShapeExtra;
     extern fn hyp2EventsReset(*Phys2) void;
     extern fn hyp2HitEventRegister(*Phys2, Body, *closure.Runnable(HitEvent)) void;
     extern fn hyp2HitEventDeregister(*Phys2, Body, *closure.Runnable(HitEvent)) void;
     extern fn hyp2HitEventDeregisterAll(*Phys2, Body) void;
     extern fn hyp2OverlapLeaky(phys2: *Phys2, arena: hy.ExternAllocator, shape: ShapeOptions, hym.Vec2) hy.ExternSlice(Shape);
     extern fn hyp2RaycastLeaky(phys2: *Phys2, arena: hy.ExternAllocator, opts: RaycastOptions) hy.ExternSlice(RaycastHit);
+    extern fn hyp2CastCircleLeaky(phys2: *Phys2, arena: hy.ExternAllocator, opts: CastCircleOptions) hy.ExternSlice(RaycastHit);
     extern fn hyp2ShapeBody(Shape) Body;
 };

@@ -3,6 +3,8 @@ const builtin = @import("builtin");
 
 pub const GpuDriver = @import("hyoga_rt").GpuDriver;
 
+pub const InstallShadersStep = @import("src/build/InstallShadersStep.zig");
+
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -10,8 +12,6 @@ pub fn build(b: *std.Build) !void {
     const dxc = b.option(bool, "dxc", "enable HLSL support") orelse false;
     const enable_tracy = b.option(bool, "enable_tracy", "enable profiling with tracy") orelse false;
     const backend = b.option(GpuDriver, "gpu_driver", "force backend graphics driver") orelse .none;
-    const compile_shaders = b.option(bool, "compile_shaders", "force shader compile") orelse false;
-    _ = compile_shaders; // autofix
 
     const lib = b.dependency("hyoga_lib", .{
         .target = target,
@@ -37,14 +37,12 @@ pub fn build(b: *std.Build) !void {
     const wf = b.addNamedWriteFiles("bin_files");
     _ = wf.addCopyDirectory(rt.namedWriteFiles("bin_files").getDirectory(), "", .{});
 
-    try @import("src/build/InstallShadersStep.zig").init(b, wf, .{
+    try InstallShadersStep.init(b, wf, .{
         .install_dir = .bin,
-        .always_generate = true,
         .source_path = b.path("shaders"),
         .dest_path = "shaders",
-        .target = "spirv",
-        .profile = "spirv_1_3",
     });
+
     _ = wf.addCopyDirectory(b.path("shaders"), "shaders", .{ .include_extensions = &.{".json"} });
     _ = wf.addCopyDirectory(b.path("assets"), "assets", .{});
 

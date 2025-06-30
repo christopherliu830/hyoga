@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const array_group = @import("array_group.zig");
 pub const closure = @import("closure.zig");
 pub const color = @import("color.zig");
@@ -38,6 +40,23 @@ pub const Keycode = key.Keycode;
 pub const Keymod = key.Keymod;
 pub const MouseButton = key.MouseButton;
 
-pub inline fn @"f32"(int: u32) f32 {
-    return @floatFromInt(int);
+pub inline fn debugPrint(x: anytype) void {
+    std.debug.print("{any}\n", .{x});
+}
+
+pub inline fn @"f32"(int: anytype) f32 {
+    return switch (@typeInfo(@TypeOf(int))) {
+        .comptime_int => int,
+        .int => @floatFromInt(int),
+        else => comptime unreachable,
+    };
+}
+
+pub inline fn @"u32"(num: anytype) u32 {
+    return switch (@typeInfo(@TypeOf(num))) {
+        .comptime_int => num,
+        .float => @intFromFloat(num),
+        .int => @intCast(num),
+        else => comptime unreachable,
+    };
 }

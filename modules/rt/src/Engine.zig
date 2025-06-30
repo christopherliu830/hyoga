@@ -61,7 +61,7 @@ pub fn init() !*Engine {
         .input = Input.init(self.gpa.allocator()),
         .window = try Window.init(),
         .gpu = try Gpu.init(&self.window, &self.loader, &self.strint, self.gpa.allocator()),
-        .physics = .init(self.gpa.allocator()),
+        .physics = .init(self.gpa.allocator(), self.gpu),
         .ui = try UI.init(.{ .gpu = self.gpu, .window = &self.window, .allocator = self.gpa.allocator() }),
         .audio = try Audio.init(.{}),
         .loader = undefined, // Init after in place, I don't know why but it crashes otherwise.
@@ -155,6 +155,7 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
         gi.render(self, game);
 
         self.ui.clay_ui.end();
+
         self.gpu.render(cmd, &game.scene, game.current_time) catch |err|
             std.log.err("[GPU] failed to finish render: {}", .{err});
         self.ui.render(cmd) catch |err|

@@ -1,5 +1,5 @@
 {
-    "pass": 0,
+    "pass": "default",
     "vertex": {
         "storage_buffers": [
             "hy_all_renderables"

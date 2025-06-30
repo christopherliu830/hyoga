@@ -58,7 +58,6 @@ pub const Gpu = opaque {
         billboard,
         ui,
         ui_sdf,
-        xor_surf2,
     };
 
     pub const TextureType = enum(u32) {
@@ -71,7 +70,7 @@ pub const Gpu = opaque {
 
     pub const TextureArray = extern struct {
         const Map = std.EnumMap(TextureType, TextureHandle);
-        const Initializer = std.enums.EnumFieldStruct(TextureType, TextureHandle, .none);
+        pub const Initializer = std.enums.EnumFieldStruct(TextureType, TextureHandle, .none);
         data: [std.enums.directEnumArrayLen(TextureType, 0)]TextureHandle,
 
         pub fn make(txs: Initializer) TextureArray {
@@ -176,6 +175,13 @@ pub const Gpu = opaque {
 
     pub const materialDefaultCreate = hygpuMaterialDefaultCreate;
     pub const materialCreate = hygpuMaterialCreate;
+
+    pub fn materialLoad(gpu: *Gpu, path: [:0]const u8) MaterialHandle {
+        return hygpuMaterialLoad(gpu, .make(path));
+    }
+
+    pub const materialReload = hygpuMaterialReload;
+
     pub const modelImport = hygpuImportModel;
     pub const modelDestroy = hygpuModelDestroy;
     pub const modelBounds = hygpuModelBounds;
@@ -204,9 +210,15 @@ pub const Gpu = opaque {
 
     pub const clearColorSet = hygpuClearColorSet;
 
+    pub fn immediateDraw(gpu: *Gpu, verts: []const UIVertex, indices: []const u32, transform: hym.Mat4, mat_hdl: MaterialHandle) void {
+        hygpuImmediateDraw(gpu, .make(verts), .make(indices), transform, mat_hdl);
+    }
+
     extern fn hygpuClearColorSet(*Gpu, hym.Vec4) void;
     extern fn hygpuImportModel(*Gpu, [*:0]const u8, ImportSettings) Model;
     extern fn hygpuMaterialDefaultCreate(*Gpu) MaterialHandle;
+    extern fn hygpuMaterialLoad(*Gpu, hy.ExternSliceConst(u8)) MaterialHandle;
+    extern fn hygpuMaterialReload(*Gpu, MaterialHandle) void;
     extern fn hygpuMaterialCreate(*Gpu, MaterialType, *const TextureArray) MaterialHandle;
     extern fn hygpuModelBounds(*Gpu, Model) hym.AxisAligned;
     extern fn hygpuModelCreate(*Gpu, hy.ExternSliceConst(Vertex), hy.ExternSliceConst(u32), MaterialHandle) Model;
@@ -227,5 +239,6 @@ pub const Gpu = opaque {
     extern fn hygpuSpriteCurrentAnimationFrame(*Gpu, *Sprite) u32;
     extern fn hygpuSpriteDupe(*Gpu, Sprite.Handle) Sprite.Handle;
     extern fn hygpuTextureImport(*Gpu, hy.ExternSliceConst(u8)) TextureHandle;
+    extern fn hygpuImmediateDraw(gpu: *Gpu, verts: hy.ExternSliceConst(UIVertex), indices: hy.ExternSliceConst(u32), transform: hym.Mat4, hdl: MaterialHandle) void;
     extern fn hygpuClearSelection(*Gpu) void;
 };

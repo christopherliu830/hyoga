@@ -6,7 +6,7 @@ const B2_SECRET_COOKIE = 1152023;
 
 pub const length_units_per_meter = 1;
 
-pub const AABB = extern struct { lower_bound: Vec2, upper_bound: Vec2 };
+pub const AABB = extern struct { lower_bound: Vec2 = .zero, upper_bound: Vec2 = .zero };
 
 pub const BodyEvents = opaque {};
 
@@ -87,7 +87,31 @@ pub const Counters = opaque {};
 
 pub const CustomFilterFcn = opaque {};
 
-pub const DebugDraw = opaque {};
+pub const DebugDraw = extern struct {
+    drawPolygon: ?*const fn (vertices: [*]const Vec2, vertex_count: c_int, hex_color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
+    drawSolidPolygon: ?*const fn (transform: Transform, vertices: [*]const Vec2, vertex_count: c_int, radius: f32, hex_color: HexColor, ctx: ?*anyopaque) callconv(.C) void = null,
+    drawCircle: ?*const fn (center: Vec2, radius: f32, color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
+    drawSolidCircle: ?*const fn (transform: Transform, radius: f32, color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
+    drawSolidCapsule: ?*const fn (p1: Vec2, p2: Vec2, radius: f32, color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
+    drawSegment: ?*const fn (p1: Vec2, p2: Vec2, color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
+    drawTransform: ?*const fn (transform: Transform, context: ?*anyopaque) callconv(.C) void = null,
+    drawPoint: ?*const fn (p: Vec2, size: f32, color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
+    drawString: ?*const fn (p: Vec2, s: [*]const u8, color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
+    drawing_bounds: AABB = .{},
+    use_drawing_bounds: bool = false,
+    draw_shapes: bool = false,
+    draw_joints: bool = false,
+    draw_joint_extras: bool = false,
+    draw_aabbs: bool = false,
+    draw_mass: bool = false,
+    draw_body_names: bool = false,
+    draw_contacts: bool = false,
+    draw_graph_colors: bool = false,
+    draw_contact_normals: bool = false,
+    draw_contact_impulses: bool = false,
+    draw_friction_impulses: bool = false,
+    context: ?*anyopaque = null,
+};
 
 pub const ExplosionDef = opaque {};
 
@@ -95,6 +119,155 @@ pub const Filter = extern struct {
     category_bits: u64 = 1,
     mask_bits: u64 = std.math.maxInt(u64),
     group_index: i32 = 0,
+};
+
+pub const HexColor = enum(u32) {
+    aliceBlue = 0xF0F8FF,
+    antiqueWhite = 0xFAEBD7,
+    aqua = 0x00FFFF,
+    aquamarine = 0x7FFFD4,
+    azure = 0xF0FFFF,
+    beige = 0xF5F5DC,
+    bisque = 0xFFE4C4,
+    black = 0x000000,
+    blanchedAlmond = 0xFFEBCD,
+    blue = 0x0000FF,
+    blueViolet = 0x8A2BE2,
+    brown = 0xA52A2A,
+    burlywood = 0xDEB887,
+    cadetBlue = 0x5F9EA0,
+    chartreuse = 0x7FFF00,
+    chocolate = 0xD2691E,
+    coral = 0xFF7F50,
+    cornflowerBlue = 0x6495ED,
+    cornsilk = 0xFFF8DC,
+    crimson = 0xDC143C,
+    darkBlue = 0x00008B,
+    darkCyan = 0x008B8B,
+    darkGoldenRod = 0xB8860B,
+    darkGray = 0xA9A9A9,
+    darkGreen = 0x006400,
+    darkKhaki = 0xBDB76B,
+    darkMagenta = 0x8B008B,
+    darkOliveGreen = 0x556B2F,
+    darkOrange = 0xFF8C00,
+    darkOrchid = 0x9932CC,
+    darkRed = 0x8B0000,
+    darkSalmon = 0xE9967A,
+    darkSeaGreen = 0x8FBC8F,
+    darkSlateBlue = 0x483D8B,
+    darkSlateGray = 0x2F4F4F,
+    darkTurquoise = 0x00CED1,
+    darkViolet = 0x9400D3,
+    deepPink = 0xFF1493,
+    deepSkyBlue = 0x00BFFF,
+    dimGray = 0x696969,
+    dodgerBlue = 0x1E90FF,
+    fireBrick = 0xB22222,
+    floralWhite = 0xFFFAF0,
+    forestGreen = 0x228B22,
+    fuchsia = 0xFF00FF,
+    Gainsboro = 0xDCDCDC,
+    GhostWhite = 0xF8F8FF,
+    Gold = 0xFFD700,
+    GoldenRod = 0xDAA520,
+    Gray = 0x808080,
+    Green = 0x008000,
+    GreenYellow = 0xADFF2F,
+    HoneyDew = 0xF0FFF0,
+    HotPink = 0xFF69B4,
+    IndianRed = 0xCD5C5C,
+    Indigo = 0x4B0082,
+    Ivory = 0xFFFFF0,
+    Khaki = 0xF0E68C,
+    Lavender = 0xE6E6FA,
+    LavenderBlush = 0xFFF0F5,
+    LawnGreen = 0x7CFC00,
+    LemonChiffon = 0xFFFACD,
+    LightBlue = 0xADD8E6,
+    LightCoral = 0xF08080,
+    LightCyan = 0xE0FFFF,
+    LightGoldenRodYellow = 0xFAFAD2,
+    LightGray = 0xD3D3D3,
+    LightGreen = 0x90EE90,
+    LightPink = 0xFFB6C1,
+    LightSalmon = 0xFFA07A,
+    LightSeaGreen = 0x20B2AA,
+    LightSkyBlue = 0x87CEFA,
+    LightSlateGray = 0x778899,
+    LightSteelBlue = 0xB0C4DE,
+    LightYellow = 0xFFFFE0,
+    Lime = 0x00FF00,
+    LimeGreen = 0x32CD32,
+    Linen = 0xFAF0E6,
+    Maroon = 0x800000,
+    MediumAquaMarine = 0x66CDAA,
+    MediumBlue = 0x0000CD,
+    MediumOrchid = 0xBA55D3,
+    MediumPurple = 0x9370DB,
+    MediumSeaGreen = 0x3CB371,
+    MediumSlateBlue = 0x7B68EE,
+    MediumSpringGreen = 0x00FA9A,
+    MediumTurquoise = 0x48D1CC,
+    MediumVioletRed = 0xC71585,
+    MidnightBlue = 0x191970,
+    MintCream = 0xF5FFFA,
+    MistyRose = 0xFFE4E1,
+    Moccasin = 0xFFE4B5,
+    NavajoWhite = 0xFFDEAD,
+    Navy = 0x000080,
+    OldLace = 0xFDF5E6,
+    Olive = 0x808000,
+    OliveDrab = 0x6B8E23,
+    Orange = 0xFFA500,
+    OrangeRed = 0xFF4500,
+    Orchid = 0xDA70D6,
+    PaleGoldenRod = 0xEEE8AA,
+    PaleGreen = 0x98FB98,
+    PaleTurquoise = 0xAFEEEE,
+    PaleVioletRed = 0xDB7093,
+    PapayaWhip = 0xFFEFD5,
+    PeachPuff = 0xFFDAB9,
+    Peru = 0xCD853F,
+    Pink = 0xFFC0CB,
+    Plum = 0xDDA0DD,
+    PowderBlue = 0xB0E0E6,
+    Purple = 0x800080,
+    RebeccaPurple = 0x663399,
+    Red = 0xFF0000,
+    RosyBrown = 0xBC8F8F,
+    RoyalBlue = 0x4169E1,
+    SaddleBrown = 0x8B4513,
+    Salmon = 0xFA8072,
+    SandyBrown = 0xF4A460,
+    SeaGreen = 0x2E8B57,
+    SeaShell = 0xFFF5EE,
+    Sienna = 0xA0522D,
+    Silver = 0xC0C0C0,
+    SkyBlue = 0x87CEEB,
+    SlateBlue = 0x6A5ACD,
+    SlateGray = 0x708090,
+    Snow = 0xFFFAFA,
+    SpringGreen = 0x00FF7F,
+    SteelBlue = 0x4682B4,
+    Tan = 0xD2B48C,
+    Teal = 0x008080,
+    Thistle = 0xD8BFD8,
+    Tomato = 0xFF6347,
+    Turquoise = 0x40E0D0,
+    Violet = 0xEE82EE,
+    Wheat = 0xF5DEB3,
+    White = 0xFFFFFF,
+    WhiteSmoke = 0xF5F5F5,
+    Yellow = 0xFFFF00,
+    YellowGreen = 0x9ACD32,
+    Box2DRed = 0xDC3132,
+    Box2DBlue = 0x30AEBF,
+    Box2DGreen = 0x8CC924,
+    Box2DYellow = 0xFFEE8C,
+
+    pub const cyan: HexColor = .aqua;
+    pub const magenta: HexColor = .fuschia;
 };
 
 pub const Hull = extern struct {
@@ -178,7 +351,15 @@ pub const QueryFilter = extern struct {
 
 pub const RayCastInput = opaque {};
 
-pub const RayResult = opaque {};
+pub const RayResult = extern struct {
+    shape: Shape,
+    point: Vec2,
+    normal: Vec2,
+    fraction: f32,
+    node_visits: c_int,
+    leaf_visits: c_int,
+    hit: bool,
+};
 
 pub const Rot = extern struct {
     /// Cosine
@@ -896,7 +1077,7 @@ extern fn b2World_IsValid(id: World) bool;
 extern fn b2World_Step(world: World, time_step: f32, sub_step_count: c_int) void;
 
 /// Call this to draw shapes and other debug draw data
-extern fn b2World_Draw(world: World, draw: *DebugDraw) void;
+extern fn b2World_Draw(world: World, draw: *const DebugDraw) void;
 
 /// Get the body events for the current time step. The event data is transient. Do not store a reference to this data.
 extern fn b2World_GetBodyEvents(world: World) BodyEvents;

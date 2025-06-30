@@ -1,5 +1,5 @@
 {
-    "pass": 1,
+    "pass": "post_process",
     "fragment": {
         "samplers": ["diffuse", "mask"],
         "uniforms": [

@@ -4,6 +4,7 @@ const sdl = @import("sdl");
 const sdlsc = @import("sdl_shadercross");
 const SlotMap = @import("hyoga-lib").SlotMap;
 const Gpu = @import("gpu.zig");
+const root = @import("root.zig");
 const tx = @import("texture.zig");
 const Mat4 = @import("hyoga-lib").math.Mat4;
 const Vec3 = @import("hyoga-lib").math.Vec3;
@@ -15,6 +16,52 @@ const empty_uniform_array = [_]Strint.ID{.invalid} ** 8;
 
 pub const Handle = SlotMap(Material).Handle;
 
+pub const ShaderDefinition = struct {
+    num_samplers: u32 = 0,
+    num_storage_textures: u32 = 0,
+    num_storage_buffers: u32 = 0,
+    num_uniform_buffers: u32 = 0,
+    textures: [4]?tx.TextureType = [_]?tx.TextureType{null} ** 4,
+    storage_buffers: [max_uniform_limit]Strint.ID,
+    uniforms: [max_uniform_limit]Strint.ID,
+};
+
+// Specification for the resource JSON
+const PipelineInfo = struct {
+    pub const ProgramInfo = struct {
+        uniforms: ?[][]const u8 = null,
+        samplers: ?[][]const u8 = null,
+        storage_buffers: ?[][]const u8 = null,
+    };
+
+    fn load(path: []const u8, arena: std.mem.Allocator) !PipelineInfo {
+        const info_path = try std.mem.concat(arena, u8, &.{ path, ".rsl.json" });
+        const info_file = try std.fs.cwd().openFile(info_path, .{});
+        const info_bytes = try info_file.readToEndAlloc(arena, 1024 * 16);
+        info_file.close();
+        return try std.json.parseFromSliceLeaky(PipelineInfo, arena, info_bytes, .{});
+    }
+
+    pass: root.PipelineType,
+    alpha_blend: bool = true,
+    vertex: ?ProgramInfo = null,
+    fragment: ?ProgramInfo = null,
+};
+
+const MaterialInfo = struct {
+    program: [:0]const u8,
+    textures: std.json.ArrayHashMap([:0]const u8) = .{},
+    params_size: u32 = 0,
+
+    fn load(path: []const u8, arena: std.mem.Allocator) !MaterialInfo {
+        const info_path = try std.mem.concat(arena, u8, &.{ path, ".mat.json" });
+        const info_file = try std.fs.cwd().openFile(info_path, .{});
+        const info_bytes = try info_file.readToEndAlloc(arena, 1024 * 16);
+        info_file.close();
+        return try std.json.parseFromSliceLeaky(MaterialInfo, arena, info_bytes, .{});
+    }
+};
+
 pub const MaterialTemplate = struct {
     pipeline: *sdl.gpu.GraphicsPipeline,
     vert_program_def: ShaderDefinition,
@@ -23,7 +70,7 @@ pub const MaterialTemplate = struct {
 
 pub const Materials = struct {
     gpu: *Gpu,
-    param_buf: std.ArrayListUnmanaged(u8) = .{},
+    param_buf: std.ArrayListUnmanaged(u32) = .{},
     materials: hy.SlotMap(Material) = .empty,
     templates: std.EnumArray(Material.Type, MaterialTemplate),
 
@@ -34,45 +81,103 @@ pub const Materials = struct {
                 .{
                     .standard = readFromPath(gpu, .{
                         .path = "shaders/standard",
-                        .enable_depth = true,
-                    }, gpu.gpa) catch panic("error creating standard shader", .{}),
+                    }) catch panic("error creating standard shader", .{}),
                     .standard_unlit = readFromPath(gpu, .{
                         .path = "shaders/standard_unlit",
-                        .enable_depth = true,
-                    }, gpu.gpa) catch panic("error creating standard_unlit shader", .{}),
+                    }) catch panic("error creating standard_unlit shader", .{}),
                     .sprite = readFromPath(gpu, .{
                         .path = "shaders/sprite",
-                        .enable_depth = true,
-                    }, gpu.gpa) catch panic("error creating sprite shader", .{}),
+                    }) catch panic("error creating sprite shader", .{}),
                     .post_process = readFromPath(gpu, .{
                         .path = "shaders/post_process",
-                    }, gpu.gpa) catch panic("error creating post_process shader", .{}),
+                    }) catch panic("error creating post_process shader", .{}),
                     .screen_blit = readFromPath(gpu, .{
                         .path = "shaders/screen_blit",
-                    }, gpu.gpa) catch panic("error creating screen_blit shader", .{}),
+                    }) catch panic("error creating screen_blit shader", .{}),
                     .billboard = readFromPath(gpu, .{
                         .path = "shaders/billboard",
-                        .enable_depth = true,
-                    }, gpu.gpa) catch panic("error creating billboard shader", .{}),
+                    }) catch panic("error creating billboard shader", .{}),
                     .ui = readFromPath(gpu, .{
                         .path = "shaders/ui",
-                    }, gpu.gpa) catch panic("error creating ui shader", .{}),
+                    }) catch panic("error creating ui shader", .{}),
                     .ui_sdf = readFromPath(gpu, .{
                         .path = "shaders/ui_sdf",
-                    }, gpu.gpa) catch panic("error creating ui shader", .{}),
-                    .xor_surf2 = readFromPath(gpu, .{
-                        .path = "shaders/xor_surf2",
-                    }, gpu.gpa) catch panic("error creating xor_surf2 shader", .{}),
+                    }) catch panic("error creating ui shader", .{}),
                 },
             ),
         };
     }
 
+    pub fn load(self: *Materials, path: []const u8) !Handle {
+        const path_dupe = try self.gpu.gpa.dupeZ(u8, path);
+        const mat = try self.loadFromJson(path_dupe);
+        const hdl = try self.materials.insert(self.gpu.gpa, mat);
+        return hdl;
+    }
+
+    pub fn reload(self: *Materials, hdl: Handle) !void {
+        const material = self.materials.getPtr(hdl).?;
+        if (material.source_path) |path| {
+            material.* = try self.loadFromJson(path);
+        }
+    }
+
+    /// Does not assume ownership of the passed in path.
+    fn loadFromJson(self: *Materials, path: [:0]const u8) !Material {
+        const allocator = self.gpu.gpa;
+        var ara = std.heap.ArenaAllocator.init(allocator);
+        defer ara.deinit();
+        const arena = ara.allocator();
+
+        const material_info = MaterialInfo.load(path, arena) catch |e| {
+            std.log.err("Error parsing material {s}: {}", .{ path, e });
+            return e;
+        };
+
+        const template = readFromPath(self.gpu, .{
+            .path = material_info.program,
+        }) catch |e| {
+            std.log.err("Read path failure: {s}\n", .{path});
+            return e;
+        };
+
+        const param_size_u32s = (material_info.params_size + 3) / 4;
+        self.param_buf.appendNTimes(self.gpu.gpa, 0, param_size_u32s) catch hy.err.oom();
+        errdefer self.param_buf.replaceRangeAssumeCapacity(self.param_buf.items.len - param_size_u32s, param_size_u32s, &.{});
+
+        var textures: root.TextureSet = .init(.{});
+
+        var it = material_info.textures.map.iterator();
+        while (it.next()) |entry| {
+            const tag = std.meta.stringToEnum(root.TextureType, entry.key_ptr.*) orelse {
+                std.log.err("Unknown texture type {s} in material {s}", .{ entry.key_ptr.*, path });
+                return error.MaterialLoadError;
+            };
+            const texture = try self.gpu.textures.read(entry.value_ptr.*);
+            textures.put(tag, .{ .handle = texture });
+        }
+
+        return .{
+            .source_path = path,
+            .pipeline = template.pipeline,
+            .vert_program_def = template.vert_program_def,
+            .frag_program_def = template.frag_program_def,
+            .textures = textures,
+            .params_start = self.param_buf.items.len,
+            .params_size = param_size_u32s,
+        };
+    }
+
     pub fn insert(self: *Materials, mt_type: Material.Type, txs: tx.TextureSet) Handle {
         const template = self.templates.get(mt_type);
-        const mat: Material = Material.fromTemplate(mt_type, template, self.param_buf.items.len, txs);
-        self.param_buf.appendNTimes(self.gpu.gpa, 0, paramsSize(mt_type)) catch hy.err.oom();
-        std.debug.assert(self.param_buf.items.len % 4 == 0);
+
+        const param_size_u32s: u32 = switch (mt_type) {
+            .sprite, .billboard => (@sizeOf(Gpu.GpuSprite) + 3) / 4,
+            else => 0,
+        };
+
+        const mat: Material = Material.fromTemplate(template, self.param_buf.items.len, param_size_u32s, txs);
+        self.param_buf.appendNTimes(self.gpu.gpa, 0, param_size_u32s) catch hy.err.oom();
         const hdl = self.materials.insert(self.gpu.gpa, mat) catch hy.err.oom();
         return hdl;
     }
@@ -80,7 +185,7 @@ pub const Materials = struct {
     pub fn remove(self: *Materials, hdl: Handle) void {
         if (self.materials.get(hdl)) |mat| {
             const rm_start = mat.params_start;
-            const rm_len = paramsSize(mat.params_type);
+            const rm_len = mat.params_size;
 
             if (rm_len > 0) {
                 self.param_buf.replaceRangeAssumeCapacity(rm_start, rm_len, &.{});
@@ -100,7 +205,12 @@ pub const Materials = struct {
     /// In addition, no parameters
     pub fn createWeak(self: *Materials, mt_type: Material.Type, txs: tx.TextureSet) Material {
         const template = self.templates.get(mt_type);
-        return Material.fromTemplate(mt_type, template, 0, txs);
+        const param_size_u32s: u32 = switch (mt_type) {
+            .sprite, .billboard => (@sizeOf(Gpu.GpuSprite) + 3) / 4,
+            else => 0,
+        };
+
+        return Material.fromTemplate(template, 0, param_size_u32s, txs);
     }
 
     pub fn get(self: *Materials, handle: Handle) ?Material {
@@ -109,9 +219,10 @@ pub const Materials = struct {
 
     pub fn setParams(self: *Materials, handle: Handle, data: *const anyopaque) void {
         const mat = self.get(handle).?;
-        const bytes = self.param_buf.items[mat.params_start .. mat.params_start + paramsSize(mat.params_type)];
+        const bytes = self.param_buf.items[mat.params_start..][0..mat.params_size];
+        const dst: []u8 = std.mem.sliceAsBytes(bytes);
         const ptr: [*]const u8 = @ptrCast(data);
-        @memcpy(bytes, ptr);
+        @memcpy(dst, ptr);
     }
 
     pub fn deinit(self: *Materials) void {
@@ -133,24 +244,24 @@ pub const Material = struct {
         billboard,
         ui,
         ui_sdf,
-        xor_surf2,
 
         comptime {
             hy.meta.assertMatches(Type, hy.Gpu.MaterialType);
         }
     };
 
+    source_path: ?[:0]const u8 = null,
     pipeline: *sdl.gpu.GraphicsPipeline,
     vert_program_def: ShaderDefinition,
     frag_program_def: ShaderDefinition,
     params_start: usize,
-    params_type: Type,
+    params_size: u32,
     textures: tx.TextureSet,
 
     pub fn fromTemplate(
-        template_type: Material.Type,
         template: MaterialTemplate,
         param_start: usize,
+        param_size: u32,
         textures: tx.TextureSet,
     ) Material {
         return .{
@@ -159,32 +270,9 @@ pub const Material = struct {
             .frag_program_def = template.frag_program_def,
             .textures = textures,
             .params_start = param_start,
-            .params_type = template_type,
+            .params_size = param_size,
         };
     }
-};
-
-pub const ShaderDefinition = struct {
-    num_samplers: u32 = 0,
-    num_storage_textures: u32 = 0,
-    num_storage_buffers: u32 = 0,
-    num_uniform_buffers: u32 = 0,
-    textures: [4]?tx.TextureType = [_]?tx.TextureType{null} ** 4,
-    storage_buffers: [max_uniform_limit]Strint.ID,
-    uniforms: [max_uniform_limit]Strint.ID,
-};
-
-// Specification for the resource JSON
-pub const MaterialSpec = struct {
-    pub const ProgramInfo = struct {
-        uniforms: ?[][]const u8 = null,
-        samplers: ?[][]const u8 = null,
-        storage_buffers: ?[][]const u8 = null,
-    };
-
-    pass: Gpu.PipelineType,
-    vertex: ?ProgramInfo = null,
-    fragment: ?ProgramInfo = null,
 };
 
 pub const MaterialReadOptions = struct {
@@ -192,19 +280,18 @@ pub const MaterialReadOptions = struct {
 
     // Passed to build pipeline params
     format: ?sdl.gpu.TextureFormat = null,
-    enable_depth: bool = false,
-    enable_stencil: bool = false,
     fill_mode: sdl.gpu.FillMode = .fill,
     primitive_type: sdl.gpu.PrimitiveType = .trianglelist,
 };
 
-pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.Allocator) !MaterialTemplate {
+pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions) !MaterialTemplate {
+    const allocator = gpu.gpa;
     const path = options.path;
     var arena_allocator = std.heap.ArenaAllocator.init(allocator);
     defer arena_allocator.deinit();
     const arena = arena_allocator.allocator();
 
-    const info = loadMaterialInfo(path, arena) catch |err| {
+    const info = PipelineInfo.load(path, arena) catch |err| {
         std.debug.panic("Could not read material json: {s}: {}", .{ path, err });
     };
 
@@ -221,8 +308,9 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
         .vert = vert_shader,
         .frag = frag_shader,
         .pass = info.pass,
-        .enable_depth = options.enable_depth,
-        .enable_stencil = options.enable_stencil,
+        .enable_depth = info.pass.hasDepth(),
+        .enable_blend = info.alpha_blend,
+        .enable_stencil = false,
         .fill_mode = options.fill_mode,
         .primitive_type = options.primitive_type,
     });
@@ -300,14 +388,6 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions, allocator: std.mem.
     };
 }
 
-pub fn loadMaterialInfo(path: []const u8, arena: std.mem.Allocator) !MaterialSpec {
-    const info_path = try std.mem.concat(arena, u8, &.{ path, ".rsl.json" });
-    const info_file = try std.fs.cwd().openFile(info_path, .{});
-    const info_bytes = try info_file.readToEndAlloc(arena, 1024 * 16);
-    info_file.close();
-    return try std.json.parseFromSliceLeaky(MaterialSpec, arena, info_bytes, .{});
-}
-
 pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []const u8, out_info: ?*sdlsc.GraphicsShaderMetadata, arena: std.mem.Allocator) !*sdl.gpu.Shader {
     const full_path = switch (stage) {
         .vertex => try std.mem.concat(arena, u8, &.{ path, ".vert.spv" }),
@@ -332,14 +412,6 @@ pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []c
         .bytecode = code,
         .entrypoint = "main",
         .debug = true,
-        .name = "hyoga shader",
+        .name = path.ptr,
     }, &info);
-}
-
-/// Get the required struct size in bytes based on a material's type
-pub fn paramsSize(mt_type: Material.Type) usize {
-    return switch (mt_type) {
-        .sprite, .billboard => (@sizeOf(Gpu.GpuSprite) + 3) / 4 * 4,
-        else => 0,
-    };
 }

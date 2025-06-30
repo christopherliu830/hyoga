@@ -34,7 +34,7 @@ layout(std140, set = 1, binding = 3) uniform hy_Time {
 };
 
 Sprite hy_sprite_load(uint byte_offset) {
-    uint index = byte_offset / 4;
+    uint index = byte_offset;
     Sprite s;
     s.atlas_size_x = hy_sprites[index + 0];
     s.atlas_size_y = hy_sprites[index + 1];

@@ -3,19 +3,10 @@ const InstallShadersStep = @This();
 const Build = std.Build;
 const Step = std.Build.Step;
 
-const ext_from_target = std.StaticStringMap([]const u8).initComptime(.{
-    .{ "spirv", ".spv" },
-    .{ "glsl", ".glsl" },
-    .{ "metal", ".metal" },
-});
-
 const Options = struct {
     source_path: Build.LazyPath,
     install_dir: Build.InstallDir = .bin,
     dest_path: []const u8 = &.{},
-    target: []const u8,
-    profile: []const u8,
-    always_generate: bool = false,
 };
 
 const ShaderArgs = struct {
@@ -68,7 +59,6 @@ pub fn init(b: *Build, wf: *Step.WriteFile, options: Options) !void {
                     const out_basename = try std.mem.concat(b.allocator, u8, &.{ std.fs.path.stem(entry.path), args.stage, args.ext });
                     const name = try std.mem.concat(b.allocator, u8, &.{ "compile ", entry.path });
                     const run = Step.Run.create(b, name);
-                    run.has_side_effects = options.always_generate;
                     const input = try options.source_path.join(b.allocator, entry.path);
                     run.addArg("glslc");
                     run.addFileArg(input);

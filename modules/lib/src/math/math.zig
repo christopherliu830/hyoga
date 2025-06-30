@@ -54,7 +54,7 @@ pub fn mul(a: anytype, b: anytype) MulResult(@TypeOf(a), @TypeOf(b)) {
     if (ta == Mat4 and tb == f32) {
         return mat4.allScale(a, b);
     }
-    if (ta == Vec4 and tb == Mat4) return mat4.vmul(b, a);
+    if (ta == Vec4 and tb == Mat4) return mat4.vmul(a, b);
     if (ta == Mat4 and tb == Vec4) return mat4.mulv(a, b);
 }
 

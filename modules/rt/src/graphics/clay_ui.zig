@@ -271,9 +271,11 @@ pub const UI = struct {
                                 .{ .pos = .{ bx, by }, .color = color },
                                 .{ .pos = .{ ax, by }, .color = color },
                             };
+                            _ = verts; // autofix
                             const indices: []const u32 = &.{ 0, 1, 2, 2, 3, 0 };
-                            const material = gpu.materials.createWeak(.xor_surf2, .{});
-                            gpu.im.drawVerts(verts, indices, .{ .transform = transform, .material = &material });
+                            _ = indices; // autofix
+                            // const material = gpu.materials.createWeak(.xor_surf2, .{});
+                            // gpu.im.drawVerts(verts, indices, .{ .transform = transform, .material = &material });
                         },
                         else => {},
                     }

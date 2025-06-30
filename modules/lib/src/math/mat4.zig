@@ -222,7 +222,7 @@ pub inline fn mulf(a: Mat4, b: f32) Mat4 {
     } };
 }
 
-pub inline fn vmul(m: Mat4, v: Vec4) Vec4 {
+pub inline fn vmul(v: Vec4, m: Mat4) Vec4 {
     const vx = swizzle(v.v, .{ 0, 0, 0, 0 });
     const vy = swizzle(v.v, .{ 1, 1, 1, 1 });
     const vz = swizzle(v.v, .{ 2, 2, 2, 2 });

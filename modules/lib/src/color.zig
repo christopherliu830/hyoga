@@ -78,6 +78,16 @@ pub const Color = struct {
         };
     }
 
+    pub fn asf32x4Norm(self: *const Color) [4]f32 {
+        const values: [4]u8 = self.asu8x4();
+        return .{
+            @as(f32, @floatFromInt(values[0])) / 255,
+            @as(f32, @floatFromInt(values[1])) / 255,
+            @as(f32, @floatFromInt(values[2])) / 255,
+            @as(f32, @floatFromInt(values[3])) / 255,
+        };
+    }
+
     pub fn hex(val: u24) Color {
         return .hexa((@as(u32, @intCast(val)) << 8) | 0xff);
     }
