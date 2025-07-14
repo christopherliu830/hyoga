@@ -2,6 +2,7 @@ const std = @import("std");
 const hy = @import("hyoga-lib");
 const sdl = @import("sdl");
 const Gpu = @import("gpu.zig");
+const gfx = @import("root.zig");
 const mt = @import("material.zig");
 const mdl = @import("model.zig");
 const buf = @import("buffer.zig");
@@ -22,7 +23,9 @@ pub const Forward = struct {
     tex_scale: f32,
     ds_target: ?sdl.gpu.DepthStencilTargetInfo,
     ds_tex_info: ?sdl.gpu.TextureCreateInfo,
+    blit_material: gfx.MaterialHandle = .none,
     transforms_buffer: buf.DynamicBuffer(hym.Mat4),
+    match_window_size: bool,
 
     items: rbl.RenderList,
 
@@ -44,6 +47,9 @@ pub const Forward = struct {
 
         depth_enabled: bool = false,
         stencil_enabled: bool = false,
+        match_window_size: bool = true,
+
+        blit_material: gfx.MaterialHandle = .none,
     };
 
     pub fn init(device: *sdl.gpu.Device, options: ForwardOptions) Forward {
@@ -118,6 +124,8 @@ pub const Forward = struct {
             .ds_target = depth_stencil_target,
             .tex_scale = options.dest_tex_scale,
             .transforms_buffer = buf.DynamicBuffer(hym.Mat4).init(options.gpu.device, 1024 * 16, "Object Mats") catch unreachable,
+            .match_window_size = options.match_window_size,
+            .blit_material = options.blit_material,
         };
     }
 
@@ -166,6 +174,10 @@ pub const Forward = struct {
     }
 
     pub fn render(self: *Forward, cmd: *sdl.gpu.CommandBuffer) !void {
+        if (self.items.items.num_items == 0) {
+            return;
+        }
+
         const gpu = self.gpu;
         const arena = gpu.arena.allocator();
 
@@ -184,6 +196,7 @@ pub const Forward = struct {
         var last_pipeline: ?*sdl.gpu.GraphicsPipeline = null;
 
         var total_instances_rendered: u32 = 0;
+
         for (0..render_pack.len) |i| {
             const mesh = render_pack.meshes[i];
             try gpu.draw(.{

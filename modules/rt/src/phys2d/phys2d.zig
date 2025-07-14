@@ -27,7 +27,7 @@ pub const HitEvent = extern struct {
     point: hym.Vec2,
 
     comptime {
-        hy.meta.assertMatches(HitEvent, hy.Phys2.HitEvent);
+        hy.meta.assertMatches(HitEvent, hy.phys2.HitEvent);
     }
 };
 
@@ -87,7 +87,7 @@ pub const AddShapeOptions = extern struct {
     filter: b2.Filter = .{},
 
     comptime {
-        hy.meta.assertMatches(AddShapeOptions, hy.Phys2.Body.AddShapeOptions);
+        hy.meta.assertMatches(AddShapeOptions, hy.phys2.Body.AddShapeOptions);
     }
 };
 
@@ -106,7 +106,7 @@ pub const ShapeConfig = hy.ExternTaggedUnion(union(enum) {
     },
 });
 
-pub const ShapeExtra = hy.Phys2.ShapeExtra;
+pub const ShapeExtra = hy.phys2.ShapeExtra;
 
 pub const BodyAddOptions = extern struct {
     type: b2.Body.Type,
@@ -117,7 +117,7 @@ pub const BodyAddOptions = extern struct {
     user_data: ?*anyopaque = null,
 
     comptime {
-        hy.meta.assertMatches(BodyAddOptions, hy.Phys2.Body.AddOptions);
+        hy.meta.assertMatches(BodyAddOptions, hy.phys2.Body.AddOptions);
     }
 };
 
@@ -344,7 +344,7 @@ pub const RaycastOptions = extern struct {
     };
 
     comptime {
-        hy.meta.assertMatches(@This(), hy.Phys2.RaycastOptions);
+        hy.meta.assertMatches(@This(), hy.phys2.RaycastOptions);
     }
 };
 
@@ -388,14 +388,14 @@ pub fn raycastLeaky(
 }
 
 pub const CastCircleOptions = extern struct {
-    circle: hy.Phys2.Circle,
+    circle: hy.phys2.Circle,
     direction: hym.Vec2,
     category: u64 = 1,
     mask: u64 = std.math.maxInt(u64),
     collection_type: RaycastOptions.CollectionType,
 
     comptime {
-        hy.meta.assertMatches(@This(), hy.Phys2.CastCircleOptions);
+        hy.meta.assertMatches(@This(), hy.phys2.CastCircleOptions);
     }
 };
 

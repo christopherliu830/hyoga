@@ -10,7 +10,7 @@ pub const Sound = enum(u128) {
 };
 
 pub fn read(path: []const u8) Sound {
-    return hyaudSoundRead(.make(path));
+    return hyaudSoundRead(.from(path));
 }
 
 extern fn hyaudSoundPlay(sound: *Sound) void;

@@ -16,7 +16,8 @@ pub const slot_map = @import("slot_map.zig");
 pub const skip_map = @import("skip_map.zig");
 pub const circle_queue = @import("circle_queue.zig");
 
-pub const gpu = runtime.gpu;
+pub const gfx = runtime.gfx;
+pub const phys2 = runtime.phys2;
 
 pub const ArrayGroup = array_group.ArrayGroup;
 pub const CircleQueue = circle_queue.CircleQueue;
@@ -59,4 +60,8 @@ pub inline fn @"u32"(num: anytype) u32 {
         .int => @intCast(num),
         else => comptime unreachable,
     };
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

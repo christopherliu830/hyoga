@@ -4,6 +4,7 @@ const hy = @import("hyoga-lib");
 const material = @import("material.zig");
 const model = @import("model.zig");
 const texture = @import("texture.zig");
+const passes = @import("passes.zig");
 pub const primitives = @import("primitives.zig");
 
 pub const Gpu = @import("gpu.zig");
@@ -23,6 +24,7 @@ pub const TextureType = texture.TextureType;
 pub const Textures = texture.Textures;
 pub const TextureSet = texture.TextureSet;
 pub const TextureArray = texture.TextureArray;
+pub const PassHandle = hy.SlotMap(passes.Forward).Handle;
 pub const Vertex = @import("vertex.zig").Vertex;
 pub const UIVertex = @import("vertex.zig").UIVertex;
 

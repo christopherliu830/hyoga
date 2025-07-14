@@ -4,6 +4,7 @@ pub const bounds = @import("bounds.zig");
 pub const cam = @import("cam.zig");
 pub const mat4 = @import("mat4.zig");
 pub const ray = @import("ray.zig");
+pub const triangle = @import("triangle/root.zig");
 pub const vec2 = @import("vec2.zig");
 pub const vec3 = @import("vec3.zig");
 pub const f32x3 = @Vector(3, f32);
@@ -111,4 +112,8 @@ pub fn nsTime(ns: u64) f32 {
 
 pub inline fn nanos(sec: f32) u64 {
     return @intFromFloat(std.time.ns_per_s * sec);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

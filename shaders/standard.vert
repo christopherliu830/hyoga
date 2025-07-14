@@ -25,8 +25,7 @@ void main() {
     mat4 model = hy_all_renderables[instance_id];
 
     gl_Position = vec4(in_position, 1) * model * hy_view_projection_matrix;
-    out_vert_world_pos = vec3(vec4(in_position, 1) * model);
-    out_color = vec3(1, 1, 1);
+    out_vert_world_pos = vec3(vec4(in_position, 1) * model); out_color = vec3(1, 1, 1);
     out_normal = in_normal * adjugate(model);
     out_uv = in_uv;
 }

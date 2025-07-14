@@ -1,5 +1,6 @@
 {
-    "pass": 1,
+    "pass": "post_process",
+    "alpha_blend": true,
     "fragment": {
         "samplers": ["diffuse"]
     }

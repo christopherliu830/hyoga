@@ -3,8 +3,8 @@ const sdl = @import("sdl");
 const ai = @import("assimp");
 
 const hy = @import("hyoga-lib");
+const hym = hy.math;
 const SlotMap = hy.SlotMap;
-const mat4 = hy.math.mat4;
 
 const Gpu = @import("gpu.zig");
 const buf = @import("buffer.zig");
@@ -42,7 +42,7 @@ const Queue = Loader.Queue(ModelLoadJob.Result);
 pub const Model = struct {
     bounds: hy.math.AxisAligned = .{},
     children: []Mesh,
-    transform: mat4.Mat4 = mat4.identity,
+    transform: hym.Mat4 = .identity,
 };
 
 pub const Mesh = struct {
@@ -141,9 +141,10 @@ pub const Models = struct {
 
     pub const CreateOptions = struct {
         gpu: *Gpu,
-        verts: []const Vertex,
+        verts: []const u8,
         indices: []const u32,
         material: mt.Handle,
+        transform: hym.Mat4 = .identity,
     };
 
     pub fn create(self: *Models, opts: CreateOptions) !Handle {
@@ -157,16 +158,16 @@ pub const Models = struct {
         std.debug.assert(verts.len > 0);
         std.debug.assert(indices.len > 0);
 
-        const alloc_buffer = try buffer_allocator.alloc(@intCast(@sizeOf(Vertex) * verts.len + @sizeOf(u32) * indices.len));
+        const alloc_buffer = try buffer_allocator.alloc(@intCast(verts.len + @sizeOf(u32) * indices.len));
 
         const buffer: buf.VertexIndexBuffer = .{
             .hdl = alloc_buffer.hdl,
             .size = alloc_buffer.size,
             .offset = alloc_buffer.offset,
-            .idx_start = @intCast(alloc_buffer.offset + @sizeOf(Vertex) * verts.len),
+            .idx_start = @intCast(alloc_buffer.offset + verts.len),
         };
 
-        try gpu.uploadToBuffer(buffer.hdl, buffer.offset, std.mem.sliceAsBytes(verts));
+        try gpu.uploadToBuffer(buffer.hdl, buffer.offset, verts);
         try gpu.uploadToBuffer(buffer.hdl, buffer.idx_start, std.mem.sliceAsBytes(indices));
 
         var mesh = try allocator.alloc(Mesh, 1);
@@ -179,7 +180,7 @@ pub const Models = struct {
 
         const model: Model = .{
             .children = mesh,
-            .transform = mat4.identity,
+            .transform = opts.transform,
         };
 
         return self.add(model);
@@ -192,7 +193,7 @@ pub const Models = struct {
     };
 
     pub const ImportSettings = extern struct {
-        transform: mat4.Mat4 = mat4.identity,
+        transform: hym.Mat4 = .identity,
         post_process: ai.PostProcessSteps,
     };
 
@@ -332,7 +333,7 @@ const AssimpModel = struct {
     total_index_count: u32 = 0,
     buffer: ?Buffer = null,
     meshes: std.ArrayListUnmanaged(ImportMesh) = .{},
-    transform: mat4.Mat4 = mat4.identity,
+    transform: hym.Mat4 = .identity,
 
     pub fn deinit(self: *AssimpModel, allocator: std.mem.Allocator) void {
         for (self.meshes.items) |*mesh| {

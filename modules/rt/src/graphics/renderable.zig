@@ -62,7 +62,9 @@ pub const RenderList = struct {
     }
 
     pub fn deinit(self: *RenderList) void {
-        self.items.deinit(self.gpu.gpa);
+        if (self.items.end > 0) {
+            self.items.deinit(self.gpu.gpa);
+        }
     }
 
     pub const AddOptions = extern struct {

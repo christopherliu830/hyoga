@@ -28,7 +28,7 @@ pub const Context = struct {
     buffer_src: std.ArrayListUnmanaged(u8) = .empty,
     buffer_allocator: buf.BufferAllocator,
     items: std.ArrayListUnmanaged(Item) = .empty,
-    needs_clear: bool = false,
+    needs_clear: bool = true,
 
     pub fn reset(self: *Context) void {
         self.buffer_allocator.reset();
@@ -47,17 +47,15 @@ pub const Context = struct {
         gpu: *Gpu,
         cmd: *sdl.gpu.CommandBuffer,
         render_tex: *sdl.gpu.Texture,
-        resolve_tex: *sdl.gpu.Texture,
     ) !bool {
         if (im.items.items.len == 0) {
             if (im.needs_clear) {
                 const color: sdl.gpu.ColorTargetInfo = .{
                     .texture = render_tex,
                     .load_op = .clear,
-                    .store_op = .resolve,
+                    .store_op = .store,
                     .clear_color = .{},
                     .cycle = false,
-                    .resolve_texture = resolve_tex,
                 };
 
                 const pass = cmd.beginRenderPass(&.{color}, 1, null).?;
@@ -77,10 +75,9 @@ pub const Context = struct {
         const color: sdl.gpu.ColorTargetInfo = .{
             .texture = render_tex,
             .load_op = .clear,
-            .store_op = .resolve,
+            .store_op = .store,
             .clear_color = .{},
             .cycle = false,
-            .resolve_texture = resolve_tex,
         };
 
         const pass = cmd.beginRenderPass(&.{color}, 1, null).?;

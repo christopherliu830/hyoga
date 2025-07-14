@@ -670,59 +670,59 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
 
 test "skipmap.create" {
     const allocator = std.testing.allocator;
-    var skipmap = try SkipMap(u128).create(allocator, .{ .initial_block_capacity = 2 });
-    defer skipmap.deinit();
+    var skipmap: SkipMap(u128) = .empty;
+    defer skipmap.deinit(allocator);
     for (0..100) |i| {
-        _ = try skipmap.insert(@intCast(i));
+        _ = try skipmap.insert(allocator, @intCast(i));
     }
     var it = skipmap.iterator();
     var i: u128 = 0;
     while (it.next()) |val| : ({
         i += 1;
     }) {
-        try std.testing.expectEqual(i, val.*);
+        try std.testing.expectEqual(i, val.unwrap().*);
     }
 }
 
 test "skipmap.remove" {
     const allocator = std.testing.allocator;
-    var skipmap = try SkipMap(u128).create(allocator, .{ .initial_block_capacity = 8 });
-    defer skipmap.deinit();
-    const a = try skipmap.insert(1);
-    const b = try skipmap.insert(2);
-    const c = try skipmap.insert(3);
-    const d = try skipmap.insert(4);
-    const e = try skipmap.insert(5);
-    const f = try skipmap.insert(6);
-    _ = try skipmap.insert(7);
+    var skipmap: SkipMap(u128) = .empty;
+    defer skipmap.deinit(allocator);
+    const a = try skipmap.insert(allocator, 1);
+    const b = try skipmap.insert(allocator, 2);
+    const c = try skipmap.insert(allocator, 3);
+    const d = try skipmap.insert(allocator, 4);
+    const e = try skipmap.insert(allocator, 5);
+    const f = try skipmap.insert(allocator, 6);
+    _ = try skipmap.insert(allocator, 7);
 
     // Test all skipblock merge cases
-    skipmap.remove(b);
-    skipmap.remove(c); // [1] [_] [_] skipblock on left
-    skipmap.remove(f);
-    skipmap.remove(e); // [_] [_] [1] skipblock on right
-    skipmap.remove(d); // [2] [_] [2] skipblock merge
-    skipmap.remove(a); // First element
+    skipmap.remove(allocator, b);
+    skipmap.remove(allocator, c); // [1] [_] [_] skipblock on left
+    skipmap.remove(allocator, f);
+    skipmap.remove(allocator, e); // [_] [_] [1] skipblock on right
+    skipmap.remove(allocator, d); // [2] [_] [2] skipblock merge
+    skipmap.remove(allocator, a); // First element
 
     var it = skipmap.iterator();
-    try std.testing.expectEqual(7, it.next().?.*);
+    try std.testing.expectEqual(7, it.next().?.unwrap().*);
     try std.testing.expectEqual(null, it.next());
 }
 
 test "skipmap.reuse" {
     const allocator = std.testing.allocator;
-    var skipmap = try SkipMap(u128).create(allocator, .{ .initial_block_capacity = 8 });
-    defer skipmap.deinit();
-    _ = try skipmap.insert(1);
-    const b = try skipmap.insert(2);
-    _ = try skipmap.insert(3);
+    var skipmap: SkipMap(u128) = .empty;
+    defer skipmap.deinit(allocator);
+    _ = try skipmap.insert(allocator, 1);
+    const b = try skipmap.insert(allocator, 2);
+    _ = try skipmap.insert(allocator, 3);
 
-    skipmap.remove(b);
-    _ = try skipmap.insert(4);
+    skipmap.remove(allocator, b);
+    _ = try skipmap.insert(allocator, 4);
 
     var it = skipmap.iterator();
-    try std.testing.expectEqual(1, it.next().?.*);
-    try std.testing.expectEqual(4, it.next().?.*);
-    try std.testing.expectEqual(3, it.next().?.*);
+    try std.testing.expectEqual(1, it.next().?.unwrap().*);
+    try std.testing.expectEqual(4, it.next().?.unwrap().*);
+    try std.testing.expectEqual(3, it.next().?.unwrap().*);
     try std.testing.expectEqual(null, it.next());
 }

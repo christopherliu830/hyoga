@@ -118,6 +118,7 @@ pub const Materials = struct {
     pub fn reload(self: *Materials, hdl: Handle) !void {
         const material = self.materials.getPtr(hdl).?;
         if (material.source_path) |path| {
+            self.gpu.device.releaseGraphicsPipeline(material.pipeline);
             material.* = try self.loadFromJson(path);
         }
     }
@@ -226,9 +227,28 @@ pub const Materials = struct {
     }
 
     pub fn deinit(self: *Materials) void {
+        var set: std.AutoHashMapUnmanaged(*sdl.gpu.GraphicsPipeline, void) = .empty;
+        defer set.deinit(self.gpu.arena.allocator());
+
         inline for (std.meta.fields(Material.Type)) |tag| {
-            self.gpu.device.releaseGraphicsPipeline(self.templates.get(@enumFromInt(tag.value)).pipeline);
+            const pipeline = self.templates.get(@enumFromInt(tag.value)).pipeline;
+            if (!set.contains(pipeline)) {
+                self.gpu.device.releaseGraphicsPipeline(pipeline);
+                set.put(self.gpu.arena.allocator(), pipeline, {}) catch unreachable;
+            }
         }
+
+        var it = self.materials.iterator();
+        while (it.next()) |mat| {
+            if (!set.contains(mat.pipeline)) {
+                self.gpu.device.releaseGraphicsPipeline(mat.pipeline);
+                set.put(self.gpu.arena.allocator(), mat.pipeline, {}) catch unreachable;
+            }
+            if (mat.source_path) |path| {
+                self.gpu.gpa.free(path);
+            }
+        }
+
         self.param_buf.deinit(self.gpu.gpa);
         self.materials.deinit(self.gpu.gpa);
     }
@@ -246,7 +266,7 @@ pub const Material = struct {
         ui_sdf,
 
         comptime {
-            hy.meta.assertMatches(Type, hy.Gpu.MaterialType);
+            hy.meta.assertMatches(Type, hy.gfx.MaterialType);
         }
     };
 

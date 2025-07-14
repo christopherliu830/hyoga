@@ -270,33 +270,27 @@ pub fn SlotMap(comptime T: type) type {
     };
 }
 
-test "slotmap create and deinit" {
-    var g: SlotMap(u32) = .{};
-    defer g.deinit(std.desting.allocator);
-    try std.testing.expect(g.entries.capacity == 20);
-}
-
 test "slotmap insertions" {
-    var g: SlotMap(u32) = .{};
-    defer g.deinit();
-    try std.testing.expectError(error.OutOfRange, g.get(.{ .index = 0, .generation = 0 }));
+    var g: SlotMap(u32) = .empty;
+    defer g.deinit(std.testing.allocator);
     const id = try g.insert(std.testing.allocator, 37);
     const id2 = try g.insert(std.testing.allocator, 42);
-    try std.testing.expect(try g.get(id) == 37);
-    try std.testing.expect(try g.get(id2) == 42);
+    try std.testing.expect(g.get(id).? == 37);
+    try std.testing.expect(g.get(id2).? == 42);
 }
 
 test "slotmap invalidations" {
-    var g: SlotMap(u32) = .{};
-    defer g.deinit();
-    const id = try g.insert(std.testing.allocator, 37);
-    try std.testing.expect(try g.get(id) == 37);
-    const val = g.remove(id);
-    try std.testing.expect(val == 37);
-    try std.testing.expectError(error.Invalidated, g.get(id));
+    const allocator = std.testing.allocator;
+    var g: SlotMap(u32) = .empty;
+    defer g.deinit(allocator);
+    const id = try g.insert(allocator, 37);
+    try std.testing.expectEqual(g.get(id).?, 37);
+    g.remove(id);
+    try std.testing.expectEqual(g.get(id), null);
 
-    const new_id = try g.insert(std.testing.allocator, 24);
-    try std.testing.expect(try g.get(new_id) == 24);
-    try std.testing.expectError(error.Invalidated, g.get(id));
+    const new_id = try g.insert(allocator, 24);
+    try std.testing.expectEqual(g.get(new_id).?, 24);
+    g.remove(new_id);
+    try std.testing.expectEqual(g.get(id), null);
     try std.testing.expect(id.index == new_id.index);
 }

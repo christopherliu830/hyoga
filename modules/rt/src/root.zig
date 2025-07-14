@@ -108,31 +108,32 @@ export fn hyaudSoundStop(sound: *Audio.Sound) void {
     sound.stop();
 }
 
-export fn hygpuClearColorSet(gpu: *gfx.Gpu, color: hym.Vec4) void {
+export fn hy_gfx_clearColorSet(gpu: *gfx.Gpu, color: hym.Vec4) void {
     gpu.clearColorSet(color);
 }
 
-export fn hygpuImportModel(gpu: *gfx.Gpu, path: [*:0]const u8, settings: gfx.Models.ImportSettings) gfx.Model {
+export fn hy_gfx_importModel(gpu: *gfx.Gpu, path: [*:0]const u8, settings: gfx.Models.ImportSettings) gfx.Model {
     return gpu.importModel(path, settings) catch |e| {
         std.log.err("import model failure: {}", .{e});
         return gfx.Model.invalid;
     };
 }
 
-export fn hygpuModelCreate(gpu: *gfx.Gpu, verts: hy.ExternSliceConst(gfx.Vertex), indices: hy.ExternSliceConst(u32), mat: gfx.MaterialHandle) gfx.Model {
+export fn hy_gfx_modelCreate(gpu: *gfx.Gpu, opts: hy.gfx.ModelCreateOptions) gfx.Model {
     return gpu.models.create(.{
         .gpu = gpu,
-        .verts = verts.asSlice(),
-        .indices = indices.asSlice(),
-        .material = mat,
+        .verts = @ptrCast(@alignCast(opts.verts.asSlice())),
+        .indices = opts.indices.asSlice(),
+        .material = @bitCast(@intFromEnum(opts.material)),
+        .transform = opts.transform,
     }) catch unreachable;
 }
 
-export fn hygpuModelDestroy(gpu: *gfx.Gpu, model: gfx.Model) void {
+export fn hy_gfx_modelDestroy(gpu: *gfx.Gpu, model: gfx.Model) void {
     gpu.models.remove(&gpu.buffer_allocator, model);
 }
 
-export fn hygpuModelBounds(gpu: *gfx.Gpu, model: gfx.Model) hym.AxisAligned {
+export fn hy_gfx_modelBounds(gpu: *gfx.Gpu, model: gfx.Model) hym.AxisAligned {
     if (gpu.models.get(model)) |m| {
         return m.bounds;
     } else |e| {
@@ -141,43 +142,47 @@ export fn hygpuModelBounds(gpu: *gfx.Gpu, model: gfx.Model) hym.AxisAligned {
     }
 }
 
-export fn hygpuModelDupe(gpu: *gfx.Gpu, model: gfx.Model, options: gfx.Models.DupeModelOptions) gfx.Model {
+export fn hy_gfx_modelDupe(gpu: *gfx.Gpu, model: gfx.Model, options: gfx.Models.DupeModelOptions) gfx.Model {
     return gpu.models.dupe(&gpu.buffer_allocator, model, options) catch |e| {
         std.log.err("dupe model failure: {}", .{e});
         return .invalid;
     };
 }
 
-export fn hygpuModelPrimitive(gpu: *gfx.Gpu, shape: gfx.primitives.Shape) gfx.Model {
+export fn hy_gfx_modelPrimitive(gpu: *gfx.Gpu, shape: gfx.primitives.Shape) gfx.Model {
     return gpu.modelPrimitive(shape);
 }
 
-export fn hygpuModelWaitLoad(gpu: *gfx.Gpu, model: gfx.Model, max: u64) bool {
+export fn hy_gfx_modelWaitLoad(gpu: *gfx.Gpu, model: gfx.Model, max: u64) bool {
     return gpu.models.waitLoad(model, max);
 }
 
-export fn hygpuMaterialDefaultCreate(gpu: *gfx.Gpu) gfx.MaterialHandle {
+export fn hy_gfx_materialDefaultCreate(gpu: *gfx.Gpu) gfx.MaterialHandle {
     return gpu.materialDefaultCreate();
 }
 
-export fn hygpuMaterialLoad(gpu: *gfx.Gpu, path: hy.ExternSliceConst(u8)) gfx.MaterialHandle {
+export fn hy_gfx_materialLoad(gpu: *gfx.Gpu, path: hy.ExternSliceConst(u8)) gfx.MaterialHandle {
     return gpu.materialLoad(path.asSliceZ()) catch |e| {
         std.log.err("Error loading material: {}\n", .{e});
         return .invalid;
     };
 }
 
-export fn hygpuMaterialReload(gpu: *gfx.Gpu, hdl: gfx.MaterialHandle) void {
+export fn hy_gfx_materialReload(gpu: *gfx.Gpu, hdl: gfx.MaterialHandle) void {
     gpu.materials.reload(hdl) catch |e| {
         std.log.err("Error reloading material: {}\n", .{e});
     };
 }
 
-export fn hygpuMaterialCreate(gpu: *gfx.Gpu, mt_type: gfx.MaterialType, tx_set: *const gfx.TextureArray) gfx.MaterialHandle {
+export fn hy_gfx_materialCreate(gpu: *gfx.Gpu, mt_type: gfx.MaterialType, tx_set: *const gfx.TextureArray) gfx.MaterialHandle {
     return gpu.materialCreate(mt_type, tx_set);
 }
 
-export fn hygpuRenderableAdd(gpu: *gfx.Gpu, options: gfx.Gpu.AddRenderableOptions) gfx.Renderable {
+export fn hy_gfx_materialDestroy(gpu: *gfx.Gpu, hdl: gfx.MaterialHandle) void {
+    gpu.materialDestroy(hdl);
+}
+
+export fn hy_gfx_renderableAdd(gpu: *gfx.Gpu, options: gfx.Gpu.AddRenderableOptions) gfx.Renderable {
     return gpu.renderableAdd(options) catch |e| {
         std.log.err("add renderable failure: {}", .{e});
         return .{
@@ -187,42 +192,15 @@ export fn hygpuRenderableAdd(gpu: *gfx.Gpu, options: gfx.Gpu.AddRenderableOption
     };
 }
 
-export fn hygpuRenderableDestroy(gpu: *gfx.Gpu, item: gfx.Renderable) void {
+export fn hy_gfx_renderableDestroy(gpu: *gfx.Gpu, item: gfx.Renderable) void {
     gpu.renderableDestroy(item);
 }
 
-export fn hygpuRenderableSetTransform(gpu: *gfx.Gpu, item: gfx.Renderable, transform: hym.Mat4) void {
+export fn hy_gfx_renderableSetTransform(gpu: *gfx.Gpu, item: gfx.Renderable, transform: hym.Mat4) void {
     gpu.renderableSetTransform(item, transform);
 }
 
-export fn hygpuSpriteCreate(gpu: *gfx.Gpu, opts: gfx.Gpu.SpriteCreateOptions) gfx.SpriteHandle {
-    return gpu.spriteCreate(opts) catch |e| {
-        std.log.err("sprite create failure: {}", .{e});
-        return .invalid;
-    };
-}
-
-export fn hygpuSpriteDestroy(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) void {
-    gpu.spriteDestroy(hdl);
-}
-
-export fn hygpuSpriteWeakPtr(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) ?*gfx.Gpu.GpuSprite {
-    return gpu.spriteWeakPtr(hdl);
-}
-
-export fn hygpuSpriteRenderableWeakPtr(gpu: *gfx.Gpu, hdl: gfx.Renderable) ?*gfx.Gpu.GpuSprite {
-    return gpu.spriteRenderableWeakPtr(hdl);
-}
-
-export fn hygpuSpriteCurrentAnimationFrame(gpu: *gfx.Gpu, hdl: *gfx.Gpu.GpuSprite) u32 {
-    return gpu.spriteCurrentAnimationFrame(hdl);
-}
-
-export fn hygpuSpriteDupe(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) gfx.SpriteHandle {
-    return gpu.spriteDupe(hdl);
-}
-
-export fn hygpuRenderableOfSprite(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) gfx.Renderable {
+export fn hy_gfx_renderableOfSprite(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) gfx.Renderable {
     return gpu.renderableOfSprite(hdl) catch |e| {
         std.log.err("sprite dupe failure: {}", .{e});
         return .{
@@ -232,14 +210,57 @@ export fn hygpuRenderableOfSprite(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) gfx.Rend
     };
 }
 
-export fn hygpuTextureImport(gpu: *gfx.Gpu, path: hy.ExternSlice(u8)) gfx.TextureHandle {
+export fn hy_gfx_spriteCreate(gpu: *gfx.Gpu, opts: gfx.Gpu.SpriteCreateOptions) gfx.SpriteHandle {
+    return gpu.spriteCreate(opts) catch |e| {
+        std.log.err("sprite create failure: {}", .{e});
+        return .invalid;
+    };
+}
+
+export fn hy_gfx_spriteDestroy(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) void {
+    gpu.spriteDestroy(hdl);
+}
+
+export fn hy_gfx_spriteWeakPtr(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) ?*gfx.Gpu.GpuSprite {
+    return gpu.spriteWeakPtr(hdl);
+}
+
+export fn hy_gfx_spriteRenderableWeakPtr(gpu: *gfx.Gpu, hdl: gfx.Renderable) ?*gfx.Gpu.GpuSprite {
+    return gpu.spriteRenderableWeakPtr(hdl);
+}
+
+export fn hy_gfx_spriteCurrentAnimationFrame(gpu: *gfx.Gpu, hdl: *gfx.Gpu.GpuSprite) u32 {
+    return gpu.spriteCurrentAnimationFrame(hdl);
+}
+
+export fn hy_gfx_spriteDupe(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) gfx.SpriteHandle {
+    return gpu.spriteDupe(hdl);
+}
+
+export fn hy_gfx_textureImport(gpu: *gfx.Gpu, path: hy.ExternSlice(u8)) gfx.TextureHandle {
     return gpu.textures.read(path.asSliceZ()) catch |e| {
         std.log.err("texture import failure: {}", .{e});
         return .invalid;
     };
 }
 
-export fn hygpuImmediateDraw(
+export fn hy_gfx_passCreate(gpu: *gfx.Gpu, opts: hy.gfx.PassCreateOptions) gfx.PassHandle {
+    return gpu.passCreate(opts);
+}
+
+export fn hy_gfx_passDestroy(gpu: *gfx.Gpu, hdl: gfx.PassHandle) void {
+    return gpu.passDestroy(hdl);
+}
+
+export fn hy_gfx_passAdd(gpu: *gfx.Gpu, opts: gfx.Gpu.PassAddOptions) gfx.Renderable {
+    return gpu.passAdd(opts);
+}
+
+export fn hy_gfx_passClear(gpu: *gfx.Gpu, hdl: gfx.PassHandle) void {
+    return gpu.passClear(hdl);
+}
+
+export fn hy_gfx_immediateDraw(
     gpu: *gfx.Gpu,
     verts: hy.ExternSliceConst(gfx.UIVertex),
     indices: hy.ExternSliceConst(u32),
@@ -381,7 +402,7 @@ export fn hyp2HitEventDeregisterAll(
 }
 
 export fn hyp2OverlapLeaky(p2d: *Phys2, arena: hy.ExternAllocator, shape: Phys2.ShapeConfig, origin: hym.Vec2) hy.ExternSlice(Phys2.b2.Shape) {
-    return .make(p2d.overlapLeaky(arena.allocator(), shape, origin));
+    return .from(p2d.overlapLeaky(arena.allocator(), shape, origin));
 }
 
 export fn hyp2RaycastLeaky(
@@ -389,11 +410,11 @@ export fn hyp2RaycastLeaky(
     arena: hy.ExternAllocator,
     opts: Phys2.RaycastOptions,
 ) hy.ExternSlice(Phys2.RaycastHit) {
-    return .make(p2d.raycastLeaky(arena.allocator(), opts));
+    return .from(p2d.raycastLeaky(arena.allocator(), opts));
 }
 
 export fn hyp2CastCircleLeaky(p2d: *Phys2, arena: hy.ExternAllocator, opts: Phys2.CastCircleOptions) hy.ExternSlice(Phys2.RaycastHit) {
-    return .make(p2d.castCircleLeaky(arena.allocator(), opts));
+    return .from(p2d.castCircleLeaky(arena.allocator(), opts));
 }
 
 export fn hyp2ShapeBody(shape: Phys2.b2.Shape) Phys2.Body {

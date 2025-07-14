@@ -34,6 +34,8 @@ pub const Mat4 = extern struct {
     pub inline fn scale(self: *const Mat4, s: Vec3) Mat4 {
         return self.mul(root.scale(s));
     }
+
+    pub const determinant = root.determinant;
 };
 
 pub const zero = Mat4{ .m = .{
@@ -87,6 +89,30 @@ test "hym.mat4.transpose()" {
     try expectVecApproxEqAbs(.{ 1, 5, 9, 13 }, mt.m[1], 0.01);
     try expectVecApproxEqAbs(.{ 2, 6, 10, 14 }, mt.m[2], 0.01);
     try expectVecApproxEqAbs(.{ 3, 7, 11, 15 }, mt.m[3], 0.01);
+}
+
+pub fn determinant(mat: Mat4) f32 {
+    const m = mat.m;
+
+    const a = @shuffle(f32, m[0], m[1], i32x4{ 0, 1, n(0), n(1) });
+    const b = @shuffle(f32, m[0], m[1], i32x4{ 2, 3, n(2), n(3) });
+    const c = @shuffle(f32, m[2], m[3], i32x4{ 0, 1, n(0), n(1) });
+    const d = @shuffle(f32, m[2], m[3], i32x4{ 2, 3, n(2), n(3) });
+
+    // determinant as (|A| |B| |C| |D|)
+    const det_sub = @shuffle(f32, m[0], m[2], i32x4{ 0, 2, n(0), n(2) }) * @shuffle(f32, m[1], m[3], i32x4{ 1, 3, n(1), n(3) }) -
+        @shuffle(f32, m[0], m[2], i32x4{ 1, 3, n(1), n(3) }) * @shuffle(f32, m[1], m[3], i32x4{ 0, 2, n(0), n(2) });
+
+    const det_a: f32x4 = @splat(det_sub[0]);
+    const det_b: f32x4 = @splat(det_sub[1]);
+    const det_c: f32x4 = @splat(det_sub[2]);
+    const det_d: f32x4 = @splat(det_sub[3]);
+    const d_c = mat2AdjMul(d, c); // D#C
+    const a_b = mat2AdjMul(a, b); // A#B
+
+    const tr: f32x4 = @splat(@reduce(.Add, a_b * swizzle(d_c, .{ 0, 2, 1, 3 })));
+    const det_m = det_a * det_d + det_b * det_c - tr;
+    return det_m[0];
 }
 
 /// https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html
@@ -259,7 +285,7 @@ test "multiply two matrices" {
     try expectVecApproxEqAbs(.{ 10, 27, 26, 16 }, c.m[0], 0.01);
     try expectVecApproxEqAbs(.{ 5, 33, 16, 10 }, c.m[1], 0.01);
     try expectVecApproxEqAbs(.{ -3, 1, -1, -2 }, c.m[2], 0.01);
-    try expectVecApproxEqAbs(.{ 2, 8, 10, 7 }, c.m[3], 0.01);
+    try expectVecApproxEqAbs(.{ 2, 46, 10, 11 }, c.m[3], 0.01);
 }
 
 pub inline fn translation(m: Mat4, v: vec3.Vec3) Mat4 {

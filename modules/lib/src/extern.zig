@@ -19,9 +19,9 @@ pub const ExternAllocator = extern struct {
 pub fn ExternSliceConst(T: type) type {
     return extern struct {
         ptr: [*]const T,
-        len: usize,
+        len: usize = 0,
 
-        pub fn make(slice: []const T) ExternSliceConst(T) {
+        pub fn from(slice: []const T) ExternSliceConst(T) {
             return .{ .ptr = slice.ptr, .len = slice.len };
         }
 
@@ -41,7 +41,7 @@ pub fn ExternSlice(T: type) type {
         ptr: [*]T,
         len: usize,
 
-        pub fn make(slice: []T) ExternSlice(T) {
+        pub fn from(slice: []T) ExternSlice(T) {
             return .{ .ptr = slice.ptr, .len = slice.len };
         }
 
