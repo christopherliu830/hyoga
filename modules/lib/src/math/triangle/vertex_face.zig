@@ -6,9 +6,73 @@ const funcs = @import("funcs.zig");
 const VertexHandle = root.VertexHandle;
 const determinant = funcs.determinant;
 
+pub const EdgeExtra = struct {
+    triangles: [2]Triangle.Ref,
+    constrained: bool = false,
+
+    pub const Ref = struct {
+        edge: *EdgeExtra,
+        a: f32 = 0,
+        b: f32 = 1,
+        rot: u1 = 0,
+
+        pub fn sym(self: Ref) Ref {
+            return .{
+                .edge = self.edge,
+                .a = (1 - self.b),
+                .b = (1 - self.a),
+                .rot = if (self.rot == 0) 1 else 0,
+            };
+        }
+
+        pub fn constrained(self: Ref) bool {
+            return self.edge.constrained;
+        }
+
+        pub fn constrainedSet(self: Ref, toggle: bool) void {
+            self.edge.constrained = toggle;
+        }
+
+        pub fn limitLeft(self: Ref, value: f32) Ref {
+            var ref: Ref = self;
+            switch (ref.rot) {
+                0 => ref.a = value,
+                1 => ref.b = (1 - value),
+            }
+            std.debug.assert(ref.a <= ref.b);
+            std.debug.assert(ref.a >= 0);
+            std.debug.assert(ref.b <= 1);
+            return ref;
+        }
+
+        pub fn limitRight(self: Ref, value: f32) Ref {
+            var ref: Ref = self;
+            switch (ref.rot) {
+                0 => ref.b = value,
+                1 => ref.a = (1 - value),
+            }
+            std.debug.assert(ref.a <= ref.b);
+            std.debug.assert(ref.a >= 0);
+            std.debug.assert(ref.b <= 1);
+            return ref;
+        }
+
+        pub fn low(self: Ref) f32 {
+            return self.a;
+        }
+
+        pub fn high(self: Ref) f32 {
+            return self.b;
+        }
+    };
+
+    pub const Pool = std.heap.MemoryPool(EdgeExtra);
+};
+
 pub const Triangle = struct {
     neighbor: [3]Ref,
     vertices: [3]VertexHandle = @splat(.none),
+    edges: [3]?EdgeExtra.Ref = @splat(null),
     visited: bool = false,
 
     pub const Ref = packed struct(usize) {
@@ -25,6 +89,9 @@ pub const Triangle = struct {
             try writer.writeAll(" ");
             if (value.apex() != .none) try std.fmt.formatInt(@intFromEnum(value.apex()), 10, .lower, .{}, writer) else try writer.writeAll("*");
             try writer.writeAll(")");
+            if (value.constrained()) {
+                try writer.writeAll(" C");
+            }
         }
 
         inline fn init(ptr: *Triangle) Triangle.Ref {
@@ -143,39 +210,17 @@ pub const Triangle = struct {
             self.neighborSet(other);
             other.neighborSet(self);
         }
+
+        fn constrained(self: Ref) bool {
+            return (self.deref().edges[self.rot] orelse return false).constrained();
+        }
+
+        fn edgeExtra(self: Ref) ?EdgeExtra.Ref {
+            return self.deref().edges[self.rot];
+        }
     };
 
     const Pool = std.heap.MemoryPool(Triangle);
-};
-
-/// Unused
-const Constraint = struct {
-    prev: PackedRef,
-    next: PackedRef,
-    points: [4]VertexHandle = @splat(.none),
-    triangles: [2]Triangle.Ref,
-
-    pub const PackedRef = enum(usize) {
-        _,
-
-        fn pack(ref: Ref) PackedRef {
-            return @enumFromInt(@intFromPtr(ref.constraint) | (ref.direction & 1));
-        }
-
-        fn unwrap(self: PackedRef) Ref {
-            return .{
-                .direction = self & 1,
-                .constraint = self & ~31,
-            };
-        }
-    };
-
-    pub const Ref = struct {
-        constraint: *align(4) Constraint,
-        direction: u1 = 0,
-    };
-
-    const Pool = std.heap.MemoryPool(Constraint);
 };
 
 pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) type {
@@ -187,6 +232,7 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
 
         allocator: std.mem.Allocator,
         pool: Triangle.Pool,
+        edge_pool: EdgeExtra.Pool,
         dummy_triangle: *Triangle,
         left_edge: Triangle.Ref,
         right_edge: Triangle.Ref,
@@ -197,7 +243,7 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
 
         pub fn init(allocator: std.mem.Allocator) !Self {
             var pool: Triangle.Pool = .init(allocator);
-            std.debug.print("init with: {}\n", .{allocator});
+            const edge_pool: EdgeExtra.Pool = .init(allocator);
             const dummy_triangle = try pool.create();
             dummy_triangle.* = .{
                 .neighbor = @splat(.init(dummy_triangle)),
@@ -206,6 +252,7 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
             return .{
                 .allocator = allocator,
                 .pool = pool,
+                .edge_pool = edge_pool,
                 .dummy_triangle = dummy_triangle,
                 .left_edge = .init(dummy_triangle),
                 .right_edge = .init(dummy_triangle),
@@ -220,6 +267,14 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
 
         pub fn vertex(self: *const Self, h: VertexHandle) hym.Vec2 {
             return if (positionFn) |func| func(self.verts.items[h.unwrap()]) else self.verts.items[h.unwrap()];
+        }
+
+        pub fn segment(self: *const Self, edge: EdgeExtra.Ref) [2]hym.Vec2 {
+            const tri = edge.edge.triangles[edge.rot];
+            return .{
+                self.vertex(tri.org()).lerp(self.vertex(tri.dest()), edge.low()),
+                self.vertex(tri.org()).lerp(self.vertex(tri.dest()), edge.high()),
+            };
         }
 
         inline fn position(v: Vertex) hym.Vec2 {
@@ -268,39 +323,32 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
             self.left_edge = l;
             self.right_edge = r;
 
-            for (self.verts.items) |vert| {
-                const pos = position(vert);
-                std.debug.print("v {d} {d}\n", .{ pos.x(), pos.y() });
-            }
-
             try self.refresh();
 
             return .{ l, r };
         }
 
-        pub fn constrain(self: *Self, start: Triangle.Ref, end: Triangle.Ref) !void {
+        pub fn constrain(self: *Self, in_start: Triangle.Ref, end: Triangle.Ref) !void {
+            var start = in_start;
+
             var ara: std.heap.ArenaAllocator = .init(self.allocator);
             const arena = ara.allocator();
             defer ara.deinit();
 
-            std.debug.print("start: {}\n", .{start});
-            std.debug.print("end: {}\n", .{end});
             // Start must have origin at first endpoint and
             // also be inside the convex hull.
 
-            if (start.dest() == end.org() or start.apex() == end.org()) {
-                return;
-            }
-
             // Detect a collinear path to the vertex.
             var current_node = start;
-            var next_edge = start.onext();
-            while (current_node != next_edge) : (next_edge = next_edge.onext()) {
-                std.debug.print("node: {}, next_edge: {}\n", .{ current_node, next_edge });
+            var next_edge = start;
+            var initial_check_done = false;
+            while (!initial_check_done or current_node != next_edge) : (next_edge = next_edge.onext()) {
+                initial_check_done = true;
                 std.debug.assert(next_edge.deref() != self.dummy_triangle);
 
                 if (next_edge.dest() == end.org()) {
-                    // Nothing to do, edge already exists.
+                    const edge = try self.edgeMake(next_edge);
+                    edge.constrainedSet(true);
                     return;
                 } else if (next_edge.org() != .none and next_edge.dest() != .none) {
                     const a = self.vertex(next_edge.org());
@@ -316,15 +364,19 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
                         self.vertex(end.org()),
                     );
 
-                    if (det == 0 and min_x < b.x() and b.x() < max_x and
-                        min_y < b.y() and b.y() < max_y)
+                    if (det == 0 and min_x <= b.x() and b.x() <= max_x and
+                        min_y <= b.y() and b.y() <= max_y)
                     {
                         // end lies past next_edge and is collinear, continue search
+                        // next_edge.constraintSet(true);
                         current_node = next_edge.sym();
                         next_edge = current_node.onext();
+                        initial_check_done = false;
                     }
                 }
             }
+
+            start = current_node;
 
             const pt_start = self.vertex(start.org());
             const pt_end = self.vertex(end.org());
@@ -338,7 +390,8 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
 
             // Find the first triangle that is intersected by the line
             // and set test_edge to the edge immediately right (cw) of the line
-            while (true) {
+            const loop_protection: u32 = 16;
+            for (0..loop_protection) |_| {
                 const pt_test_edge_dest = self.vertex(test_edge.dest());
                 const pt_next_edge_dest = self.vertex(test_edge.onext().dest());
                 if (funcs.rightOf(pt_test_edge_dest, pt_start, pt_end) and
@@ -347,12 +400,12 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
                     break;
                 }
                 test_edge = test_edge.onext();
+            } else {
+                std.debug.panic("Collinear point was found, this should not be possible", .{});
             }
 
             const polygon_start = test_edge.sym();
             const polygon_end = test_edge.onext();
-            std.debug.print("polygon_start: {}\n", .{polygon_start});
-            std.debug.print("polygon_end: {}\n", .{polygon_end});
 
             test_edge = test_edge.lnext();
 
@@ -363,17 +416,15 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
                     funcs.leftOf(pt_test_edge_end, pt_start, pt_end))
                 {
                     try to_delete.put(arena, test_edge.deref(), {});
-                    std.debug.print("delete edge: {}\n", .{test_edge});
                     test_edge = test_edge.sym().lnext();
                 } else {
                     try boundary_edges.append(arena, test_edge);
-                    std.debug.print("boundary edge: {}\n", .{test_edge});
                     test_edge = test_edge.lnext();
                 }
             }
 
             // Go backwards to get the other half of the polygon
-            while (true) {
+            for (0..loop_protection) |_| {
                 const pt_test_edge_dest = self.vertex(test_edge.dest());
                 const pt_next_edge_dest = self.vertex(test_edge.onext().dest());
                 if (funcs.rightOf(pt_test_edge_dest, pt_end, pt_start) and
@@ -382,25 +433,27 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
                     break;
                 }
                 test_edge = test_edge.onext();
+            } else {
+                std.debug.panic("Collinear point was found, this should not be possible", .{});
             }
-            while (test_edge.dest() != start.org()) {
+            var i: u32 = 0;
+            while (test_edge.dest() != start.org() and i < loop_protection) {
+                i += 1;
                 const pt_test_edge_start = self.vertex(test_edge.org());
                 const pt_test_edge_end = self.vertex(test_edge.dest());
                 if (funcs.rightOf(pt_test_edge_start, pt_end, pt_start) and
                     funcs.leftOf(pt_test_edge_end, pt_end, pt_start))
                 {
                     try to_delete.put(arena, test_edge.deref(), {});
-                    std.debug.print("delete edge: {}\n", .{test_edge});
                     test_edge = test_edge.sym().lnext();
                 } else {
                     try boundary_edges.append(arena, test_edge);
-                    std.debug.print("boundary edge: {}\n", .{test_edge});
                     test_edge = test_edge.lnext();
                 }
             }
+            if (i == loop_protection) unreachable;
 
             try to_delete.put(arena, test_edge.deref(), {});
-            std.debug.print("delete: {}\n", .{test_edge});
 
             // var last_vertex = test_edge.org();
 
@@ -413,14 +466,17 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
                     .apex = start.org(),
                 });
 
-                std.debug.print("{} connect {}\n", .{ fan_triangle.lprev(), prev_triangle });
                 fan_triangle.lprev().connect(prev_triangle);
-                std.debug.print("{} connect {}\n", .{ fan_triangle, item.sym() });
                 fan_triangle.connect(item.sym());
+
+                if (item.org() == end.org()) {
+                    const edge = try self.edgeMake(fan_triangle.lprev());
+                    edge.constrainedSet(true);
+                }
+
                 prev_triangle = fan_triangle.lnext();
             }
 
-            std.debug.print("{} connect {}\n", .{ prev_triangle, polygon_end });
             prev_triangle.connect(polygon_end);
 
             for (to_delete.keys()) |item| {
@@ -448,8 +504,14 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
                     return triangle.lnext();
                 } else if (point.eql(self.vertex(triangle.apex()))) {
                     return triangle.lprev();
+                } else {
+                    const a = !funcs.rightOf(point, self.vertex(triangle.org()), self.vertex(triangle.dest()));
+                    const b = !funcs.leftOf(point, self.vertex(triangle.onext().org()), self.vertex(triangle.onext().dest()));
+                    const c = !funcs.leftOf(point, self.vertex(triangle.dprev().org()), self.vertex(triangle.dprev().dest()));
+                    if (a and b and c) return triangle;
                 }
             }
+
             return null;
         }
 
@@ -795,7 +857,6 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
         }
 
         fn triangleDelete(self: *Self, triangle: *Triangle) void {
-            std.debug.print("delete triangle: {}\n", .{triangle});
             for (0..3) |i| {
                 const neighbor = triangle.neighbor[i];
                 if (neighbor.deref() == self.dummy_triangle) continue;
@@ -808,7 +869,21 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
             self.pool.destroy(triangle);
         }
 
-        fn enumerate(self: *const Self, start: Triangle.Ref) ![]Triangle.Ref {
+        fn edgeMake(self: *Self, triangle: Triangle.Ref) !EdgeExtra.Ref {
+            const extra = try self.edge_pool.create();
+            extra.* = .{ .triangles = .{ triangle, triangle.sym() } };
+            const edge_ref: EdgeExtra.Ref = .{
+                .edge = extra,
+                .rot = 0,
+                .a = 0,
+                .b = 1,
+            };
+            triangle.deref().edges[triangle.rot] = edge_ref;
+            triangle.sym().deref().edges[triangle.sym().rot] = edge_ref.sym();
+            return edge_ref;
+        }
+
+        pub fn enumerate(self: *const Self, start: Triangle.Ref) ![]Triangle.Ref {
             var ara: std.heap.ArenaAllocator = .init(self.allocator);
             const arena = ara.allocator();
             defer ara.deinit();
@@ -829,7 +904,6 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
 
                 if (tri.org() != .none and tri.dest() != .none and tri.apex() != .none) {
                     try real_triangles.append(self.allocator, tri);
-                    std.debug.print("{}\n", .{tri});
                 }
 
                 for (0..3) |n| {
@@ -889,6 +963,100 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
                 self.indices[i * 3 + 1] = @intCast(tri.org().unwrap());
                 self.indices[i * 3 + 2] = @intCast(tri.dest().unwrap());
             }
+        }
+
+        const RecurseItem = struct {
+            edge: Triangle.Ref,
+            left_limit: f32 = 0,
+            right_limit: f32 = 1,
+        };
+
+        pub fn visibility(self: *Self, origin: hym.Vec2) ![]hym.Vec2 {
+            var ara: std.heap.ArenaAllocator = .init(self.allocator);
+            const arena = ara.allocator();
+            defer ara.deinit();
+            var stack: std.ArrayListUnmanaged(RecurseItem) = .empty;
+
+            var visibility_edges: std.ArrayListUnmanaged(hym.Vec2) = .empty;
+            try visibility_edges.append(arena, origin);
+
+            const tri = self.locate(origin).?;
+            inline for (.{ tri.sym(), tri.lnext().sym(), tri.lprev().sym() }) |origin_edge| {
+                try stack.append(arena, .{ .edge = origin_edge });
+            }
+
+            while (stack.items.len > 0) {
+                const item = stack.pop().?;
+                const edge = item.edge;
+                const left = item.left_limit;
+                const right = item.right_limit;
+
+                if (edge.constrained()) {
+                    const extra = edge.edgeExtra().?
+                        .limitLeft(left)
+                        .limitRight(right);
+                    try visibility_edges.appendSlice(arena, &self.segment(extra));
+                    continue;
+                }
+
+                const org_pos = self.vertex(edge.org());
+                const dest_pos = self.vertex(edge.dest());
+                const apex_pos = self.vertex(edge.apex());
+
+                const dir_left = org_pos.lerp(dest_pos, left).sub(origin);
+                const dir_right = org_pos.lerp(dest_pos, right).sub(origin);
+
+                const apex_is_left = !funcs.rightOf(apex_pos, origin, dir_left.add(origin));
+                const apex_is_right = !funcs.leftOf(apex_pos, origin, dir_right.add(origin));
+
+                if (apex_is_left or apex_is_right) {
+                    const visible_edge = if (apex_is_left) edge.lnext() else edge.lprev();
+                    const start = if (apex_is_left) apex_pos else org_pos;
+                    const end = if (apex_is_left) dest_pos else apex_pos;
+
+                    const a, const unclamped_l = funcs.raySegmentIntersect(origin, dir_left, start, end);
+                    const b, const unclamped_r = funcs.raySegmentIntersect(origin, dir_right, start, end);
+
+                    // Flip left and right because visible_edge is on the inside edge
+                    // (backwards) when we want to add limits on outside edge
+                    const l = @max(0, @min(1, unclamped_l));
+                    const r = @max(0, @min(1, unclamped_r));
+
+                    std.debug.assert(a >= 0 and b >= 0);
+                    std.debug.assert(l <= r);
+
+                    try stack.append(arena, .{
+                        .edge = visible_edge.sym(),
+                        .left_limit = l,
+                        .right_limit = r,
+                    });
+                } else {
+                    // Consider both neighbor edges
+                    const a, const unclamped_l = funcs.raySegmentIntersect(origin, dir_left, org_pos, apex_pos);
+                    const b, const unclamped_r = funcs.raySegmentIntersect(origin, dir_right, apex_pos, dest_pos);
+
+                    std.debug.assert(a >= 0 and b >= 0);
+
+                    const l = @max(0, @min(1, unclamped_l));
+                    const r = @max(0, @min(1, unclamped_r));
+
+                    const next_right = edge.lnext().sym();
+                    try stack.append(arena, .{
+                        .edge = next_right,
+                        .left_limit = 0,
+                        .right_limit = r,
+                    });
+
+                    const next_left = edge.lprev().sym();
+                    try stack.append(arena, .{
+                        .edge = next_left,
+                        .left_limit = l,
+                        .right_limit = 1,
+                    });
+                }
+            }
+
+            return try self.allocator.dupe(hym.Vec2, visibility_edges.items);
         }
     };
 }

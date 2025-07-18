@@ -853,7 +853,6 @@ pub fn draw(self: *Gpu, opts: DrawOptions) !void {
 }
 
 pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
-    std.debug.print("build pipeline\n", .{});
     const sample_count: sdl.gpu.SampleCount = .@"1";
 
     const color_target_desc: []const sdl.gpu.ColorTargetDescription = &.{.{

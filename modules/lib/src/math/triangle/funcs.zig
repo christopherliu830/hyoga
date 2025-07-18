@@ -29,10 +29,22 @@ pub inline fn incircle(a: hym.Vec2, b: hym.Vec2, c: hym.Vec2, d: hym.Vec2) bool 
     return det > 0.0;
 }
 
+// Returns true if a is right of line b -> c.
 pub fn rightOf(a: hym.Vec2, b: hym.Vec2, c: hym.Vec2) bool {
     return ccw(a, c, b);
 }
 
+// Returns true if a is left of line b -> c.
 pub fn leftOf(a: hym.Vec2, b: hym.Vec2, c: hym.Vec2) bool {
     return ccw(a, b, c);
+}
+
+pub fn raySegmentIntersect(o: hym.Vec2, d: hym.Vec2, a: hym.Vec2, b: hym.Vec2) [2]f32 {
+    const v_1 = o.sub(a);
+    const v_2 = b.sub(a);
+    const v_3 = hym.vec2.create(-d.y(), d.x());
+
+    const t_1 = v_2.cross(v_1) / v_2.dot(v_3);
+    const t_2 = v_1.dot(v_3) / v_2.dot(v_3);
+    return .{ t_1, t_2 };
 }

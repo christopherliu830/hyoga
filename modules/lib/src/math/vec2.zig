@@ -49,7 +49,7 @@ pub const Vec2 = extern struct {
         return root.normal(a);
     }
 
-    pub inline fn cross(a: Vec2, b: Vec2) Vec2 {
+    pub inline fn cross(a: Vec2, b: Vec2) f32 {
         return root.cross(a, b);
     }
 
@@ -118,9 +118,7 @@ pub inline fn len_one(v: Vec2) f32 {
 }
 
 pub inline fn cross(a: Vec2, b: Vec2) f32 {
-    return .{
-        a.v[0] * b.v[1] - a.v[1] * b.v[0],
-    };
+    return a.v[0] * b.v[1] - a.v[1] * b.v[0];
 }
 
 pub inline fn normalize(v: Vec2) void {
