@@ -223,7 +223,51 @@ pub const Triangle = struct {
     const Pool = std.heap.MemoryPool(Triangle);
 };
 
-pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) type {
+pub const Visibility = struct {
+    origin: hym.Vec2 = .zero,
+    segments: [][2]hym.Vec2 = &.{},
+
+    pub fn query(self: Visibility, point: hym.Vec2) bool {
+        const start_angle = self.segments[0][0].sub(self.origin).atan();
+        const target_angle = @mod(point.sub(self.origin).atan() - start_angle, std.math.pi * 2);
+
+        const SortContext = struct {
+            target: f32,
+            start: f32,
+            origin: hym.Vec2,
+
+            fn compare(ctx: @This(), segment: [2]hym.Vec2) std.math.Order {
+                const lower_bound = angle(ctx, segment[0]);
+                if (ctx.target < lower_bound) return .lt;
+                const upper_bound = angle(ctx, segment[1]);
+                if (ctx.target > upper_bound) return .gt;
+                return .eq;
+            }
+
+            inline fn angle(ctx: @This(), pt: hym.Vec2) f32 {
+                return @mod(pt.sub(ctx.origin).atan() - ctx.start, std.math.pi * 2);
+            }
+        };
+
+        const idx = std.sort.binarySearch([2]hym.Vec2, self.segments, SortContext {
+            .start = start_angle,
+            .target = target_angle,
+            .origin = self.origin,
+        }, SortContext.compare) orelse return false;
+
+        return funcs.leftOf(point, self.segments[idx][0], self.segments[idx][1]);
+    }
+
+    pub fn deinit(self: Visibility, allocator: std.mem.Allocator) void {
+        allocator.free(self.segments);
+    }
+};
+
+fn PositionFn(T: type) type {
+    return ?*const fn (x: T) hym.Vec2;
+}
+
+pub fn Subdivision(Vertex: type, positionFn: PositionFn(Vertex)) type {
     return struct {
         const Self = @This();
         const BucketKey = struct { x: usize, y: usize };
@@ -261,8 +305,12 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
         }
 
         pub fn deinit(self: *Self) void {
-            self.pool.deinit();
+            self.verts.deinit(self.allocator);
+            self.allocator.free(self.indices);
             self.buckets.deinit(self.allocator);
+            self.pool.deinit();
+            self.edge_pool.deinit();
+            self.bucket_allocator.deinit();
         }
 
         pub fn vertex(self: *const Self, h: VertexHandle) hym.Vec2 {
@@ -305,7 +353,7 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
             };
 
             const dupe = try gpa.dupe(Vertex, verts);
-            defer gpa.free(verts);
+            defer gpa.free(dupe);
 
             std.sort.heap(Vertex, dupe, Context{}, Context.lessThan);
 
@@ -903,7 +951,7 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
                 try triangles.append(arena, tri);
 
                 if (tri.org() != .none and tri.dest() != .none and tri.apex() != .none) {
-                    try real_triangles.append(self.allocator, tri);
+                    try real_triangles.append(arena, tri);
                 }
 
                 for (0..3) |n| {
@@ -971,17 +1019,17 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
             right_limit: f32 = 1,
         };
 
-        pub fn visibility(self: *Self, origin: hym.Vec2) ![]hym.Vec2 {
+        pub fn visibility(self: *Self, origin: hym.Vec2, visibility_allocator: std.mem.Allocator) !Visibility {
             var ara: std.heap.ArenaAllocator = .init(self.allocator);
             const arena = ara.allocator();
             defer ara.deinit();
+
             var stack: std.ArrayListUnmanaged(RecurseItem) = .empty;
 
-            var visibility_edges: std.ArrayListUnmanaged(hym.Vec2) = .empty;
-            try visibility_edges.append(arena, origin);
+            var visibility_edges: std.ArrayListUnmanaged([2]hym.Vec2) = .empty;
 
             const tri = self.locate(origin).?;
-            inline for (.{ tri.sym(), tri.lnext().sym(), tri.lprev().sym() }) |origin_edge| {
+            inline for (.{ tri.sym(), tri.lprev().sym(), tri.lnext().sym() }) |origin_edge| {
                 try stack.append(arena, .{ .edge = origin_edge });
             }
 
@@ -994,8 +1042,9 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
                 if (edge.constrained()) {
                     const extra = edge.edgeExtra().?
                         .limitLeft(left)
-                        .limitRight(right);
-                    try visibility_edges.appendSlice(arena, &self.segment(extra));
+                        .limitRight(right)
+                        .sym();
+                    try visibility_edges.append(arena, self.segment(extra));
                     continue;
                 }
 
@@ -1017,13 +1066,10 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
                     const a, const unclamped_l = funcs.raySegmentIntersect(origin, dir_left, start, end);
                     const b, const unclamped_r = funcs.raySegmentIntersect(origin, dir_right, start, end);
 
-                    // Flip left and right because visible_edge is on the inside edge
-                    // (backwards) when we want to add limits on outside edge
                     const l = @max(0, @min(1, unclamped_l));
                     const r = @max(0, @min(1, unclamped_r));
 
                     std.debug.assert(a >= 0 and b >= 0);
-                    std.debug.assert(l <= r);
 
                     try stack.append(arena, .{
                         .edge = visible_edge.sym(),
@@ -1040,6 +1086,13 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
                     const l = @max(0, @min(1, unclamped_l));
                     const r = @max(0, @min(1, unclamped_r));
 
+                    const next_left = edge.lprev().sym();
+                    try stack.append(arena, .{
+                        .edge = next_left,
+                        .left_limit = l,
+                        .right_limit = 1,
+                    });
+
                     const next_right = edge.lnext().sym();
                     try stack.append(arena, .{
                         .edge = next_right,
@@ -1047,16 +1100,14 @@ pub fn Subdivision(Vertex: type, positionFn: ?*const fn (x: Vertex) hym.Vec2) ty
                         .right_limit = r,
                     });
 
-                    const next_left = edge.lprev().sym();
-                    try stack.append(arena, .{
-                        .edge = next_left,
-                        .left_limit = l,
-                        .right_limit = 1,
-                    });
                 }
             }
 
-            return try self.allocator.dupe(hym.Vec2, visibility_edges.items);
+
+            return .{
+                .origin = origin,
+                .segments = try visibility_allocator.dupe([2]hym.Vec2, visibility_edges.items),
+            };
         }
     };
 }

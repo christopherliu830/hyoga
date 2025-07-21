@@ -5,6 +5,7 @@ pub const vertex_face = @import("vertex_face.zig");
 pub const quad_edge = @import("quad_edge.zig");
 
 pub const Triangulation = vertex_face.Subdivision;
+pub const Visibility = vertex_face.Visibility;
 
 pub const VertexHandle = enum(usize) {
     none = std.math.maxInt(usize),

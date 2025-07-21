@@ -1,5 +1,6 @@
 /// zig version of cglm functions.
-const math = @import("std").math;
+const std = @import("std");
+const math = std.math;
 
 const root = @This();
 
@@ -51,6 +52,10 @@ pub const Vec2 = extern struct {
 
     pub inline fn cross(a: Vec2, b: Vec2) f32 {
         return root.cross(a, b);
+    }
+
+    pub inline fn atan(v: Vec2) f32 {
+        return std.math.atan2(v.y(), v.x());
     }
 
     pub const add = root.add;

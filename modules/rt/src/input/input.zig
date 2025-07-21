@@ -8,17 +8,17 @@ const types = @import("types.zig");
 const log = std.log.scoped(.input);
 
 const Input = @This();
+
 allocator: std.mem.Allocator,
-keybinds: Keybinds = .empty,
-mousebinds: Mousebinds = .empty,
 groups: hy.SlotMap(Group),
 keys_down: KeysDownSet = .{},
 mouse_state: MouseDownSet = .{},
 input_inited: bool = false,
+events: std.ArrayListUnmanaged(Event) = .empty,
+triggers: std.ArrayListUnmanaged(Trigger) = .empty,
 
 pub const MouseButton = hy.MouseButton;
 pub const Keycode = hy.Keycode;
-pub const Event = sdl.events.Event;
 pub const Action = enum { up, down, held };
 
 pub const InputFlags = packed struct(u8) {
@@ -51,7 +51,18 @@ pub const BindOptions = extern struct {
     }
 };
 
+const Event = struct {};
+
+const Trigger = struct {
+    group: u32,
+    on: FireOn,
+    button: Keycode,
+
+    const FireOn = enum { up, down, held };
+};
+
 pub const DelegateList = std.ArrayListUnmanaged(*hy.closure.Runnable(anyopaque));
+
 const ActionSet = std.EnumArray(Action, DelegateList);
 const Mousebinds = std.AutoHashMapUnmanaged(u32, ActionSet);
 const Keybinds = std.AutoHashMapUnmanaged(u32, ActionSet);
@@ -125,6 +136,14 @@ pub fn reset(self: *Input) void {
         group.arena.deinit();
         self.groups.remove(it.handle());
     }
+}
+
+pub fn bindPoll(self: *Input, group: u32, code: Keycode) !void {
+    try self.triggers.append(self.allocator, .{
+        .group = group,
+        .fire_on = .down,
+        .code = code,
+    });
 }
 
 pub fn createGroup(self: *Input) Group.Handle {
@@ -217,6 +236,12 @@ pub fn updateKeyboard(self: *Input, event: sdl.events.Event) void {
                 if (event.key.repeat) .held else .down,
                 event,
             );
+
+            for (self.triggers.items) |trigger| {
+                if (trigger.button == key) {
+                    std.debug.print("key hit\n", .{});
+                }
+            }
         },
 
         .key_up => {
