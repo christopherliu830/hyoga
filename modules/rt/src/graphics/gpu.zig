@@ -642,39 +642,39 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
         self.uniforms.get(self.ids.viewport_size).?.f32x4,
     );
 
-    {
-        var it = self.custom_passes.iterator();
-        while (it.nextPtr()) |pass| {
-            try pass.render(cmd);
+    { var it = self.custom_passes.iterator();
+    while (it.nextPtr()) |pass| {
 
-            const color: sdl.gpu.ColorTargetInfo = .{
-                .texture = self.default_assets.active_target.?,
-                .load_op = .load,
-                .store_op = .store,
-                .clear_color = @bitCast(self.clear_color),
-                .cycle = false,
-            };
+        try pass.render(cmd);
 
-            const render_pass = cmd.beginRenderPass((&color)[0..1], 1, null) orelse
-                panic("error begin render pass {s}", .{sdl.getError()});
-            defer render_pass.end();
+        const color: sdl.gpu.ColorTargetInfo = .{
+            .texture = self.default_assets.active_target.?,
+            .load_op = .load,
+            .store_op = .store,
+            .clear_color = @bitCast(self.clear_color),
+            .cycle = false,
+        };
 
-            const pipeline = if (pass.blit_material.valid())
-                self.materials.get(pass.blit_material).?.pipeline
-            else
-                self.materials.templates.get(.screen_blit).pipeline;
+        const render_pass = cmd.beginRenderPass((&color)[0..1], 1, null) orelse
+            panic("error begin render pass {s}", .{sdl.getError()});
+        defer render_pass.end();
 
-            render_pass.bindGraphicsPipeline(pipeline);
+        const pipeline = if (pass.blit_material.valid())
+            self.materials.get(pass.blit_material).?.pipeline
+        else
+            self.materials.templates.get(.screen_blit).pipeline;
 
-            const binding = [_]sdl.gpu.TextureSamplerBinding{
-                .{ .sampler = self.default_assets.sampler, .texture = pass.texture() },
-            };
+        render_pass.bindGraphicsPipeline(pipeline);
 
-            render_pass.bindFragmentSamplers(0, &binding, 1);
+        const binding = [_]sdl.gpu.TextureSamplerBinding{
+            .{ .sampler = self.default_assets.sampler, .texture = pass.texture() },
+            .{ .sampler = self.default_assets.sampler, .texture = fp.texture() },
+        };
 
-            render_pass.drawPrimitives(3, 1, 0, 0);
-        }
-    }
+        render_pass.bindFragmentSamplers(0, &binding, 2);
+
+        render_pass.drawPrimitives(3, 1, 0, 0);
+    } }
 
     const im_drawn = try self.im.draw(
         self,
@@ -1250,6 +1250,7 @@ pub fn passCreate(self: *Gpu, opts: hy.gfx.PassCreateOptions) hy.SlotMap(Forward
         .clear_color = .{ .r = clear_color[0], .g = clear_color[1], .b = clear_color[2], .a = clear_color[3] },
         .match_window_size = opts.width == 0 and opts.height == 0,
         .blit_material = @bitCast(@intFromEnum(opts.blit_material)),
+        .load_op = .clear,
     });
 
     const hdl = self.custom_passes.insert(self.gpa, pass) catch unreachable;

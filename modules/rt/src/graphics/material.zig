@@ -218,6 +218,10 @@ pub const Materials = struct {
         return self.materials.get(handle);
     }
 
+    pub fn getPtr(self: *Materials, handle: Handle) ?*Material {
+        return self.materials.getPtr(handle);
+    }
+
     pub fn setParams(self: *Materials, handle: Handle, data: *const anyopaque) void {
         const mat = self.get(handle).?;
         const bytes = self.param_buf.items[mat.params_start..][0..mat.params_size];

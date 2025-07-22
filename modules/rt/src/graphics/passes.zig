@@ -77,7 +77,7 @@ pub const Forward = struct {
             .clear_color = options.clear_color,
             .load_op = options.load_op,
             .store_op = options.store_op,
-            .cycle = true,
+            .cycle = options.load_op != .load,
         };
 
         var ds_tex_info: sdl.gpu.TextureCreateInfo = undefined;

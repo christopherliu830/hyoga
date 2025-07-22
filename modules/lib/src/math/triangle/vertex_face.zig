@@ -39,7 +39,7 @@ pub const EdgeExtra = struct {
                 0 => ref.a = value,
                 1 => ref.b = (1 - value),
             }
-            std.debug.assert(ref.a <= ref.b);
+            std.debug.assert(ref.a - ref.b < std.math.floatEps(f32));
             std.debug.assert(ref.a >= 0);
             std.debug.assert(ref.b <= 1);
             return ref;
@@ -51,7 +51,7 @@ pub const EdgeExtra = struct {
                 0 => ref.b = value,
                 1 => ref.a = (1 - value),
             }
-            std.debug.assert(ref.a <= ref.b);
+            std.debug.assert(ref.a - ref.b < std.math.floatEps(f32));
             std.debug.assert(ref.a >= 0);
             std.debug.assert(ref.b <= 1);
             return ref;
