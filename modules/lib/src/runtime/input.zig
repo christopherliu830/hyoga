@@ -1,5 +1,5 @@
-//! Helper for linking to runtime input system.
 const std = @import("std");
+const hy = @import("../root.zig");
 const keys = @import("../key.zig");
 const math = @import("../math/math.zig");
 const closure = @import("../closure.zig");
@@ -20,6 +20,10 @@ pub const Input = opaque {
         down: bool = false,
         held: bool = false,
         _padding: u5 = 0,
+
+        pub const on_down: OnFlags = .{ .down = true };
+        pub const on_up: OnFlags = .{ .up = true };
+        pub const on_held: OnFlags = .{ .held = true };
     };
 
     pub const BindButton = union {
@@ -101,6 +105,30 @@ pub const Input = opaque {
     pub const queryMousePosition = hyioQueryMousePosition;
     pub const queryKey = hyioQueryKey;
 
+    pub fn bindPoll(input: *Input, id: anytype, on: OnFlags, code: keys.Keycode) void {
+        std.debug.assert(@sizeOf(@TypeOf(id)) == @sizeOf(u32));
+        hy_io_bindPoll(input, @intFromEnum(id), on, code);
+    }
+
+    pub fn eventPump(input: *Input, T: type) []const T {
+        std.debug.assert(@sizeOf(T) == @sizeOf(u32));
+        const ext_slice = hy_io_eventPump(input);
+        return @as([*]const T, @ptrCast(ext_slice.ptr))[0..ext_slice.len];
+    }
+
+    pub fn eventClear(input: *Input, slice: anytype) void {
+        const type_info = @typeInfo(@TypeOf(slice));
+        std.debug.assert(type_info.pointer.size == .slice);
+        const Child = type_info.pointer.child;
+        std.debug.assert(@sizeOf(Child) == @sizeOf(u32));
+        const ext_slice: hy.ExternSliceConst(u32) = .{
+            .ptr = @ptrCast(slice.ptr),
+            .len = slice.len,
+        };
+        hy_io_eventClear(input, ext_slice);
+    }
+
+
     extern fn hyioReset(*Input) void;
     extern fn hyioCreateGroup(*Input) Input.Group;
     extern fn hyioGetGroup(*Input, Group) Group;
@@ -110,4 +138,7 @@ pub const Input = opaque {
     extern fn hyioQueryMouse(*Input, keys.MouseButton) bool;
     extern fn hyioQueryMousePosition(*Input) math.Vec2;
     extern fn hyioQueryKey(*Input, keys.Keycode) bool;
+    extern fn hy_io_bindPoll(*Input, u32, OnFlags, keys.Keycode) void;
+    extern fn hy_io_eventPump(*Input) hy.ExternSliceConst(u32);
+    extern fn hy_io_eventClear(*Input, hy.ExternSliceConst(u32)) void;
 };

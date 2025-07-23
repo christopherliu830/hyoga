@@ -191,7 +191,7 @@ pub inline fn lerp(a: Vec2, b: Vec2, t: f32) Vec2 {
 
 pub inline fn scaleTo(v: Vec2, l: f32) Vec2 {
     if (len(v) < math.floatEps(f32)) return zero;
-    return .{ .v = v.v / @as(@Vector(2, f32), @splat(len(v) * l)) };
+    return .{ .v = v.v / @as(@Vector(2, f32), @splat(len(v) / l)) };
 }
 
 pub inline fn angle(a: Vec2, b: Vec2) f32 {

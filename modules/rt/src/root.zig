@@ -323,6 +323,24 @@ export fn hyioQueryKey(input: *Input, button: hy.key.Keycode) bool {
     return input.queryKey(button);
 }
 
+export fn hy_io_bindPoll(input: *Input, id: u32, on: hy.Input.OnFlags, button: hy.key.Keycode) void {
+    input.bindPoll(id, on, button) catch |err| {
+        std.log.err("bind failure: {}", .{err});
+    };
+}
+
+export fn hy_io_eventPump(input: *Input) hy.ExternSliceConst(u32) {
+    const events = input.eventPump() catch |err| {
+        std.log.err("input event pump failure: {}", .{err});
+        return .from(&.{});
+    };
+    return .from(events);
+}
+
+export fn hy_io_eventClear(input: *Input, events: hy.ExternSliceConst(u32)) void {
+    input.eventClear(events.asSlice());
+}
+
 export fn hysidFrom(strint: *Strint, str: [*]const u8, len: usize) Strint.ID {
     return strint.from(str[0..len]) catch |e| {
         std.log.err("strint failure: {}", .{e});

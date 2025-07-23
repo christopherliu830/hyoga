@@ -49,6 +49,10 @@ pub const Body = enum(u64) {
         category_bits: u64 = 1,
         mask_bits: u64 = std.math.maxInt(u64),
         group_index: i32 = 0,
+
+        pub fn category(bits: u64) Filter {
+            return .{ .category_bits = bits };
+        }
     };
 
     pub const AddShapeOptions = extern struct {

@@ -14,7 +14,7 @@ groups: hy.SlotMap(Group),
 keys_down: KeysDownSet = .{},
 mouse_state: MouseDownSet = .{},
 input_inited: bool = false,
-events: std.ArrayListUnmanaged(Event) = .empty,
+events: std.ArrayListUnmanaged(u32) = .empty,
 triggers: std.ArrayListUnmanaged(Trigger) = .empty,
 
 pub const MouseButton = hy.MouseButton;
@@ -51,14 +51,11 @@ pub const BindOptions = extern struct {
     }
 };
 
-const Event = struct {};
-
-const Trigger = struct {
-    group: u32,
-    on: FireOn,
+pub const Trigger = struct {
+    id: u32,
+    on: hy.Input.OnFlags,
     button: Keycode,
 
-    const FireOn = enum { up, down, held };
 };
 
 pub const DelegateList = std.ArrayListUnmanaged(*hy.closure.Runnable(anyopaque));
@@ -128,6 +125,8 @@ pub fn shutdown(self: *Input) void {
         group.arena.deinit();
     }
     self.groups.deinit(self.allocator);
+    self.triggers.deinit(self.allocator);
+    self.events.deinit(self.allocator);
 }
 
 pub fn reset(self: *Input) void {
@@ -136,14 +135,6 @@ pub fn reset(self: *Input) void {
         group.arena.deinit();
         self.groups.remove(it.handle());
     }
-}
-
-pub fn bindPoll(self: *Input, group: u32, code: Keycode) !void {
-    try self.triggers.append(self.allocator, .{
-        .group = group,
-        .fire_on = .down,
-        .code = code,
-    });
 }
 
 pub fn createGroup(self: *Input) Group.Handle {
@@ -238,8 +229,10 @@ pub fn updateKeyboard(self: *Input, event: sdl.events.Event) void {
             );
 
             for (self.triggers.items) |trigger| {
-                if (trigger.button == key) {
-                    std.debug.print("key hit\n", .{});
+                if (trigger.button == key and trigger.on.down) {
+                    self.events.append(self.allocator, trigger.id) catch |err| {
+                        std.log.err("append input event failure: {}", .{err});
+                    };
                 }
             }
         },
@@ -255,6 +248,14 @@ pub fn updateKeyboard(self: *Input, event: sdl.events.Event) void {
                 .up,
                 event,
             );
+
+            for (self.triggers.items) |trigger| {
+                if (trigger.button == key and trigger.on.up) {
+                    self.events.append(self.allocator, trigger.id) catch |err| {
+                        std.log.err("append input event failure: {}", .{err});
+                    };
+                }
+            }
         },
 
         else => {},
@@ -331,4 +332,22 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
         },
         else => {},
     }
+}
+
+pub fn bindPoll(self: *Input, id: u32, on: hy.Input.OnFlags, code: Keycode) !void {
+    try self.triggers.append(self.allocator, .{
+        .id = id,
+        .on = on,
+        .button = code,
+    });
+}
+
+pub fn eventPump(self: *Input) ![]const u32 {
+    const events = try self.events.toOwnedSlice(self.allocator);
+    self.events = .empty;
+    return events;
+}
+
+pub fn eventClear(self: *Input, events: []const u32) void {
+    self.allocator.free(events);
 }
