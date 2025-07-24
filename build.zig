@@ -29,6 +29,7 @@ pub fn build(b: *std.Build) !void {
     b.modules.put(b.dupe("clay"), rt.module("clay")) catch @panic("OOM");
 
     b.installArtifact(rt.artifact("rt"));
+    b.installArtifact(rt.artifact("runner"));
 
     const wf = b.addNamedWriteFiles("bin_files");
     _ = wf.addCopyDirectory(rt.namedWriteFiles("bin_files").getDirectory(), "", .{});

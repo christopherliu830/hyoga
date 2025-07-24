@@ -28,7 +28,7 @@ pub const InputFlags = packed struct(u8) {
     _padding: u5 = 0,
 
     comptime {
-        hy.meta.assertMatches(InputFlags, rt.Input.OnFlags);
+        hy.meta.assertMatches(InputFlags, rt.input.OnFlags);
     }
 };
 
@@ -37,7 +37,7 @@ pub const Device = enum(u8) {
     keyboard,
 
     comptime {
-        hy.meta.assertMatches(Device, rt.Input.Device);
+        hy.meta.assertMatches(Device, rt.input.Device);
     }
 };
 
@@ -47,14 +47,14 @@ pub const BindOptions = extern struct {
     fire_on: InputFlags,
 
     comptime {
-        hy.meta.assertMatches(BindOptions, rt.Input.BindOptions);
+        hy.meta.assertMatches(BindOptions, rt.input.BindOptions);
     }
 };
 
 pub const Trigger = struct {
     id: u32,
-    on: hy.Input.OnFlags,
-    code: union (enum) {
+    on: hy.input.OnFlags,
+    code: union(enum) {
         button: Keycode,
         mouse: MouseButton,
     },
@@ -337,7 +337,6 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
                     };
                 }
             }
-
         },
 
         .mouse_wheel => {
@@ -354,7 +353,7 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
     }
 }
 
-pub fn bindPoll(self: *Input, id: u32, on: hy.Input.OnFlags, code: Keycode) !void {
+pub fn bindPoll(self: *Input, id: u32, on: hy.input.OnFlags, code: Keycode) !void {
     try self.triggers.append(self.allocator, .{
         .id = id,
         .on = on,
@@ -362,11 +361,11 @@ pub fn bindPoll(self: *Input, id: u32, on: hy.Input.OnFlags, code: Keycode) !voi
     });
 }
 
-pub fn bindPollMouse(self: *Input, id: u32, on: hy.Input.OnFlags, code: MouseButton) !void {
+pub fn bindPollMouse(self: *Input, id: u32, on: hy.input.OnFlags, code: MouseButton) !void {
     try self.triggers.append(self.allocator, .{
         .id = id,
         .on = on,
-        .code = .{ .mouse  = code },
+        .code = .{ .mouse = code },
     });
 }
 

@@ -26,7 +26,7 @@ pub const GlobalState = extern struct {
     clay_measure_text_fn: ?*const anyopaque,
 
     comptime {
-        hy.meta.assertMatches(GlobalState, hy.runtime.UI.State);
+        hy.meta.assertMatches(GlobalState, hy.runtime.ui.State);
     }
 };
 
@@ -70,7 +70,7 @@ pub const InputState = extern struct {
     mouse_position: hym.Vec2,
 
     comptime {
-        hy.meta.assertMatches(InputState, hy.runtime.UI.InputState);
+        hy.meta.assertMatches(InputState, hy.runtime.ui.InputState);
     }
 };
 
@@ -90,7 +90,6 @@ pub fn useState(self: *UI) void {
 }
 
 pub fn getGlobalState(self: *UI) GlobalState {
-    std.debug.print("{}\n", .{self});
     return .{
         .imgui_ctx = null,
         .alloc_fn = null,

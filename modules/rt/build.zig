@@ -33,6 +33,15 @@ pub fn build(b: *std.Build) !void {
         }),
     });
 
+    const runner = b.addExecutable(.{
+        .name = "runner",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .root_source_file = b.path("src/main.zig"),
+        }),
+    });
+
     const hylib = b.dependency("hyoga_lib", .{
         .target = target,
         .optimize = optimize,
@@ -91,10 +100,24 @@ pub fn build(b: *std.Build) !void {
     rt.root_module.addImport("clay", zclay.module("clay"));
     rt.root_module.addImport("build_options", options_module);
 
+    runner.root_module.addImport("box2d", box2d.artifact("box2d").root_module);
+    runner.root_module.addImport("assimp", assimp.module("root"));
+    runner.root_module.addImport("hyoga-lib", hylib.module("hyoga-lib"));
+    runner.root_module.addImport("sdl", sdl.module("sdl"));
+    runner.root_module.addImport("sdl_shadercross", sdl.module("sdl_shadercross"));
+    runner.root_module.addImport("sdl_mixer", sdl_mixer.module("sdl_mixer"));
+    runner.root_module.addImport("sdl_ttf", sdl_ttf.module("sdl_ttf"));
+    runner.root_module.addImport("imgui", imgui.module("imgui"));
+    runner.root_module.addImport("stb_image", stb_image.module("stb_image"));
+    runner.root_module.addImport("clay", zclay.module("clay"));
+    runner.root_module.addImport("build_options", options_module);
+
     b.modules.put(b.dupe("imgui"), imgui.module("imgui")) catch @panic("OOM");
     b.modules.put(b.dupe("clay"), zclay.module("clay")) catch @panic("OOM");
 
     b.installArtifact(rt);
+
+    b.installArtifact(runner);
 
     const wf = b.addNamedWriteFiles("bin_files");
     _ = wf.addCopyDirectory(assimp.namedWriteFiles("dlls").getDirectory(), ".", .{});

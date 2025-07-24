@@ -3,6 +3,8 @@ const hy = @import("../root.zig");
 const hym = hy.math;
 const closure = @import("../closure.zig");
 
+const proc = &@import("proc_table.zig").table;
+
 pub const Transform = extern struct {
     p: hym.Vec2 = .zero,
     q: hym.Vec2 = .zero,
@@ -71,29 +73,48 @@ pub const Body = enum(u64) {
         user_data: ?*anyopaque = null,
     };
 
-    pub const velocity = hyp2BodyGetVelocity;
-    pub const userData = hyp2BodyUserData;
-    pub const setVelocity = hyp2BodySetVelocity;
-    pub const destroy = hyp2BodyDestroy;
-    pub const position = hyp2BodyRealPosition;
-    pub const positionSet = hyp2BodyPositionSet;
-    pub const getType = hyp2BodyGetType;
-    pub const setType = hyp2BodySetType;
+    pub fn destroy(body: Body) void {
+        return proc.hy_p2_bodyDestroy(body);
+    }
 
-    extern fn hyp2BodyGetType(Body) Type;
-    extern fn hyp2BodySetType(Body, Type) void;
-    extern fn hyp2BodyGetVelocity(Body) hym.Vec2;
-    extern fn hyp2BodySetVelocity(Body, hym.Vec2) void;
-    extern fn hyp2BodyUserData(Body) ?*anyopaque;
-    extern fn hyp2BodyDestroy(Body) void;
-    extern fn hyp2BodyRealPosition(Body) hym.Vec2;
-    extern fn hyp2BodyPositionSet(body: hy.phys2.Body, pos: hy.math.Vec2) void;
+    pub fn velocity(body: Body) hym.Vec2 {
+        return proc.hy_p2_bodyVelocity(body);
+    }
+
+    pub fn velocitySet(body: Body, v: hym.Vec2) void {
+        return proc.hy_p2_bodyVelocitySet(body, v);
+    }
+
+    pub fn bodyType(body: Body) Type {
+        return proc.hy_p2_bodyType(body);
+    }
+
+    pub fn bodyTypeSet(body: Body, body_type: Type) void {
+        return proc.hy_p2_bodyTypeSet(body, body_type);
+    }
+
+    pub fn position(body: Body) hym.Vec2 {
+        return proc.hy_p2_bodyPositionReal(body);
+    }
+
+    pub fn positionSet(body: Body, pos: hym.Vec2) void {
+        return proc.hy_p2_bodyPositionSet(body, pos);
+    }
+
+    pub fn userData(body: Body) ?*anyopaque {
+        return proc.hy_p2_bodyUserData(body);
+    }
 };
 
 pub const Shape = packed struct(u64) {
-    _padding: u64,
-    pub const body = hyp2ShapeBody;
-    pub const extra = hyp2ShapeExtra;
+    _reserved: u64,
+
+    pub fn body(shape: Shape) Body {
+        return proc.hy_p2_shapeBody(shape);
+    }
+    pub fn extra(shape: Shape) ShapeExtra {
+        return proc.hy_p2_shapeExtra(shape);
+    }
 };
 
 pub const ShapeType = enum(u32) {
@@ -147,35 +168,40 @@ pub const CastCircleOptions = extern struct {
 
 pub const OverlapCallback = *const fn (Body, ?*anyopaque) callconv(.c) bool;
 
-pub const Phys2 = struct {
-    pub const bodyAdd = hyp2BodyAdd;
-    pub const bodyPosition = hyp2BodyGetPosition;
-    pub const eventsReset = hyp2EventsReset;
-    pub const hitEventRegister = hyp2HitEventRegister;
-    pub const hitEventDeregister = hyp2HitEventDeregister;
-    pub const hitEventDeregisterAll = hyp2HitEventDeregisterAll;
-
-    pub fn overlapLeaky(phys2: *Phys2, arena: std.mem.Allocator, shape: ShapeOptions, origin: hym.Vec2) []Shape {
-        return hyp2OverlapLeaky(phys2, .of(arena), shape, origin).asSlice();
+pub const World = struct {
+    pub fn bodyAdd(world: *World, opts: Body.AddOptions) Body {
+        return proc.hy_p2_bodyAdd(world, opts);
     }
 
-    pub fn raycastLeaky(phys2: *Phys2, arena: std.mem.Allocator, opts: RaycastOptions) []RaycastHit {
-        return hyp2RaycastLeaky(phys2, .of(arena), opts).asSlice();
+    pub fn bodyPosition(world: *World, body: Body) hym.Vec2 {
+        return proc.hy_p2_bodyPosition(world, body);
     }
 
-    pub fn castCircleLeaky(phys2: *Phys2, arena: std.mem.Allocator, opts: CastCircleOptions) []RaycastHit {
-        return hyp2CastCircleLeaky(phys2, .of(arena), opts).asSlice();
+    pub fn eventReset(world: *World) void {
+        return proc.hy_p2_eventReset(world);
+    }
+
+    pub fn eventRegister(world: *World, body: Body, cb: *closure.Runnable(HitEvent)) void {
+        proc.hy_p2_eventRegister(world, body, cb);
+    }
+
+    pub fn eventDeregister(world: *World, body: Body, cb: *closure.Runnable(HitEvent)) void {
+        proc.hy_p2_eventDeregister(world, body, cb);
+    }
+
+    pub fn eventDeregisterAll(world: *World, body: Body) void {
+        proc.hy_p2_eventDeregisterAll(world, body);
+    }
+
+    pub fn overlapLeaky(phys2: *World, arena: std.mem.Allocator, shape: ShapeOptions, origin: hym.Vec2) []Shape {
+        return proc.hy_p2_overlapLeaky(phys2, .of(arena), shape, origin).asSlice();
+    }
+
+    pub fn raycastLeaky(phys2: *World, arena: std.mem.Allocator, opts: RaycastOptions) []RaycastHit {
+        return proc.hy_p2_castRayLeaky(phys2, .of(arena), opts).asSlice();
+    }
+
+    pub fn castCircleLeaky(phys2: *World, arena: std.mem.Allocator, opts: CastCircleOptions) []RaycastHit {
+        return proc.hy_p2_castCircleLeaky(phys2, .of(arena), opts).asSlice();
     }
 };
-
-extern fn hyp2BodyAdd(*Phys2, Body.AddOptions) Body;
-extern fn hyp2BodyGetPosition(*Phys2, Body) hym.Vec2;
-extern fn hyp2ShapeExtra(Shape) ShapeExtra;
-extern fn hyp2EventsReset(*Phys2) void;
-extern fn hyp2HitEventRegister(*Phys2, Body, *closure.Runnable(HitEvent)) void;
-extern fn hyp2HitEventDeregister(*Phys2, Body, *closure.Runnable(HitEvent)) void;
-extern fn hyp2HitEventDeregisterAll(*Phys2, Body) void;
-extern fn hyp2OverlapLeaky(phys2: *Phys2, arena: hy.ExternAllocator, shape: ShapeOptions, hym.Vec2) hy.ExternSlice(Shape);
-extern fn hyp2RaycastLeaky(phys2: *Phys2, arena: hy.ExternAllocator, opts: RaycastOptions) hy.ExternSlice(RaycastHit);
-extern fn hyp2CastCircleLeaky(phys2: *Phys2, arena: hy.ExternAllocator, opts: CastCircleOptions) hy.ExternSlice(RaycastHit);
-extern fn hyp2ShapeBody(Shape) Body;

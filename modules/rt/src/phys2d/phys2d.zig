@@ -27,7 +27,7 @@ pub const HitEvent = extern struct {
     point: hym.Vec2,
 
     comptime {
-        hy.meta.assertMatches(HitEvent, hy.phys2.HitEvent);
+        hy.meta.assertMatches(HitEvent, hy.p2.HitEvent);
     }
 };
 
@@ -35,7 +35,7 @@ comptime {
     hym.assertMetaEql(hym.Vec2, b2.Vec2);
 }
 
-const CallbackSet = std.AutoArrayHashMapUnmanaged(*hy.closure.Runnable(anyopaque), void);
+const CallbackSet = std.AutoArrayHashMapUnmanaged(*hy.closure.Runnable(HitEvent), void);
 
 pub const RaycastHit = struct {
     shape: b2.Shape,
@@ -87,7 +87,7 @@ pub const AddShapeOptions = extern struct {
     filter: b2.Filter = .{},
 
     comptime {
-        hy.meta.assertMatches(AddShapeOptions, hy.phys2.Body.AddShapeOptions);
+        hy.meta.assertMatches(AddShapeOptions, hy.p2.Body.AddShapeOptions);
     }
 };
 
@@ -106,7 +106,7 @@ pub const ShapeConfig = hy.ExternTaggedUnion(union(enum) {
     },
 });
 
-pub const ShapeExtra = hy.phys2.ShapeExtra;
+pub const ShapeExtra = hy.p2.ShapeExtra;
 
 pub const BodyAddOptions = extern struct {
     type: b2.Body.Type,
@@ -117,7 +117,7 @@ pub const BodyAddOptions = extern struct {
     user_data: ?*anyopaque = null,
 
     comptime {
-        hy.meta.assertMatches(BodyAddOptions, hy.phys2.Body.AddOptions);
+        hy.meta.assertMatches(BodyAddOptions, hy.p2.Body.AddOptions);
     }
 };
 
@@ -174,7 +174,7 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
 pub fn hitEventRegister(
     self: *Phys2,
     body: Body,
-    cb: *hy.closure.Runnable(anyopaque),
+    cb: *hy.closure.Runnable(HitEvent),
 ) void {
     const result = self.hit_callbacks.getOrPut(self.allocator, body) catch hy.err.oom();
     if (!result.found_existing) {
@@ -187,7 +187,7 @@ pub fn hitEventRegister(
 pub fn hitEventDeregister(
     self: *Phys2,
     body: Body,
-    cb: *hy.closure.Runnable(anyopaque),
+    cb: *hy.closure.Runnable(HitEvent),
 ) void {
     var cbs = self.hit_callbacks.get(body);
     if (cbs == null) {
@@ -344,7 +344,7 @@ pub const RaycastOptions = extern struct {
     };
 
     comptime {
-        hy.meta.assertMatches(@This(), hy.phys2.RaycastOptions);
+        hy.meta.assertMatches(@This(), hy.p2.RaycastOptions);
     }
 };
 
@@ -388,14 +388,14 @@ pub fn raycastLeaky(
 }
 
 pub const CastCircleOptions = extern struct {
-    circle: hy.phys2.Circle,
+    circle: hy.p2.Circle,
     direction: hym.Vec2,
     category: u64 = 1,
     mask: u64 = std.math.maxInt(u64),
     collection_type: RaycastOptions.CollectionType,
 
     comptime {
-        hy.meta.assertMatches(@This(), hy.phys2.CastCircleOptions);
+        hy.meta.assertMatches(@This(), hy.p2.CastCircleOptions);
     }
 };
 

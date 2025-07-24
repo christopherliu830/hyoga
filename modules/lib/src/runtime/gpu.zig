@@ -4,6 +4,9 @@ const std = @import("std");
 const hy = @import("../root.zig");
 const rt = @import("../runtime.zig");
 
+const proc_table = @import("proc_table.zig");
+const proc = &proc_table.table;
+
 const hym = @import("../math/math.zig");
 const mat4 = hym.mat4;
 
@@ -36,10 +39,10 @@ pub const PassHandle = enum(u64) {
 
 pub const Renderable = extern struct {
     pass: PassType,
-    index: enum(u64) {
+    index: enum (u64) {
         none = 0,
         _,
-    },
+    } align(4),
 
     pub const none: Renderable = .{
         .pass = .default,
@@ -203,79 +206,115 @@ pub const Sprite = extern struct {
 };
 
 pub const Gpu = opaque {
-    pub const materialDefaultCreate = hy_gfx_materialDefaultCreate;
-    pub const materialCreate = hy_gfx_materialCreate;
-
-    pub fn materialLoad(gpu: *Gpu, path: [:0]const u8) MaterialHandle {
-        return hy_gfx_materialLoad(gpu, .from(path));
+    pub fn clearColorSet(gpu: *Gpu, color: hym.Vec4) void {
+        proc.hy_gfx_clearColorSet(gpu, color);
     }
 
-    pub const materialReload = hy_gfx_materialReload;
-    pub const materialDestroy = hy_gfx_materialDestroy;
+    pub fn modelImport(gpu: *Gpu, path: []const u8, settings: ImportSettings) Model {
+        return proc.hy_gfx_modelImport(gpu, .from(path), settings);
+    }
 
-    pub const modelImport = hy_gfx_importModel;
-    pub const modelDestroy = hy_gfx_modelDestroy;
-    pub const modelBounds = hy_gfx_modelBounds;
-    pub const modelCreate = hy_gfx_modelCreate;
-    pub const modelDupe = hy_gfx_modelDupe;
-    pub const modelPrimitive = hy_gfx_modelPrimitive;
-    pub const modelWaitLoad = hy_gfx_modelWaitLoad;
-    pub const renderableAdd = hy_gfx_renderableAdd;
-    pub const renderableRemove = hy_gfx_renderableDestroy;
-    pub const renderableSetTransform = hy_gfx_renderableSetTransform;
-    pub const renderableOfSprite = hy_gfx_renderableOfSprite;
-    pub const spriteCreate = hy_gfx_spriteCreate;
-    pub const spriteDestroy = hy_gfx_spriteDestroy;
-    pub const spriteWeakPtr = hy_gfx_spriteWeakPtr;
-    pub const spriteRenderableWeakPtr = hy_gfx_spriteRenderableWeakPtr;
-    pub const spriteCurrentAnimationFrame = hy_gfx_spriteCurrentAnimationFrame;
-    pub const spriteDupe = hy_gfx_spriteDupe;
+    pub fn modelCreate(gpu: *Gpu, opts: ModelCreateOptions) Model {
+        return proc.hy_gfx_modelCreate(gpu, opts);
+    }
+
+    pub fn modelDestroy(gpu: *Gpu, model: Model) void {
+        proc.hy_gfx_modelDestroy(gpu, model);
+    }
+
+    pub fn modelBounds(gpu: *Gpu, model: Model) hym.AxisAligned {
+        return proc.hy_gfx_modelBounds(gpu, model);
+    }
+
+    pub fn modelDupe(gpu: *Gpu, model: Model, opts: ModelDupeOptions) Model {
+        return proc.hy_gfx_modelDupe(gpu, model, opts);
+    }
+
+    pub fn modelPrimitive(gpu: *Gpu, shape: PrimitiveShape) Model {
+        return proc.hy_gfx_modelPrimitive(gpu, shape);
+    }
+
+    pub fn modelWaitLoad(gpu: *Gpu, model: Model, max: u64) bool {
+        return proc.hy_gfx_modelWaitLoad(gpu, model, max);
+    }
+
+    pub fn materialLoad(gpu: *Gpu, path: []const u8) MaterialHandle {
+        return proc.hy_gfx_materialLoad(gpu, .from(path));
+    }
+
+    pub fn materialReload(gpu: *Gpu, hdl: MaterialHandle) void {
+        proc.hy_gfx_materialReload(gpu, hdl);
+    }
+
+    pub fn materialCreate(gpu: *Gpu, @"type": MaterialType, tx_set: *const TextureArray) MaterialHandle {
+        return proc.hy_gfx_materialCreate(gpu, @"type", tx_set);
+    }
+
+    pub fn materialDestroy(gpu: *Gpu, hdl: MaterialHandle) void {
+        proc.hy_gfx_materialDestroy(gpu, hdl);
+    }
+
+    pub fn renderableAdd(gpu: *Gpu, opts: AddRenderableOptions) Renderable {
+        return proc.hy_gfx_renderableAdd(gpu, opts);
+    }
+
+    pub fn renderableRemove(gpu: *Gpu, hdl: Renderable) void {
+        return proc.hy_gfx_renderableRemove(gpu, hdl);
+    }
+
+    pub fn renderableTransformSet(gpu: *Gpu, hdl: Renderable, transform: hym.Mat4) void {
+        return proc.hy_gfx_renderableTransformSet(gpu, hdl, transform);
+    }
+
+    pub fn spriteMakeRenderable(gpu: *Gpu, hdl: Sprite.Handle) Renderable {
+        return proc.hy_gfx_spriteMakeRenderable(gpu, hdl);
+    }
+
+    pub fn spriteCreate(gpu: *Gpu, opts: SpriteCreateOptions) Sprite.Handle {
+        return proc.hy_gfx_spriteCreate(gpu, opts);
+    }
+
+    pub fn spriteDestroy(gpu: *Gpu, hdl: Sprite.Handle) void {
+        proc.hy_gfx_spriteDestroy(gpu, hdl);
+    }
+
+    pub fn spriteWeakPtr(gpu: *Gpu, hdl: Sprite.Handle) ?*Sprite {
+        return proc.hy_gfx_spriteWeakPtr(gpu, hdl);
+    }
+
+    pub fn spriteRenderableWeakPtr(gpu: *Gpu, hdl: Renderable) ?*Sprite {
+        return proc.hy_gfx_spriteRenderableWeakPtr(gpu, hdl);
+    }
+
+    pub fn spriteCurrentAnimationFrame(gpu: *Gpu, hdl: *Sprite) u32 {
+        return proc.hy_gfx_spriteCurrentAnimationFrame(gpu, hdl);
+    }
+
+    pub fn spriteDupe(gpu: *Gpu, hdl: Sprite.Handle) Sprite.Handle {
+        return proc.hy_gfx_spriteDupe(gpu, hdl);
+    }
 
     pub fn textureImport(gpu: *Gpu, path: []const u8) TextureHandle {
-        return hy_gfx_textureImport(gpu, .from(path));
+        return proc.hy_gfx_textureImport(gpu, .from(path));
     }
 
-    pub const clearColorSet = hy_gfx_clearColorSet;
+    pub fn passCreate(gpu: *Gpu, opts: PassCreateOptions) PassHandle {
+        return proc.hy_gfx_passCreate(gpu, opts);
+    }
 
-    pub const passCreate = hy_gfx_passCreate;
-    pub const passDestroy = hy_gfx_passDestroy;
-    pub const passAdd = hy_gfx_passAdd;
-    pub const passClear = hy_gfx_passClear;
+    pub fn passDestroy(gpu: *Gpu, hdl: PassHandle) void {
+        return proc.hy_gfx_passDestroy(gpu, hdl);
+    }
 
-    pub fn immediateDraw(gpu: *Gpu, verts: []const UIVertex, indices: []const u32, transform: hym.Mat4, mat_hdl: MaterialHandle) void {
-        hy_gfx_immediateDraw(gpu, .from(verts), .from(indices), transform, mat_hdl);
+    pub fn passAdd(gpu: *Gpu, opts: PassAddOptions) Renderable {
+        return proc.hy_gfx_passAdd(gpu, opts);
+    }
+
+    pub fn passClear(gpu: *Gpu, hdl: PassHandle) void {
+        proc.hy_gfx_passClear(gpu, hdl);
+    }
+
+    pub fn immediateDraw(gpu: *Gpu, verts: []const UIVertex, idxs: []const u8, transform: hym.Mat4, material_hdl: MaterialHandle) void {
+        proc.hy_gfx_immediateDraw(gpu, .from(verts), .from(idxs), transform, material_hdl);
     }
 };
-
-extern fn hy_gfx_clearColorSet(*Gpu, hym.Vec4) void;
-extern fn hy_gfx_importModel(*Gpu, [*:0]const u8, ImportSettings) Model;
-extern fn hy_gfx_materialDefaultCreate(*Gpu) MaterialHandle;
-extern fn hy_gfx_materialLoad(*Gpu, hy.ExternSliceConst(u8)) MaterialHandle;
-extern fn hy_gfx_materialReload(*Gpu, MaterialHandle) void;
-extern fn hy_gfx_materialCreate(*Gpu, MaterialType, *const TextureArray) MaterialHandle;
-extern fn hy_gfx_materialDestroy(*Gpu, MaterialHandle) void;
-extern fn hy_gfx_modelBounds(*Gpu, Model) hym.AxisAligned;
-extern fn hy_gfx_modelCreate(*Gpu, ModelCreateOptions) Model;
-extern fn hy_gfx_modelDupe(*Gpu, Model, ModelDupeOptions) Model;
-extern fn hy_gfx_modelDestroy(*Gpu, Model) void;
-extern fn hy_gfx_modelPrimitive(*Gpu, PrimitiveShape) Model;
-extern fn hy_gfx_modelWaitLoad(*Gpu, Model, u64) bool;
-extern fn hy_gfx_renderableAdd(*Gpu, AddRenderableOptions) Renderable;
-extern fn hy_gfx_renderableDestroy(*Gpu, Renderable) void;
-extern fn hy_gfx_selectRenderable(*Gpu, Renderable) void;
-extern fn hy_gfx_deselectRenderable(*Gpu, Renderable) void;
-extern fn hy_gfx_renderableSetTransform(*Gpu, Renderable, hym.Mat4) void;
-extern fn hy_gfx_renderableOfSprite(*Gpu, Sprite.Handle) Renderable;
-extern fn hy_gfx_spriteCreate(*Gpu, SpriteCreateOptions) Sprite.Handle;
-extern fn hy_gfx_spriteDestroy(*Gpu, Sprite.Handle) void;
-extern fn hy_gfx_spriteWeakPtr(*Gpu, Sprite.Handle) ?*Sprite;
-extern fn hy_gfx_spriteRenderableWeakPtr(*Gpu, Renderable) ?*Sprite;
-extern fn hy_gfx_spriteCurrentAnimationFrame(*Gpu, *Sprite) u32;
-extern fn hy_gfx_spriteDupe(*Gpu, Sprite.Handle) Sprite.Handle;
-extern fn hy_gfx_textureImport(*Gpu, hy.ExternSliceConst(u8)) TextureHandle;
-extern fn hy_gfx_passCreate(*Gpu, PassCreateOptions) PassHandle;
-extern fn hy_gfx_passDestroy(*Gpu, PassHandle) void;
-extern fn hy_gfx_passAdd(*Gpu, PassAddOptions) Renderable;
-extern fn hy_gfx_passClear(*Gpu, PassHandle) void;
-extern fn hy_gfx_immediateDraw(gpu: *Gpu, verts: hy.ExternSliceConst(UIVertex), indices: hy.ExternSliceConst(u32), transform: hym.Mat4, hdl: MaterialHandle) void;
-extern fn hy_gfx_clearSelection(*Gpu) void;

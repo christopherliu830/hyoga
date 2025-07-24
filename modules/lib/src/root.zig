@@ -17,7 +17,8 @@ pub const skip_map = @import("skip_map.zig");
 pub const circle_queue = @import("circle_queue.zig");
 
 pub const gfx = runtime.gfx;
-pub const phys2 = runtime.phys2;
+pub const p2 = runtime.p2;
+pub const input = runtime.input;
 
 pub const ArrayGroup = array_group.ArrayGroup;
 pub const CircleQueue = circle_queue.CircleQueue;

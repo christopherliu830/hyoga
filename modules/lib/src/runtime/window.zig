@@ -1,11 +1,19 @@
-pub const math = @import("../math/math.zig");
+pub const hym = @import("../math/math.zig");
 
-pub const Window = extern struct {
-    pub const setRelativeMouseMode = hywSetRelativeMouseMode;
-    pub const dimensions = hywDimensions;
-    pub const projectionMatrix = hywProjectionMatrix;
+const proc_table = @import("proc_table.zig");
+const proc = &proc_table.table;
+
+pub const Window = opaque {
+    pub fn relativeMouseMode(window: *Window, toggle: bool) void {
+        return proc.hy_win_relativeMouseMode(window, toggle);
+    }
+
+    pub fn dimensions(window: *Window) hym.Vec2 {
+        return proc.hy_win_dimensions(window);
+    }
+
+    pub fn projectionMatrix(window: *Window) hym.Mat4 {
+        return proc.hy_win_projectionMatrix(window);
+    }
 };
 
-extern fn hywSetRelativeMouseMode(window: *Window, on_off: bool) void;
-extern fn hywDimensions(window: *Window) math.Vec2;
-extern fn hywProjectionMatrix(window: *Window) math.Mat4;

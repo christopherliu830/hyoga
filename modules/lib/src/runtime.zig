@@ -7,20 +7,24 @@ const hy = @import("root.zig");
 pub const input = @import("runtime/input.zig");
 pub const aud = @import("runtime/audio.zig");
 pub const gfx = @import("runtime/gpu.zig");
-pub const phys2 = @import("runtime/phys2.zig");
+pub const p2 = @import("runtime/phys2.zig");
 pub const strint = @import("runtime/strint.zig");
 pub const ui = @import("runtime/ui.zig");
 pub const w = @import("runtime/window.zig");
 
-pub const Input = input.Input;
+pub const Input = input.Context;
 pub const Gpu = gfx.Gpu;
 pub const Audio = aud;
-pub const Phys2 = phys2.Phys2;
+pub const Phys2 = p2.World;
 pub const Strint = strint;
 pub const Window = w.Window;
 pub const UI = ui.UI;
+pub const ProcTable = proc_table.ProcTable;
 
+const runtime = @This();
 const math = @import("math/math.zig");
+const proc_table = @import("runtime/proc_table.zig");
+const proc = &proc_table.table;
 const key = @import("key.zig");
 const closure = @import("closure.zig");
 
@@ -48,6 +52,7 @@ pub const IndexHandle = enum(u32) {
 
 pub const GameInterface = extern struct {
     init: *const fn (*Engine) callconv(.c) World,
+    procs: *const fn (proc_table.ProcTable) callconv(.c) void,
     shutdown: *const fn (*Engine, World) callconv(.c) void,
     update: *const fn (*Engine, World) callconv(.c) World,
     render: *const fn (*Engine, World) callconv(.c) void,
@@ -56,26 +61,31 @@ pub const GameInterface = extern struct {
 };
 
 pub const Engine = opaque {
-    pub const shutdown = hyeShutdown;
-    pub const update = hyeUpdate;
-    pub const gameAllocator = hyeGameAllocator;
-    pub const gpu = hyeGpu;
-    pub const phys2 = hyePhys2;
-    pub const input = hyeInput;
-    pub const strint = hyeStrint;
-    pub const ui = hyeUI;
-    pub const window = hyeWindow;
+    pub fn gameAllocator(engine: *Engine) std.mem.Allocator {
+        return proc.hy_engine_gameAllocator(engine).allocator();
+    }
+
+    pub fn gpu(engine: *Engine) *gfx.Gpu {
+        return proc.hy_engine_gpu(engine);
+    }
+
+    pub fn p2(engine: *Engine) *runtime.p2.World {
+        return proc.hy_engine_phys2(engine);
+    }
+
+    pub fn input(engine: *Engine) *Input {
+        return proc.hy_engine_input(engine);
+    }
+
+    pub fn window(engine: *Engine) *Window {
+        return proc.hy_engine_window(engine);
+    }
+
+    pub fn ui(engine: *Engine) *runtime.ui.UI {
+        return proc.hy_engine_ui(engine);
+    }
 };
 
-pub const init = hyInit;
-
-extern fn hyInit() *Engine;
-extern fn hyeShutdown(*Engine) void;
-extern fn hyeUpdate(*Engine, World, GameInterface) World;
-extern fn hyeGameAllocator(*Engine) hy.ExternAllocator;
-extern fn hyeGpu(*Engine) *gfx.Gpu;
-extern fn hyePhys2(*Engine) *phys2.Phys2;
-extern fn hyeInput(*Engine) *input.Input;
-extern fn hyeStrint(*Engine) *Strint;
-extern fn hyeWindow(*Engine) *Window;
-extern fn hyeUI(*Engine) *ui.UI;
+pub fn init(table: proc_table.ProcTable) void {
+    proc_table.load(table);
+}
