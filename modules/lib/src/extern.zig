@@ -57,9 +57,9 @@ pub fn ExternSlice(T: type) type {
 }
 
 pub const ExternVTable = extern struct {
-    alloc: *const fn (ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) callconv(.C) ?[*]u8,
-    resize: *const fn (ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_addr: usize) callconv(.C) bool,
-    free: *const fn (ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) callconv(.C) void,
+    alloc: *const fn (ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) callconv(.c) ?[*]u8,
+    resize: *const fn (ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_addr: usize) callconv(.c) bool,
+    free: *const fn (ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) callconv(.c) void,
 };
 
 pub fn ExternTaggedUnion(Base: type) type {

@@ -7,11 +7,16 @@ pub fn build(b: *Build) void {
 
     const box2d_dep = b.dependency("box2d", .{});
 
-    const lib = b.addStaticLibrary(.{
-        .name = "box2d",
+    const module = b.createModule(.{
         .target = target,
         .optimize = optimize,
         .root_source_file = b.path("src/box2d.zig"),
+    });
+
+    const lib = b.addLibrary(.{
+        .linkage = .static,
+        .name = "box2d",
+        .root_module = module,
     });
 
     lib.linkLibC();

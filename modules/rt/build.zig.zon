@@ -1,5 +1,6 @@
 .{
     .name = .hyoga_rt,
+    .fingerprint = 0x6377b0f79555f86d,
     .version = "0.0.0",
     .dependencies = .{
         .box2d = .{ .path = "../box2d" },
@@ -9,9 +10,7 @@
         .sdl_ttf = .{ .path = "../sdl_ttf" },
         .assimp = .{ .path = "../assimp" },
         .stb_image = .{ .path = "../stb_image" },
-        .ztracy = .{ .path = "../ztracy" },
         .hyoga_lib = .{ .path = "../lib" },
-
         .zclay = .{ .path = "../clay" },
     },
     .paths = .{""},

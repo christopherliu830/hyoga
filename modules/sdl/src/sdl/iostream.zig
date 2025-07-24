@@ -17,8 +17,8 @@ pub const Whence = enum(c_int) {
 
 pub const Interface = extern struct {
     version: u32,
-    size: ?*const fn (userdata: ?*anyopaque) callconv(.C) i64,
-    seek: ?*const fn (userdata: ?*anyopaque, offset: i64, whence: Whence) callconv(.C) i64,
+    size: ?*const fn (userdata: ?*anyopaque) callconv(.c) i64,
+    seek: ?*const fn (userdata: ?*anyopaque, offset: i64, whence: Whence) callconv(.c) i64,
 
     /// Read up to `size` bytes from the data stream to the area pointed
     /// at by `ptr`.
@@ -29,7 +29,7 @@ pub const Interface = extern struct {
     ///
     /// \return the number of bytes read
     ///
-    read: ?*const fn (userdata: ?*anyopaque, ptr: ?*anyopaque, size: usize, status: *Status) callconv(.C) usize,
+    read: ?*const fn (userdata: ?*anyopaque, ptr: ?*anyopaque, size: usize, status: *Status) callconv(.c) usize,
 
     /// Write exactly `size` bytes from the area pointed at by `ptr`
     /// to data stream.
@@ -40,7 +40,7 @@ pub const Interface = extern struct {
     ///
     /// \return the number of bytes written
     ///
-    write: ?*const fn (userdata: ?*anyopaque, ptr: ?*const anyopaque, size: usize, status: *Status) callconv(.C) usize,
+    write: ?*const fn (userdata: ?*anyopaque, ptr: ?*const anyopaque, size: usize, status: *Status) callconv(.c) usize,
 
     /// If the stream is buffering, make sure the data is written out.
     ///
@@ -50,7 +50,7 @@ pub const Interface = extern struct {
     ///
     /// \return true if successful or false on write error when flushing data.
     ///
-    flush: ?*const fn (userdata: ?*anyopaque, *Status) callconv(.C) bool,
+    flush: ?*const fn (userdata: ?*anyopaque, *Status) callconv(.c) bool,
 
     /// Close and free any allocated resources.
     ///
@@ -62,7 +62,7 @@ pub const Interface = extern struct {
     ///
     /// \return true if successful or false on write error when flushing data.
     ///
-    close: ?*const fn (userdata: ?*anyopaque) callconv(.C) bool,
+    close: ?*const fn (userdata: ?*anyopaque) callconv(.c) bool,
 };
 
 pub const Stream = opaque {};

@@ -27,15 +27,15 @@ pub const InitInfo = struct {
 };
 
 pub fn getBackendData() ?*ImplData {
-    return if (imgui.GetCurrentContext() != null) @alignCast(@ptrCast(imgui.GetIO().?.BackendRendererUserData)) else null;
+    return if (imgui.GetCurrentContext() != null) @alignCast(@ptrCast(imgui.GetIO().?.backend_renderer_user_data)) else null;
 }
 
 pub fn init(info: *const InitInfo, allocator: std.mem.Allocator) !void {
     const io = imgui.GetIO().?;
-    std.debug.assert(io.BackendRendererUserData == null);
+    std.debug.assert(io.backend_renderer_user_data == null);
 
     const bd = try allocator.create(ImplData);
-    io.BackendRendererUserData = @ptrCast(bd);
+    io.backend_renderer_user_data = @ptrCast(bd);
 
     bd.* = .{
         .allocator = allocator,
@@ -46,17 +46,18 @@ pub fn init(info: *const InitInfo, allocator: std.mem.Allocator) !void {
         .sampler = createSampler(),
     };
 
-    io.BackendRendererName = "imgui_impl_sdlgpu";
-    io.BackendFlags |= imgui.BackendFlag.renderer_has_vtx_offset;
+    io.backend_renderer_name = "imgui_impl_sdlgpu";
+    io.backend_flags.renderer_has_vtx_offset = true;
+    io.backend_flags.renderer_has_textures = true;
 }
 
 pub fn shutdown() void {
     const bd = getBackendData().?;
     const io = imgui.GetIO().?;
 
-    io.BackendRendererUserData = null;
-    io.BackendRendererName = null;
-    io.BackendFlags &= ~(@as(c_int, imgui.BackendFlag.renderer_has_vtx_offset));
+    io.backend_renderer_user_data = null;
+    io.backend_renderer_name = null;
+    io.backend_flags = .none;
 
     bd.gpu.device.releaseSampler(bd.sampler);
     bd.gpu.device.releaseTexture(bd.font_texture);
@@ -176,10 +177,10 @@ pub fn createFontsTexture() !*sdl.gpu.Texture {
     const bd = getBackendData().?;
 
     // get texture data
-    var pixels: [*c]u8 = undefined;
+    var pixels: ?[*]u8 = null;
     var out_width: c_int = 0;
     var out_height: c_int = 0;
-    imgui.FontAtlas.GetTexDataAsRGBA32(io.Fonts, @ptrCast(&pixels), &out_width, &out_height, null);
+    imgui.FontAtlas.GetTexDataAsRGBA32(io.Fonts, @ptrCast(@alignCast(pixels)), &out_width, &out_height, null);
     const w: u32 = @intCast(out_width);
     const h: u32 = @intCast(out_height);
 
@@ -193,7 +194,7 @@ pub fn createFontsTexture() !*sdl.gpu.Texture {
         .num_levels = 1,
     }) catch panic("error creating texture", .{});
 
-    try bd.gpu.uploadToTexture(texture, w, h, pixels[0..@intCast(out_width * out_height * 4)]);
+    try bd.gpu.uploadToTexture(texture, w, h, pixels.?[0..@intCast(out_width * out_height * 4)]);
     return texture;
 }
 
@@ -235,6 +236,14 @@ pub fn renderDrawData(draw_data: *imgui.DrawData, cmd: *sdl.gpu.CommandBuffer) !
 
     if (fb_width <= 0 or fb_height <= 0) {
         return;
+    }
+
+    if (draw_data.textures) |textures| {
+        for (textures.data.?[0..textures.Size]) |texture| {
+            if (texture.status != .ok) {
+                updateTexture(texture);
+            }
+        }
     }
 
     if (draw_data.TotalVtxCount > 0) {
@@ -416,5 +425,30 @@ pub fn setupRenderState(cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.Rende
         render_pass.setViewport(&viewport);
 
         cmd.pushVertexUniformData(0, &proj, @sizeOf(@TypeOf(proj)));
+    }
+}
+
+fn updateTexture(tex: *imgui.TextureData) void {
+    if (tex.status == .want_create) {
+
+    var pixels: ?[*]u8 = null;
+    var out_width: c_int = 0;
+    var out_height: c_int = 0;
+    imgui.FontAtlas.GetTexDataAsRGBA32(io.Fonts, @ptrCast(@alignCast(pixels)), &out_width, &out_height, null);
+    const w: u32 = @intCast(out_width);
+    const h: u32 = @intCast(out_height);
+
+    const texture = bd.gpu.device.createTexture(&.{
+        .type = .@"2d",
+        .format = .r8g8b8a8_unorm,
+        .usage = .{ .sampler = true },
+        .width = w,
+        .height = h,
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
+    }) catch panic("error creating texture", .{});
+
+    try bd.gpu.uploadToTexture(texture, w, h, pixels.?[0..@intCast(out_width * out_height * 4)]);
+
     }
 }

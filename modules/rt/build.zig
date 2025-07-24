@@ -13,7 +13,6 @@ pub fn build(b: *std.Build) !void {
 
     const dxc = b.option(bool, "dxc", "enable HLSL support") orelse false;
     const backend = b.option(GpuDriver, "gpu_driver", "force backend graphics driver") orelse .none;
-    const enable_tracy = b.option(bool, "enable_tracy", "enable profiling with tracy") orelse false;
 
     if (backend == .direct3d12 and !dxc) {
         std.log.err("{} requires -Ddxc", .{backend});
@@ -24,11 +23,14 @@ pub fn build(b: *std.Build) !void {
     options_step.addOption(?[:0]const u8, "backend", if (backend == .none) null else @tagName(backend));
     const options_module = options_step.createModule();
 
-    const rt = b.addSharedLibrary(.{
+    const rt = b.addLibrary(.{
+        .linkage = .dynamic,
         .name = "rt",
-        .target = target,
-        .optimize = optimize,
-        .root_source_file = b.path("src/root.zig"),
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .root_source_file = b.path("src/root.zig"),
+        }),
     });
 
     const hylib = b.dependency("hyoga_lib", .{
@@ -72,21 +74,10 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    const ztracy = b.dependency("ztracy", .{
-        .target = target,
-        .optimize = optimize,
-        .enable_ztracy = enable_tracy,
-        .enable_fibers = true,
-    });
-
     const zclay = b.dependency("zclay", .{
         .target = target,
         .optimize = optimize,
     });
-
-    if (enable_tracy) {
-        rt.linkLibrary(ztracy.artifact("tracy"));
-    }
 
     rt.root_module.addImport("box2d", box2d.artifact("box2d").root_module);
     rt.root_module.addImport("assimp", assimp.module("root"));
@@ -96,15 +87,11 @@ pub fn build(b: *std.Build) !void {
     rt.root_module.addImport("sdl_mixer", sdl_mixer.module("sdl_mixer"));
     rt.root_module.addImport("sdl_ttf", sdl_ttf.module("sdl_ttf"));
     rt.root_module.addImport("imgui", imgui.module("imgui"));
-    rt.root_module.addImport("implot", imgui.module("implot"));
     rt.root_module.addImport("stb_image", stb_image.module("stb_image"));
-    rt.root_module.addImport("ztracy", ztracy.module("root"));
     rt.root_module.addImport("clay", zclay.module("clay"));
     rt.root_module.addImport("build_options", options_module);
 
     b.modules.put(b.dupe("imgui"), imgui.module("imgui")) catch @panic("OOM");
-    b.modules.put(b.dupe("implot"), imgui.module("implot")) catch @panic("OOM");
-    b.modules.put(b.dupe("ztracy"), ztracy.module("root")) catch @panic("OOM");
     b.modules.put(b.dupe("clay"), zclay.module("clay")) catch @panic("OOM");
 
     b.installArtifact(rt);
@@ -112,18 +99,4 @@ pub fn build(b: *std.Build) !void {
     const wf = b.addNamedWriteFiles("bin_files");
     _ = wf.addCopyDirectory(assimp.namedWriteFiles("dlls").getDirectory(), ".", .{});
     _ = wf.addCopyDirectory(sdl.namedWriteFiles("dlls").getDirectory(), ".", .{});
-
-    // Language server
-
-    const exe_check = b.addExecutable(.{
-        .name = "run",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    exe_check.linkLibrary(rt);
-
-    const check = b.step("check", "check if run compiles");
-    check.dependOn(&exe_check.step);
 }

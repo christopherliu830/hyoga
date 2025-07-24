@@ -163,7 +163,7 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
                     .enable_hit_events = true,
                     .filter = shape.filter,
                 }, &polygon);
-            }
+            },
         }
     }
 
@@ -269,7 +269,7 @@ pub fn shapeExtra(shape: b2.Shape) ShapeExtra {
                 .count = @intCast(extra.count),
             });
         },
-        else => unreachable
+        else => unreachable,
     };
 }
 
@@ -312,13 +312,13 @@ pub fn overlapLeaky(self: *Phys2, arena: std.mem.Allocator, shape: ShapeConfig, 
             const polygon = b2.makePolygon(&hull, 0);
             const filter: b2.QueryFilter = .{};
             _ = self.world.overlapPolygon(&polygon, transform, filter, overlapsCollect, &ctx);
-        }
+        },
     }
 
     return ctx.results.toOwnedSlice(arena) catch unreachable;
 }
 
-fn overlapsCollect(hit_shape: b2.Shape, ctx_ptr: ?*anyopaque) callconv(.C) bool {
+fn overlapsCollect(hit_shape: b2.Shape, ctx_ptr: ?*anyopaque) callconv(.c) bool {
     const ctx: *OverlapContext = @ptrCast(@alignCast(ctx_ptr));
     ctx.results.append(ctx.arena, hit_shape) catch return false;
     return true;
@@ -431,7 +431,7 @@ pub fn render(self: *Phys2) void {
     });
 }
 
-fn raycastHitsCollect(shape: b2.Shape, point: b2.Vec2, normal: b2.Vec2, fraction: f32, ctx: ?*anyopaque) callconv(.C) f32 {
+fn raycastHitsCollect(shape: b2.Shape, point: b2.Vec2, normal: b2.Vec2, fraction: f32, ctx: ?*anyopaque) callconv(.c) f32 {
     const collector: *RaycastContext = @ptrCast(@alignCast(ctx));
 
     collector.results.append(collector.arena, .{
@@ -527,7 +527,7 @@ fn emitOverlaps(self: *Phys2) void {
     }
 }
 
-fn debugDrawSolidPolygon(transform: b2.Transform, vertices: [*]const b2.Vec2, vertex_count: c_int, radius: f32, hex_color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+fn debugDrawSolidPolygon(transform: b2.Transform, vertices: [*]const b2.Vec2, vertex_count: c_int, radius: f32, hex_color: b2.HexColor, context: ?*anyopaque) callconv(.c) void {
     _ = radius;
     const len: u32 = @intCast(vertex_count);
     const p2: *Phys2 = @ptrCast(@alignCast(context));
@@ -570,48 +570,48 @@ fn debugDrawSolidPolygon(transform: b2.Transform, vertices: [*]const b2.Vec2, ve
     p2.gpu.im.drawVerts(verts, indices, .{ .transform = view_proj });
 }
 
-fn drawPolygon(vertices: [*]const b2.Vec2, vertex_count: c_int, hex_color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+fn drawPolygon(vertices: [*]const b2.Vec2, vertex_count: c_int, hex_color: b2.HexColor, context: ?*anyopaque) callconv(.c) void {
     _ = vertices; // autofix
     _ = vertex_count; // autofix
     _ = hex_color; // autofix
     _ = context; // autofix
 }
-fn drawCircle(center: b2.Vec2, radius: f32, color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+fn drawCircle(center: b2.Vec2, radius: f32, color: b2.HexColor, context: ?*anyopaque) callconv(.c) void {
     _ = center; // autofix
     _ = radius; // autofix
     _ = color; // autofix
     _ = context; // autofix
 }
-fn drawSolidCircle(transform: b2.Transform, radius: f32, color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+fn drawSolidCircle(transform: b2.Transform, radius: f32, color: b2.HexColor, context: ?*anyopaque) callconv(.c) void {
     _ = transform; // autofix
     _ = radius; // autofix
     _ = color; // autofix
     _ = context; // autofix
 }
-fn drawSolidCapsule(p1: b2.Vec2, p2: b2.Vec2, radius: f32, color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+fn drawSolidCapsule(p1: b2.Vec2, p2: b2.Vec2, radius: f32, color: b2.HexColor, context: ?*anyopaque) callconv(.c) void {
     _ = p1; // autofix
     _ = p2; // autofix
     _ = radius; // autofix
     _ = color; // autofix
     _ = context; // autofix
 }
-fn drawSegment(p1: b2.Vec2, p2: b2.Vec2, color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+fn drawSegment(p1: b2.Vec2, p2: b2.Vec2, color: b2.HexColor, context: ?*anyopaque) callconv(.c) void {
     _ = p1; // autofix
     _ = p2; // autofix
     _ = color; // autofix
     _ = context; // autofix
 }
-fn drawTransform(transform: b2.Transform, context: ?*anyopaque) callconv(.C) void {
+fn drawTransform(transform: b2.Transform, context: ?*anyopaque) callconv(.c) void {
     _ = transform; // autofix
     _ = context; // autofix
 }
-fn drawPoint(p: b2.Vec2, size: f32, color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+fn drawPoint(p: b2.Vec2, size: f32, color: b2.HexColor, context: ?*anyopaque) callconv(.c) void {
     _ = p; // autofix
     _ = size; // autofix
     _ = color; // autofix
     _ = context; // autofix
 }
-fn drawString(p: b2.Vec2, s: [*]const u8, color: b2.HexColor, context: ?*anyopaque) callconv(.C) void {
+fn drawString(p: b2.Vec2, s: [*]const u8, color: b2.HexColor, context: ?*anyopaque) callconv(.c) void {
     _ = p; // autofix
     _ = s; // autofix
     _ = color; // autofix

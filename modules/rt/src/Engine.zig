@@ -99,9 +99,6 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
 
     const start_time = self.frame_timer.read();
 
-    const zone = @import("ztracy").Zone(@src());
-    defer zone.End();
-
     var event: sdl.events.Event = undefined;
 
     while (sdl.events.poll(&event)) {
@@ -172,10 +169,9 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
     const update_duration = game.update_delta_time - start_time;
     const min_update_time: u64 = @intFromFloat(1 / @as(f64, @floatFromInt(self.config.max_fps)) * std.time.ns_per_s);
     if (min_update_time > update_duration) {
-        std.time.sleep(min_update_time - update_duration);
+        std.Thread.sleep(min_update_time - update_duration);
     }
 
-    @import("ztracy").FrameMark();
     return game;
 }
 

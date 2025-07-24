@@ -114,10 +114,10 @@ pub const TextEngine = extern struct {
     ///
     /// \param userdata the userdata pointer in this interface.
     /// \param text the text object being created.
-    createText: *const fn (userdata: ?*anyopaque, text: *Text) callconv(.C) bool,
+    createText: *const fn (userdata: ?*anyopaque, text: *Text) callconv(.c) bool,
 
     /// Destroy a text representation.
-    destroyText: *const fn (userdata: ?*anyopaque, text: *Text) callconv(.C) void,
+    destroyText: *const fn (userdata: ?*anyopaque, text: *Text) callconv(.c) void,
 
     const rendererCreate = TTF_CreateRendererTextEngine;
     const rendererCreateWithProperties = TTF_CreateRendererTextEngineWithProperties;

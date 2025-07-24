@@ -574,7 +574,7 @@ pub const Event = extern union {
     padding: [3]u8,
 };
 
-pub const EventFilter = ?*const fn (?*anyopaque, ?*Event) callconv(.C) bool;
+pub const EventFilter = ?*const fn (?*anyopaque, ?*Event) callconv(.c) bool;
 
 extern fn SDL_PumpEvents() void;
 extern fn SDL_PeepEvents(events: ?*Event, numevents: i32, action: EventAction, minType: u32, maxType: u32) i32;

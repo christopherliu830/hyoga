@@ -110,6 +110,11 @@ pub const Input = opaque {
         hy_io_bindPoll(input, @intFromEnum(id), on, code);
     }
 
+    pub fn bindPollMouse(input: *Input, id: anytype, on: OnFlags, code: keys.MouseButton) void {
+        std.debug.assert(@sizeOf(@TypeOf(id)) == @sizeOf(u32));
+        hy_io_bindPollMouse(input, @intFromEnum(id), on, code);
+    }
+
     pub fn eventPump(input: *Input, T: type) []const T {
         std.debug.assert(@sizeOf(T) == @sizeOf(u32));
         const ext_slice = hy_io_eventPump(input);
@@ -139,6 +144,7 @@ pub const Input = opaque {
     extern fn hyioQueryMousePosition(*Input) math.Vec2;
     extern fn hyioQueryKey(*Input, keys.Keycode) bool;
     extern fn hy_io_bindPoll(*Input, u32, OnFlags, keys.Keycode) void;
+    extern fn hy_io_bindPollMouse(*Input, u32, OnFlags, keys.MouseButton) void;
     extern fn hy_io_eventPump(*Input) hy.ExternSliceConst(u32);
     extern fn hy_io_eventClear(*Input, hy.ExternSliceConst(u32)) void;
 };

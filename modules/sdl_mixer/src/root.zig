@@ -88,7 +88,7 @@ pub const MixChannel = enum(c_int) {
 // #define MIX_EFFECTSMAXSPEED  "MIX_EFFECTSMAXSPEED"
 // TODO: Implement this
 
-pub const MixCallback = *const fn (udata: ?*anyopaque, stream: [*]u8, len: c_int) callconv(.C) void;
+pub const MixCallback = *const fn (udata: ?*anyopaque, stream: [*]u8, len: c_int) callconv(.c) void;
 pub const MusicFinishedCallback = *const fn () void;
 pub const ChannelFinishedCallback = *const fn (channel: c_int) void;
 

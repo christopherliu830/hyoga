@@ -27,7 +27,7 @@ pub const CastOutput = opaque {};
 /// @return -1 to filter, 0 to terminate, fraction to clip the ray for closest hit, 1 to continue
 /// @see b2World_CastRay
 /// @ingroup world
-pub const CastResultFcn = *const fn (shape: Shape, point: Vec2, normal: Vec2, fraction: f32, ctx: ?*anyopaque) callconv(.C) f32;
+pub const CastResultFcn = *const fn (shape: Shape, point: Vec2, normal: Vec2, fraction: f32, ctx: ?*anyopaque) callconv(.c) f32;
 
 pub const ContactEvents = extern struct {
     pub const BeginTouch = extern struct {
@@ -88,15 +88,15 @@ pub const Counters = opaque {};
 pub const CustomFilterFcn = opaque {};
 
 pub const DebugDraw = extern struct {
-    drawPolygon: ?*const fn (vertices: [*]const Vec2, vertex_count: c_int, hex_color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
-    drawSolidPolygon: ?*const fn (transform: Transform, vertices: [*]const Vec2, vertex_count: c_int, radius: f32, hex_color: HexColor, ctx: ?*anyopaque) callconv(.C) void = null,
-    drawCircle: ?*const fn (center: Vec2, radius: f32, color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
-    drawSolidCircle: ?*const fn (transform: Transform, radius: f32, color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
-    drawSolidCapsule: ?*const fn (p1: Vec2, p2: Vec2, radius: f32, color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
-    drawSegment: ?*const fn (p1: Vec2, p2: Vec2, color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
-    drawTransform: ?*const fn (transform: Transform, context: ?*anyopaque) callconv(.C) void = null,
-    drawPoint: ?*const fn (p: Vec2, size: f32, color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
-    drawString: ?*const fn (p: Vec2, s: [*]const u8, color: HexColor, context: ?*anyopaque) callconv(.C) void = null,
+    drawPolygon: ?*const fn (vertices: [*]const Vec2, vertex_count: c_int, hex_color: HexColor, context: ?*anyopaque) callconv(.c) void = null,
+    drawSolidPolygon: ?*const fn (transform: Transform, vertices: [*]const Vec2, vertex_count: c_int, radius: f32, hex_color: HexColor, ctx: ?*anyopaque) callconv(.c) void = null,
+    drawCircle: ?*const fn (center: Vec2, radius: f32, color: HexColor, context: ?*anyopaque) callconv(.c) void = null,
+    drawSolidCircle: ?*const fn (transform: Transform, radius: f32, color: HexColor, context: ?*anyopaque) callconv(.c) void = null,
+    drawSolidCapsule: ?*const fn (p1: Vec2, p2: Vec2, radius: f32, color: HexColor, context: ?*anyopaque) callconv(.c) void = null,
+    drawSegment: ?*const fn (p1: Vec2, p2: Vec2, color: HexColor, context: ?*anyopaque) callconv(.c) void = null,
+    drawTransform: ?*const fn (transform: Transform, context: ?*anyopaque) callconv(.c) void = null,
+    drawPoint: ?*const fn (p: Vec2, size: f32, color: HexColor, context: ?*anyopaque) callconv(.c) void = null,
+    drawString: ?*const fn (p: Vec2, s: [*]const u8, color: HexColor, context: ?*anyopaque) callconv(.c) void = null,
     drawing_bounds: AABB = .{},
     use_drawing_bounds: bool = false,
     draw_shapes: bool = false,
@@ -330,7 +330,7 @@ pub const Manifold = extern struct {
 
 pub const MassData = opaque {};
 
-pub const OverlapResultFcn = *const fn (shape: Shape, ctx: ?*anyopaque) callconv(.C) bool;
+pub const OverlapResultFcn = *const fn (shape: Shape, ctx: ?*anyopaque) callconv(.c) bool;
 
 pub const PreSolveFcn = opaque {};
 

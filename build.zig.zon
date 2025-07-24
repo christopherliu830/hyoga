@@ -2,7 +2,7 @@
     .name = .hyoga,
     .fingerprint = 0x2ad50434bc71b3e7,
     .version = "0.0.0",
-    .minimum_zig_version = "0.14.1",
+    .minimum_zig_version = "0.15.0-dev.1184+c41ac8f19",
     .dependencies = .{
         .hyoga_lib = .{ .path = "modules/lib" },
         .hyoga_rt = .{ .path = "modules/rt" },

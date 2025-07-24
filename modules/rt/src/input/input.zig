@@ -54,8 +54,10 @@ pub const BindOptions = extern struct {
 pub const Trigger = struct {
     id: u32,
     on: hy.Input.OnFlags,
-    button: Keycode,
-
+    code: union (enum) {
+        button: Keycode,
+        mouse: MouseButton,
+    },
 };
 
 pub const DelegateList = std.ArrayListUnmanaged(*hy.closure.Runnable(anyopaque));
@@ -229,7 +231,10 @@ pub fn updateKeyboard(self: *Input, event: sdl.events.Event) void {
             );
 
             for (self.triggers.items) |trigger| {
-                if (trigger.button == key and trigger.on.down) {
+                if (trigger.code == .button and
+                    trigger.code.button == key and
+                    trigger.on.down)
+                {
                     self.events.append(self.allocator, trigger.id) catch |err| {
                         std.log.err("append input event failure: {}", .{err});
                     };
@@ -250,7 +255,10 @@ pub fn updateKeyboard(self: *Input, event: sdl.events.Event) void {
             );
 
             for (self.triggers.items) |trigger| {
-                if (trigger.button == key and trigger.on.up) {
+                if (trigger.code == .button and
+                    trigger.code.button == key and
+                    trigger.on.up)
+                {
                     self.events.append(self.allocator, trigger.id) catch |err| {
                         std.log.err("append input event failure: {}", .{err});
                     };
@@ -318,6 +326,18 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
                     .delta = hy.math.vec(.{ m.xrel, m.yrel }),
                 },
             );
+
+            for (self.triggers.items) |trigger| {
+                if (trigger.code == .mouse and
+                    trigger.code.mouse == .motion and
+                    trigger.on.down)
+                {
+                    self.events.append(self.allocator, trigger.id) catch |err| {
+                        std.log.err("append input event failure: {}", .{err});
+                    };
+                }
+            }
+
         },
 
         .mouse_wheel => {
@@ -338,7 +358,15 @@ pub fn bindPoll(self: *Input, id: u32, on: hy.Input.OnFlags, code: Keycode) !voi
     try self.triggers.append(self.allocator, .{
         .id = id,
         .on = on,
-        .button = code,
+        .code = .{ .button = code },
+    });
+}
+
+pub fn bindPollMouse(self: *Input, id: u32, on: hy.Input.OnFlags, code: MouseButton) !void {
+    try self.triggers.append(self.allocator, .{
+        .id = id,
+        .on = on,
+        .code = .{ .mouse  = code },
     });
 }
 

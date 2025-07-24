@@ -47,12 +47,12 @@ pub const IndexHandle = enum(u32) {
 };
 
 pub const GameInterface = extern struct {
-    init: *const fn (*Engine) callconv(.C) World,
-    shutdown: *const fn (*Engine, World) callconv(.C) void,
-    update: *const fn (*Engine, World) callconv(.C) World,
-    render: *const fn (*Engine, World) callconv(.C) void,
-    afterRender: ?*const fn (*Engine, World) callconv(.C) void = null,
-    reload: *const fn (*Engine, World) callconv(.C) bool,
+    init: *const fn (*Engine) callconv(.c) World,
+    shutdown: *const fn (*Engine, World) callconv(.c) void,
+    update: *const fn (*Engine, World) callconv(.c) World,
+    render: *const fn (*Engine, World) callconv(.c) void,
+    afterRender: ?*const fn (*Engine, World) callconv(.c) void = null,
+    reload: *const fn (*Engine, World) callconv(.c) bool,
 };
 
 pub const Engine = opaque {

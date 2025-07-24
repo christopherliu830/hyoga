@@ -125,10 +125,10 @@ pub const GLContextState = opaque {};
 //pub const SDL_EGLSurface = ?*anyopaque;
 //pub const SDL_EGLAttrib = isize;
 //pub const SDL_EGLint = c_int;
-//pub const SDL_EGLAttribArrayCallback = ?*const fn () callconv(.C) [*c]SDL_EGLAttrib;
-pub const EGLAttribArrayCallback = ?*const fn () callconv(.C) [*c]EGLAttrib;
-//pub const SDL_EGLIntArrayCallback = ?*const fn () callconv(.C) [*c]SDL_EGLint;
-pub const EGLIntArrayCallback = ?*const fn () callconv(.C) [*c]EGLint;
+//pub const SDL_EGLAttribArrayCallback = ?*const fn () callconv(.c) [*c]SDL_EGLAttrib;
+pub const EGLAttribArrayCallback = ?*const fn () callconv(.c) [*c]EGLAttrib;
+//pub const SDL_EGLIntArrayCallback = ?*const fn () callconv(.c) [*c]SDL_EGLint;
+pub const EGLIntArrayCallback = ?*const fn () callconv(.c) [*c]EGLint;
 //pub const SDL_GL_RED_SIZE: c_int = 0;
 //pub const SDL_GL_GREEN_SIZE: c_int = 1;
 //pub const SDL_GL_BLUE_SIZE: c_int = 2;
@@ -512,8 +512,8 @@ pub const HitTestResult = enum(c_uint) {
 };
 
 //pub const SDL_HitTestResult = enum_SDL_HitTestResult;
-//pub const SDL_HitTest = ?*const fn (?*SDL_Window, [*c]const SDL_Point, ?*anyopaque) callconv(.C) SDL_HitTestResult;
-pub const HitTest = ?*const fn (?*Window, [*c]const Point, ?*anyopaque) callconv(.C) HitTestResult;
+//pub const SDL_HitTest = ?*const fn (?*SDL_Window, [*c]const SDL_Point, ?*anyopaque) callconv(.c) SDL_HitTestResult;
+pub const HitTest = ?*const fn (?*Window, [*c]const Point, ?*anyopaque) callconv(.c) HitTestResult;
 //pub extern fn SDL_SetWindowHitTest(window: ?*SDL_Window, callback: SDL_HitTest, callback_data: ?*anyopaque) SDL_bool;
 pub extern fn SDL_SetWindowHitTest(window: ?*Window, callback: HitTest, callback_data: ?*anyopaque) bool;
 pub const setWindowHitTest = SDL_SetWindowHitTest;

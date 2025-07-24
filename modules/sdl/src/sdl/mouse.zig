@@ -1,4 +1,3 @@
-usingnamespace @import("common.zig");
 pub const PropertiesID = @import("properties.zig").PropertiesID;
 pub const PixelFormat = @import("pixels.zig").PixelFormat;
 pub const Palette = @import("pixels.zig").Palette;

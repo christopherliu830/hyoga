@@ -1,5 +1,6 @@
 .{
     .name = .hyoga_box2d,
+    .fingerprint = 0x7fdb79c7855ae57a,
     .version = "0.0.0",
     .dependencies = .{
         .box2d = .{

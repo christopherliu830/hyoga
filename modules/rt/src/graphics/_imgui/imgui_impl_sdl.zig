@@ -7,6 +7,9 @@ const Window = @import("../../window.zig");
 
 pub const GamepadMode = enum(c_int) { auto_first, auto_all, manual };
 
+// Unused
+const Gamepad = u32;
+
 pub const ImplData = struct {
     allocator: std.mem.Allocator,
     window: ?*sdl.Window = null,
@@ -24,7 +27,7 @@ pub const ImplData = struct {
     mouse_can_use_global_state: bool = false,
     mouse_can_report_hovered_viewport: bool = false,
 
-    gamepads: std.ArrayList(sdl.c.SDL_Gamepad) = undefined,
+    gamepads: std.ArrayList(Gamepad) = undefined,
     gamepad_mode: GamepadMode = undefined,
     want_update_gamepads_list: bool = false,
     // ImVector<SDL_Gamepad*>  Gamepads;
@@ -126,7 +129,7 @@ fn getBackendData() ?*ImplData {
     } else return null;
 }
 
-fn platformSetImeData(_: *imgui.Context, viewport: ?*imgui.Viewport, data: ?*imgui.PlatformImeData) callconv(.C) void {
+fn platformSetImeData(_: *imgui.Context, viewport: ?*imgui.Viewport, data: ?*imgui.PlatformImeData) callconv(.c) void {
     const bd = getBackendData().?;
     const window_id = @intFromPtr(viewport.?.PlatformHandle);
     const window = sdl.video.getWindowFromID(@intCast(window_id));

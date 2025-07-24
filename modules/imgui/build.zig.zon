@@ -1,22 +1,15 @@
 .{
     .name = .hyoga_imgui,
     .version = "0.0.0",
+    .fingerprint = 0x74f1c16fb042b1f2,
     .dependencies = .{
         .imgui = .{
             .url = "https://github.com/ocornut/imgui/archive/refs/tags/v1.91.8.tar.gz",
             .hash = "122008fc93d2a565a333ec120399fa8904d42a3b2e4307d54af50dade393207f8f06",
         },
-        .implot = .{
-            .url = "https://github.com/epezent/implot/archive/1f7a8c0314d838a76695bccebe0f66864f507bc0.tar.gz",
-            .hash = "1220781bd0617c107617cc19d446801f519d5a29fc4beee9438c527f74af8caf483f",
-        },
         .cimgui = .{
-            .url = "git+https://github.com/floooh/dcimgui.git#9356c08eb4d1d320e79e418a36d59a427627634a",
-            .hash = "1220c640ad23d8800437166865e54f172c612fcfe6e000149a2b2af631c37b605f50",
-        },
-        .cimplot = .{
-            .url = "https://github.com/cimgui/cimplot/archive/refs/tags/v0.14.tar.gz",
-            .hash = "1220c09785a66a96ba87c3c07934a8514027d906e215bbcb62b698c3831069e64c0f",
+            .url = "git+https://github.com/floooh/dcimgui.git#3b98e0a57fc17cc72fdda6934bd932426778a16e",
+            .hash = "cimgui-0.1.0-44ClkczdkgCE9Z_0ehliUmEJjg-bjQVy1r55RQPw9N10",
         },
     },
     .paths = .{""},

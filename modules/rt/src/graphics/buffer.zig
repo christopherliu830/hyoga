@@ -7,25 +7,25 @@ const panic = std.debug.panic;
 pub const BufferAllocator = struct {
     device: *sdl.gpu.Device,
     usage: sdl.gpu.BufferUsageFlags,
-    buffer_list: std.SinglyLinkedList(Buf) = .{},
-    free_buffer_list: std.SinglyLinkedList(Buf) = .{},
-    node_allocator: std.mem.Allocator,
+    buffer_list: std.SinglyLinkedList = .{},
+    free_buffer_list: std.SinglyLinkedList = .{},
+    node_allocator: std.heap.MemoryPool(Buf),
     end_index: u32 = 0,
 
     pub const Buf = struct {
+        node: std.SinglyLinkedList.Node,
         hdl: *sdl.gpu.Buffer,
         size: u32,
         num_allocations: u32 = 0,
     };
 
-    const BufNode = std.SinglyLinkedList(Buf).Node;
-
     pub const Iterator = struct {
-        current: *BufNode,
+        current: ?*std.SinglyLinkedList.Node,
 
         pub fn next(self: *Iterator) ?*Buf {
-            if (self.current) |*buf| {
-                self.current = self.current.next;
+            if (self.current) |node| {
+                self.current = node.next;
+                const buf: *Buf = @fieldParentPtr("node", node);
                 return buf;
             }
         }
@@ -37,20 +37,23 @@ pub const BufferAllocator = struct {
         return .{
             .device = device,
             .usage = usage,
-            .node_allocator = allocator,
+            .node_allocator = .init(allocator),
         };
     }
 
     pub fn deinit(self: *BufferAllocator) void {
         var maybe_node = self.buffer_list.popFirst();
         while (maybe_node) |node| : (maybe_node = self.buffer_list.popFirst()) {
-            self.device.releaseBuffer(node.data.hdl);
-            self.node_allocator.destroy(node);
+            const buf: *Buf = @fieldParentPtr("node", node);
+            self.device.releaseBuffer(buf.hdl);
+            self.node_allocator.destroy(buf);
         }
+
         maybe_node = self.free_buffer_list.popFirst();
         while (maybe_node) |node| : (maybe_node = self.free_buffer_list.popFirst()) {
-            self.device.releaseBuffer(node.data.hdl);
-            self.node_allocator.destroy(node);
+            const buf: *Buf = @fieldParentPtr("node", node);
+            self.device.releaseBuffer(buf.hdl);
+            self.node_allocator.destroy(buf);
         }
     }
 
@@ -59,43 +62,36 @@ pub const BufferAllocator = struct {
     }
 
     pub fn reset(self: *BufferAllocator) void {
-        var maybe_node = self.buffer_list.popFirst();
-        while (maybe_node) |node| : (maybe_node = self.buffer_list.popFirst()) {
-            self.device.releaseBuffer(node.data.hdl);
-            self.node_allocator.destroy(node);
-        }
-        maybe_node = self.free_buffer_list.popFirst();
-        while (maybe_node) |node| : (maybe_node = self.free_buffer_list.popFirst()) {
-            self.device.releaseBuffer(node.data.hdl);
-            self.node_allocator.destroy(node);
-        }
+        self.deinit();
     }
 
-    fn createNode(self: *BufferAllocator, prev_len: u32, min_size: u32) sdl.gpu.Error!*BufNode {
-        if (self.free_buffer_list.first != null and
-            self.free_buffer_list.first.?.data.size > min_size)
-        {
-            const node = self.free_buffer_list.popFirst().?;
-            self.buffer_list.prepend(node);
-            self.end_index = 0;
-            return node;
+    fn createNode(self: *BufferAllocator, prev_len: u32, min_size: u32) sdl.gpu.Error!*Buf {
+        if (self.free_buffer_list.first) |node| {
+            const buf: *Buf = @fieldParentPtr("node", node);
+            if (buf.size > min_size) {
+                const recycled_node = self.free_buffer_list.popFirst().?;
+                self.buffer_list.prepend(recycled_node);
+                self.end_index = 0;
+                return buf;
+            }
         }
         const len = (prev_len + min_size) + (prev_len + min_size) / 2;
-        const buf = try self.device.createBuffer(&.{ .size = len, .usage = self.usage });
-        self.device.setBufferName(buf, "Buffer Allocator Buffer");
-        const node = self.node_allocator.create(BufNode) catch hy.err.oom();
-        node.* = .{ .data = .{
-            .hdl = buf,
+        const buffer = try self.device.createBuffer(&.{ .size = len, .usage = self.usage });
+        self.device.setBufferName(buffer, "Buffer Allocator Buffer");
+        const buf = self.node_allocator.create() catch hy.err.oom();
+        buf.* = .{
+            .node = .{},
+            .hdl = buffer,
             .size = len,
-        } };
-        self.buffer_list.prepend(node);
+        };
+        self.buffer_list.prepend(&buf.node);
         self.end_index = 0;
-        return node;
+        return buf;
     }
 
     pub fn alloc(self: *BufferAllocator, n: u32) sdl.gpu.Error!Buffer {
-        var cur_node = if (self.buffer_list.first) |first_node|
-            first_node
+        var cur_node: *Buf = if (self.buffer_list.first) |first_node|
+            @fieldParentPtr("node", first_node)
         else
             try self.createNode(0, @min(min_buffer_size, n));
 
@@ -103,17 +99,17 @@ pub const BufferAllocator = struct {
             const offset = self.end_index;
             const end_offset = offset + n;
 
-            if (end_offset <= cur_node.data.size) {
+            if (end_offset <= cur_node.size) {
                 self.end_index = end_offset;
-                cur_node.data.num_allocations += 1;
+                cur_node.num_allocations += 1;
                 return .{
-                    .hdl = cur_node.data.hdl,
+                    .hdl = cur_node.hdl,
                     .offset = offset,
                     .size = n,
                 };
             }
 
-            cur_node = try self.createNode(cur_node.data.size, n);
+            cur_node = try self.createNode(cur_node.size, n);
         }
     }
 
@@ -121,16 +117,17 @@ pub const BufferAllocator = struct {
 
     pub fn destroy(self: *BufferAllocator, buffer: Buffer) void {
         var it = self.buffer_list.first;
-        while (it) |buf| : (it = buf.next) {
-            if (buf.data.hdl == buffer.hdl) {
-                buf.data.num_allocations -= 1;
+        while (it) |node| : (it = node.next) {
+            const buf: *Buf = @fieldParentPtr("node", node);
+            if (buf.hdl == buffer.hdl) {
+                buf.num_allocations -= 1;
 
-                if (buf.data.num_allocations == 0) {
-                    if (buf == self.buffer_list.first) {
+                if (buf.num_allocations == 0) {
+                    if (node == self.buffer_list.first) {
                         self.end_index = 0;
                     } else {
-                        self.buffer_list.remove(buf);
-                        self.free_buffer_list.prepend(buf);
+                        self.buffer_list.remove(node);
+                        self.free_buffer_list.prepend(node);
                     }
                 }
                 break;
@@ -140,9 +137,10 @@ pub const BufferAllocator = struct {
 
     pub fn dupe(self: *BufferAllocator, buffer: Buffer) void {
         var it = self.buffer_list.first;
-        while (it) |buf| : (it = buf.next) {
-            if (buf.data.hdl == buffer.hdl) {
-                buf.data.num_allocations += 1;
+        while (it) |node| : (it = node.next) {
+            const buf: *Buf = @fieldParentPtr("node", node);
+            if (buf.hdl == buffer.hdl) {
+                buf.num_allocations += 1;
                 break;
             }
         }

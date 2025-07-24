@@ -36,6 +36,16 @@ pub fn build(b: *std.Build) !void {
 
     sdl.linkLibrary(sdl_dep.artifact("SDL3"));
 
+    const c = b.addTranslateC(.{
+        .link_libc = true,
+        .optimize = optimize,
+        .target = target,
+        .root_source_file = sdl_dep.path("include/SDL3/SDL.h"),
+    });
+    c.addIncludePath(sdl_dep.path("include"));
+
+    sdl.addImport("c", c.createModule());
+
     const sdl_lib = b.addLibrary(.{
         .name = "sdl",
         .root_module = sdl,

@@ -1,6 +1,5 @@
 //
 const std = @import("std");
-const tx = @import("../texture.zig");
 
 // Zig bindings for assimp library. For documentation
 // refer to github.com/assimp/assimp

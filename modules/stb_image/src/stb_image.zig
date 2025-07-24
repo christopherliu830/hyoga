@@ -10,11 +10,11 @@ tsa: std.heap.ThreadSafeAllocator,
 alloc_size_by_ptr: std.AutoHashMap(usize, usize),
 mutex: std.Thread.Mutex,
 
-pub fn malloc(self: *anyopaque, size: usize) callconv(.C) ?*anyopaque {
+pub fn malloc(self: *anyopaque, size: usize) callconv(.c) ?*anyopaque {
     var stbi: *Stbi = @ptrCast(@alignCast(self));
     var allocator = stbi.tsa.allocator();
 
-    const mem = allocator.alignedAlloc(u8, 16, size) catch @panic("out of memory");
+    const mem = allocator.alignedAlloc(u8, .@"16", size) catch @panic("out of memory");
 
     {
         stbi.mutex.lock();
@@ -25,7 +25,7 @@ pub fn malloc(self: *anyopaque, size: usize) callconv(.C) ?*anyopaque {
     return @ptrCast(mem.ptr);
 }
 
-pub fn realloc(self: *anyopaque, in_ptr: ?*anyopaque, size: usize) callconv(.C) ?*anyopaque {
+pub fn realloc(self: *anyopaque, in_ptr: ?*anyopaque, size: usize) callconv(.c) ?*anyopaque {
     var stbi: *Stbi = @ptrCast(@alignCast(self));
     var allocator = stbi.tsa.allocator();
 
@@ -52,7 +52,7 @@ pub fn realloc(self: *anyopaque, in_ptr: ?*anyopaque, size: usize) callconv(.C) 
     }
 }
 
-pub fn free(self: *anyopaque, in_ptr: ?*anyopaque) callconv(.C) void {
+pub fn free(self: *anyopaque, in_ptr: ?*anyopaque) callconv(.c) void {
     var stbi: *Stbi = @ptrCast(@alignCast(self));
     var allocator = stbi.tsa.allocator();
 
@@ -72,9 +72,9 @@ pub fn free(self: *anyopaque, in_ptr: ?*anyopaque) callconv(.C) void {
     }
 }
 
-extern var hystbi_malloc: ?*const fn (self: *anyopaque, size: usize) callconv(.C) ?*anyopaque;
-extern var hystbi_free: ?*const fn (self: *anyopaque, ptr: ?*anyopaque) callconv(.C) void;
-extern var hystbi_realloc: *const fn (self: *anyopaque, ptr: ?*anyopaque, size: usize) callconv(.C) ?*anyopaque;
+extern var hystbi_malloc: ?*const fn (self: *anyopaque, size: usize) callconv(.c) ?*anyopaque;
+extern var hystbi_free: ?*const fn (self: *anyopaque, ptr: ?*anyopaque) callconv(.c) void;
+extern var hystbi_realloc: *const fn (self: *anyopaque, ptr: ?*anyopaque, size: usize) callconv(.c) ?*anyopaque;
 
 extern var hystbi_allocator: *anyopaque;
 

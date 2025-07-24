@@ -13,14 +13,14 @@ tsa: std.heap.ThreadSafeAllocator,
 
 pub fn Queue(comptime T: type) type {
     return struct {
-        pub const Node = std.SinglyLinkedList(T).Node;
+        pub const Node = std.SinglyLinkedList.Node;
 
         tsa: std.heap.ThreadSafeAllocator,
         mutex: std.Thread.Mutex = .{},
-        items: std.SinglyLinkedList(T) = .{},
+        items: std.ArrayListUnmanaged(T) = .empty,
 
         pub fn init(self: *@This(), in_allocator: std.heap.ThreadSafeAllocator) void {
-            self.items = .{};
+            self.items = .empty;
             self.tsa = in_allocator;
             self.mutex = .{};
         }
@@ -29,20 +29,13 @@ pub fn Queue(comptime T: type) type {
             self.mutex.lock();
             defer self.mutex.unlock();
 
-            const node = try self.allocator().create(Node);
-            node.data = value;
-            self.items.prepend(node);
+            try self.items.append(self.allocator(), value);
         }
 
         pub fn pop(self: *@This()) ?T {
             self.mutex.lock();
             defer self.mutex.unlock();
-            if (self.items.popFirst()) |node| {
-                const data = node.data;
-                self.allocator().destroy(node);
-                return data;
-            }
-            return null;
+            return self.items.pop();
         }
 
         pub fn allocator(self: *@This()) std.mem.Allocator {

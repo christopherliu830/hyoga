@@ -249,7 +249,7 @@ pub const Visibility = struct {
             }
         };
 
-        const idx = std.sort.binarySearch([2]hym.Vec2, self.segments, SortContext {
+        const idx = std.sort.binarySearch([2]hym.Vec2, self.segments, SortContext{
             .start = start_angle,
             .target = target_angle,
             .origin = self.origin,
@@ -271,7 +271,7 @@ pub fn Subdivision(Vertex: type, positionFn: PositionFn(Vertex)) type {
     return struct {
         const Self = @This();
         const BucketKey = struct { x: usize, y: usize };
-        const BucketMap = std.AutoHashMapUnmanaged(BucketKey, std.SinglyLinkedList(Triangle.Ref));
+        const BucketMap = std.AutoHashMapUnmanaged(BucketKey, std.ArrayListUnmanaged(Triangle.Ref));
         const NodePool = std.heap.MemoryPool(std.SinglyLinkedList(Triangle.Ref).Node);
 
         allocator: std.mem.Allocator,
@@ -283,7 +283,7 @@ pub fn Subdivision(Vertex: type, positionFn: PositionFn(Vertex)) type {
         verts: std.ArrayListUnmanaged(Vertex) = .empty,
         indices: []u32 = &.{},
         buckets: BucketMap = .empty,
-        bucket_allocator: NodePool,
+        bucket_allocator: std.heap.ArenaAllocator,
 
         pub fn init(allocator: std.mem.Allocator) !Self {
             var pool: Triangle.Pool = .init(allocator);
@@ -538,9 +538,7 @@ pub fn Subdivision(Vertex: type, positionFn: PositionFn(Vertex)) type {
             const key: BucketKey = .{ .x = @intFromFloat(point.x()), .y = @intFromFloat(point.y()) };
             const bucket = self.buckets.get(key) orelse return null;
 
-            var mb_node = bucket.first;
-            while (mb_node) |node| : (mb_node = node.next) {
-                const triangle = node.data;
+            for (bucket.items) |triangle| {
                 std.debug.assert(triangle.deref() != self.dummy_triangle);
                 std.debug.assert(triangle.org() != .none);
                 std.debug.assert(triangle.dest() != .none);
@@ -999,12 +997,10 @@ pub fn Subdivision(Vertex: type, positionFn: PositionFn(Vertex)) type {
                 for (min_x..max_x + 1) |x| for (min_y..max_y + 1) |y| {
                     const key: BucketKey = .{ .x = x, .y = y };
                     const entry = try self.buckets.getOrPut(gpa, key);
-                    const node = try self.bucket_allocator.create();
-                    node.* = .{ .data = tri };
                     if (!entry.found_existing) {
-                        entry.value_ptr.* = .{};
+                        entry.value_ptr.* = .empty;
                     }
-                    entry.value_ptr.prepend(node);
+                    try entry.value_ptr.append(self.bucket_allocator.allocator(), tri);
                 };
 
                 self.indices[i * 3 + 0] = @intCast(tri.apex().unwrap());
@@ -1099,10 +1095,8 @@ pub fn Subdivision(Vertex: type, positionFn: PositionFn(Vertex)) type {
                         .left_limit = 0,
                         .right_limit = r,
                     });
-
                 }
             }
-
 
             return .{
                 .origin = origin,

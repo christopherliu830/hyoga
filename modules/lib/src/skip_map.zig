@@ -179,7 +179,7 @@ pub fn SkipMapSized(comptime T: type, comptime Size: type) type {
             fn init(self: *Group, capacity: Size, prev_group: ?*Group, allocator: std.mem.Allocator) !void {
                 const size = Group.alignedSize(capacity);
 
-                const data = try allocator.alignedAlloc(Stride, @alignOf(T), size);
+                const data = try allocator.alignedAlloc(Stride, .of(T), size);
 
                 // Assign pointers into memory block
                 const ptr_elements: [*]Slot = @ptrCast(@alignCast(data.ptr));

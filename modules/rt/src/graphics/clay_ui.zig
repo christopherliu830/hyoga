@@ -20,7 +20,7 @@ pub const UI = struct {
     mouse_position: hym.Vec2 = .zero,
     scroll_delta: hym.Vec2 = .zero,
 
-    fn errorHandler(data: clay.ErrorData) callconv(.C) void {
+    fn errorHandler(data: clay.ErrorData) callconv(.c) void {
         std.log.err("{}\n", .{data});
         @breakpoint();
     }

@@ -530,9 +530,6 @@ pub fn uploadToTexture(self: *Gpu, tex: *sdl.gpu.Texture, w: u32, h: u32, data: 
 /// screen. Do not use for offscreen buffers as this is not needed.
 /// Returns a command buffer.
 pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
-    const zone = @import("ztracy").Zone(@src());
-    defer zone.End();
-
     self.default_assets.pending_submit_result = .{};
 
     var drawable_w: u32 = undefined;
@@ -584,9 +581,6 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
 }
 
 pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64) !void {
-    const zone = @import("ztracy").Zone(@src());
-    defer zone.End();
-
     try self.uniforms.put(self.gpa, self.ids.view, .{ .mat4x4 = scene.view.m });
     try self.uniforms.put(self.gpa, self.ids.projection, .{ .mat4x4 = scene.proj.m });
     try self.uniforms.put(self.gpa, self.ids.view_projection, .{ .mat4x4 = scene.view.mul(scene.proj).m });
@@ -642,39 +636,40 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
         self.uniforms.get(self.ids.viewport_size).?.f32x4,
     );
 
-    { var it = self.custom_passes.iterator();
-    while (it.nextPtr()) |pass| {
+    {
+        var it = self.custom_passes.iterator();
+        while (it.nextPtr()) |pass| {
+            try pass.render(cmd);
 
-        try pass.render(cmd);
+            const color: sdl.gpu.ColorTargetInfo = .{
+                .texture = self.default_assets.active_target.?,
+                .load_op = .load,
+                .store_op = .store,
+                .clear_color = @bitCast(self.clear_color),
+                .cycle = false,
+            };
 
-        const color: sdl.gpu.ColorTargetInfo = .{
-            .texture = self.default_assets.active_target.?,
-            .load_op = .load,
-            .store_op = .store,
-            .clear_color = @bitCast(self.clear_color),
-            .cycle = false,
-        };
+            const render_pass = cmd.beginRenderPass((&color)[0..1], 1, null) orelse
+                panic("error begin render pass {s}", .{sdl.getError()});
+            defer render_pass.end();
 
-        const render_pass = cmd.beginRenderPass((&color)[0..1], 1, null) orelse
-            panic("error begin render pass {s}", .{sdl.getError()});
-        defer render_pass.end();
+            const pipeline = if (pass.blit_material.valid())
+                self.materials.get(pass.blit_material).?.pipeline
+            else
+                self.materials.templates.get(.screen_blit).pipeline;
 
-        const pipeline = if (pass.blit_material.valid())
-            self.materials.get(pass.blit_material).?.pipeline
-        else
-            self.materials.templates.get(.screen_blit).pipeline;
+            render_pass.bindGraphicsPipeline(pipeline);
 
-        render_pass.bindGraphicsPipeline(pipeline);
+            const binding = [_]sdl.gpu.TextureSamplerBinding{
+                .{ .sampler = self.default_assets.sampler, .texture = pass.texture() },
+                .{ .sampler = self.default_assets.sampler, .texture = fp.texture() },
+            };
 
-        const binding = [_]sdl.gpu.TextureSamplerBinding{
-            .{ .sampler = self.default_assets.sampler, .texture = pass.texture() },
-            .{ .sampler = self.default_assets.sampler, .texture = fp.texture() },
-        };
+            render_pass.bindFragmentSamplers(0, &binding, 2);
 
-        render_pass.bindFragmentSamplers(0, &binding, 2);
-
-        render_pass.drawPrimitives(3, 1, 0, 0);
-    } }
+            render_pass.drawPrimitives(3, 1, 0, 0);
+        }
+    }
 
     const im_drawn = try self.im.draw(
         self,
@@ -709,9 +704,6 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
 }
 
 pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
-    const zone = @import("ztracy").Zone(@src());
-    defer zone.End();
-
     _ = cmd.submit();
     _ = self.arena.reset(.retain_capacity);
     self.im.reset();
@@ -768,9 +760,6 @@ pub const DrawOptions = struct {
 };
 
 pub fn draw(self: *Gpu, opts: DrawOptions) !void {
-    const zone = @import("ztracy").ZoneN(@src(), "RenderInstanced");
-    defer zone.End();
-
     const cmd = opts.cmd;
     const pass = opts.pass;
     const num_first_instance = opts.num_first_instance;

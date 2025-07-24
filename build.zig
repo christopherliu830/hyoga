@@ -10,7 +10,6 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const dxc = b.option(bool, "dxc", "enable HLSL support") orelse false;
-    const enable_tracy = b.option(bool, "enable_tracy", "enable profiling with tracy") orelse false;
     const backend = b.option(GpuDriver, "gpu_driver", "force backend graphics driver") orelse .none;
 
     const lib = b.dependency("hyoga_lib", .{
@@ -21,15 +20,12 @@ pub fn build(b: *std.Build) !void {
     const rt = b.dependency("hyoga_rt", .{
         .target = target,
         .optimize = optimize,
-        .enable_tracy = enable_tracy,
         .gpu_driver = backend,
         .dxc = dxc,
     });
 
     b.modules.put(b.dupe("lib"), lib.module("hyoga-lib")) catch @panic("OOM");
     b.modules.put(b.dupe("imgui"), rt.module("imgui")) catch @panic("OOM");
-    b.modules.put(b.dupe("implot"), rt.module("implot")) catch @panic("OOM");
-    b.modules.put(b.dupe("ztracy"), rt.module("ztracy")) catch @panic("OOM");
     b.modules.put(b.dupe("clay"), rt.module("clay")) catch @panic("OOM");
 
     b.installArtifact(rt.artifact("rt"));
@@ -53,8 +49,11 @@ pub fn build(b: *std.Build) !void {
 
     const test_step = b.step("test", "Run unit tests");
     const hy_unit_tests = b.addTest(.{
-        .root_source_file = lib.path("src/root.zig"),
-        .target = target,
+        .root_module = b.createModule(.{
+            .root_source_file = lib.path("src/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const run_unit_tests = b.addRunArtifact(hy_unit_tests);

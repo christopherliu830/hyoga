@@ -145,7 +145,7 @@ pub const CastCircleOptions = extern struct {
     collection_type: RaycastOptions.CollectionType,
 };
 
-pub const OverlapCallback = *const fn (Body, ?*anyopaque) callconv(.C) bool;
+pub const OverlapCallback = *const fn (Body, ?*anyopaque) callconv(.c) bool;
 
 pub const Phys2 = struct {
     pub const bodyAdd = hyp2BodyAdd;

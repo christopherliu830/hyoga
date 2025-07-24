@@ -3,7 +3,6 @@ pub const hym = @import("../math/math.zig");
 pub const UI = opaque {
     pub const State = extern struct {
         imgui_ctx: ?*anyopaque,
-        implot_ctx: ?*anyopaque,
         free_fn: ?*anyopaque,
         alloc_fn: ?*anyopaque,
         user_data: ?*anyopaque,
