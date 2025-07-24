@@ -211,12 +211,9 @@ clear_color: hym.Vec4 = .of(0.15, 0.15, 0.15, 1),
 pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allocator) !*Gpu {
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
 
-    const device = sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, null) orelse {
-        log.err("[GPU] create device failure: {s}", .{sdl.getError()});
-        return error.CreateDeviceFailure;
-    };
+    const device = try sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, null);
 
-    _ = device.claimWindow(window.hdl);
+    try device.claimWindow(window.hdl);
 
     if (!device.setSwapchainParameters(window.hdl, .sdr, .immediate)) {
         log.warn("[GPU] Swapchain parameters could not be set: {s}", .{sdl.getError()});

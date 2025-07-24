@@ -1,3 +1,6 @@
+const std = @import("std");
+const sdl = @import("sdl.zig");
+
 const PixelFormat = @import("pixels.zig").PixelFormat;
 const FColor = @import("pixels.zig").FColor;
 pub const Rect = @import("rect.zig").Rect;
@@ -45,7 +48,12 @@ pub const Device = opaque {
     pub const unmapTransferBuffer = SDL_UnmapGPUTransferBuffer;
     pub const windowSupportsSwapchainComposition = SDL_WindowSupportsGPUSwapchainComposition;
     pub const windowSupportsPresentMode = SDL_WindowSupportsGPUPresentMode;
-    pub const claimWindow = SDL_ClaimWindowForGPUDevice;
+    pub fn claimWindow(device: *Device, window: *Window) !void {
+        if (!SDL_ClaimWindowForGPUDevice(device, window)) {
+            std.log.err("SDL claim window failure: {s}", .{sdl.getError()});
+            return error.SdlError;
+        }
+    }
     pub const releaseWindow = SDL_ReleaseWindowFromGPUDevice;
     pub const setSwapchainParameters = SDL_SetGPUSwapchainParameters;
     pub const setAllowedFramesInFlight = SDL_SetGPUAllowedFramesInFlight;
@@ -818,7 +826,15 @@ pub const StorageTextureReadWriteBinding = extern struct {
 
 extern fn SDL_GPUSupportsShaderFormats(format_flags: ShaderFormat, name: [*c]const u8) bool;
 extern fn SDL_GPUSupportsProperties(props: PropertiesID) bool;
+
 extern fn SDL_CreateGPUDevice(format_flags: ShaderFormat, debug_mode: bool, name: [*c]const u8) ?DeviceHdl;
+pub fn createDevice(format_flags: ShaderFormat, debug_mode: bool, name: ?[*]const u8) !DeviceHdl {
+    return SDL_CreateGPUDevice(format_flags, debug_mode, name) orelse {
+        std.log.err("SDL create gpu device failure: {s}", .{sdl.getError()});
+        return error.SdlError;
+    };
+}
+
 extern fn SDL_CreateGPUDeviceWithProperties(props: PropertiesID) ?DeviceHdl;
 extern fn SDL_DestroyGPUDevice(device: DeviceHdl) void;
 extern fn SDL_GetNumGPUDrivers() i32;
@@ -889,7 +905,7 @@ extern fn SDL_GenerateMipmapsForGPUTexture(command_buffer: *CommandBuffer, textu
 extern fn SDL_BlitGPUTexture(command_buffer: *CommandBuffer, info: *const BlitInfo) void;
 extern fn SDL_WindowSupportsGPUSwapchainComposition(device: DeviceHdl, window: ?*Window, swapchain_composition: SwapchainComposition) bool;
 extern fn SDL_WindowSupportsGPUPresentMode(device: DeviceHdl, window: ?*Window, present_mode: PresentMode) bool;
-extern fn SDL_ClaimWindowForGPUDevice(device: DeviceHdl, window: ?*Window) bool;
+extern fn SDL_ClaimWindowForGPUDevice(device: DeviceHdl, window: *Window) bool;
 extern fn SDL_ReleaseWindowFromGPUDevice(device: DeviceHdl, window: ?*Window) void;
 extern fn SDL_SetGPUSwapchainParameters(device: DeviceHdl, window: ?*Window, swapchain_composition: SwapchainComposition, present_mode: PresentMode) bool;
 extern fn SDL_SetGPUAllowedFramesInFlight(device: DeviceHdl, allowed_frames_in_flight: u32) bool;
@@ -912,7 +928,6 @@ extern fn SDL_GDKSuspendGPU(device: DeviceHdl) void;
 extern fn SDL_GDKResumeGPU(device: DeviceHdl) void;
 pub const supportsShaderFormats = SDL_GPUSupportsShaderFormats;
 pub const supportsProperties = SDL_GPUSupportsProperties;
-pub const createDevice = SDL_CreateGPUDevice;
 pub const createWithProperties = SDL_CreateGPUDeviceWithProperties;
 pub const getNumDrivers = SDL_GetNumGPUDrivers;
 pub const getDriver = SDL_GetGPUDriver;

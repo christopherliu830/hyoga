@@ -1,3 +1,4 @@
+const std = @import("std");
 const sdl = @import("sdl.zig");
 const PixelFormat = @import("pixels.zig").PixelFormat;
 const Rect = @import("rect.zig").Rect;
@@ -70,12 +71,11 @@ pub const DisplayOrientation = enum(c_uint) {
     orientation_portrait_flipped,
 };
 
-//pub const SDL_DisplayOrientation = enum_SDL_DisplayOrientation;
-//pub const struct_SDL_Window = opaque {};
-pub const Window = opaque {};
+pub const Window = opaque {
+    pub const positionSet = setWindowPosition;
+    pub const show = showWindow;
+};
 
-//pub const SDL_Window = struct_SDL_Window;
-//pub const SDL_WindowFlags = Uint64;
 pub const WindowFlags = packed struct(u64) {
     fullscreen: bool = false,
     opengl: bool = false,
@@ -104,6 +104,11 @@ pub const WindowFlags = packed struct(u64) {
     not_focusable: bool = false,
     _padding: u39 = 0,
 };
+
+pub inline fn windowPosCenteredDisplay(id: u32) u32 {
+    const centered_mask: comptime_int = 0x2FFF0000;
+    return centered_mask & id;
+}
 
 //pub const SDL_FLASH_CANCEL: c_int = 0;
 //pub const SDL_FLASH_BRIEFLY: c_int = 1;
@@ -323,10 +328,15 @@ pub const getWindowPixelFormat = SDL_GetWindowPixelFormat;
 //pub extern fn SDL_GetWindows(count: [*c]c_int) [*c]?*SDL_Window;
 pub extern fn SDL_GetWindows(count: [*c]c_int) [*c]?*Window;
 pub const getWindows = SDL_GetWindows;
-//pub extern fn SDL_CreateWindow(title: [*c]const u8, w: c_int, h: c_int, flags: SDL_WindowFlags) ?*SDL_Window;
-pub extern fn SDL_CreateWindow(title: [*c]const u8, w: c_int, h: c_int, flags: WindowFlags) ?*Window;
-pub const createWindow = SDL_CreateWindow;
-//pub extern fn SDL_CreatePopupWindow(parent: ?*SDL_Window, offset_x: c_int, offset_y: c_int, w: c_int, h: c_int, flags: SDL_WindowFlags) ?*SDL_Window;
+
+extern fn SDL_CreateWindow(title: [*c]const u8, w: c_int, h: c_int, flags: WindowFlags) ?*Window;
+pub fn createWindow(title: [:0]const u8, w: u16, h: u16, flags: WindowFlags) !*Window {
+    return SDL_CreateWindow(title.ptr, @intCast(w), @intCast(h), flags) orelse {
+        std.log.err("SDL create window failure: {s}", .{sdl.getError()});
+        return error.SdlError;
+    };
+}
+
 pub extern fn SDL_CreatePopupWindow(parent: ?*Window, offset_x: c_int, offset_y: c_int, w: c_int, h: c_int, flags: WindowFlags) ?*Window;
 pub const createPopupWindow = SDL_CreatePopupWindow;
 //pub extern fn SDL_CreateWindowWithProperties(props: SDL_PropertiesID) ?*SDL_Window;
@@ -403,9 +413,10 @@ pub const setWindowResizable = SDL_SetWindowResizable;
 //pub extern fn SDL_SetWindowAlwaysOnTop(window: ?*SDL_Window, on_top: SDL_bool) SDL_bool;
 pub extern fn SDL_SetWindowAlwaysOnTop(window: ?*Window, on_top: bool) bool;
 pub const setWindowAlwaysOnTop = SDL_SetWindowAlwaysOnTop;
-//pub extern fn SDL_ShowWindow(window: ?*SDL_Window) SDL_bool;
-pub extern fn SDL_ShowWindow(window: ?*Window) bool;
+
+extern fn SDL_ShowWindow(window: *Window) bool;
 pub const showWindow = SDL_ShowWindow;
+
 //pub extern fn SDL_HideWindow(window: ?*SDL_Window) SDL_bool;
 pub extern fn SDL_HideWindow(window: ?*Window) bool;
 pub const hideWindow = SDL_HideWindow;

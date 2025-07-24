@@ -11,7 +11,8 @@ pub const properties = @import("properties.zig");
 pub const rect = @import("rect.zig");
 pub const scancode = @import("scancode.zig");
 pub const video = @import("video.zig");
-pub const init = @import("init.zig");
+
+const _init = @import("init.zig");
 
 pub const Event = events.Event;
 pub const Color = pixels.Color;
@@ -28,3 +29,6 @@ pub const getError = SDL_GetError;
 
 extern fn SDL_Log(fmt: [*c]const u8, ...) void;
 pub const log = SDL_Log;
+
+pub const init = _init.init;
+pub const quit = _init.quit;

@@ -14,6 +14,11 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
+    const dep_sdl = b.dependency("sdl", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const imgui = b.addModule("imgui", .{
         .target = target,
         .optimize = optimize,
@@ -22,5 +27,22 @@ pub fn build(b: *std.Build) !void {
         .link_libcpp = true,
     });
 
+    imgui.addCMacro("IMGUI_DISABLE_OBSOLETE_FUNCTIONS", "1");
     imgui.linkLibrary(dep_cimgui.artifact("cimgui_docking_clib"));
+
+    const exe_module = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("src/main.zig"),
+    });
+
+    const exe = b.addExecutable(.{
+        .name = "demo",
+        .root_module = exe_module,
+    });
+
+    exe_module.addImport("imgui", imgui);
+    exe_module.addImport("sdl", dep_sdl.module("sdl"));
+
+    b.installArtifact(exe);
 }

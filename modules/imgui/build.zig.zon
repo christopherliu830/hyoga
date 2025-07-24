@@ -2,6 +2,7 @@
     .name = .hyoga_imgui,
     .version = "0.0.0",
     .fingerprint = 0x74f1c16fb042b1f2,
+    .minimum_zig_version = "0.15.0-dev.1184+c41ac8f19",
     .dependencies = .{
         .imgui = .{
             .url = "https://github.com/ocornut/imgui/archive/refs/tags/v1.91.8.tar.gz",
@@ -11,6 +12,7 @@
             .url = "git+https://github.com/floooh/dcimgui.git#3b98e0a57fc17cc72fdda6934bd932426778a16e",
             .hash = "cimgui-0.1.0-44ClkczdkgCE9Z_0ehliUmEJjg-bjQVy1r55RQPw9N10",
         },
+        .sdl = .{ .path = "../sdl" },
     },
     .paths = .{""},
 }

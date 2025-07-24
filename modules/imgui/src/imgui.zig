@@ -379,8 +379,39 @@ pub const IO = extern struct {
     };
 };
 
-extern fn igGetIO() *IO;
-pub const getIO = igGetIO;
+pub const PlatformIO = opaque {};
+
+pub const Style = opaque {};
 
 extern fn igCreateContext(shared_font_atlas: ?*FontAtlas) *Context;
 pub const createContext = igCreateContext;
+
+extern fn igGetIO() *IO;
+pub const getIO = igGetIO;
+
+extern fn igGetPlatformIO() *PlatformIO;
+pub const getPlatformIO = igGetPlatformIO;
+
+extern fn igGetStyle() *Style;
+pub const getStyle = igGetStyle;
+
+extern fn igNewFrame() void;
+pub const newFrame = igNewFrame;
+
+extern fn igEndFrame() void;
+pub const endFrame = igEndFrame;
+
+extern fn igRender() void;
+pub const render = igRender;
+
+extern fn igGetDrawData() void;
+pub const getDrawData = igGetDrawData;
+
+extern fn igStyleColorsDark(dst: ?*Style) void;
+pub const styleColorsDark = igStyleColorsDark;
+
+extern fn igStyleColorsLight(dst: ?*Style) void;
+pub const styleColorsLight = igStyleColorsLight;
+
+extern fn igStyleColorsClassic(dst: ?*Style) void;
+pub const styleColorsClassic = igStyleColorsClassic;

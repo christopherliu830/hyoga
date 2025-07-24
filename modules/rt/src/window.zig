@@ -9,23 +9,17 @@ hdl: *sdl.Window,
 
 /// Returns an SDL window handle.
 pub fn init() !Window {
-    if (!sdl.init.init(sdl.init.Flag.video)) {
-        sdl.log("Unable to initialize SDL: %s", sdl.getError());
-        return error.SDLInitializationFailed;
-    }
+    try sdl.init(.{ .video = true });
 
-    const instance = sdl.video.createWindow("My Game Window", 640, 480, .{
+    const instance = try sdl.video.createWindow("My Game Window", 640, 480, .{
         .resizeable = true,
-    }) orelse {
-        sdl.log("Unable to create window: %s", sdl.getError());
-        return error.SDLInitializationFailed;
-    };
+    });
     return .{ .hdl = instance };
 }
 
 pub fn deinit(window: Window) void {
     sdl.video.destroyWindow(window.hdl);
-    sdl.init.quit();
+    sdl.quit();
 }
 
 pub fn dimensions(window: Window) hym.Vec2 {
