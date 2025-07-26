@@ -138,6 +138,7 @@ pub fn main() !void {
 
         if (game.isStale() or world.restart) {
             gi = game.update() orelse gi;
+            gi.procs(root.procs());
             _ = gi.reload(engine, world);
             world.restart = false;
         }

@@ -12,7 +12,7 @@ pub const strint = @import("runtime/strint.zig");
 pub const ui = @import("runtime/ui.zig");
 pub const w = @import("runtime/window.zig");
 
-pub const Input = input.Context;
+pub const Input = input.Input;
 pub const Gpu = gfx.Gpu;
 pub const Audio = aud;
 pub const Phys2 = p2.World;
@@ -73,8 +73,8 @@ pub const Engine = opaque {
         return proc.hy_engine_phys2(engine);
     }
 
-    pub fn input(engine: *Engine) *Input {
-        return proc.hy_engine_input(engine);
+    pub fn input(engine: *Engine, T: type) Input(T) {
+        return .{ .ctx = proc.hy_engine_input(engine) };
     }
 
     pub fn window(engine: *Engine) *Window {

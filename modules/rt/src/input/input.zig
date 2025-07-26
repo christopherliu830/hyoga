@@ -292,6 +292,17 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
                 .down,
                 event,
             );
+
+            for (self.triggers.items) |trigger| {
+                if (trigger.code == .mouse and
+                    trigger.code.mouse == button and
+                    trigger.on.down)
+                {
+                    self.events.append(self.allocator, trigger.id) catch |err| {
+                        std.log.err("append input event failure: {}", .{err});
+                    };
+                }
+            }
         },
 
         .mouse_button_up => {
@@ -311,6 +322,17 @@ pub fn updateMouse(self: *Input, event: sdl.events.Event) void {
                 .up,
                 event,
             );
+
+            for (self.triggers.items) |trigger| {
+                if (trigger.code == .mouse and
+                    trigger.code.mouse == button and
+                    trigger.on.up)
+                {
+                    self.events.append(self.allocator, trigger.id) catch |err| {
+                        std.log.err("append input event failure: {}", .{err});
+                    };
+                }
+            }
         },
 
         .mouse_motion => {

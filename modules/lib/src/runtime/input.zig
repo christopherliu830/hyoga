@@ -97,48 +97,49 @@ pub const BindHelper = struct {
     }
 };
 
-pub const Context = opaque {
-    pub fn reset(input: *Context) void {
-        proc.hy_io_reset(input);
-    }
+pub fn Input(T: type) type {
+    std.debug.assert(@sizeOf(T) == @sizeOf(u32));
 
-    pub fn mouse(input: *Context, button: hy.MouseButton) bool {
-        return proc.hy_io_mouse(input, button);
-    }
+    return struct {
+        ctx: *Context,
 
-    pub fn mousePosition(input: *Context) hym.Vec2 {
-        return proc.hy_io_mousePosition(input);
-    }
+        pub fn reset(input: Input(T)) void {
+            proc.hy_io_reset(input.ctx);
+        }
 
-    pub fn bindPoll(input: *Context, id: anytype, on: OnFlags, code: keys.Keycode) void {
-        std.debug.assert(@sizeOf(@TypeOf(id)) == @sizeOf(u32));
-        proc.hy_io_bindPoll(input, @intFromEnum(id), on, code);
-    }
+        pub fn mouse(input: Input(T), button: hy.MouseButton) bool {
+            return proc.hy_io_mouse(input.ctx, button);
+        }
 
-    pub fn bindPollMouse(input: *Context, id: anytype, on: OnFlags, code: keys.MouseButton) void {
-        std.debug.assert(@sizeOf(@TypeOf(id)) == @sizeOf(u32));
-        proc.hy_io_bindPollMouse(input, @intFromEnum(id), on, code);
-    }
+        pub fn mousePosition(input: Input(T)) hym.Vec2 {
+            return proc.hy_io_mousePosition(input.ctx);
+        }
 
-    pub fn key(input: *Context, code: hy.Keycode) bool {
-        return proc.hy_io_key(input, code);
-    }
+        pub fn bindPoll(input: Input(T), id: T, on: OnFlags, code: keys.Keycode) void {
+            proc.hy_io_bindPoll(input.ctx, @intFromEnum(id), on, code);
+        }
 
-    pub fn eventPump(input: *Context, T: type) []const T {
-        std.debug.assert(@sizeOf(T) == @sizeOf(u32));
-        const ext_slice = proc.hy_io_eventPump(input);
-        return @as([*]const T, @ptrCast(ext_slice.ptr))[0..ext_slice.len];
-    }
+        pub fn bindPollMouse(input: Input(T), id: T, on: OnFlags, code: keys.MouseButton) void {
+            proc.hy_io_bindPollMouse(input.ctx, @intFromEnum(id), on, code);
+        }
 
-    pub fn eventClear(input: *Context, slice: anytype) void {
-        const type_info = @typeInfo(@TypeOf(slice));
-        std.debug.assert(type_info.pointer.size == .slice);
-        const Child = type_info.pointer.child;
-        std.debug.assert(@sizeOf(Child) == @sizeOf(u32));
-        const ext_slice: hy.ExternSliceConst(u32) = .{
-            .ptr = @ptrCast(slice.ptr),
-            .len = slice.len,
-        };
-        proc.hy_io_eventClear(input, ext_slice);
-    }
-};
+        pub fn key(input: Input(T), code: hy.Keycode) bool {
+            return proc.hy_io_key(input.ctx, code);
+        }
+
+        pub fn eventPump(input: Input(T)) []const T {
+            const ext_slice = proc.hy_io_eventPump(input.ctx);
+            return @as([*]const T, @ptrCast(ext_slice.ptr))[0..ext_slice.len];
+        }
+
+        pub fn eventClear(input: Input(T), slice: []const T) void {
+            const ext_slice: hy.ExternSliceConst(u32) = .{
+                .ptr = @ptrCast(slice.ptr),
+                .len = slice.len,
+            };
+            proc.hy_io_eventClear(input.ctx, ext_slice);
+        }
+    };
+}
+
+pub const Context = opaque { };
