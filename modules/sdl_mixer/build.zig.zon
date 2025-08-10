@@ -8,7 +8,7 @@
         },
         .sdl_mixer = .{
             .url = "https://github.com/libsdl-org/SDL_mixer/archive/78a2035cf4cf95066d7d9e6208e99507376409a7.tar.gz",
-            .hash = "12203f352d776b9e3c21e02d6549498c76b4a10d58ab49ee8fb8c425882d6c1c1aff",
+            .hash = "N-V-__8AAPs5yQA_NS13a548IeAtZUlJjHa0oQ1Yq0nuj7jE",
         },
     },
     .paths = .{""},

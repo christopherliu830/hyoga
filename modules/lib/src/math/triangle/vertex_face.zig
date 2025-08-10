@@ -1035,6 +1035,18 @@ pub fn Subdivision(Vertex: type, positionFn: PositionFn(Vertex)) type {
                 const left = item.left_limit;
                 const right = item.right_limit;
 
+                if (edge.apex() == .none) {
+                    const org = self.vertex(edge.org());
+                    const dest = self.vertex(edge.dest());
+
+                    try visibility_edges.append(arena, .{
+                        org.lerp(dest, left),
+                        org.lerp(dest, right),
+                    });
+
+                    continue;
+                }
+
                 if (edge.constrained()) {
                     const extra = edge.edgeExtra().?
                         .limitLeft(left)

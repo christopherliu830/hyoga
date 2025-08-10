@@ -7,17 +7,21 @@ pub const Audio = @This();
 pub const Channel = enum(c_int) { none = -1, _ };
 
 pub const Sound = extern struct {
-    chunk: *mix.Chunk,
+    chunk: ?*mix.Chunk = null,
     current_channel: Channel = .none,
 
     pub fn play(self: *Sound) void {
-        self.current_channel = @enumFromInt(mix.channelPlay(-1, self.chunk, 0));
+        if (self.chunk) |chunk| {
+            self.current_channel = @enumFromInt(mix.channelPlay(-1, chunk, 0));
+        }
     }
 
     pub fn stop(self: *Sound) void {
-        if (self.current_channel != .none) {
-            mix.channelHalt(@intFromEnum(self.current_channel));
-            self.current_channel = .none;
+        if (self.chunk != null) {
+            if (self.current_channel != .none) {
+                mix.channelHalt(@intFromEnum(self.current_channel));
+                self.current_channel = .none;
+            }
         }
     }
 };
@@ -45,7 +49,7 @@ pub fn read(path: [:0]const u8) Sound {
     if (maybe_chunk) |chunk| {
         return .{ .chunk = chunk };
     } else {
-        sdl.log("SDL error: %s", sdl.getError());
-        std.debug.panic("Load at path {s} resulted in error.", .{path});
+        std.log.warn("SDL error: {s}", .{sdl.getError()});
+        return .{};
     }
 }

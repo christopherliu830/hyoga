@@ -87,7 +87,9 @@ pub const HotReloader = struct {
             try atomic_file.finish();
         }
 
-        try std.fs.cwd().copyFile(src_pdb, std.fs.cwd(), dest_pdb, .{});
+        std.fs.cwd().copyFile(src_pdb, std.fs.cwd(), dest_pdb, .{}) catch |err| {
+            if (err == error.FileNotFound) std.log.warn("source file pdb '{s}' not found", .{src_pdb});
+        };
 
         var new_lib = std.DynLib.open(dest_file) catch |err| {
             if (err == error.FileNotFound) std.log.err("lib '{s}' not found", .{dest_file});

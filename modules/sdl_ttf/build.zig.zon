@@ -15,7 +15,7 @@
         },
         .harfbuzz = .{
             .url = "https://github.com/harfbuzz/harfbuzz/archive/refs/tags/11.2.1.tar.gz",
-            .hash = "n-v-__8aaiitgqx-chthna-95ttoujogawzsr4envt80btdy",                
+            .hash = "N-V-__8AAIitgQX-ChthNa-95TToUjOgawzsR4ENvt80Btdy",
         }
     },
     .paths = .{""},

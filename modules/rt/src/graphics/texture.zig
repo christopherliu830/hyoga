@@ -141,7 +141,9 @@ pub const Textures = struct {
         const h: u32 = @intCast(c_h);
         const d: u32 = 4;
 
-        std.debug.assert(w > 0 and h > 0);
+        if (w == 0 and h == 0) {
+            std.debug.panic("texture {s} has width and height as 0", .{pathZ});
+        }
 
         const texture_info = sdl.gpu.TextureCreateInfo{
             .type = .@"2d",

@@ -6,7 +6,7 @@
     .dependencies = .{
         .imgui = .{
             .url = "https://github.com/ocornut/imgui/archive/refs/tags/v1.91.8.tar.gz",
-            .hash = "122008fc93d2a565a333ec120399fa8904d42a3b2e4307d54af50dade393207f8f06",
+            .hash = "N-V-__8AAMSJaQAI_JPSpWWjM-wSA5n6iQTUKjsuQwfVSvUN",
         },
         .cimgui = .{
             .url = "git+https://github.com/floooh/dcimgui.git#3b98e0a57fc17cc72fdda6934bd932426778a16e",

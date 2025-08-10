@@ -5,7 +5,7 @@
     .dependencies = .{
         .box2d = .{
             .url = "https://github.com/erincatto/box2d/archive/cad8599955ad7ce19e5a3aff753535c17eeca8ef.zip",
-            .hash = "12203b3324484e475144b0177ef13211233e035688e78304a6cad32f67a7d6a06401",
+            .hash = "N-V-__8AAIizKQA7MyRITkdRRLAXfvEyESM-A1aI54MEpsrT",
         },
     },
     .paths = .{""},
