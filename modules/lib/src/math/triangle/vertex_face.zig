@@ -79,15 +79,13 @@ pub const Triangle = struct {
         rot: u2 = 0,
         triangle: u62,
 
-        pub fn format(value: Ref, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-            _ = options;
-            _ = fmt;
+        pub fn format(value: Ref, writer: *std.io.Writer) !void {
             try writer.writeAll("(");
-            if (value.org() != .none) try std.fmt.formatInt(@intFromEnum(value.org()), 10, .lower, .{}, writer) else try writer.writeAll("*");
+            if (value.org() != .none) try writer.printInt(@intFromEnum(value.org()), 10, .lower, .{}) else try writer.writeAll("*");
             try writer.writeAll(" ");
-            if (value.dest() != .none) try std.fmt.formatInt(@intFromEnum(value.dest()), 10, .lower, .{}, writer) else try writer.writeAll("*");
+            if (value.dest() != .none) try writer.printInt(@intFromEnum(value.dest()), 10, .lower, .{}) else try writer.writeAll("*");
             try writer.writeAll(" ");
-            if (value.apex() != .none) try std.fmt.formatInt(@intFromEnum(value.apex()), 10, .lower, .{}, writer) else try writer.writeAll("*");
+            if (value.apex() != .none) try writer.printInt(@intFromEnum(value.apex()), 10, .lower, .{}) else try writer.writeAll("*");
             try writer.writeAll(")");
             if (value.constrained()) {
                 try writer.writeAll(" C");
@@ -357,6 +355,7 @@ pub fn Subdivision(Vertex: type, positionFn: PositionFn(Vertex)) type {
 
             std.sort.heap(Vertex, dupe, Context{}, Context.lessThan);
 
+            // Remove duplicate points
             for (dupe) |v| {
                 if (self.verts.items.len == 0) {
                     try self.verts.append(gpa, v);
@@ -1036,12 +1035,13 @@ pub fn Subdivision(Vertex: type, positionFn: PositionFn(Vertex)) type {
                 const right = item.right_limit;
 
                 if (edge.apex() == .none) {
+                    // Edge is on outside hull, moving clockwise.
                     const org = self.vertex(edge.org());
                     const dest = self.vertex(edge.dest());
 
                     try visibility_edges.append(arena, .{
-                        org.lerp(dest, left),
                         org.lerp(dest, right),
+                        org.lerp(dest, left),
                     });
 
                     continue;
