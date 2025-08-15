@@ -1,5 +1,11 @@
 const std = @import("std");
 
+pub fn reverse(T: type, slice: []T) void {
+    for (0..slice.len / 2) |i| {
+        std.mem.swap(slice[i], slice[slice.len - i - 1]);
+    }
+}
+
 pub fn ReverseIterator(T: type) type {
     return struct {
         slice: []T,
@@ -13,7 +19,7 @@ pub fn ReverseIterator(T: type) type {
     };
 }
 
-pub fn reverse(slice: anytype) ReverseIterator(SliceChild(@TypeOf(slice))) {
+pub fn reverseIt(slice: anytype) ReverseIterator(SliceChild(@TypeOf(slice))) {
     return ReverseIterator(SliceChild(@TypeOf(slice))){ .slice = slice, .idx = slice.len };
 }
 

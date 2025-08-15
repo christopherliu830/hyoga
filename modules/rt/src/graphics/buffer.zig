@@ -42,6 +42,15 @@ pub const BufferAllocator = struct {
     }
 
     pub fn deinit(self: *BufferAllocator) void {
+        self.reset();
+        self.node_allocator.deinit();
+    }
+
+    pub fn iterator(self: *const BufferAllocator) Iterator {
+        return .{ .current = self.buffer_list.head };
+    }
+
+    pub fn reset(self: *BufferAllocator) void {
         var maybe_node = self.buffer_list.popFirst();
         while (maybe_node) |node| : (maybe_node = self.buffer_list.popFirst()) {
             const buf: *Buf = @fieldParentPtr("node", node);
@@ -55,14 +64,6 @@ pub const BufferAllocator = struct {
             self.device.releaseBuffer(buf.hdl);
             self.node_allocator.destroy(buf);
         }
-    }
-
-    pub fn iterator(self: *const BufferAllocator) Iterator {
-        return .{ .current = self.buffer_list.head };
-    }
-
-    pub fn reset(self: *BufferAllocator) void {
-        self.deinit();
     }
 
     fn createNode(self: *BufferAllocator, prev_len: u32, min_size: u32) sdl.gpu.Error!*Buf {

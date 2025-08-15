@@ -38,6 +38,12 @@ pub fn Queue(comptime T: type) type {
             return self.items.pop();
         }
 
+        pub fn deinit(self: *@This()) void {
+            self.mutex.lock();
+            defer self.mutex.unlock();
+            self.items.deinit(self.allocator());
+        }
+
         pub fn allocator(self: *@This()) std.mem.Allocator {
             return self.tsa.allocator();
         }

@@ -68,6 +68,7 @@ pub const Textures = struct {
         while (it.next()) |entry| {
             self.device.releaseTexture(entry.*);
         }
+        self.queue.deinit();
         self.textures.deinit(allocator);
     }
 
