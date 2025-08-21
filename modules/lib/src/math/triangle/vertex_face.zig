@@ -23,6 +23,10 @@ pub const Triangle = struct {
         }
 
         pub fn format(value: Ref, writer: *std.io.Writer) !void {
+            if (!value.valid()) {
+                try writer.writeAll("(*)");
+                return;
+            }
             try writer.writeAll("(");
             if (value.org() != .none) try writer.printInt(@intFromEnum(value.org()), 10, .lower, .{}) else try writer.writeAll("*");
             try writer.writeAll(" ");
@@ -45,7 +49,7 @@ pub const Triangle = struct {
             return @ptrFromInt(@as(usize, @bitCast(@as(u64, self.triangle << 2))));
         }
 
-        inline fn sym(self: Ref) Ref {
+        pub inline fn sym(self: Ref) Ref {
             return self.deref().neighbor[self.rot];
         }
 
@@ -231,15 +235,9 @@ pub const CDT = struct {
 
         std.debug.assert(self.vertices.items.len > 2);
 
-        var timer = try std.time.Timer.start();
-
         const l, const r = try self.triangulateRecursive(0, self.vertices.items.len);
         self.left_edge = l;
         self.right_edge = r;
-
-        const val = timer.lap();
-        std.debug.print("triangulation in time: {}\n", .{hym.nsTime(val)});
-
         return .{ l, r };
     }
 
@@ -553,7 +551,6 @@ pub const CDT = struct {
 
         const sub_3_sym = start_triangle.lprev().sym();
 
-        std.debug.print("deleting: {f}\n", .{start_triangle});
         self.triangleDelete(start_triangle.deref());
 
         sub_1.lnext().connect(sub_2.lprev());
@@ -572,11 +569,118 @@ pub const CDT = struct {
         while (stack.pop()) |edge| {
             const sym = edge.sym();
             if (!sym.constrained() and self.incircleT(new_point, sym)) {
-                std.debug.print("flip\n", .{});
                 flip(edge);
                 try stack.append(arena, edge.lprev());
                 try stack.append(arena, sym.lnext());
             }
+        }
+    }
+
+    pub fn remove(self: *Self, pt: hym.Vec2) !void {
+        defer _ = self.scratch.reset(.retain_capacity);
+        const arena = self.scratch.allocator();
+
+        // start_vertex has org at start_pt
+        const start_vertex: Triangle.Ref = blk: {
+            const start = self.locate(pt) orelse return error.OutOfBounds;
+            if (pt.eql(self.position(start.org()))) {
+                break :blk start;
+            } else if (pt.eql(self.position(start.dest()))) {
+                break :blk start.lnext();
+            } else if (pt.eql(self.position(start.apex()))) {
+                break :blk start.lprev();
+            } else {
+                return error.PointNotFound;
+            }
+        };
+
+        var hole: std.ArrayListUnmanaged(Triangle.Ref) = .empty;
+        try hole.append(arena, start_vertex.lnext().sym());
+        var vertex = start_vertex.onext();
+        const start_dest = start_vertex.dest();
+
+        while (vertex.dest() != start_dest) {
+            try hole.append(arena, vertex.lnext().sym());
+            const to_delete = vertex;
+            vertex = vertex.onext();
+            self.triangleDelete(to_delete.deref());
+        }
+
+        for (hole.items) |hole_edge| {
+            hole_edge.deref().visited = true;
+        }
+
+        var stack: std.ArrayListUnmanaged(Triangle.Ref) = .empty;
+
+        if (hole.items.len == 3) {
+            const triangle = try self.triangleMake(.{
+                .org = hole.items[0].dest(),
+                .dest = hole.items[1].dest(),
+                .apex = hole.items[2].dest(),
+            });
+            triangle.connect(hole.items[0]);
+            triangle.lnext().connect(hole.items[1]);
+            triangle.lprev().connect(hole.items[2]);
+            return;
+        }
+
+        // Create a fan of triangles from first_vertex.
+        const first_vertex = hole.items[0].dest();
+
+        const first_triangle = try self.triangleMake(.{
+            .org = hole.items[1].dest(),
+            .dest = hole.items[1].org(),
+            .apex = first_vertex,
+        });
+
+        first_triangle.connect(hole.items[1]);
+        first_triangle.lprev().connect(hole.items[0]);
+
+        try stack.append(arena, first_triangle.lnext());
+
+        for (hole.items[2 .. hole.items.len - 2]) |hole_edge| {
+            const triangle = try self.triangleMake(.{
+                .org = hole_edge.dest(),
+                .dest = hole_edge.org(),
+                .apex = first_vertex,
+            });
+            triangle.connect(hole_edge);
+            triangle.lprev().connect(stack.items[stack.items.len - 1]);
+            try stack.append(arena, triangle.lnext());
+        }
+
+        const last_triangle = try self.triangleMake(.{
+            .org = hole.items[hole.items.len - 2].dest(),
+            .dest = hole.items[hole.items.len - 2].org(),
+            .apex = first_vertex,
+        });
+
+        last_triangle.connect(hole.items[hole.items.len - 2]);
+        last_triangle.lnext().connect(hole.items[hole.items.len - 1]);
+        last_triangle.lprev().connect(stack.items[stack.items.len - 1]);
+
+        for (hole.items) |hole_edge| {
+            hole_edge.deref().visited = true;
+        }
+
+        while (stack.pop()) |edge| {
+            if (edge.sym().deref().visited) {
+                // This edge is a part of the hole boundary, don't check it
+                continue;
+            }
+
+            const opposite_vertex = edge.sym().apex();
+            if (opposite_vertex != .none and self.incircleT(opposite_vertex, edge)) {
+                flip(edge);
+                try stack.append(arena, edge.lnext());
+                try stack.append(arena, edge.lprev());
+                try stack.append(arena, edge.sym().lnext());
+                try stack.append(arena, edge.sym().lprev());
+            }
+        }
+
+        for (hole.items) |hole_edge| {
+            hole_edge.deref().visited = false;
         }
     }
 
@@ -631,6 +735,7 @@ pub const CDT = struct {
         try left.append(arena, tri_start.lnext().sym());
         try to_delete.append(arena, tri_start);
 
+        // Follow Anglada's algorithm to build left and right arrays.
         var tri = tri_start;
         while (true) {
             const tri_sym = tri.sym();
@@ -667,9 +772,6 @@ pub const CDT = struct {
             std.mem.swap(Triangle.Ref, &right.items[i], &right.items[right.items.len - i - 1]);
         }
 
-        for (left.items) |l| std.debug.print("left: {f}\n", .{l});
-        for (right.items) |r| std.debug.print("right: {f}\n", .{r});
-
         const left_base = try self.retriangulateHalf(left.items);
         const right_base = try self.retriangulateHalf(right.items);
 
@@ -698,7 +800,8 @@ pub const CDT = struct {
         const start = edges[0].org();
         const end = edges[edges.len - 1].dest();
 
-        // There is only one vertex that has no other points in its circumcircle (with start and end).
+        // There is only one vertex that has no other
+        // points in its circumcircle (with start and end).
         var best_vertex: usize = 1;
         for (edges[1..], 1..) |candidate, i| {
             if (self.incircle(start, end, edges[best_vertex].org(), candidate.org())) {
@@ -713,26 +816,27 @@ pub const CDT = struct {
         });
 
         if (edges.len == 2) {
+            // Just one triangle, connect to the first and last outside edge.
             base.lprev().connect(edges[0]);
             base.lnext().connect(edges[1]);
         } else {
             const left_base = try self.retriangulateHalf(edges[0..best_vertex]);
             const right_base = try self.retriangulateHalf(edges[best_vertex..]);
+
+            // If the triangles of left_base and right_base share a
+            // common edge (in the cases that the polygon contains
+            // repeated points), connect them here.
+            if (left_base.lnext().org() == right_base.lprev().dest() and
+                left_base.lnext().dest() == right_base.lprev().org())
+            {
+                left_base.lnext().connect(right_base.lprev());
+            }
+
             base.lnext().connect(right_base);
             base.lprev().connect(left_base);
         }
-        std.debug.print("making triangle: {} {} {}\n", .{ start, edges[best_vertex].org(), end });
 
         return base;
-
-        // if (vertices.len > 0) {
-        //     std.debug.print("making triangle: {} {} {}\n", .{ start, end, vertices[best_vertex] });
-        //     // try self.triangleMake(.{
-        //     //     .org = start,
-        //     //     .dest = end,
-        //     //     .apex = vertices[0],
-        //     // });
-        // }
     }
 
     pub fn locate(self: *CDT, point: hym.Vec2) ?Triangle.Ref {

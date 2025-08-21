@@ -59,4 +59,19 @@ pub fn build(b: *std.Build) !void {
 
     const run_unit_tests = b.addRunArtifact(hy_unit_tests);
     test_step.dependOn(&run_unit_tests.step);
+
+    const tri = b.addExecutable(.{
+        .name = "triangle",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("test/triangle.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{
+                .name = "hyoga",
+                .module = lib.module("hyoga-lib"),
+            }},
+        }),
+    });
+
+    b.installArtifact(tri);
 }
