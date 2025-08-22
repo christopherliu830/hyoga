@@ -75,15 +75,22 @@ pub const HotReloader = struct {
         const dest_pdb = try std.fmt.allocPrint(arena, "{s}{}.pdb", .{ lib_basename, self.version });
         const dest_file = try std.fmt.allocPrint(arena, format_string, .{ lib_basename, self.version });
 
+        var read_buffer: [1024]u8 = @splat(0);
         const file = try std.fs.cwd().openFile(self.src, .{});
+        var reader: std.fs.File.Reader = .init(file, &read_buffer);
         defer file.close();
         const src_stat = try file.stat();
 
         { // Copy file to destination atomically
-            var atomic_file = try std.fs.cwd().atomicFile(dest_file, .{ .mode = src_stat.mode });
+
+            var write_buffer: [1024]u8 = @splat(0);
+            var atomic_file = try std.fs.cwd().atomicFile(dest_file, .{
+                .mode = src_stat.mode,
+                .write_buffer = &write_buffer,
+            });
             defer atomic_file.deinit();
-            try atomic_file.file.writeFileAll(file, .{ .in_len = src_stat.size });
-            try atomic_file.file.updateTimes(src_stat.atime, src_stat.mtime);
+            _ = try atomic_file.file_writer.interface.sendFileReadingAll(&reader, .unlimited);
+            try atomic_file.file_writer.file.updateTimes(src_stat.atime, src_stat.mtime);
             try atomic_file.finish();
         }
 

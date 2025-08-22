@@ -10,7 +10,6 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const dxc = b.option(bool, "dxc", "enable HLSL support") orelse false;
-    const backend = b.option(GpuDriver, "gpu_driver", "force backend graphics driver") orelse .none;
 
     const lib = b.dependency("hyoga_lib", .{
         .target = target,
@@ -20,12 +19,10 @@ pub fn build(b: *std.Build) !void {
     const rt = b.dependency("hyoga_rt", .{
         .target = target,
         .optimize = optimize,
-        .gpu_driver = backend,
         .dxc = dxc,
     });
 
     b.modules.put(b.dupe("lib"), lib.module("hyoga-lib")) catch @panic("OOM");
-    b.modules.put(b.dupe("imgui"), rt.module("imgui")) catch @panic("OOM");
     b.modules.put(b.dupe("clay"), rt.module("clay")) catch @panic("OOM");
 
     b.installArtifact(rt.artifact("rt"));

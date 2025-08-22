@@ -31,14 +31,6 @@ pub const Renderable = struct {
     mesh: Mesh,
     transform: Mat4 = .identity,
 
-    pub fn lessThan(_: void, lhs: Renderable, rhs: Renderable) bool {
-        if (lhs.mesh.buffer.eql(rhs.mesh.buffer))
-            return lhs.mesh.material.index < rhs.mesh.material.index
-        else
-            return @as(usize, @intFromPtr(lhs.mesh.buffer.hdl)) <
-                @as(usize, @intFromPtr(rhs.mesh.buffer.hdl));
-    }
-
     // Does not account for transform differences
     pub fn eql(lhs: Renderable, rhs: Renderable) bool {
         return lhs.mesh.buffer.eql(rhs.mesh.buffer) and
@@ -129,12 +121,11 @@ pub const RenderList = struct {
                 const lhs = &ctx.renderables[a];
                 const rhs = &ctx.renderables[b];
 
-                if (lhs.mesh.material.index != rhs.mesh.material.index) {
-                    return lhs.mesh.material.index < rhs.mesh.material.index;
-                } else {
-                    return @as(usize, @intFromPtr(lhs.mesh.buffer.hdl)) <
-                        @as(usize, @intFromPtr(rhs.mesh.buffer.hdl));
-                }
+                if (lhs.mesh.buffer.eql(rhs.mesh.buffer))
+                    return lhs.mesh.material.index < rhs.mesh.material.index
+                else
+                    return @as(usize, @intFromPtr(lhs.mesh.buffer.hdl)) + lhs.mesh.buffer.offset <
+                        @as(usize, @intFromPtr(rhs.mesh.buffer.hdl)) + rhs.mesh.buffer.offset;
             }
 
             pub fn swap(ctx: @This(), a: usize, b: usize) void {

@@ -519,7 +519,7 @@ pub const CDT = struct {
         defer _ = self.scratch.reset(.retain_capacity);
         const arena = self.scratch.allocator();
 
-        const start_triangle = self.locate(vertex);
+        const start_triangle = self.locate(vertex) orelse return error.OutOfBounds;
 
         try self.vertices.append(self.allocator, vertex);
 

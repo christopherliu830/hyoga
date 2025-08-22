@@ -43,10 +43,14 @@ pub fn init() !*Engine {
     var self_gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
     var self = self_gpa.allocator().create(Engine) catch hy.err.oom();
 
+    try sdl.init(.{ .video = true });
+    std.log.info("SDL version: {}\n", .{sdl.version()});
+
     if (!sdl_ttf.init()) {
         sdl.log("Error initializing sdl_ttf: %s", sdl.getError());
         return error.SdlError;
     }
+
     var a: c_int = 0;
     var b: c_int = 0;
     var c: c_int = 0;

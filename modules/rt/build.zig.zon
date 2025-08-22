@@ -4,7 +4,6 @@
     .version = "0.0.0",
     .dependencies = .{
         .box2d = .{ .path = "../box2d" },
-        .imgui = .{ .path = "../imgui" },
         .sdl = .{ .path = "../sdl" },
         .sdl_mixer = .{ .path = "../sdl_mixer" },
         .sdl_ttf = .{ .path = "../sdl_ttf" },

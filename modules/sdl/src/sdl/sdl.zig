@@ -11,6 +11,7 @@ pub const properties = @import("properties.zig");
 pub const rect = @import("rect.zig");
 pub const scancode = @import("scancode.zig");
 pub const video = @import("video.zig");
+pub const version = @import("version.zig").version;
 
 const _init = @import("init.zig");
 
@@ -24,11 +25,15 @@ pub const Surface = video.Surface;
 pub const PropertiesID = properties.PropertiesID;
 pub const Window = video.Window;
 
-extern fn SDL_GetError() [*:0]const u8;
 pub const getError = SDL_GetError;
-
-extern fn SDL_Log(fmt: [*c]const u8, ...) void;
 pub const log = SDL_Log;
-
 pub const init = _init.init;
 pub const quit = _init.quit;
+
+pub fn free(ptr: ?*anyopaque) void {
+    SDL_free(ptr);
+}
+
+extern fn SDL_GetError() [*:0]const u8;
+extern fn SDL_Log(fmt: [*c]const u8, ...) void;
+extern fn SDL_free(ptr: ?*anyopaque) void;

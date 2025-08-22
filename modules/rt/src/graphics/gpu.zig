@@ -62,7 +62,8 @@ pub const StringIDs = struct {
     light_direction: Strint.ID,
     viewport_size: Strint.ID,
     sprites: Strint.ID,
-    material_idx: Strint.ID,
+    /// Vec2 .{ instance_index, material_index }
+    item_offsets: Strint.ID,
     time: Strint.ID,
 
     pub fn init(strint: *Strint) @This() {
@@ -79,7 +80,7 @@ pub const StringIDs = struct {
             .light_direction = strint.from("hy_light_direction") catch hy.err.oom(),
             .viewport_size = strint.from("hy_viewport_size") catch hy.err.oom(),
             .sprites = strint.from("hy_sprites") catch hy.err.oom(),
-            .material_idx = strint.from("hy_material_index") catch hy.err.oom(),
+            .item_offsets = strint.from("hy_item_offsets") catch hy.err.oom(),
             .time = strint.from("hy_time") catch hy.err.oom(),
         };
     }
@@ -210,8 +211,9 @@ clear_color: hym.Vec4 = .of(0.15, 0.15, 0.15, 1),
 
 pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allocator) !*Gpu {
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
+    const backend = if (build_options.backend) |b| b.ptr else null;
 
-    const device = try sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, null);
+    const device = try sdl.gpu.createDevice(sdlsc.getSpirvShaderFormats(), true, backend);
 
     try device.claimWindow(window.hdl);
 
@@ -604,15 +606,12 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
         const fp_pass = cmd.beginRenderPass(&.{fp_color}, 1, null) orelse
             panic("error begin render pass {s}", .{sdl.getError()});
         defer fp_pass.end();
-
         fp_pass.bindGraphicsPipeline(self.materials.templates.get(.screen_blit).pipeline);
-
-        const binding = [_]sdl.gpu.TextureSamplerBinding{
-            .{ .sampler = self.default_assets.sampler, .texture = self.passes.getPtr(.default).texture() },
+        const binding: sdl.gpu.TextureSamplerBinding = .{
+            .sampler = self.default_assets.sampler,
+            .texture = self.passes.getPtr(.default).texture(),
         };
-
-        fp_pass.bindFragmentSamplers(0, &binding, 1);
-
+        fp_pass.bindFragmentSamplers(0, &.{binding}, 1);
         fp_pass.drawPrimitives(3, 1, 0, 0);
     }
 
@@ -775,7 +774,12 @@ pub fn draw(self: *Gpu, opts: DrawOptions) !void {
         last_pipeline.* = material.pipeline;
     }
 
-    try self.uniforms.put(self.gpa, self.ids.material_idx, .{ .u32 = @intCast(material.params_start) });
+    try self.uniforms.put(self.gpa, self.ids.item_offsets, .{ .u32x4 = .{
+        num_first_instance,
+        @intCast(material.params_start),
+        0,
+        0,
+    } });
 
     inline for (.{
         .{
@@ -835,7 +839,7 @@ pub fn draw(self: *Gpu, opts: DrawOptions) !void {
 
     pass.bindVertexBuffers(0, &.{ .buffer = buffer.hdl, .offset = @intCast(buffer.offset) }, 1);
     pass.bindIndexBuffer(&.{ .buffer = buffer.hdl, .offset = @intCast(buffer.idx_start) }, .@"32bit");
-    pass.drawIndexedPrimitives(buffer.idxCount(), num_instances, 0, 0, num_first_instance);
+    pass.drawIndexedPrimitives(buffer.idxCount(), num_instances, 0, 0, 0);
 }
 
 pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {

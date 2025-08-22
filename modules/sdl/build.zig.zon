@@ -2,10 +2,11 @@
     .name = .hyoga_sdl,
     .fingerprint = 0xfebcaa972a2091a8,
     .version = "0.0.0",
+    .minimum_zig_version = "0.15.1",
     .dependencies = .{
         .sdl = .{
-            .url = "https://github.com/castholm/SDL/archive/refs/tags/v0.2.5+3.2.18.tar.gz",
-            .hash = "sdl-0.2.5+3.2.18-7uIn9FwZfwHKOwSubcg5_CiW4fXag5IIsiV_jnLdkpDM",
+            .url = "https://github.com/castholm/SDL/archive/1994ca5dbad5a3e3c670a9ab8533d86cfd97bdc0.tar.gz",
+            .hash = "sdl-0.2.6+3.2.20-7uIn9NgjfwHH5a6HhyLHat2nHU3OP5B05QHhKJKuxEex"
         },
     },
     .paths = .{""},

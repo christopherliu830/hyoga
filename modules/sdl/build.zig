@@ -1,12 +1,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-pub const GpuBackend = enum { none, direct3d12, vulkan, metal };
-
 pub const Options = struct {
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    backend: GpuBackend,
 };
 
 pub fn build(b: *std.Build) !void {
@@ -63,10 +60,9 @@ pub fn build(b: *std.Build) !void {
             sdl_shadercross.addIncludePath(b.path("include"));
             sdl_shadercross.addLibraryPath(b.path("lib/windows"));
             if (dxc_enabled) {
-                sdl_shadercross.linkSystemLibrary("dxil", .{});
                 sdl_shadercross.linkSystemLibrary("dxcompiler", .{});
-                _ = dll_wf.addCopyFile(b.path("lib/dxil.dll"), "dxil.dll");
-                _ = dll_wf.addCopyFile(b.path("lib/dxcompiler.dll"), "dxcompiler.dll");
+                _ = dll_wf.addCopyFile(b.path("bin/dxil.dll"), "dxil.dll");
+                _ = dll_wf.addCopyFile(b.path("bin/dxcompiler.dll"), "dxcompiler.dll");
             }
             sdl_shadercross.linkSystemLibrary("spirv-cross-c-shared", .{});
             _ = dll_wf.addCopyFile(b.path("lib/windows/spirv-cross-c-shared.dll"), "spirv-cross-c-shared.dll");
@@ -87,8 +83,11 @@ pub fn build(b: *std.Build) !void {
     }
 
     sdl_shadercross.addImport("sdl", sdl);
+
     sdl_shadercross.addCSourceFile(.{
         .file = b.path("src/sdl_shadercross/SDL_shadercross.c"),
-        .flags = &.{if (dxc_enabled) "-DSDL_SHADERCROSS_DXC" else ""},
+        .flags = &.{
+            if (dxc_enabled) "-DSDL_SHADERCROSS_DXC" else "",
+        },
     });
 }

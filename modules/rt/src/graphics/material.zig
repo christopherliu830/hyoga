@@ -319,13 +319,13 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions) !MaterialTemplate {
         std.debug.panic("Could not read material json: {s}: {}", .{ path, err });
     };
 
-    var vert_info: sdlsc.GraphicsShaderMetadata = undefined;
-    const vert_shader = try loadShader(gpu.device, .vertex, path, &vert_info, arena);
+    const vert_metadata, const vert_shader = try loadShader(gpu.device, .vertex, path, arena);
     defer gpu.device.releaseShader(vert_shader);
+    defer sdl.free(vert_metadata);
 
-    var frag_info: sdlsc.GraphicsShaderMetadata = undefined;
-    const frag_shader = try loadShader(gpu.device, .fragment, path, &frag_info, arena);
+    const frag_metadata, const frag_shader = try loadShader(gpu.device, .fragment, path, arena);
     defer gpu.device.releaseShader(frag_shader);
+    defer sdl.free(frag_metadata);
 
     const pipeline = gpu.buildPipeline(.{
         .format = options.format,
@@ -392,27 +392,29 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions) !MaterialTemplate {
     return .{
         .pipeline = pipeline,
         .vert_program_def = .{
-            .num_samplers = vert_info.num_samplers,
-            .num_storage_textures = vert_info.num_storage_textures,
-            .num_storage_buffers = vert_info.num_storage_buffers,
-            .num_uniform_buffers = vert_info.num_uniform_buffers,
+            .num_samplers = vert_metadata.num_samplers,
+            .num_storage_textures = vert_metadata.num_storage_textures,
+            .num_storage_buffers = vert_metadata.num_storage_buffers,
+            .num_uniform_buffers = vert_metadata.num_uniform_buffers,
             .textures = vert_textures,
             .storage_buffers = vert_storages,
             .uniforms = vert_uniforms,
         },
         .frag_program_def = .{
-            .num_samplers = frag_info.num_samplers,
-            .num_storage_textures = frag_info.num_storage_textures,
-            .num_storage_buffers = frag_info.num_storage_buffers,
-            .num_uniform_buffers = frag_info.num_uniform_buffers,
+            .num_samplers = frag_metadata.num_samplers,
+            .num_storage_textures = frag_metadata.num_storage_textures,
+            .num_storage_buffers = frag_metadata.num_storage_buffers,
+            .num_uniform_buffers = frag_metadata.num_uniform_buffers,
             .textures = frag_textures,
-            .storage_buffers = vert_storages,
+            .storage_buffers = frag_storages,
             .uniforms = frag_uniforms,
         },
     };
 }
 
-pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []const u8, out_info: ?*sdlsc.GraphicsShaderMetadata, arena: std.mem.Allocator) !*sdl.gpu.Shader {
+pub const LoadShaderResult = struct { *sdlsc.GraphicsShaderMetadata, *sdl.gpu.Shader };
+
+pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []const u8, arena: std.mem.Allocator) !LoadShaderResult {
     const full_path = switch (stage) {
         .vertex => try std.mem.concat(arena, u8, &.{ path, ".vert.spv" }),
         .fragment => try std.mem.concat(arena, u8, &.{ path, ".frag.spv" }),
@@ -427,15 +429,15 @@ pub fn loadShader(device: *sdl.gpu.Device, stage: sdl.gpu.ShaderStage, path: []c
     defer file.close();
     const code = try file.readToEndAlloc(arena, 1024 * 16);
 
-    var info = try sdlsc.reflectGraphicsSpirv(code);
-    if (out_info) |ptr| {
-        ptr.* = info;
-    }
+    const metadata = try sdlsc.reflectGraphicsSpirv(code);
+    errdefer sdl.free(metadata);
 
-    return try sdlsc.compileGraphicsShaderFromSpirv(device, sdlsc_stage, .{
+    const shader = try sdlsc.compileGraphicsShaderFromSpirv(device, sdlsc_stage, .{
         .bytecode = code,
         .entrypoint = "main",
         .debug = true,
         .name = path.ptr,
-    }, &info);
+    }, metadata);
+
+    return .{ metadata, shader };
 }

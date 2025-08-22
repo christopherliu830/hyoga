@@ -14,8 +14,6 @@ pub const Error = error{
     WaitForIdleError,
 };
 
-pub const DeviceHdl = *Device;
-
 pub const Device = opaque {
     pub const destroy = SDL_DestroyGPUDevice;
     pub const getDeviceDriver = SDL_GetGPUDeviceDriver;
@@ -25,11 +23,11 @@ pub const Device = opaque {
     pub const createSampler = SDL_CreateGPUSampler;
     pub const createShader = SDL_CreateGPUShader;
 
-    pub fn createTexture(device: DeviceHdl, createinfo: *const TextureCreateInfo) Error!*Texture {
+    pub fn createTexture(device: *Device, createinfo: *const TextureCreateInfo) Error!*Texture {
         return SDL_CreateGPUTexture(device, createinfo) orelse Error.CreateTextureFailure;
     }
 
-    pub fn createBuffer(device: DeviceHdl, createinfo: *const BufferCreateInfo) Error!*Buffer {
+    pub fn createBuffer(device: *Device, createinfo: *const BufferCreateInfo) Error!*Buffer {
         return SDL_CreateGPUBuffer(device, createinfo) orelse Error.CreateBufferFailure;
     }
 
@@ -651,15 +649,15 @@ pub const ShaderCreateInfo = extern struct {
 };
 
 pub const TextureCreateInfo = extern struct {
-    type: TextureType = @import("std").mem.zeroes(TextureType),
-    format: TextureFormat = @import("std").mem.zeroes(TextureFormat),
-    usage: TextureUsageFlags = @import("std").mem.zeroes(TextureUsageFlags),
-    width: u32 = @import("std").mem.zeroes(u32),
-    height: u32 = @import("std").mem.zeroes(u32),
-    layer_count_or_depth: u32 = @import("std").mem.zeroes(u32),
-    num_levels: u32 = @import("std").mem.zeroes(u32),
-    sample_count: SampleCount = @import("std").mem.zeroes(SampleCount),
-    props: PropertiesID = @import("std").mem.zeroes(PropertiesID),
+    type: TextureType = .@"2d",
+    format: TextureFormat = .invalid,
+    usage: TextureUsageFlags = .{},
+    width: u32,
+    height: u32,
+    layer_count_or_depth: u32,
+    num_levels: u32,
+    sample_count: SampleCount,
+    props: PropertiesID = 0,
 };
 
 pub const BufferCreateInfo = extern struct {
@@ -827,40 +825,40 @@ pub const StorageTextureReadWriteBinding = extern struct {
 extern fn SDL_GPUSupportsShaderFormats(format_flags: ShaderFormat, name: [*c]const u8) bool;
 extern fn SDL_GPUSupportsProperties(props: PropertiesID) bool;
 
-extern fn SDL_CreateGPUDevice(format_flags: ShaderFormat, debug_mode: bool, name: [*c]const u8) ?DeviceHdl;
-pub fn createDevice(format_flags: ShaderFormat, debug_mode: bool, name: ?[*]const u8) !DeviceHdl {
+extern fn SDL_CreateGPUDevice(format_flags: ShaderFormat, debug_mode: bool, name: [*c]const u8) ?*Device;
+pub fn createDevice(format_flags: ShaderFormat, debug_mode: bool, name: ?[*]const u8) !*Device {
     return SDL_CreateGPUDevice(format_flags, debug_mode, name) orelse {
         std.log.err("SDL create gpu device failure: {s}", .{sdl.getError()});
         return error.SdlError;
     };
 }
 
-extern fn SDL_CreateGPUDeviceWithProperties(props: PropertiesID) ?DeviceHdl;
-extern fn SDL_DestroyGPUDevice(device: DeviceHdl) void;
+extern fn SDL_CreateGPUDeviceWithProperties(props: PropertiesID) ?*Device;
+extern fn SDL_DestroyGPUDevice(device: *Device) void;
 extern fn SDL_GetNumGPUDrivers() i32;
 extern fn SDL_GetGPUDriver(index: i32) [*c]const u8;
-extern fn SDL_GetGPUDeviceDriver(device: DeviceHdl) [*:0]const u8;
-extern fn SDL_GetGPUShaderFormats(device: DeviceHdl) ShaderFormat;
-extern fn SDL_CreateGPUComputePipeline(device: DeviceHdl, createinfo: [*c]const ComputePipelineCreateInfo) ?*ComputePipeline;
-extern fn SDL_CreateGPUGraphicsPipeline(device: DeviceHdl, createinfo: [*c]const GraphicsPipelineCreateInfo) ?*GraphicsPipeline;
-extern fn SDL_CreateGPUSampler(device: DeviceHdl, createinfo: [*c]const SamplerCreateInfo) ?*Sampler;
-extern fn SDL_CreateGPUShader(device: DeviceHdl, createinfo: [*c]const ShaderCreateInfo) ?*Shader;
-extern fn SDL_CreateGPUTexture(device: DeviceHdl, createinfo: [*c]const TextureCreateInfo) ?*Texture;
-extern fn SDL_CreateGPUBuffer(device: DeviceHdl, createinfo: [*c]const BufferCreateInfo) ?*Buffer;
-extern fn SDL_CreateGPUTransferBuffer(device: DeviceHdl, createinfo: [*c]const TransferBufferCreateInfo) ?*TransferBuffer;
-extern fn SDL_SetGPUBufferName(device: DeviceHdl, buffer: ?*Buffer, text: [*c]const u8) void;
-extern fn SDL_SetGPUTextureName(device: DeviceHdl, texture: ?*Texture, text: [*c]const u8) void;
+extern fn SDL_GetGPUDeviceDriver(device: *Device) [*:0]const u8;
+extern fn SDL_GetGPUShaderFormats(device: *Device) ShaderFormat;
+extern fn SDL_CreateGPUComputePipeline(device: *Device, createinfo: [*c]const ComputePipelineCreateInfo) ?*ComputePipeline;
+extern fn SDL_CreateGPUGraphicsPipeline(device: *Device, createinfo: [*c]const GraphicsPipelineCreateInfo) ?*GraphicsPipeline;
+extern fn SDL_CreateGPUSampler(device: *Device, createinfo: [*c]const SamplerCreateInfo) ?*Sampler;
+extern fn SDL_CreateGPUShader(device: *Device, createinfo: [*c]const ShaderCreateInfo) ?*Shader;
+extern fn SDL_CreateGPUTexture(device: *Device, createinfo: [*c]const TextureCreateInfo) ?*Texture;
+extern fn SDL_CreateGPUBuffer(device: *Device, createinfo: [*c]const BufferCreateInfo) ?*Buffer;
+extern fn SDL_CreateGPUTransferBuffer(device: *Device, createinfo: [*c]const TransferBufferCreateInfo) ?*TransferBuffer;
+extern fn SDL_SetGPUBufferName(device: *Device, buffer: ?*Buffer, text: [*c]const u8) void;
+extern fn SDL_SetGPUTextureName(device: *Device, texture: ?*Texture, text: [*c]const u8) void;
 extern fn SDL_InsertGPUDebugLabel(command_buffer: *CommandBuffer, text: [*c]const u8) void;
 extern fn SDL_PushGPUDebugGroup(command_buffer: *CommandBuffer, name: [*c]const u8) void;
 extern fn SDL_PopGPUDebugGroup(command_buffer: *CommandBuffer) void;
-extern fn SDL_ReleaseGPUTexture(device: DeviceHdl, texture: ?*Texture) void;
-extern fn SDL_ReleaseGPUSampler(device: DeviceHdl, sampler: ?*Sampler) void;
-extern fn SDL_ReleaseGPUBuffer(device: DeviceHdl, buffer: ?*Buffer) void;
-extern fn SDL_ReleaseGPUTransferBuffer(device: DeviceHdl, transfer_buffer: ?*TransferBuffer) void;
-extern fn SDL_ReleaseGPUComputePipeline(device: DeviceHdl, compute_pipeline: ?*ComputePipeline) void;
-extern fn SDL_ReleaseGPUShader(device: DeviceHdl, shader: ?*Shader) void;
-extern fn SDL_ReleaseGPUGraphicsPipeline(device: DeviceHdl, graphics_pipeline: ?*GraphicsPipeline) void;
-extern fn SDL_AcquireGPUCommandBuffer(device: DeviceHdl) ?*CommandBuffer;
+extern fn SDL_ReleaseGPUTexture(device: *Device, texture: ?*Texture) void;
+extern fn SDL_ReleaseGPUSampler(device: *Device, sampler: ?*Sampler) void;
+extern fn SDL_ReleaseGPUBuffer(device: *Device, buffer: ?*Buffer) void;
+extern fn SDL_ReleaseGPUTransferBuffer(device: *Device, transfer_buffer: ?*TransferBuffer) void;
+extern fn SDL_ReleaseGPUComputePipeline(device: *Device, compute_pipeline: ?*ComputePipeline) void;
+extern fn SDL_ReleaseGPUShader(device: *Device, shader: ?*Shader) void;
+extern fn SDL_ReleaseGPUGraphicsPipeline(device: *Device, graphics_pipeline: ?*GraphicsPipeline) void;
+extern fn SDL_AcquireGPUCommandBuffer(device: *Device) ?*CommandBuffer;
 extern fn SDL_PushGPUVertexUniformData(command_buffer: *CommandBuffer, slot_index: u32, data: ?*const anyopaque, length: u32) void;
 extern fn SDL_PushGPUFragmentUniformData(command_buffer: *CommandBuffer, slot_index: u32, data: ?*const anyopaque, length: u32) void;
 extern fn SDL_PushGPUComputeUniformData(command_buffer: *CommandBuffer, slot_index: u32, data: ?*const anyopaque, length: u32) void;
@@ -875,7 +873,7 @@ extern fn SDL_BindGPUIndexBuffer(render_pass: *RenderPass, binding: [*c]const Bu
 extern fn SDL_BindGPUVertexSamplers(render_pass: *RenderPass, first_slot: u32, texture_sampler_bindings: [*c]const TextureSamplerBinding, num_bindings: u32) void;
 extern fn SDL_BindGPUVertexStorageTextures(render_pass: *RenderPass, first_slot: u32, storage_textures: [*c]const ?*Texture, num_bindings: u32) void;
 extern fn SDL_BindGPUVertexStorageBuffers(render_pass: *RenderPass, first_slot: u32, storage_buffers: [*c]const ?*Buffer, num_bindings: u32) void;
-extern fn SDL_BindGPUFragmentSamplers(render_pass: *RenderPass, first_slot: u32, texture_sampler_bindings: [*c]const TextureSamplerBinding, num_bindings: u32) void;
+extern fn SDL_BindGPUFragmentSamplers(render_pass: *RenderPass, first_slot: u32, texture_sampler_bindings: [*]const TextureSamplerBinding, num_bindings: u32) void;
 extern fn SDL_BindGPUFragmentStorageTextures(render_pass: *RenderPass, first_slot: u32, storage_textures: [*c]const ?*Texture, num_bindings: u32) void;
 extern fn SDL_BindGPUFragmentStorageBuffers(render_pass: *RenderPass, first_slot: u32, storage_buffers: [*c]const ?*Buffer, num_bindings: u32) void;
 extern fn SDL_DrawGPUIndexedPrimitives(render_pass: *RenderPass, num_indices: u32, num_instances: u32, first_index: u32, vertex_offset: i32, first_instance: u32) void;
@@ -891,8 +889,8 @@ extern fn SDL_BindGPUComputeStorageBuffers(compute_pass: *ComputePass, first_slo
 extern fn SDL_DispatchGPUCompute(compute_pass: *ComputePass, groupcount_x: u32, groupcount_y: u32, groupcount_z: u32) void;
 extern fn SDL_DispatchGPUComputeIndirect(compute_pass: *ComputePass, buffer: ?*Buffer, offset: u32) void;
 extern fn SDL_EndGPUComputePass(compute_pass: *ComputePass) void;
-extern fn SDL_MapGPUTransferBuffer(device: DeviceHdl, transfer_buffer: ?*TransferBuffer, cycle: bool) ?*anyopaque;
-extern fn SDL_UnmapGPUTransferBuffer(device: DeviceHdl, transfer_buffer: ?*TransferBuffer) void;
+extern fn SDL_MapGPUTransferBuffer(device: *Device, transfer_buffer: ?*TransferBuffer, cycle: bool) ?*anyopaque;
+extern fn SDL_UnmapGPUTransferBuffer(device: *Device, transfer_buffer: ?*TransferBuffer) void;
 extern fn SDL_BeginGPUCopyPass(command_buffer: *CommandBuffer) ?*CopyPass;
 extern fn SDL_UploadToGPUTexture(copy_pass: *CopyPass, source: [*c]const TextureTransferInfo, destination: [*c]const TextureRegion, cycle: bool) void;
 extern fn SDL_UploadToGPUBuffer(copy_pass: *CopyPass, source: [*c]const TransferBufferLocation, destination: [*c]const BufferRegion, cycle: bool) void;
@@ -903,29 +901,29 @@ extern fn SDL_DownloadFromGPUBuffer(copy_pass: *CopyPass, source: [*c]const Buff
 extern fn SDL_EndGPUCopyPass(copy_pass: *CopyPass) void;
 extern fn SDL_GenerateMipmapsForGPUTexture(command_buffer: *CommandBuffer, texture: ?*Texture) void;
 extern fn SDL_BlitGPUTexture(command_buffer: *CommandBuffer, info: *const BlitInfo) void;
-extern fn SDL_WindowSupportsGPUSwapchainComposition(device: DeviceHdl, window: ?*Window, swapchain_composition: SwapchainComposition) bool;
-extern fn SDL_WindowSupportsGPUPresentMode(device: DeviceHdl, window: ?*Window, present_mode: PresentMode) bool;
-extern fn SDL_ClaimWindowForGPUDevice(device: DeviceHdl, window: *Window) bool;
-extern fn SDL_ReleaseWindowFromGPUDevice(device: DeviceHdl, window: ?*Window) void;
-extern fn SDL_SetGPUSwapchainParameters(device: DeviceHdl, window: ?*Window, swapchain_composition: SwapchainComposition, present_mode: PresentMode) bool;
-extern fn SDL_SetGPUAllowedFramesInFlight(device: DeviceHdl, allowed_frames_in_flight: u32) bool;
-extern fn SDL_GetGPUSwapchainTextureFormat(device: DeviceHdl, window: ?*Window) TextureFormat;
+extern fn SDL_WindowSupportsGPUSwapchainComposition(device: *Device, window: ?*Window, swapchain_composition: SwapchainComposition) bool;
+extern fn SDL_WindowSupportsGPUPresentMode(device: *Device, window: ?*Window, present_mode: PresentMode) bool;
+extern fn SDL_ClaimWindowForGPUDevice(device: *Device, window: *Window) bool;
+extern fn SDL_ReleaseWindowFromGPUDevice(device: *Device, window: ?*Window) void;
+extern fn SDL_SetGPUSwapchainParameters(device: *Device, window: ?*Window, swapchain_composition: SwapchainComposition, present_mode: PresentMode) bool;
+extern fn SDL_SetGPUAllowedFramesInFlight(device: *Device, allowed_frames_in_flight: u32) bool;
+extern fn SDL_GetGPUSwapchainTextureFormat(device: *Device, window: ?*Window) TextureFormat;
 extern fn SDL_AcquireGPUSwapchainTexture(command_buffer: *CommandBuffer, window: ?*Window, swapchain_texture: ?*?*Texture, swapchain_texture_width: ?*u32, swapchain_texture_height: ?*u32) bool;
-extern fn SDL_WaitForGPUSwapchain(device: DeviceHdl, window: ?*Window) bool;
+extern fn SDL_WaitForGPUSwapchain(device: *Device, window: ?*Window) bool;
 extern fn SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer: *CommandBuffer, window: ?*Window, swapchain_texture: ?*?*Texture, swapchain_texture_width: ?*u32, swapchain_texture_height: ?*u32) bool;
 extern fn SDL_SubmitGPUCommandBuffer(command_buffer: *CommandBuffer) bool;
 extern fn SDL_SubmitGPUCommandBufferAndAcquireFence(command_buffer: *CommandBuffer) ?*Fence;
 extern fn SDL_CancelGPUCommandBuffer(command_buffer: *CommandBuffer) bool;
-extern fn SDL_WaitForGPUIdle(device: DeviceHdl) bool;
-extern fn SDL_WaitForGPUFences(device: DeviceHdl, wait_all: bool, fences: [*c]const ?*Fence, num_fences: u32) bool;
-extern fn SDL_QueryGPUFence(device: DeviceHdl, fence: ?*Fence) bool;
-extern fn SDL_ReleaseGPUFence(device: DeviceHdl, fence: ?*Fence) void;
+extern fn SDL_WaitForGPUIdle(device: *Device) bool;
+extern fn SDL_WaitForGPUFences(device: *Device, wait_all: bool, fences: [*c]const ?*Fence, num_fences: u32) bool;
+extern fn SDL_QueryGPUFence(device: *Device, fence: ?*Fence) bool;
+extern fn SDL_ReleaseGPUFence(device: *Device, fence: ?*Fence) void;
 extern fn SDL_GPUTextureFormatTexelBlockSize(format: TextureFormat) u32;
-extern fn SDL_GPUTextureSupportsFormat(device: DeviceHdl, format: TextureFormat, type: TextureType, usage: TextureUsageFlags) bool;
-extern fn SDL_GPUTextureSupportsSampleCount(device: DeviceHdl, format: TextureFormat, sample_count: SampleCount) bool;
+extern fn SDL_GPUTextureSupportsFormat(device: *Device, format: TextureFormat, type: TextureType, usage: TextureUsageFlags) bool;
+extern fn SDL_GPUTextureSupportsSampleCount(device: *Device, format: TextureFormat, sample_count: SampleCount) bool;
 extern fn SDL_CalculateGPUTextureFormatSize(format: TextureFormat, width: u32, height: u32, depth_or_layer_count: u32) u32;
-extern fn SDL_GDKSuspendGPU(device: DeviceHdl) void;
-extern fn SDL_GDKResumeGPU(device: DeviceHdl) void;
+extern fn SDL_GDKSuspendGPU(device: *Device) void;
+extern fn SDL_GDKResumeGPU(device: *Device) void;
 pub const supportsShaderFormats = SDL_GPUSupportsShaderFormats;
 pub const supportsProperties = SDL_GPUSupportsProperties;
 pub const createWithProperties = SDL_CreateGPUDeviceWithProperties;

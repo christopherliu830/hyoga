@@ -13,7 +13,7 @@ layout(std430, row_major, set = 0, binding = 0) readonly buffer hy_AllRenderable
     mat4 hy_all_renderables[];
 };
 
-layout(std430, set = 0, binding = 1) buffer hy_Sprites {
+layout(std430, set = 0, binding = 1) readonly buffer hy_Sprites {
     uint hy_sprites[];
 };
 
@@ -25,8 +25,10 @@ layout(std140, row_major, set = 1, binding = 1) uniform hy_ProjectionMatrix {
     mat4 hy_projection_matrix;
 };
 
-layout(std140, set = 1, binding = 2) uniform hy_MaterialIndex {
+layout(std140, set = 1, binding = 2) uniform hy_ItemOffsets {
+    uint hy_instance_start_index;
     uint hy_material_index;
+    vec2 padding;
 };
 
 layout(std140, set = 1, binding = 3) uniform hy_Time {
@@ -50,7 +52,7 @@ Sprite hy_sprite_load(uint byte_offset) {
 }
 
 void main() {
-    mat4 object = hy_all_renderables[gl_InstanceIndex];
+    mat4 object = hy_all_renderables[hy_instance_start_index + gl_InstanceIndex];
     vec3 world_position = vec3(object[0][3], object[1][3], object[2][3]);
 
     vec3 object_scale = vec3(object[0][0], object[1][1], object[2][2]);

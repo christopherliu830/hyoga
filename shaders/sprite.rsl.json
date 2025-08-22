@@ -7,7 +7,7 @@
         ],
         "uniforms": [
             "hy_view_projection_matrix",
-            "hy_material_index",
+            "hy_item_offsets",
             "hy_time"
         ]
     },
