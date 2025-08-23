@@ -9,8 +9,6 @@ hdl: *sdl.Window,
 
 /// Returns an SDL window handle.
 pub fn init() !Window {
-    try sdl.init(.{ .video = true });
-
     const instance = try sdl.video.createWindow("My Game Window", 640, 480, .{
         .resizeable = true,
     });
