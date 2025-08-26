@@ -10,9 +10,9 @@ allocator: std.mem.Allocator,
 world: b2.World,
 timestep: f32 = 1.0 / 120.0,
 interp_alpha: f32 = 1,
-hit_callbacks: std.AutoHashMapUnmanaged(Body, CallbackSet) = .{},
 prev_positions: std.AutoArrayHashMapUnmanaged(Body, hym.Vec2) = .{},
 gpu: *gfx.Gpu,
+hit_events: hy.event.EventQueue(Event) = .empty,
 
 /// accumulated time of simulation in ns since engine start.
 current_time: u64 = 0,
@@ -29,6 +29,13 @@ pub const HitEvent = extern struct {
     comptime {
         hy.meta.assertMatches(HitEvent, hy.p2.HitEvent);
     }
+};
+
+pub const Event = extern struct {
+    body: b2.Body,
+    other: b2.Body,
+    normal: hym.Vec2,
+    point: hym.Vec2,
 };
 
 comptime {
@@ -55,20 +62,8 @@ pub fn init(allocator: std.mem.Allocator, gpu: *gfx.Gpu) Phys2 {
 }
 
 pub fn deinit(self: *Phys2) void {
-    var it = self.hit_callbacks.valueIterator();
-    while (it.next()) |cbs| {
-        cbs.deinit(self.allocator);
-    }
-    self.hit_callbacks.deinit(self.allocator);
+    self.hit_events.array.deinit(self.allocator);
     self.prev_positions.deinit(self.allocator);
-}
-
-pub fn eventsReset(self: *Phys2) void {
-    var it = self.hit_callbacks.valueIterator();
-    while (it.next()) |cbs| {
-        cbs.deinit(self.allocator);
-    }
-    self.hit_callbacks.clearRetainingCapacity();
 }
 
 pub const ShapeType = enum(u32) {
@@ -169,46 +164,6 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
 
     self.prev_positions.put(self.allocator, body, @bitCast(body.getPosition())) catch hy.err.oom();
     return body;
-}
-
-pub fn hitEventRegister(
-    self: *Phys2,
-    body: Body,
-    cb: *hy.closure.Runnable(HitEvent),
-) void {
-    const result = self.hit_callbacks.getOrPut(self.allocator, body) catch hy.err.oom();
-    if (!result.found_existing) {
-        result.value_ptr.* = .empty;
-    }
-    const cbs = result.value_ptr;
-    cbs.put(self.allocator, cb, {}) catch hy.err.oom();
-}
-
-pub fn hitEventDeregister(
-    self: *Phys2,
-    body: Body,
-    cb: *hy.closure.Runnable(HitEvent),
-) void {
-    var cbs = self.hit_callbacks.get(body);
-    if (cbs == null) {
-        return;
-    }
-    _ = cbs.?.swapRemove(cb);
-    if (cbs.?.count() == 0) {
-        _ = self.hit_callbacks.remove(body);
-    }
-}
-
-pub fn hitEventDeregisterAll(
-    self: *Phys2,
-    body: Body,
-) void {
-    var cbs = self.hit_callbacks.get(body);
-    if (cbs == null) {
-        return;
-    }
-    cbs.?.clearAndFree(self.allocator);
-    _ = self.hit_callbacks.remove(body);
 }
 
 pub fn step(self: *Phys2) void {
@@ -459,28 +414,12 @@ fn emitContacts(self: *Phys2) void {
         const body_a = hit.shape_a.getBody();
         const body_b = hit.shape_b.getBody();
 
-        if (self.hit_callbacks.get(body_a)) |cbs| {
-            for (cbs.keys()) |cb| {
-                const normal: hym.Vec2 = @bitCast(hit.normal);
-                var hit_event: HitEvent = .{
-                    .other = body_b,
-                    .normal = normal.mul(-1),
-                    .point = @bitCast(hit.point),
-                };
-                @call(.auto, cb.runFn, .{ cb, &hit_event });
-            }
-        }
-
-        if (self.hit_callbacks.get(body_b)) |cbs| {
-            const hit_event: HitEvent = .{
-                .other = body_a,
-                .normal = @bitCast(hit.normal),
-                .point = @bitCast(hit.point),
-            };
-            for (cbs.keys()) |cb| {
-                @call(.auto, cb.runFn, .{ cb, &hit_event });
-            }
-        }
+        self.hit_events.array.append(self.allocator, .{
+            .body = body_a,
+            .other = body_b,
+            .normal = @bitCast(hit.normal),
+            .point = @bitCast(hit.point),
+        }) catch unreachable;
     }
 }
 
@@ -491,39 +430,15 @@ fn emitOverlaps(self: *Phys2) void {
         const sensor_body = ev.sensor_shape.getBody();
         const dynamic_body = ev.visitor_shape.getBody();
 
-        if (self.hit_callbacks.get(sensor_body)) |cbs| {
-            const db_pos: hym.Vec2 = @bitCast(dynamic_body.getPosition());
-            const s_pos: hym.Vec2 = @bitCast(sensor_body.getPosition());
-            const normal = s_pos.sub(db_pos).normal();
-
-            const hit_event: HitEvent = .{
-                .other = dynamic_body,
-                .normal = normal,
-                .point = db_pos,
-            };
-
-            for (cbs.keys()) |cb| {
-                // if (!dynamic_body.isValid() or !sensor_body.isValid()) { break :blk; }
-                @call(.auto, cb.runFn, .{ cb, &hit_event });
-            }
-        }
-
-        if (self.hit_callbacks.get(dynamic_body)) |cbs| {
-            const db_pos: hym.Vec2 = @bitCast(dynamic_body.getPosition());
-            const s_pos: hym.Vec2 = @bitCast(sensor_body.getPosition());
-            const normal = db_pos.sub(s_pos).normal();
-
-            const hit_event: HitEvent = .{
-                .other = sensor_body,
-                .normal = normal,
-                .point = s_pos,
-            };
-
-            for (cbs.keys()) |cb| {
-                // if (!dynamic_body.isValid() or !sensor_body.isValid()) break :blk;
-                @call(.auto, cb.runFn, .{ cb, &hit_event });
-            }
-        }
+        const db_pos: hym.Vec2 = @bitCast(dynamic_body.getPosition());
+        const s_pos: hym.Vec2 = @bitCast(sensor_body.getPosition());
+        const normal = s_pos.sub(db_pos).normal();
+        self.hit_events.array.append(self.allocator, .{
+            .body = sensor_body,
+            .other = dynamic_body,
+            .normal = normal,
+            .point = db_pos,
+        }) catch unreachable;
     }
 }
 

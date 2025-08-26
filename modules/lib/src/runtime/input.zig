@@ -142,4 +142,4 @@ pub fn Input(T: type) type {
     };
 }
 
-pub const Context = opaque { };
+pub const Context = opaque {};

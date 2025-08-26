@@ -111,10 +111,7 @@ pub const ProcTable = extern struct {
     hy_p2_bodyVelocitySet: *const fn (body: Phys2.Body, velocity: hym.Vec2) callconv(.c) void,
     hy_p2_shapeBody: *const fn (shape: Phys2.b2.Shape) callconv(.c) Phys2.Body,
     hy_p2_shapeExtra: *const fn (shape: Phys2.b2.Shape) callconv(.c) Phys2.ShapeExtra,
-    hy_p2_eventReset: *const fn (world: *Phys2) callconv(.c) void,
-    hy_p2_eventRegister: *const fn (world: *Phys2, body: Phys2.Body, cb: *hy.closure.Runnable(Phys2.HitEvent)) callconv(.c) void,
-    hy_p2_eventDeregister: *const fn (world: *Phys2, body: Phys2.Body, cb: *hy.closure.Runnable(Phys2.HitEvent)) callconv(.c) void,
-    hy_p2_eventDeregisterAll: *const fn (world: *Phys2, body: Phys2.Body) callconv(.c) void,
+    hy_p2_eventPump: *const fn (world: *Phys2, buffer: hy.ExternSlice(u8)) callconv(.c) u32,
     hy_p2_overlapLeaky: *const fn (world: *Phys2, arena: hy.ExternAllocator, shape: Phys2.ShapeConfig, origin: hym.Vec2) callconv(.c) hy.ExternSlice(Phys2.b2.Shape),
     hy_p2_castRayLeaky: *const fn (world: *Phys2, arena: hy.ExternAllocator, opts: Phys2.RaycastOptions) callconv(.c) hy.ExternSlice(Phys2.RaycastHit),
     hy_p2_castCircleLeaky: *const fn (world: *Phys2, arena: hy.ExternAllocator, opts: Phys2.CastCircleOptions) callconv(.c) hy.ExternSlice(Phys2.RaycastHit),
@@ -186,10 +183,7 @@ pub fn procs() ProcTable {
         .hy_p2_bodyVelocitySet = hyp2BodyVelocitySet,
         .hy_p2_shapeBody = hyp2ShapeBody,
         .hy_p2_shapeExtra = hyp2ShapeExtra,
-        .hy_p2_eventReset = hyp2EventsReset,
-        .hy_p2_eventRegister = hyp2HitEventRegister,
-        .hy_p2_eventDeregister = hyp2HitEventDeregister,
-        .hy_p2_eventDeregisterAll = hyp2HitEventDeregisterAll,
+        .hy_p2_eventPump = hy_p2_eventPump,
         .hy_p2_overlapLeaky = hyp2OverlapLeaky,
         .hy_p2_castRayLeaky = hyp2RaycastLeaky,
         .hy_p2_castCircleLeaky = hyp2CastCircleLeaky,
@@ -535,27 +529,8 @@ fn hyp2ShapeExtra(shape: Phys2.b2.Shape) callconv(.c) Phys2.ShapeExtra {
     return Phys2.shapeExtra(shape);
 }
 
-fn hyp2EventsReset(p2d: *Phys2) callconv(.c) void {
-    p2d.eventsReset();
-}
-
-fn hyp2HitEventRegister(p2d: *Phys2, body: Phys2.Body, cb: *hy.closure.Runnable(Phys2.HitEvent)) callconv(.c) void {
-    p2d.hitEventRegister(body, cb);
-}
-
-fn hyp2HitEventDeregister(
-    p2d: *Phys2,
-    body: Phys2.Body,
-    cb: *hy.closure.Runnable(Phys2.HitEvent),
-) callconv(.c) void {
-    p2d.hitEventDeregister(body, cb);
-}
-
-fn hyp2HitEventDeregisterAll(
-    p2d: *Phys2,
-    body: Phys2.Body,
-) callconv(.c) void {
-    p2d.hitEventDeregisterAll(body);
+fn hy_p2_eventPump(p2d: *Phys2, buffer: hy.ExternSlice(u8)) callconv(.c) u32 {
+    return p2d.hit_events.pump(buffer.asSlice());
 }
 
 fn hyp2OverlapLeaky(p2d: *Phys2, arena: hy.ExternAllocator, shape: Phys2.ShapeConfig, origin: hym.Vec2) callconv(.c) hy.ExternSlice(Phys2.b2.Shape) {

@@ -166,6 +166,13 @@ pub const CastCircleOptions = extern struct {
     collection_type: RaycastOptions.CollectionType,
 };
 
+pub const Event = extern struct {
+    body: Body,
+    other: Body,
+    point: hym.Vec2,
+    normal: hym.Vec2,
+};
+
 pub const OverlapCallback = *const fn (Body, ?*anyopaque) callconv(.c) bool;
 
 pub const World = struct {
@@ -177,20 +184,9 @@ pub const World = struct {
         return proc.hy_p2_bodyPosition(world, body);
     }
 
-    pub fn eventReset(world: *World) void {
-        return proc.hy_p2_eventReset(world);
-    }
-
-    pub fn eventRegister(world: *World, body: Body, cb: *closure.Runnable(HitEvent)) void {
-        proc.hy_p2_eventRegister(world, body, cb);
-    }
-
-    pub fn eventDeregister(world: *World, body: Body, cb: *closure.Runnable(HitEvent)) void {
-        proc.hy_p2_eventDeregister(world, body, cb);
-    }
-
-    pub fn eventDeregisterAll(world: *World, body: Body) void {
-        proc.hy_p2_eventDeregisterAll(world, body);
+    pub fn eventPump(world: *World, buffer: []u8) []align(1) Event {
+        const len = proc.hy_p2_eventPump(world, .from(buffer));
+        return @ptrCast(buffer[0..len]);
     }
 
     pub fn overlapLeaky(phys2: *World, arena: std.mem.Allocator, shape: ShapeOptions, origin: hym.Vec2) []Shape {
