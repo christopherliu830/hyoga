@@ -6,6 +6,8 @@ const funcs = @import("funcs.zig");
 const VertexHandle = root.VertexHandle;
 const determinant = funcs.determinant;
 
+const log = std.log.scoped(.math);
+
 pub const Triangle = struct {
     neighbor: [3]Ref,
     vertices: [3]VertexHandle = @splat(.none),
@@ -95,7 +97,7 @@ pub const Triangle = struct {
             return self.sym().lprev().sym();
         }
 
-        fn apex(self: Ref) VertexHandle {
+        pub fn apex(self: Ref) VertexHandle {
             return self.deref().vertices[self.rot];
         }
 
@@ -103,7 +105,7 @@ pub const Triangle = struct {
             self.deref().vertices[self.rot] = a;
         }
 
-        fn org(self: Ref) VertexHandle {
+        pub fn org(self: Ref) VertexHandle {
             return self.deref().vertices[
                 switch (self.rot) {
                     0 => 1,
@@ -125,7 +127,7 @@ pub const Triangle = struct {
             ] = a;
         }
 
-        fn dest(self: Ref) VertexHandle {
+        pub fn dest(self: Ref) VertexHandle {
             return self.deref().vertices[
                 switch (self.rot) {
                     0 => 2,
@@ -161,6 +163,11 @@ pub const Triangle = struct {
             }
         }
 
+        fn connectWithoutConstraint(self: Ref, other: Ref) void {
+            self.neighborSet(other);
+            other.neighborSet(self);
+        }
+
         pub fn constrained(self: Ref) bool {
             return self.deref().constraints[self.rot];
         }
@@ -182,6 +189,7 @@ pub const CDT = struct {
     left_edge: Triangle.Ref,
     right_edge: Triangle.Ref,
     vertices: std.ArrayListUnmanaged(hym.Vec2) = .empty,
+    free_list: ?usize = null,
 
     pub fn init(allocator: std.mem.Allocator, initial_vertices: []const hym.Vec2) !Self {
         var sd: CDT = .{
@@ -203,7 +211,7 @@ pub const CDT = struct {
         self.pool.arena.deinit();
     }
 
-    inline fn position(self: *const Self, h: VertexHandle) hym.Vec2 {
+    pub inline fn position(self: *const Self, h: VertexHandle) hym.Vec2 {
         return self.vertices.items[h.unwrap()];
     }
 
@@ -241,6 +249,10 @@ pub const CDT = struct {
         return .{ l, r };
     }
 
+    /// Returns two edges, left (0) and right (1). Left is an edge
+    /// with org of the leftmost (or bottommost, in case of ties) vertex and
+    /// a null dest. Right is an outside edge with dest of the rightmost (or topmost)
+    /// vertex and a null org.
     fn triangulateRecursive(self: *Self, l: usize, r: usize) ![2]Triangle.Ref {
         const len = r - l;
         if (len == 2) {
@@ -265,7 +277,7 @@ pub const CDT = struct {
             const s1: VertexHandle = .make(l);
             const s2: VertexHandle = .make(l + 1);
             const s3: VertexHandle = .make(l + 2);
-            const det = determinant(self.position(s1), self.position(s2), self.position(s3));
+            const det = self.determinant(s1, s2, s3);
 
             if (det == 0.0) {
                 const a = try self.triangleMake(.{ .org = s1, .dest = s2, .apex = .none });
@@ -515,63 +527,237 @@ pub const CDT = struct {
         return .{ undefined, undefined };
     }
 
-    pub fn insert(self: *CDT, vertex: hym.Vec2) !void {
+    pub fn insert(self: *CDT, point: hym.Vec2) !void {
         defer _ = self.scratch.reset(.retain_capacity);
         const arena = self.scratch.allocator();
 
-        const start_triangle = self.locate(vertex) orelse return error.OutOfBounds;
+        log.debug("insert {}", .{point});
 
-        try self.vertices.append(self.allocator, vertex);
+        if (self.locate(point)) |start_triangle| {
+            log.debug("\tlocated: {f}", .{start_triangle});
+            const org_pos = self.position(start_triangle.org());
+            if (point.eql(org_pos)) {
+                log.debug("\tearly out", .{});
+                return;
+            }
 
-        const new_point: VertexHandle = .make(self.vertices.items.len - 1);
+            const vertex = try self.vertexMake(point);
+            errdefer _ = self.vertices.pop();
 
-        // Divide triangle into sub_1, sub_2, sub_3
+            var stack: std.ArrayListUnmanaged(Triangle.Ref) = .empty;
 
-        const sub_1 = try self.triangleMake(.{
-            .org = start_triangle.org(),
-            .dest = start_triangle.dest(),
-            .apex = new_point,
-        });
+            const dest_pos = self.position(start_triangle.dest());
+            if (funcs.determinant(org_pos, dest_pos, point) == 0.0) {
+                const left = start_triangle;
+                const right = start_triangle.sym();
+                const left_far_sym = left.lnext().sym();
+                const right_far_sym = right.lprev().sym();
 
-        const sub_1_sym = start_triangle.sym();
+                const left_far = try self.triangleMake(.{
+                    .org = vertex,
+                    .dest = left.dest(),
+                    .apex = left.apex(),
+                });
+                left.destSet(vertex);
 
-        const sub_2 = try self.triangleMake(.{
-            .org = start_triangle.dest(),
-            .dest = start_triangle.apex(),
-            .apex = new_point,
-        });
+                const right_far = try self.triangleMake(.{
+                    .org = right.org(),
+                    .dest = vertex,
+                    .apex = right.apex(),
+                });
+                right.orgSet(vertex);
 
-        const sub_2_sym = start_triangle.lnext().sym();
+                left_far.connect(right_far);
+                left.lnext().connect(left_far.lprev());
+                right.lprev().connect(right_far.lnext());
+                left_far.lnext().connect(left_far_sym);
+                right_far.lprev().connect(right_far_sym);
 
-        const sub_3 = try self.triangleMake(.{
-            .org = start_triangle.apex(),
-            .dest = start_triangle.org(),
-            .apex = new_point,
-        });
+                try stack.append(arena, left.lprev());
+                try stack.append(arena, left_far.lnext());
+                // On the outside hull?
+                if (right.lnext().dest() != .none) {
+                    try stack.append(arena, right.lnext());
+                    try stack.append(arena, right_far.lprev());
+                }
+            } else {
 
-        const sub_3_sym = start_triangle.lprev().sym();
+                // Divide triangle into sub_1, sub_2, sub_3
 
-        self.triangleDelete(start_triangle.deref());
+                const sub_1 = try self.triangleMake(.{
+                    .org = start_triangle.org(),
+                    .dest = start_triangle.dest(),
+                    .apex = vertex,
+                });
 
-        sub_1.lnext().connect(sub_2.lprev());
-        sub_2.lnext().connect(sub_3.lprev());
-        sub_3.lnext().connect(sub_1.lprev());
-        sub_1.connect(sub_1_sym);
-        sub_2.connect(sub_2_sym);
-        sub_3.connect(sub_3_sym);
+                const sub_1_sym = start_triangle.sym();
 
-        var stack: std.ArrayListUnmanaged(Triangle.Ref) = .empty;
+                const sub_2 = try self.triangleMake(.{
+                    .org = start_triangle.dest(),
+                    .dest = start_triangle.apex(),
+                    .apex = vertex,
+                });
 
-        try stack.append(arena, sub_1);
-        try stack.append(arena, sub_2);
-        try stack.append(arena, sub_3);
+                const sub_2_sym = start_triangle.lnext().sym();
 
-        while (stack.pop()) |edge| {
-            const sym = edge.sym();
-            if (!sym.constrained() and self.incircleT(new_point, sym)) {
-                flip(edge);
-                try stack.append(arena, edge.lprev());
-                try stack.append(arena, sym.lnext());
+                const sub_3 = try self.triangleMake(.{
+                    .org = start_triangle.apex(),
+                    .dest = start_triangle.org(),
+                    .apex = vertex,
+                });
+
+                const sub_3_sym = start_triangle.lprev().sym();
+
+                self.triangleDelete(start_triangle.deref());
+
+                sub_1.lnext().connect(sub_2.lprev());
+                sub_2.lnext().connect(sub_3.lprev());
+                sub_3.lnext().connect(sub_1.lprev());
+                sub_1.connect(sub_1_sym);
+                sub_2.connect(sub_2_sym);
+                sub_3.connect(sub_3_sym);
+
+                try stack.append(arena, sub_1);
+                try stack.append(arena, sub_2);
+                try stack.append(arena, sub_3);
+            }
+
+            while (stack.pop()) |edge| {
+                const sym = edge.sym();
+                if (!sym.constrained() and sym.apex() != .none and self.incircleT(vertex, sym)) {
+                    flip(edge);
+                    log.debug("\tflip {f} + {}", .{ edge, edge.sym().apex() });
+                    try stack.append(arena, edge.lprev());
+                    try stack.append(arena, sym.lnext());
+                } else {
+                    log.debug("\taccept {f} + {}", .{ edge, edge.sym().apex() });
+                }
+            }
+        } else {
+
+            // If locate returns null, `point` is either outside of the triangulation
+            // or on an edge in the convex hull.
+            const start = self.left_edge;
+
+            // Build a fan of triangles to every edge visible to the new vertex.
+            var fan_first: Triangle.Ref = blk: {
+                var outside_triangle = start;
+                if (self.leftOf(point, outside_triangle.lprev())) {
+                    // We started in the middle of the fan, move counter-clockwise
+                    // until at the beginning
+                    while (true) {
+                        if (!self.leftOf(point, outside_triangle.lprev())) {
+                            break :blk outside_triangle.dnext();
+                        } else {
+                            outside_triangle = outside_triangle.dprev();
+                        }
+                    }
+                } else {
+                    // We are on the outside of the fan, move until at the
+                    // beginning
+                    while (true) {
+                        const org_pos = self.position(outside_triangle.lprev().org());
+                        const dest_pos = self.position(outside_triangle.lprev().dest());
+                        const det = funcs.determinant(point, org_pos, dest_pos);
+                        if (det > 0) {
+                            break :blk outside_triangle;
+                        }
+
+                        // Point lies on the outside hull, find the edge it's on
+                        // and split it into a quad
+                        else if (det == 0) {
+                            const min = @min(org_pos.v, dest_pos.v);
+                            const max = @max(org_pos.v, dest_pos.v);
+                            if (point.eql(org_pos) or point.eql(dest_pos)) {
+                                // Point already exists..
+                                return;
+                            } else if (min[0] <= point.x() and point.x() <= max[0] and
+                                min[1] <= point.y() and point.y() <= max[1])
+                            {
+                                const vertex = try self.vertexMake(point);
+                                errdefer _ = self.vertices.pop();
+                                const inside_triangle = outside_triangle.lprev().sym();
+                                const b = inside_triangle.dest();
+                                const c = inside_triangle.apex();
+                                inside_triangle.destSet(vertex);
+                                outside_triangle.apexSet(vertex);
+
+                                const triangle_sym = try self.triangleMake(.{
+                                    .org = vertex,
+                                    .dest = b,
+                                    .apex = c,
+                                });
+
+                                const outside_triangle_sym = try self.triangleMake(.{
+                                    .org = b,
+                                    .dest = vertex,
+                                    .apex = .none,
+                                });
+
+                                triangle_sym.lnext().connect(inside_triangle.lnext().sym());
+                                triangle_sym.connect(outside_triangle_sym);
+                                triangle_sym.lprev().connect(inside_triangle.lnext());
+                                outside_triangle_sym.lprev().connect(outside_triangle.lnext().sym());
+                                outside_triangle_sym.lnext().connect(outside_triangle.lnext());
+                                return;
+                            }
+                        }
+                        outside_triangle = outside_triangle.dnext();
+                    }
+                }
+            };
+
+            const vertex = try self.vertexMake(point);
+            errdefer _ = self.vertices.pop();
+
+            log.debug("Outside hull point {}", .{vertex});
+            var stack: std.ArrayList(Triangle.Ref) = .empty;
+
+            var fan = fan_first;
+            while (self.leftOf(point, fan.lprev())) {
+                log.debug("fan triangle {f}", .{fan});
+                fan.destSet(vertex);
+                try stack.append(arena, fan.lprev());
+                fan = fan.dnext();
+            }
+
+            const fan_last = fan.dprev();
+
+            const fan_first_case = try self.triangleMake(.{
+                .org = fan_first.apex(),
+                .dest = fan_first.dest(),
+                .apex = .none,
+            });
+
+            const fan_last_case = try self.triangleMake(.{
+                .org = fan_last.dest(),
+                .dest = fan_last.org(),
+                .apex = .none,
+            });
+
+            fan_first_case.lprev().connect(fan_first.dprev());
+            fan_last_case.lnext().connect(fan_last.sym());
+            fan_first_case.connect(fan_first.lnext());
+            fan_last_case.connect(fan_last);
+            fan_first_case.lnext().connect(fan_last_case.lprev());
+
+            while (stack.pop()) |edge| {
+                const sym = edge.sym();
+                if (!sym.constrained() and sym.apex() != .none and self.incircleT(vertex, sym)) {
+                    flip(edge);
+                    try stack.append(arena, edge.lprev());
+                    try stack.append(arena, sym.lnext());
+                } else {}
+            }
+
+            // Relocate left_edge
+            while (self.left_edge.dest() != .none) {
+                const a = self.position(self.left_edge.org());
+                const b = self.position(self.left_edge.dest());
+                if (b.x() < a.x() or b.x() == a.x() and b.y() < a.y()) {
+                    self.left_edge = self.left_edge.sym();
+                }
+                self.left_edge = self.left_edge.onext();
             }
         }
     }
@@ -580,9 +766,11 @@ pub const CDT = struct {
         defer _ = self.scratch.reset(.retain_capacity);
         const arena = self.scratch.allocator();
 
+        log.debug("remove {}", .{pt});
+
         // start_vertex has org at start_pt
         const start_vertex: Triangle.Ref = blk: {
-            const start = self.locate(pt) orelse return error.OutOfBounds;
+            const start = self.locate(pt) orelse return error.RemovePointNotFound;
             if (pt.eql(self.position(start.org()))) {
                 break :blk start;
             } else if (pt.eql(self.position(start.dest()))) {
@@ -590,27 +778,41 @@ pub const CDT = struct {
             } else if (pt.eql(self.position(start.apex()))) {
                 break :blk start.lprev();
             } else {
-                return error.PointNotFound;
+                return error.RemovePointNotFound;
             }
         };
 
-        var hole: std.ArrayListUnmanaged(Triangle.Ref) = .empty;
-        try hole.append(arena, start_vertex.lnext().sym());
-        var vertex = start_vertex.onext();
-        const start_dest = start_vertex.dest();
+        log.debug("\tpoint located {f}", .{start_vertex});
+        const to_delete_start_point = start_vertex.org();
 
-        while (vertex.dest() != start_dest) {
+        if (self.left_edge.org() == start_vertex.org()) {
+            self.left_edge = self.left_edge.dnext();
+        }
+
+        // self.vertices.items[start_vertex.org().unwrap()] = .zero;
+
+        var left_edge_needs_fixup = false;
+        var hole: std.ArrayListUnmanaged(Triangle.Ref) = .empty;
+        var vertex = start_vertex;
+
+        while (vertex.valid()) {
             try hole.append(arena, vertex.lnext().sym());
             const to_delete = vertex;
+
+            if (self.left_edge.deref() == to_delete.deref()) {
+                // The left_edge connection will be deleted here and
+                // remade later in the function, so at the end get `left_edge.sym()`
+                // to preserve the invariant.
+                self.left_edge = self.left_edge.sym();
+                left_edge_needs_fixup = true;
+            }
+
             vertex = vertex.onext();
+            log.debug("\tdelete {f}", .{to_delete});
             self.triangleDelete(to_delete.deref());
         }
 
-        for (hole.items) |hole_edge| {
-            hole_edge.deref().visited = true;
-        }
-
-        var stack: std.ArrayListUnmanaged(Triangle.Ref) = .empty;
+        for (hole.items) |hole_edge| hole_edge.deref().visited = true;
 
         if (hole.items.len == 3) {
             const triangle = try self.triangleMake(.{
@@ -621,67 +823,100 @@ pub const CDT = struct {
             triangle.connect(hole.items[0]);
             triangle.lnext().connect(hole.items[1]);
             triangle.lprev().connect(hole.items[2]);
-            return;
-        }
+        } else {
 
-        // Create a fan of triangles from first_vertex.
-        const first_vertex = hole.items[0].dest();
+            // Create a fan of triangles from first_vertex.
+            const first_vertex = hole.items[0].dest();
 
-        const first_triangle = try self.triangleMake(.{
-            .org = hole.items[1].dest(),
-            .dest = hole.items[1].org(),
-            .apex = first_vertex,
-        });
-
-        first_triangle.connect(hole.items[1]);
-        first_triangle.lprev().connect(hole.items[0]);
-
-        try stack.append(arena, first_triangle.lnext());
-
-        for (hole.items[2 .. hole.items.len - 2]) |hole_edge| {
-            const triangle = try self.triangleMake(.{
-                .org = hole_edge.dest(),
-                .dest = hole_edge.org(),
+            const first_triangle = try self.triangleMake(.{
+                .org = hole.items[1].dest(),
+                .dest = hole.items[1].org(),
                 .apex = first_vertex,
             });
-            triangle.connect(hole_edge);
-            triangle.lprev().connect(stack.items[stack.items.len - 1]);
-            try stack.append(arena, triangle.lnext());
-        }
 
-        const last_triangle = try self.triangleMake(.{
-            .org = hole.items[hole.items.len - 2].dest(),
-            .dest = hole.items[hole.items.len - 2].org(),
-            .apex = first_vertex,
-        });
+            first_triangle.connectWithoutConstraint(hole.items[1]);
+            first_triangle.lprev().connectWithoutConstraint(hole.items[0]);
 
-        last_triangle.connect(hole.items[hole.items.len - 2]);
-        last_triangle.lnext().connect(hole.items[hole.items.len - 1]);
-        last_triangle.lprev().connect(stack.items[stack.items.len - 1]);
+            var stack: std.ArrayListUnmanaged(Triangle.Ref) = .empty;
+            try stack.append(arena, first_triangle.lnext());
 
-        for (hole.items) |hole_edge| {
-            hole_edge.deref().visited = true;
-        }
-
-        while (stack.pop()) |edge| {
-            if (edge.sym().deref().visited) {
-                // This edge is a part of the hole boundary, don't check it
-                continue;
+            for (hole.items[2 .. hole.items.len - 2]) |hole_edge| {
+                const triangle = try self.triangleMake(.{
+                    .org = hole_edge.dest(),
+                    .dest = hole_edge.org(),
+                    .apex = first_vertex,
+                });
+                triangle.connectWithoutConstraint(hole_edge);
+                triangle.lprev().connectWithoutConstraint(stack.items[stack.items.len - 1]);
+                try stack.append(arena, triangle.lnext());
             }
 
-            const opposite_vertex = edge.sym().apex();
-            if (opposite_vertex != .none and self.incircleT(opposite_vertex, edge)) {
+            const last_triangle = try self.triangleMake(.{
+                .org = hole.items[hole.items.len - 2].dest(),
+                .dest = hole.items[hole.items.len - 2].org(),
+                .apex = first_vertex,
+            });
+
+            last_triangle.connectWithoutConstraint(hole.items[hole.items.len - 2]);
+            last_triangle.lnext().connectWithoutConstraint(hole.items[hole.items.len - 1]);
+            last_triangle.lprev().connectWithoutConstraint(stack.items[stack.items.len - 1]);
+
+            for (hole.items) |hole_edge| {
+                hole_edge.deref().visited = true;
+            }
+
+            while (stack.pop()) |edge| {
+                if (edge.sym().deref().visited) {
+                    // This edge is a part of the hole boundary, don't check it
+                    continue;
+                }
+
+                if (self.quadFix(edge)) {
+                    log.debug("edge flipped: {f}", .{edge});
+                    try stack.append(arena, edge.lnext());
+                    try stack.append(arena, edge.lprev());
+                    try stack.append(arena, edge.sym().lnext());
+                    try stack.append(arena, edge.sym().lprev());
+                }
+            }
+
+            for (hole.items) |hole_edge| {
+                hole_edge.deref().visited = false;
+                if (hole_edge.constrained()) hole_edge.sym().constrainedSet(true);
+            }
+        }
+        if (left_edge_needs_fixup) {
+            self.left_edge = self.left_edge.sym();
+        }
+        self.vertexDelete(to_delete_start_point);
+    }
+
+    /// This is in most cases an incircle test, except in the cases
+    /// where one of the vertices in the quad is the null vertex.
+    /// In that case, if the other three points are collinear,
+    /// flip the "inside edge" making two outside triangles.
+    /// Otherwise, flip to make sure there is at least one inside triangle.
+    fn quadFix(self: *Self, edge: Triangle.Ref) bool {
+        const apex_sym = edge.sym().apex();
+        const org = edge.org();
+        const dest = edge.dest();
+        const apex = edge.apex();
+
+        if (org != .none and dest != .none and apex != .none and apex_sym != .none) {
+            if (self.incircleT(apex_sym, edge)) {
                 flip(edge);
-                try stack.append(arena, edge.lnext());
-                try stack.append(arena, edge.lprev());
-                try stack.append(arena, edge.sym().lnext());
-                try stack.append(arena, edge.sym().lprev());
+                return true;
             }
+        } else if (org == .none and self.determinant(dest, apex, apex_sym) > 0.0 or
+            dest == .none and self.determinant(org, apex, apex_sym) > 0.0 or
+            apex == .none and self.determinant(dest, org, apex_sym) == 0.0 or
+            apex_sym == .none and self.determinant(dest, apex, org) == 0.0)
+        {
+            flip(edge);
+            return true;
         }
 
-        for (hole.items) |hole_edge| {
-            hole_edge.deref().visited = false;
-        }
+        return false;
     }
 
     pub fn constrain(self: *Self, start_pt: hym.Vec2, end_pt: hym.Vec2) !void {
@@ -698,7 +933,8 @@ pub const CDT = struct {
             } else if (start_pt.eql(self.position(start.dest()))) {
                 break :blk start.lprev();
             } else {
-                return error.PointNotFound;
+                std.log.err("constrain point not found: {} {}", .{ start_pt, end_pt });
+                return error.ConstrainPointNotFound;
             }
         };
 
@@ -840,33 +1076,39 @@ pub const CDT = struct {
     }
 
     pub fn locate(self: *CDT, point: hym.Vec2) ?Triangle.Ref {
-        var edge = self.left_edge;
-
-        while (edge.dest() == .none) edge = edge.onext();
+        var edge = self.left_edge.onext();
 
         if (self.rightOf(point, edge)) {
             edge = edge.sym();
         }
 
-        while (true) {
+        var loop_protection: u16 = 10_000;
+        while (loop_protection > 0) : (loop_protection -= 1) {
             if (point.eql(self.position(edge.org()))) {
                 return edge;
             }
+
             if (point.eql(self.position(edge.dest()))) {
                 return edge.sym();
             }
 
-            if (edge.onext().org() == .none or edge.onext().dest() == .none) {
+            if (edge.apex() == .none) {
+                if (funcs.determinant(
+                    self.position(edge.org()),
+                    self.position(edge.dest()),
+                    point,
+                ) == 0.0) {
+                    edge = edge.dprev().lnext();
+                    continue;
+                }
                 return null;
             }
+
             if (!self.rightOf(point, edge.onext())) {
                 edge = edge.onext();
                 continue;
             }
 
-            if (edge.dprev().org() == .none or edge.dprev().dest() == .none) {
-                return null;
-            }
             if (!self.rightOf(point, edge.dprev())) {
                 edge = edge.dprev();
                 continue;
@@ -874,6 +1116,8 @@ pub const CDT = struct {
 
             return edge;
         }
+
+        return null;
     }
 
     fn flip(edge: Triangle.Ref) void {
@@ -886,6 +1130,9 @@ pub const CDT = struct {
         const dest = edge.dest();
         const left = edge.apex();
         const right = edge.sym().apex();
+
+        edge.deref().constraints = @splat(false);
+        edge.sym().deref().constraints = @splat(false);
 
         // Edges
         const close_right = edge.sym().lnext();
@@ -900,6 +1147,10 @@ pub const CDT = struct {
 
         // Rewire one turn counter-clockwise
         // edge remains connected to edge.sym
+        // close_left.connectWithoutConstraint(close_right_sym);
+        // far_left.connectWithoutConstraint(close_left_sym);
+        // far_right.connectWithoutConstraint(far_left_sym);
+        // close_right.connectWithoutConstraint(far_right_sym);
         close_left.connect(close_right_sym);
         far_left.connect(close_left_sym);
         far_right.connect(far_left_sym);
@@ -919,6 +1170,23 @@ pub const CDT = struct {
         dest: VertexHandle,
         apex: VertexHandle,
     };
+
+    fn vertexMake(self: *Self, point: hym.Vec2) !VertexHandle {
+        if (self.free_list) |index| {
+            const next: usize = @bitCast(self.vertices.items[index]);
+            self.free_list = if (next != std.math.maxInt(usize)) next else null;
+            self.vertices.items[index] = point;
+            return .make(index);
+        } else {
+            try self.vertices.append(self.allocator, point);
+            return .make(self.vertices.items.len - 1);
+        }
+    }
+
+    fn vertexDelete(self: *Self, vertex: VertexHandle) void {
+        self.vertices.items[vertex.unwrap()] = if (self.free_list) |index| @bitCast(index) else @bitCast(@as(usize, std.math.maxInt(usize)));
+        self.free_list = vertex.unwrap();
+    }
 
     fn triangleMake(self: *Self, p: TrianglePoints) !Triangle.Ref {
         const triangle = try self.pool.create();
@@ -978,6 +1246,18 @@ pub const CDT = struct {
         }
 
         return try self.allocator.dupe(Triangle.Ref, real_triangles.items);
+    }
+
+    pub fn indices(self: *Self) ![]u32 {
+        const triangles = try self.enumerate();
+        defer self.allocator.free(triangles);
+        const idxs = try self.allocator.alloc(u32, triangles.len * 3);
+        for (triangles, 0..) |triangle, i| {
+            idxs[i * 3 + 0] = @intCast(triangle.org().unwrap());
+            idxs[i * 3 + 1] = @intCast(triangle.dest().unwrap());
+            idxs[i * 3 + 2] = @intCast(triangle.apex().unwrap());
+        }
+        return idxs;
     }
 
     pub fn delete(self: *Self, points: []const Triangle.Ref) !void {
@@ -1106,8 +1386,20 @@ pub const CDT = struct {
         return try visibility_allocator.dupe([2]hym.Vec2, visibility_edges.items);
     }
 
+    fn leftOf(self: *CDT, point: hym.Vec2, edge: Triangle.Ref) bool {
+        return funcs.leftOf(point, self.position(edge.org()), self.position(edge.dest()));
+    }
+
     fn rightOf(self: *CDT, point: hym.Vec2, edge: Triangle.Ref) bool {
         return funcs.rightOf(point, self.position(edge.org()), self.position(edge.dest()));
+    }
+
+    fn determinant(self: *CDT, a: VertexHandle, b: VertexHandle, c: VertexHandle) f32 {
+        return funcs.determinant(
+            self.position(a),
+            self.position(b),
+            self.position(c),
+        );
     }
 
     fn incircle(self: *const Self, a: VertexHandle, b: VertexHandle, c: VertexHandle, d: VertexHandle) bool {
@@ -1126,47 +1418,5 @@ pub const CDT = struct {
             self.position(t.apex()),
             self.position(a),
         );
-    }
-};
-
-pub const VisibilityPolygon = struct {
-    origin: hym.Vec2 = .zero,
-    segments: [][2]hym.Vec2 = &.{},
-
-    pub fn query(self: VisibilityPolygon, point: hym.Vec2) bool {
-        if (self.segments.len == 0) return false;
-
-        const start_angle = self.segments[0][0].sub(self.origin).atan();
-        const target_angle = @mod(point.sub(self.origin).atan() - start_angle, std.math.pi * 2);
-
-        const SortContext = struct {
-            target: f32,
-            start: f32,
-            origin: hym.Vec2,
-
-            fn compare(ctx: @This(), segment: [2]hym.Vec2) std.math.Order {
-                const lower_bound = angle(ctx, segment[0]);
-                if (ctx.target < lower_bound) return .lt;
-                const upper_bound = angle(ctx, segment[1]);
-                if (ctx.target > upper_bound) return .gt;
-                return .eq;
-            }
-
-            inline fn angle(ctx: @This(), pt: hym.Vec2) f32 {
-                return @mod(pt.sub(ctx.origin).atan() - ctx.start, std.math.pi * 2);
-            }
-        };
-
-        const idx = std.sort.binarySearch([2]hym.Vec2, self.segments, SortContext{
-            .start = start_angle,
-            .target = target_angle,
-            .origin = self.origin,
-        }, SortContext.compare) orelse return false;
-
-        return funcs.leftOf(point, self.segments[idx][0], self.segments[idx][1]);
-    }
-
-    pub fn deinit(self: VisibilityPolygon, allocator: std.mem.Allocator) void {
-        allocator.free(self.segments);
     }
 };
