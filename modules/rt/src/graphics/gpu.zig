@@ -683,14 +683,17 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
             .cycle = false,
         };
 
-        const pass = cmd.beginRenderPass((&color)[0..1], 1, null) orelse
+        const pass = cmd.beginRenderPass(&.{color}, 1, null) orelse
             panic("error begin render pass {s}", .{sdl.getError()});
         defer pass.end();
 
         pass.bindGraphicsPipeline(self.materials.templates.get(.screen_blit).pipeline);
 
         const binding = [_]sdl.gpu.TextureSamplerBinding{
-            .{ .sampler = self.default_assets.sampler, .texture = self.passes.getPtr(.ui).texture() },
+            .{
+                .sampler = self.default_assets.sampler,
+                .texture = self.passes.getPtr(.ui).texture(),
+            },
         };
 
         pass.bindFragmentSamplers(0, &binding, 1);
