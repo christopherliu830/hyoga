@@ -90,6 +90,7 @@ pub const ProcTable = extern struct {
     hy_gfx_passAdd: *const fn (gpu: *gfx.Gpu, opts: gfx.Gpu.PassAddOptions) callconv(.c) gfx.Renderable,
     hy_gfx_passClear: *const fn (gpu: *gfx.Gpu, hdl: gfx.PassHandle) callconv(.c) void,
     hy_gfx_immediateDraw: *const fn (gpu: *gfx.Gpu, verts: hy.ExternSliceConst(gfx.UIVertex), idxs: hy.ExternSliceConst(u32), transform: hym.Mat4, material_hdl: gfx.MaterialHandle) callconv(.c) void,
+    hy_gfx_immediateText: *const fn (gpu: *gfx.Gpu, glyphs: hy.ExternSliceConst(u8), transform: hym.Mat4, color: u32) callconv(.c) void,
     hy_io_reset: *const fn (input: *Input) callconv(.c) void,
     hy_io_mouse: *const fn (input: *Input, button: hy.MouseButton) callconv(.c) bool,
     hy_io_mousePosition: *const fn (input: *Input) callconv(.c) hym.Vec2,
@@ -164,6 +165,7 @@ pub fn procs() ProcTable {
         .hy_gfx_passAdd = hy_gfx_passAdd,
         .hy_gfx_passClear = hy_gfx_passClear,
         .hy_gfx_immediateDraw = hy_gfx_immediateDraw,
+        .hy_gfx_immediateText = hy_gfx_immediateText,
         .hy_io_reset = hy_io_reset,
         .hy_io_mouse = hy_io_mouse,
         .hy_io_mousePosition = hy_io_mousePosition,
@@ -400,16 +402,21 @@ fn hy_gfx_immediateDraw(
     transform: hym.Mat4,
     material_hdl: gfx.MaterialHandle,
 ) callconv(.c) void {
-    const material = blk: {
-        if (material_hdl.valid()) {
-            break :blk gpu.materials.get(material_hdl);
-        } else {
-            break :blk gpu.materials.createWeak(.ui, .init(.{ .diffuse = .{ .target = gpu.default_assets.white_texture } }));
-        }
-    };
     gpu.im.drawVerts(verts.asSlice(), indices.asSlice(), .{
         .transform = transform,
-        .material = if (material) |*m| m else null,
+        .material = if (material_hdl.valid()) gpu.materials.getPtr(material_hdl) else null,
+    });
+}
+
+fn hy_gfx_immediateText(
+    gpu: *gfx.Gpu,
+    glyphs: hy.ExternSliceConst(u8),
+    transform: hym.Mat4,
+    color: u32,
+) callconv(.c) void {
+    gpu.im.drawText(glyphs.asSlice(), .{
+        .transform = transform,
+        .color = hy.Color.hexa(color).asf32x4Norm(),
     });
 }
 

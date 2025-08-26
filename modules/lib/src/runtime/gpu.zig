@@ -39,7 +39,7 @@ pub const PassHandle = enum(u64) {
 
 pub const Renderable = extern struct {
     pass: PassType,
-    index: enum (u64) {
+    index: enum(u64) {
         none = 0,
         _,
     } align(4),
@@ -314,7 +314,11 @@ pub const Gpu = opaque {
         proc.hy_gfx_passClear(gpu, hdl);
     }
 
-    pub fn immediateDraw(gpu: *Gpu, verts: []const UIVertex, idxs: []const u8, transform: hym.Mat4, material_hdl: MaterialHandle) void {
+    pub fn immediateDraw(gpu: *Gpu, verts: []const UIVertex, idxs: []const u32, transform: hym.Mat4, material_hdl: MaterialHandle) void {
         proc.hy_gfx_immediateDraw(gpu, .from(verts), .from(idxs), transform, material_hdl);
+    }
+
+    pub fn immediateText(gpu: *Gpu, glyphs: []const u8, transform: hym.Mat4, color: hy.Color) void {
+        proc.hy_gfx_immediateText(gpu, .from(glyphs), transform, @bitCast(color.asu8x4()));
     }
 };
