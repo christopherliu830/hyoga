@@ -59,6 +59,7 @@ pub const Vec2 = extern struct {
     }
 
     pub const add = root.add;
+    pub const addxy = root.addxy;
     pub const sub = root.sub;
     pub const mul = root.mul;
     pub const div = root.div;
@@ -147,6 +148,10 @@ pub inline fn add(a: Vec2, b: anytype) Vec2 {
         },
         else => @compileError("add not implemented for " ++ @typeName(T)),
     };
+}
+
+pub fn addxy(a: Vec2, x: f32, y: f32) Vec2 {
+    return a.add(create(x, y));
 }
 
 pub inline fn sub(a: Vec2, b: anytype) Vec2 {
