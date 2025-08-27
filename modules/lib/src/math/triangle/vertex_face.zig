@@ -191,6 +191,8 @@ pub const CDT = struct {
     vertices: std.ArrayListUnmanaged(hym.Vec2) = .empty,
     free_list: ?usize = null,
 
+    pub const f32_tolerance = 64 * std.math.floatEps(f32);
+
     pub fn init(allocator: std.mem.Allocator, initial_vertices: []const hym.Vec2) !Self {
         var sd: CDT = .{
             .allocator = allocator,
@@ -235,7 +237,7 @@ pub const CDT = struct {
         // Remove duplicate points
         for (dupe) |vertex| {
             if (self.vertices.items.len == 0 or
-                !vertex.eql(self.vertices.getLast()))
+                !vertex.eqlEps(self.vertices.getLast(), f32_tolerance))
             {
                 try self.vertices.append(gpa, vertex);
             } else continue;
@@ -536,7 +538,7 @@ pub const CDT = struct {
         if (self.locate(point)) |start_triangle| {
             log.debug("\tlocated: {f}", .{start_triangle});
             const org_pos = self.position(start_triangle.org());
-            if (point.eql(org_pos)) {
+            if (point.eqlEps(org_pos, f32_tolerance)) {
                 log.debug("\tearly out", .{});
                 return;
             }
@@ -668,7 +670,7 @@ pub const CDT = struct {
                         else if (det == 0) {
                             const min = @min(org_pos.v, dest_pos.v);
                             const max = @max(org_pos.v, dest_pos.v);
-                            if (point.eql(org_pos) or point.eql(dest_pos)) {
+                            if (point.eqlEps(org_pos, f32_tolerance) or point.eqlEps(dest_pos, f32_tolerance)) {
                                 // Point already exists..
                                 return;
                             } else if (min[0] <= point.x() and point.x() <= max[0] and
@@ -771,11 +773,11 @@ pub const CDT = struct {
         // start_vertex has org at start_pt
         const start_vertex: Triangle.Ref = blk: {
             const start = self.locate(pt) orelse return error.RemovePointNotFound;
-            if (pt.eql(self.position(start.org()))) {
+            if (pt.eqlEps(self.position(start.org()), f32_tolerance)) {
                 break :blk start;
-            } else if (pt.eql(self.position(start.dest()))) {
+            } else if (pt.eqlEps(self.position(start.dest()), f32_tolerance)) {
                 break :blk start.lnext();
-            } else if (pt.eql(self.position(start.apex()))) {
+            } else if (pt.eqlEps(self.position(start.apex()), f32_tolerance)) {
                 break :blk start.lprev();
             } else {
                 return error.RemovePointNotFound;
@@ -926,11 +928,11 @@ pub const CDT = struct {
         // start_vertex has apex at start_pt.
         const start_vertex: Triangle.Ref = blk: {
             const start = self.locate(start_pt) orelse return error.OutOfBounds;
-            if (start_pt.eql(self.position(start.apex()))) {
+            if (start_pt.eqlEps(self.position(start.apex()), f32_tolerance)) {
                 break :blk start;
-            } else if (start_pt.eql(self.position(start.org()))) {
+            } else if (start_pt.eqlEps(self.position(start.org()), f32_tolerance)) {
                 break :blk start.lnext();
-            } else if (start_pt.eql(self.position(start.dest()))) {
+            } else if (start_pt.eqlEps(self.position(start.dest()), f32_tolerance)) {
                 break :blk start.lprev();
             } else {
                 std.log.err("constrain point not found: {} {}", .{ start_pt, end_pt });
@@ -947,7 +949,7 @@ pub const CDT = struct {
                 const dest_left = funcs.leftOf(self.position(search_edge.dest()), start_pt, end_pt);
                 if (org_right and dest_left) {
                     break :blk search_edge;
-                } else if (end_pt.eql(self.position(search_edge.org()))) {
+                } else if (end_pt.eqlEps(self.position(search_edge.org()), f32_tolerance)) {
                     search_edge.lprev().constrainedSet(true);
                     search_edge.lprev().sym().constrainedSet(true);
                     return;
@@ -979,7 +981,7 @@ pub const CDT = struct {
             const v_sym = tri_sym.apex();
 
             try to_delete.append(arena, tri_sym);
-            if (end_pt.eql(self.position(v_sym))) {
+            if (end_pt.eqlEps(self.position(v_sym), f32_tolerance)) {
                 try left.append(arena, tri_sym.lprev().sym());
                 try right.append(arena, tri_sym.lnext().sym());
                 tri = tri.sym();
@@ -1084,11 +1086,11 @@ pub const CDT = struct {
 
         var loop_protection: u16 = 10_000;
         while (loop_protection > 0) : (loop_protection -= 1) {
-            if (point.eql(self.position(edge.org()))) {
+            if (point.eqlEps(self.position(edge.org()), f32_tolerance)) {
                 return edge;
             }
 
-            if (point.eql(self.position(edge.dest()))) {
+            if (point.eqlEps(self.position(edge.dest()), f32_tolerance)) {
                 return edge.sym();
             }
 

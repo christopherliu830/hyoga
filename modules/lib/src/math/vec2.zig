@@ -30,6 +30,18 @@ pub const Vec2 = extern struct {
         return @reduce(.And, self.v == other.v);
     }
 
+    pub inline fn eqlEps(self: Vec2, other: Vec2, eps: f32) bool {
+        if (self.eql(other)) return true;
+
+        const diff = @abs(self.v - other.v);
+        const norm = @min(
+            @abs(self.v + other.v),
+            @Vector(2, f32){ std.math.floatMax(f32), std.math.floatMax(f32) },
+        );
+
+        return @reduce(.And, diff < @max(@Vector(2, f32){ std.math.floatEps(f32), std.math.floatEps(f32) }, @Vector(2, f32){ eps, eps } * norm));
+    }
+
     pub inline fn dot(a: Vec2, b: Vec2) f32 {
         return root.dot(a, b);
     }
