@@ -123,7 +123,7 @@ pub const Forward = struct {
             .ds_tex_info = ds_tex_info,
             .ds_target = depth_stencil_target,
             .tex_scale = options.dest_tex_scale,
-            .transforms_buffer = buf.DynamicBuffer(hym.Mat4).init(options.gpu.device, 1024 * 16, "Object Mats") catch unreachable,
+            .transforms_buffer = buf.DynamicBuffer(hym.Mat4).init(options.gpu.device, 1024 * 128, "Object Mats") catch unreachable,
             .match_window_size = options.match_window_size,
             .blit_material = options.blit_material,
         };
@@ -179,9 +179,7 @@ pub const Forward = struct {
         }
 
         const gpu = self.gpu;
-        const arena = gpu.arena.allocator();
-
-        const render_pack = try self.items.packAll(arena);
+        const render_pack = try self.items.packAll(gpu.gpa);
         const transforms = render_pack.transforms;
         try gpu.uploadToBuffer(self.transforms_buffer.hdl, 0, std.mem.sliceAsBytes(transforms));
         try gpu.uniforms.put(gpu.gpa, gpu.ids.all_renderables, .{ .buffer = self.transforms_buffer.hdl });

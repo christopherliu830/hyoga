@@ -17,13 +17,23 @@ pub const RenderItemHandle = RenderItems.Handle;
 
 pub const PackedRenderables = struct {
     // Filled with every renderable
-    transforms: []Mat4, // Sorted transforms
+    transforms: []Mat4 = &.{}, // Sorted transforms
 
     // Only filled to number of instances
-    meshes: []mdl.Mesh, // Mesh for each idx in transforms array.
-    instance_counts: []u32, // Number of instances for same index in transforms
-    hdls: []RenderItemHandle,
-    len: u32,
+    meshes: []mdl.Mesh = &.{}, // Mesh for each idx in transforms array.
+    instance_counts: []u32 = &.{}, // Number of instances for same index in transforms
+    hdls: []RenderItemHandle = &.{},
+    len: u32 = 0,
+
+    pub fn deinit(self: *PackedRenderables, allocator: std.mem.Allocator) void {
+        if (self.len > 0) {
+            allocator.free(self.transforms);
+            allocator.free(self.meshes);
+            allocator.free(self.instance_counts);
+            allocator.free(self.hdls);
+        }
+        self.len = 0;
+    }
 };
 
 pub const Renderable = struct {
@@ -43,6 +53,8 @@ pub const Renderable = struct {
 pub const RenderList = struct {
     gpu: *Gpu,
     items: RenderItems,
+    render_pack: PackedRenderables,
+    render_pack_dirty: bool = true,
 
     pub const Iterator = RenderItems.ValidItemsIterator;
 
@@ -50,10 +62,13 @@ pub const RenderList = struct {
         return .{
             .gpu = gpu,
             .items = .empty,
+            .render_pack = .{},
+            .render_pack_dirty = true,
         };
     }
 
     pub fn deinit(self: *RenderList) void {
+        self.render_pack.deinit(self.gpu.gpa);
         if (self.items.end > 0) {
             self.items.deinit(self.gpu.gpa);
         }
@@ -66,6 +81,8 @@ pub const RenderList = struct {
     };
 
     pub fn add(self: *RenderList, options: AddOptions) !RenderItemHandle {
+        self.render_pack_dirty = true;
+
         const q_model = blk: {
             var model = self.gpu.models.get(options.model) catch null;
 
@@ -95,6 +112,8 @@ pub const RenderList = struct {
     }
 
     pub fn remove(self: *RenderList, hdl: RenderItemHandle) void {
+        self.render_pack_dirty = true;
+
         var maybe_head_hdl: ?RenderItemHandle = hdl;
         while (maybe_head_hdl) |head_hdl| {
             const head: ?Renderable = self.items.get(head_hdl);
@@ -137,7 +156,8 @@ pub const RenderList = struct {
         // Sort renderables (and associated handle) by material + mesh handle.
 
         const hdls = try allocator.dupe(RenderItemHandle, handles);
-        errdefer allocator.free(hdls);
+        defer allocator.free(hdls);
+
         const renderables = try allocator.alloc(Renderable, hdls.len);
         for (handles, 0..) |hdl, i| {
             renderables[i] = self.items.get(hdl) orelse unreachable;
@@ -192,13 +212,22 @@ pub const RenderList = struct {
     }
 
     pub fn packAll(self: *RenderList, allocator: std.mem.Allocator) !PackedRenderables {
-        const handles = try allocator.alloc(RenderItemHandle, self.items.num_items);
-        var it = self.items.iterator();
-        var i: u32 = 0;
-        while (it.next()) |_| {
-            handles[i] = it.handle();
-            i += 1;
+        if (!self.render_pack_dirty) {
+            return self.render_pack;
+        } else {
+            self.render_pack.deinit(allocator);
+            const handles = try allocator.alloc(RenderItemHandle, self.items.num_items);
+            defer allocator.free(handles);
+
+            var it = self.items.iterator();
+            var i: u32 = 0;
+            while (it.next()) |_| {
+                handles[i] = it.handle();
+                i += 1;
+            }
+            self.render_pack = self.pack(handles, allocator) catch std.debug.panic("pack failure", .{});
+            self.render_pack_dirty = false;
+            return self.render_pack;
         }
-        return self.pack(handles, allocator) catch std.debug.panic("pack failure", .{});
     }
 };
