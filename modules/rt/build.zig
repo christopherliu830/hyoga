@@ -17,16 +17,6 @@ pub fn build(b: *std.Build) !void {
     options_step.addOption(?[:0]const u8, "backend", if (dxc) "direct3d12" else null);
     const options_module = options_step.createModule();
 
-    const rt = b.addLibrary(.{
-        .linkage = .dynamic,
-        .name = "rt",
-        .root_module = b.createModule(.{
-            .target = target,
-            .optimize = optimize,
-            .root_source_file = b.path("src/root.zig"),
-        }),
-    });
-
     const runner = b.addExecutable(.{
         .name = "runner",
         .root_module = b.createModule(.{
@@ -79,17 +69,6 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    rt.root_module.addImport("box2d", box2d.artifact("box2d").root_module);
-    rt.root_module.addImport("assimp", assimp.module("root"));
-    rt.root_module.addImport("hyoga-lib", hylib.module("hyoga-lib"));
-    rt.root_module.addImport("sdl", sdl.module("sdl"));
-    rt.root_module.addImport("sdl_shadercross", sdl.module("sdl_shadercross"));
-    rt.root_module.addImport("sdl_mixer", sdl_mixer.module("sdl_mixer"));
-    rt.root_module.addImport("sdl_ttf", sdl_ttf.module("sdl_ttf"));
-    rt.root_module.addImport("stb_image", stb_image.module("stb_image"));
-    rt.root_module.addImport("clay", zclay.module("clay"));
-    rt.root_module.addImport("build_options", options_module);
-
     runner.root_module.addImport("box2d", box2d.artifact("box2d").root_module);
     runner.root_module.addImport("assimp", assimp.module("root"));
     runner.root_module.addImport("hyoga-lib", hylib.module("hyoga-lib"));
@@ -103,7 +82,6 @@ pub fn build(b: *std.Build) !void {
 
     b.modules.put(b.dupe("clay"), zclay.module("clay")) catch @panic("OOM");
 
-    b.installArtifact(rt);
 
     b.installArtifact(runner);
 

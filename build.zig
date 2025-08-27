@@ -25,7 +25,6 @@ pub fn build(b: *std.Build) !void {
     b.modules.put(b.dupe("lib"), lib.module("hyoga-lib")) catch @panic("OOM");
     b.modules.put(b.dupe("clay"), rt.module("clay")) catch @panic("OOM");
 
-    b.installArtifact(rt.artifact("rt"));
     b.installArtifact(rt.artifact("runner"));
 
     const wf = b.addNamedWriteFiles("bin_files");
@@ -43,7 +42,7 @@ pub fn build(b: *std.Build) !void {
     // Language server
 
     const check = b.step("check", "check if run compiles");
-    check.dependOn(&rt.artifact("rt").step);
+    check.dependOn(&rt.artifact("runner").step);
 
     const test_step = b.step("test", "Run unit tests");
     const hy_unit_tests = b.addTest(.{
