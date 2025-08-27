@@ -10,6 +10,7 @@
         .assimp = .{ .path = "../assimp" },
         .stb_image = .{ .path = "../stb_image" },
         .hyoga_lib = .{ .path = "../lib" },
+        .tracy = .{ .path = "../tracy" },
         .zclay = .{ .path = "../clay" },
     },
     .paths = .{""},

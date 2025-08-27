@@ -7,6 +7,7 @@ const mt = @import("material.zig");
 const mdl = @import("model.zig");
 const buf = @import("buffer.zig");
 const rbl = @import("renderable.zig");
+const tracy = @import("tracy");
 
 const hym = hy.math;
 const Renderable = rbl.Renderable;
@@ -174,6 +175,9 @@ pub const Forward = struct {
     }
 
     pub fn render(self: *Forward, cmd: *sdl.gpu.CommandBuffer) !void {
+        const zone_pass_render = tracy.initZone(@src(), .{ .name = "gfx.pass.render" });
+        defer zone_pass_render.deinit();
+
         if (self.items.items.num_items == 0) {
             return;
         }

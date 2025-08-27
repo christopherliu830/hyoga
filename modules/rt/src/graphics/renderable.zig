@@ -3,6 +3,7 @@ const sdl = @import("sdl");
 const hy = @import("hyoga-lib");
 const mt = @import("material.zig");
 const mdl = @import("model.zig");
+const tracy = @import("tracy");
 
 const SlotMap = @import("hyoga-lib").SlotMap;
 const Gpu = @import("gpu.zig");
@@ -212,10 +213,14 @@ pub const RenderList = struct {
     }
 
     pub fn packAll(self: *RenderList, allocator: std.mem.Allocator) !PackedRenderables {
+        const zone_render_pack = tracy.initZone(@src(), .{ .name = "gfx.rbl.pack" });
+        defer zone_render_pack.deinit();
+
         if (!self.render_pack_dirty) {
             return self.render_pack;
         } else {
             self.render_pack.deinit(allocator);
+
             const handles = try allocator.alloc(RenderItemHandle, self.items.num_items);
             defer allocator.free(handles);
 
@@ -225,6 +230,7 @@ pub const RenderList = struct {
                 handles[i] = it.handle();
                 i += 1;
             }
+
             self.render_pack = self.pack(handles, allocator) catch std.debug.panic("pack failure", .{});
             self.render_pack_dirty = false;
             return self.render_pack;

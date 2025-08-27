@@ -6,6 +6,7 @@ const sdlsc = @import("sdl_shadercross");
 const ttf = @import("sdl_ttf");
 const ai = @import("assimp");
 const build_options = @import("build_options");
+const tracy = @import("tracy");
 
 const gfx = @import("root.zig");
 
@@ -433,6 +434,7 @@ pub fn shutdown(self: *Gpu) void {
     {
         var it = self.passes.iterator();
         while (it.next()) |kv| {
+            if (kv.key == .custom) continue;
             kv.value.deinit();
         }
     }
@@ -465,6 +467,9 @@ pub fn shutdown(self: *Gpu) void {
 }
 
 pub fn uploadToBuffer(self: *Gpu, buffer: *sdl.gpu.Buffer, offset: u32, data: []const u8) !void {
+    const zone_gfx_upload = tracy.initZone(@src(), .{});
+    defer zone_gfx_upload.deinit();
+
     const buf_transfer = self.device.createTransferBuffer(&.{
         .usage = .upload,
         .size = @intCast(data.len),
@@ -580,6 +585,9 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
 }
 
 pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64) !void {
+    const zone_gfx_render = tracy.initZone(@src(), .{});
+    defer zone_gfx_render.deinit();
+
     try self.uniforms.put(self.gpa, self.ids.view, .{ .mat4x4 = scene.view.m });
     try self.uniforms.put(self.gpa, self.ids.projection, .{ .mat4x4 = scene.proj.m });
     try self.uniforms.put(self.gpa, self.ids.view_projection, .{ .mat4x4 = scene.view.mul(scene.proj).m });
@@ -593,6 +601,8 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     // Default pass
     const fp = self.passes.getPtr(.default);
     {
+        const zone_fp_render = tracy.initZone(@src(), .{ .name = "gfx.fp.render" });
+        defer zone_fp_render.deinit();
         try fp.render(cmd);
 
         const fp_color: sdl.gpu.ColorTargetInfo = .{
@@ -635,6 +645,8 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     {
         var it = self.custom_passes.iterator();
         while (it.nextPtr()) |pass| {
+            const zone_custom_render = tracy.initZone(@src(), .{ .name = "gfx.custom.render" });
+            defer zone_custom_render.deinit();
             try pass.render(cmd);
 
             const color: sdl.gpu.ColorTargetInfo = .{
@@ -703,6 +715,9 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
 }
 
 pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
+    const zone_gfx_submit = tracy.initZone(@src(), .{});
+    defer zone_gfx_submit.deinit();
+
     _ = cmd.submit();
     _ = self.arena.reset(.retain_capacity);
     self.im.reset();
@@ -759,6 +774,9 @@ pub const DrawOptions = struct {
 };
 
 pub fn draw(self: *Gpu, opts: DrawOptions) !void {
+    const zone_pass_draw = tracy.initZone(@src(), .{});
+    defer zone_pass_draw.deinit();
+
     const cmd = opts.cmd;
     const pass = opts.pass;
     const num_first_instance = opts.num_first_instance;
@@ -1088,12 +1106,15 @@ pub fn renderableSetTransform(
     item: RenderItemHandle,
     transform: mat4.Mat4,
 ) void {
-    const renderable = self.passes.getPtr(item.pass).items.items.getPtr(item.index) orelse {
+    const pass = self.passes.getPtr(item.pass);
+
+    const renderable = pass.items.items.getPtr(item.index) orelse {
         log.warn("Renderable set transform called when no renderable exists", .{});
         return;
     };
 
     renderable.transform = transform;
+    pass.items.render_pack_dirty = true;
 }
 
 pub fn renderableDestroy(self: *Gpu, handle: RenderItemHandle) void {

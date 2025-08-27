@@ -64,6 +64,11 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
+    const tracy = b.dependency("tracy", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const zclay = b.dependency("zclay", .{
         .target = target,
         .optimize = optimize,
@@ -79,9 +84,9 @@ pub fn build(b: *std.Build) !void {
     runner.root_module.addImport("stb_image", stb_image.module("stb_image"));
     runner.root_module.addImport("clay", zclay.module("clay"));
     runner.root_module.addImport("build_options", options_module);
+    runner.root_module.addImport("tracy", tracy.module("tracy"));
 
     b.modules.put(b.dupe("clay"), zclay.module("clay")) catch @panic("OOM");
-
 
     b.installArtifact(runner);
 

@@ -12,6 +12,7 @@ const std = @import("std");
 const sdl = @import("sdl");
 const sdl_ttf = @import("sdl_ttf");
 const hy = @import("hyoga-lib");
+const tracy = @import("tracy");
 
 const Engine = @This();
 
@@ -99,6 +100,9 @@ pub fn shutdown(self: *Engine) void {
 }
 
 pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
+    const zone_engine_update = tracy.initZone(@src(), .{});
+    defer zone_engine_update.deinit();
+
     var game = old_game;
 
     const start_time = self.frame_timer.read();
@@ -135,7 +139,11 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
 
     // Game state
 
-    game = gi.update(self, game);
+    {
+        const zone_game_update = tracy.initZone(@src(), .{ .name = "game.update" });
+        defer zone_game_update.deinit();
+        game = gi.update(self, game);
+    }
 
     // Rendering
 
@@ -153,7 +161,11 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
         self.ui.beginFrame(game.update_delta_time) catch |err|
             std.log.err("[UI] Failed to begin frame for render: {}", .{err});
 
-        gi.render(self, game);
+        {
+            const zone_game_render = tracy.initZone(@src(), .{ .name = "game.render" });
+            defer zone_game_render.deinit();
+            gi.render(self, game);
+        }
 
         self.ui.clay_ui.end();
 
@@ -167,6 +179,8 @@ pub fn update(self: *Engine, old_game: World, gi: GameInterface) World {
         if (gi.afterRender != null) gi.afterRender.?(self, game);
 
         game.render_delta_time = self.render_timer.lap();
+
+        tracy.frameMark();
     }
 
     game.update_delta_time = self.frame_timer.lap();
