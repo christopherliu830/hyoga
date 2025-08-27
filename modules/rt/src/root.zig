@@ -314,10 +314,7 @@ fn hy_gfx_materialDestroy(gpu: *gfx.Gpu, hdl: gfx.MaterialHandle) callconv(.c) v
 fn hy_gfx_renderableAdd(gpu: *gfx.Gpu, options: gfx.Gpu.AddRenderableOptions) callconv(.c) gfx.Renderable {
     return gpu.renderableAdd(options) catch |e| {
         std.log.err("add renderable failure: {}", .{e});
-        return .{
-            .pass = .default,
-            .index = .none,
-        };
+        return .none;
     };
 }
 
@@ -332,10 +329,7 @@ fn hy_gfx_renderableTransformSet(gpu: *gfx.Gpu, item: gfx.Renderable, transform:
 fn hy_gfx_spriteMakeRenderable(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) callconv(.c) gfx.Renderable {
     return gpu.renderableOfSprite(hdl) catch |e| {
         std.log.err("sprite dupe failure: {}", .{e});
-        return .{
-            .pass = .default,
-            .index = .none,
-        };
+        return .none;
     };
 }
 

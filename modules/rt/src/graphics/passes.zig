@@ -28,7 +28,7 @@ pub const Forward = struct {
     transforms_buffer: buf.DynamicBuffer(hym.Mat4),
     match_window_size: bool,
 
-    items: rbl.RenderList,
+    render_list: rbl.RenderList,
 
     pub const ForwardOptions = struct {
         gpu: *Gpu,
@@ -118,7 +118,7 @@ pub const Forward = struct {
             .device = device,
             .name = options.name,
             .gpu = options.gpu,
-            .items = .init(options.gpu),
+            .render_list = .{},
             .target = target,
             .tex_info = tex_info,
             .ds_tex_info = ds_tex_info,
@@ -134,7 +134,7 @@ pub const Forward = struct {
         self.device.releaseTexture(self.texture());
         if (self.depthStencilTexture()) |dst| self.device.releaseTexture(dst);
         self.device.releaseBuffer(self.transforms_buffer.hdl);
-        self.items.deinit();
+        self.render_list.deinit();
     }
 
     pub fn targets(self: *const Forward) Gpu.PassTargets {
@@ -178,15 +178,54 @@ pub const Forward = struct {
         const zone_pass_render = tracy.initZone(@src(), .{ .name = "gfx.pass.render" });
         defer zone_pass_render.deinit();
 
-        if (self.items.items.num_items == 0) {
+        if (self.render_list.instances.num_items == 0) {
             return;
         }
 
         const gpu = self.gpu;
-        const render_pack = try self.items.packAll(gpu.gpa);
-        const transforms = render_pack.transforms;
-        try gpu.uploadToBuffer(self.transforms_buffer.hdl, 0, std.mem.sliceAsBytes(transforms));
-        try gpu.uniforms.put(gpu.gpa, gpu.ids.all_renderables, .{ .buffer = self.transforms_buffer.hdl });
+
+        var buffer_size: usize = 0;
+        {
+            var all_instances = self.render_list.instances.iterator();
+            while (all_instances.next()) |instance| {
+                buffer_size += instance.transform_buf.items.len * @sizeOf(@TypeOf(instance.transform_buf.items[0]));
+            }
+        }
+        {
+            const buf_transfer = self.device.createTransferBuffer(&.{
+                .usage = .upload,
+                .size = @intCast(buffer_size),
+            }).?;
+            defer self.device.releaseTransferBuffer(buf_transfer);
+            var map: [*]u8 = @ptrCast(@alignCast(self.device.mapTransferBuffer(buf_transfer, false).?));
+
+            var all_instances = self.render_list.instances.iterator();
+            while (all_instances.next()) |instance| {
+                if (instance.transform_buf.items.len == 0) continue;
+                const data = std.mem.sliceAsBytes(instance.transform_buf.items);
+                @memcpy(map, data);
+                map += data.len;
+            }
+
+            const copy_cmd = self.device.acquireCommandBuffer().?;
+            defer _ = copy_cmd.submit();
+
+            const copy_pass = cmd.beginCopyPass().?;
+            defer copy_pass.end();
+
+            const buf_location = sdl.gpu.TransferBufferLocation{
+                .transfer_buffer = buf_transfer,
+                .offset = 0,
+            };
+
+            const dst_region = sdl.gpu.BufferRegion{
+                .buffer = self.transforms_buffer.hdl,
+                .offset = 0,
+                .size = @intCast(buffer_size),
+            };
+
+            copy_pass.uploadToBuffer(&buf_location, &dst_region, false);
+        }
 
         const color = (&self.target)[0..1];
         const depth = if (self.ds_target != null) &self.ds_target.? else null;
@@ -199,17 +238,23 @@ pub const Forward = struct {
 
         var total_instances_rendered: u32 = 0;
 
-        for (0..render_pack.len) |i| {
-            const mesh = render_pack.meshes[i];
-            try gpu.draw(.{
-                .cmd = cmd,
-                .pass = pass,
-                .num_first_instance = total_instances_rendered,
-                .num_instances = render_pack.instance_counts[i],
-                .mesh = mesh,
-                .last_pipeline = &last_pipeline,
-            });
-            total_instances_rendered += render_pack.instance_counts[i];
+        {
+            var all_instances = self.render_list.instances.iterator();
+            while (all_instances.next()) |instance| {
+                if (instance.transform_buf.items.len == 0) continue;
+                try gpu.uniforms.put(gpu.gpa, gpu.ids.all_renderables, .{ .buffer = self.transforms_buffer.hdl });
+                const mesh = instance.mesh;
+                const num_instances: u32 = @intCast(instance.transform_buf.items.len);
+                try gpu.draw(.{
+                    .cmd = cmd,
+                    .pass = pass,
+                    .num_first_instance = total_instances_rendered,
+                    .num_instances = num_instances,
+                    .mesh = mesh,
+                    .last_pipeline = &last_pipeline,
+                });
+                total_instances_rendered += num_instances;
+            }
         }
     }
 };

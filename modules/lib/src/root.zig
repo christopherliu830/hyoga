@@ -24,6 +24,7 @@ pub const ArrayGroup = array_group.ArrayGroup;
 pub const CircleQueue = circle_queue.CircleQueue;
 pub const Color = color.Color;
 pub const SlotMap = slot_map.SlotMap;
+pub const SlotMapSized = slot_map.SlotMapSized;
 pub const SkipMap = skip_map.SkipMap;
 pub const ExternAllocator = @"extern".ExternAllocator;
 pub const ExternSlice = @"extern".ExternSlice;

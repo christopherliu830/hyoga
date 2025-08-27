@@ -1080,8 +1080,16 @@ pub fn modelPrimitive(self: *Gpu, shape: primitives.Shape) Model {
 }
 
 pub const RenderItemHandle = extern struct {
+    index: rbl.RenderHandle,
     pass: PassType,
-    index: rbl.RenderItemHandle,
+
+    pub const none: RenderItemHandle = .{
+        .pass = .default,
+        .index = .{
+            .transform_hdl = .none,
+            .instances_hdl = .none,
+        },
+    };
 };
 
 pub const AddRenderableOptions = extern struct {
@@ -1097,7 +1105,7 @@ pub const AddRenderableOptions = extern struct {
 pub fn renderableAdd(self: *Gpu, opts: AddRenderableOptions) !RenderItemHandle {
     return .{
         .pass = opts.pass,
-        .index = try self.passes.getPtr(opts.pass).items.add(.{ .model = opts.model, .time = opts.time }),
+        .index = try self.passes.getPtr(opts.pass).render_list.add(.{ .model = opts.model, .time = opts.time }),
     };
 }
 
@@ -1107,18 +1115,12 @@ pub fn renderableSetTransform(
     transform: mat4.Mat4,
 ) void {
     const pass = self.passes.getPtr(item.pass);
-
-    const renderable = pass.items.items.getPtr(item.index) orelse {
-        log.warn("Renderable set transform called when no renderable exists", .{});
-        return;
-    };
-
-    renderable.transform = transform;
-    pass.items.render_pack_dirty = true;
+    const transform_ptr = pass.render_list.transformPtr(item.index);
+    transform_ptr.* = transform;
 }
 
 pub fn renderableDestroy(self: *Gpu, handle: RenderItemHandle) void {
-    const renderables = &self.passes.getPtr(handle.pass).items;
+    const renderables = &self.passes.getPtr(handle.pass).render_list;
     renderables.remove(handle.index);
 }
 
@@ -1189,9 +1191,9 @@ pub fn spriteDestroy(self: *Gpu, hdl: hy.SlotMap(Sprite).Handle) void {
 }
 
 pub fn spriteRenderableWeakPtr(self: *Gpu, item: RenderItemHandle) ?*GpuSprite {
-    const renderables = &self.passes.getPtr(item.pass).items;
-    const renderable = (renderables.items.getPtr(item.index) orelse return null);
-    const mat_hdl = renderable.mesh.material;
+    const render_list = &self.passes.getPtr(item.pass).render_list;
+    const instances = render_list.instances.getPtr(item.index.instances_hdl).?;
+    const mat_hdl = instances.mesh.material;
     const mat = self.materials.get(mat_hdl) orelse return null;
     const ptr: *Gpu.GpuSprite = @ptrCast(@alignCast(&self.materials.param_buf.items[mat.params_start]));
     return ptr;
@@ -1231,7 +1233,7 @@ pub fn spriteDupe(self: *Gpu, hdl: SpriteHandle) SpriteHandle {
 pub fn renderableOfSprite(self: *Gpu, hdl: SpriteHandle) !RenderItemHandle {
     const sprite = self.sprites.get(hdl).?;
 
-    const renderables = &self.passes.getPtr(.outlined).items;
+    const renderables = &self.passes.getPtr(.outlined).render_list;
     const renderable = try renderables.add(.{
         .model = sprite.model,
         .time = 0,
@@ -1284,7 +1286,7 @@ pub const PassAddOptions = extern struct {
 
 pub fn passAdd(self: *Gpu, opts: PassAddOptions) gfx.Renderable {
     const pass = self.custom_passes.getPtr(opts.pass).?;
-    const render_item = pass.items.add(.{ .model = opts.model, .time = opts.time }) catch unreachable;
+    const render_item = pass.render_list.add(.{ .model = opts.model, .time = opts.time }) catch unreachable;
     return .{
         .pass = .custom,
         .index = render_item,
@@ -1293,5 +1295,5 @@ pub fn passAdd(self: *Gpu, opts: PassAddOptions) gfx.Renderable {
 
 pub fn passClear(self: *Gpu, hdl: gfx.PassHandle) void {
     const pass = self.custom_passes.getPtr(hdl).?;
-    pass.items.deinit();
+    pass.render_list.reset();
 }

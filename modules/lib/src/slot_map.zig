@@ -5,14 +5,9 @@ const EntryType = enum {
     occupied,
 };
 
-const FreeSlot = struct {
-    generation: u32,
-    next: ?u32,
-};
-
-fn Entry(comptime T: type) type {
+fn Entry(Guard: type, comptime T: type) type {
     return struct {
-        generation: u32,
+        generation: Guard,
         value: T,
     };
 }
@@ -26,108 +21,104 @@ pub fn Slot(comptime T: type) type {
     return SlotMap(T).Slot;
 }
 
-pub fn SlotMap(comptime T: type) type {
-    return struct {
-        end: u32,
-        entries: std.ArrayListUnmanaged(SlotMap(T).Slot),
-        free_list: ?u32,
-        num_items: u32,
+pub fn SlotMap(T: type) type {
+    return SlotMapSized(u32, u32, T);
+}
 
-        pub const empty: SlotMap(T) = .{
+pub fn SlotMapSized(Guard: type, Size: type, comptime T: type) type {
+    return struct {
+        const Self = @This();
+        end: Size,
+        entries: std.ArrayListUnmanaged(Self.Slot),
+        free_list: ?Size,
+        live_list: std.DynamicBitSetUnmanaged,
+        num_items: Size,
+
+        pub const empty: Self = .{
             .end = 0,
             .entries = .{},
             .free_list = null,
+            .live_list = .{},
             .num_items = 0,
         };
 
-        pub const Slot = union(EntryType) { empty: FreeSlot, occupied: Entry(T) };
+        pub const Slot = struct {
+            generation: Guard,
+            elem: Elem,
+
+            const Elem = union {
+                next: Size,
+                value: T,
+            };
+        };
 
         pub const ValidItemsIterator = struct {
-            slot_map: *SlotMap(T),
-            next_index: u32 = 0,
+            live_iterator: std.DynamicBitSetUnmanaged.Iterator(.{}),
+            slot_map: *Self,
+            last_index: Size = std.math.maxInt(Size),
 
-            pub inline fn index(self: *ValidItemsIterator) u32 {
-                return self.next_index - 1;
+            pub inline fn index(self: *ValidItemsIterator) Size {
+                return self.last_index;
             }
 
-            pub inline fn handle(self: *ValidItemsIterator) SlotMap(T).Handle {
+            pub inline fn handle(self: *ValidItemsIterator) Self.Handle {
                 return self.slot_map.handle_at(self.index());
             }
 
             pub fn nextPtr(self: *ValidItemsIterator) ?*T {
-                const i = self.next_index;
-                if (i < 0 or i >= self.slot_map.end) return null;
-
-                while (self.next_index < self.slot_map.end) {
-                    switch (self.slot_map.slots()[self.next_index]) {
-                        .occupied => |*val| {
-                            self.next_index += 1;
-                            return &val.value;
-                        },
-                        .empty => {
-                            self.next_index += 1;
-                        },
-                    }
+                if (self.live_iterator.next()) |slot_index| {
+                    const slot = &self.slot_map.entries.items[slot_index];
+                    self.last_index = @intCast(slot_index);
+                    return &slot.elem.value;
                 }
-
                 return null;
             }
 
             pub fn next(self: *ValidItemsIterator) ?T {
-                const i = self.next_index;
-                if (i < 0 or i >= self.slot_map.end) return null;
-
-                while (self.next_index < self.slot_map.end) {
-                    const slot = self.slot_map.entries.items[self.next_index];
-                    switch (slot) {
-                        .occupied => |val| {
-                            self.next_index += 1;
-                            return val.value;
-                        },
-                        .empty => {
-                            self.next_index += 1;
-                        },
-                    }
+                if (self.live_iterator.next()) |slot_index| {
+                    const slot = self.slot_map.entries.items[slot_index];
+                    self.last_index = @intCast(slot_index);
+                    return slot.elem.value;
                 }
-
                 return null;
             }
         };
 
         pub const Handle = extern struct {
-            generation: u32 = 0,
-            index: u32 = 0,
+            generation: Guard = 0,
+            index: Size = 0,
 
-            pub const invalid = SlotMap(T).Handle{ .generation = 0, .index = 0 };
-            pub const none = SlotMap(T).Handle{ .generation = 0, .index = 0 };
+            pub const invalid: Self.Handle = .{ .generation = 0, .index = 0 };
+            pub const none: Self.Handle = .{ .generation = 0, .index = 0 };
 
-            pub fn valid(self: SlotMap(T).Handle) bool {
+            pub fn valid(self: Self.Handle) bool {
                 return self.generation != 0;
             }
 
-            pub inline fn eql(self: *const SlotMap(T).Handle, other: SlotMap(T).Handle) bool {
+            pub inline fn eql(self: *const Self.Handle, other: Self.Handle) bool {
                 return self.index == other.index and self.generation == other.generation;
             }
 
-            pub fn order(self: SlotMap(T).Handle, rhs: SlotMap(T).Handle) std.math.Order {
+            pub fn order(self: Self.Handle, rhs: Self.Handle) std.math.Order {
                 const ord = std.math.order(self.index, rhs.index);
                 if (ord == .eq) return std.math.order(self.generation, rhs.generation);
                 return ord;
             }
 
-            pub inline fn toStr(self: SlotMap(T).Handle) [:0]const u8 {
+            pub inline fn toStr(self: Self.Handle) [:0]const u8 {
                 var buf: [32:0]u8 = undefined;
                 const slice = std.fmt.bufPrintZ(&buf, "[{}/{}]", .{ self.index, self.generation }) catch unreachable;
                 return slice;
             }
         };
 
-        pub fn deinit(self: *SlotMap(T), allocator: std.mem.Allocator) void {
+        pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+            self.live_list.deinit(allocator);
             self.entries.clearAndFree(allocator);
             self.* = .empty;
         }
 
-        pub fn clear(self: *SlotMap(T)) void {
+        pub fn clear(self: *Self) void {
             for (self.slots(), 0..) |slot, i| {
                 switch (slot) {
                     .occupied => {
@@ -139,99 +130,113 @@ pub fn SlotMap(comptime T: type) type {
             }
         }
 
-        pub fn capacity(self: *SlotMap(T)) u32 {
+        pub fn capacity(self: *Self) Size {
             return @intCast(self.entries.capacity);
         }
 
-        pub fn get(self: *SlotMap(T), handle: SlotMap(T).Handle) ?T {
+        pub fn get(self: *Self, handle: Self.Handle) ?T {
             const idx = handle.index;
 
             std.debug.assert(idx < self.end);
 
-            return switch (self.entries.items[idx]) {
-                .empty => null,
-                .occupied => |val| blk: {
-                    if (val.generation > handle.generation) break :blk null;
-                    break :blk val.value;
-                },
-            };
+            const slot = &self.entries.items[idx];
+            if (self.live_list.isSet(idx)) {
+                if (slot.generation > handle.generation) {
+                    return null;
+                } else {
+                    return slot.elem.value;
+                }
+            }
+            return null;
         }
 
-        pub fn getPtr(self: *SlotMap(T), handle: SlotMap(T).Handle) ?*T {
+        pub fn getPtr(self: *Self, handle: Self.Handle) ?*T {
             const idx = handle.index;
 
             std.debug.assert(idx < self.end);
 
-            return switch (self.entries.items[idx]) {
-                .empty => null,
-                .occupied => |*val| blk: {
-                    if (val.generation > handle.generation) break :blk null;
-                    break :blk &val.value;
-                },
-            };
+            const slot = &self.entries.items[idx];
+            if (self.live_list.isSet(idx)) {
+                if (slot.generation > handle.generation) {
+                    return null;
+                } else {
+                    return &slot.elem.value;
+                }
+            }
+            return null;
         }
 
-        pub fn at(self: *SlotMap(T), idx: u32) ?*T {
+        pub fn at(self: *Self, idx: Size) ?*T {
             std.debug.assert(idx < self.end);
-            return switch (self.entries.items[idx]) {
-                .empty => null,
-                .occupied => |val| val.value,
-            };
+            if (self.live_list.isSet(idx)) {
+                return &self.entries.items[idx].elem.value;
+            } else {
+                return null;
+            }
         }
 
-        pub fn handle_at(self: *const SlotMap(T), idx: u32) SlotMap(T).Handle {
-            return switch (self.entries.items[idx]) {
-                .empty => std.debug.panic("handle_at used on an empty slot", .{}),
-                .occupied => |val| .{ .index = idx, .generation = val.generation },
-            };
+        pub fn handle_at(self: *const Self, idx: Size) Self.Handle {
+            if (self.live_list.isSet(idx)) {
+                return .{ .index = idx, .generation = self.entries.items[idx].generation };
+            } else {
+                std.debug.panic("handle_at used on an empty slot", .{});
+            }
         }
 
-        pub fn iterator(self: *SlotMap(T)) ValidItemsIterator {
+        pub fn iterator(self: *Self) ValidItemsIterator {
             return .{
                 .slot_map = self,
-                .next_index = 0,
+                .live_iterator = self.live_list.iterator(.{}),
             };
         }
 
-        pub fn slots(self: *const SlotMap(T)) []SlotMap(T).Slot {
+        pub fn slots(self: *const Self) []Self.Slot {
             return self.entries.items;
         }
 
         /// Caller is responsible for freeing the returned slice.
-        pub fn toSlice(self: *SlotMap(T), allocator: std.mem.Allocator) ![]T {
+        pub fn toSlice(self: *Self, allocator: std.mem.Allocator) ![]T {
             var items = try allocator.alloc(T, self.end);
             var it = self.iterator();
-            var i: u32 = 0;
+            var i: Size = 0;
             while (it.next()) |item| : (i += 1) {
                 items[i] = item;
             }
             return items;
         }
 
-        pub fn insert(self: *SlotMap(T), allocator: std.mem.Allocator, value: T) !SlotMap(T).Handle {
+        pub fn insert(self: *Self, allocator: std.mem.Allocator, value: T) !Self.Handle {
             if (self.free_list != null) {
                 const idx = self.free_list.?;
                 const slot = &self.entries.items[idx];
-                const gen = slot.empty.generation;
+                const gen = slot.generation;
 
-                self.free_list = slot.empty.next;
-                slot.* = .{ .occupied = .{ .generation = gen, .value = value } };
+                if (slot.elem.next != std.math.maxInt(Size)) {
+                    self.free_list = slot.elem.next;
+                } else {
+                    self.free_list = null;
+                }
+
+                slot.elem = .{ .value = value };
                 self.num_items += 1;
+                self.live_list.set(idx);
 
                 return .{ .index = idx, .generation = gen };
             } else {
-                const index = self.end;
+                const index: Size = self.end - 0;
                 if (index >= self.capacity()) {
                     const new_cap = @max(self.capacity() * 2, 1);
                     try self.resize(allocator, new_cap);
-                    return self.insert(allocator, value);
+                    try self.live_list.resize(allocator, self.capacity(), false);
                 }
 
-                try self.entries.insert(allocator, index, .{ .occupied = .{
+                self.entries.items.len += 1;
+                self.entries.items[index] = .{
                     .generation = 1,
-                    .value = value,
-                } });
+                    .elem = .{ .value = value },
+                };
 
+                self.live_list.set(index);
                 self.end += 1;
                 self.num_items += 1;
 
@@ -242,29 +247,32 @@ pub fn SlotMap(comptime T: type) type {
             }
         }
 
-        pub fn remove(self: *SlotMap(T), handle: SlotMap(T).Handle) void {
+        pub fn remove(self: *Self, handle: Self.Handle) void {
             const idx = handle.index;
-            if (idx >= self.end) return;
-            const slot = &self.entries.items[idx];
-            const val: ?T = switch (self.entries.items[idx]) {
-                .empty => null,
-                .occupied => |entry| blk: {
-                    slot.* = .{ .empty = .{
-                        .generation = entry.generation + 1,
-                        .next = self.free_list,
-                    } };
-                    self.free_list = idx;
-                    break :blk entry.value;
-                },
-            };
-            if (val != null) {
-                self.num_items -= 1;
+            if (idx >= self.end) {
+                std.debug.panic("slot_map.remove called with handle {} when no element exists", .{handle});
+            }
+            if (!self.live_list.isSet(idx)) {
                 return;
             }
+
+            self.live_list.unset(idx);
+
+            const slot = &self.entries.items[idx];
+            slot.generation += 1;
+
+            if (self.free_list) |free_idx| {
+                slot.elem = .{ .next = free_idx };
+            } else {
+                slot.elem = .{ .next = std.math.maxInt(u32) };
+            }
+
+            self.free_list = idx;
+            self.num_items -= 1;
         }
 
-        pub fn resize(self: *SlotMap(T), allocator: std.mem.Allocator, new_cap: u32) !void {
-            if (new_cap > std.math.maxInt(u32)) return error.OutOfMemory;
+        pub fn resize(self: *Self, allocator: std.mem.Allocator, new_cap: Size) !void {
+            if (new_cap > std.math.maxInt(Size)) return error.OutOfMemory;
             try self.entries.ensureTotalCapacity(allocator, new_cap);
         }
     };

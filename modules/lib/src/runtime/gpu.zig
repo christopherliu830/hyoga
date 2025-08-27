@@ -39,18 +39,15 @@ pub const PassHandle = enum(u64) {
 
 pub const Renderable = extern struct {
     pass: PassType,
-    index: enum(u64) {
-        none = 0,
-        _,
-    } align(4),
+    instance_hdl: [2]u32 = @splat(0),
+    transform_hdl: [2]u32 = @splat(0),
 
     pub const none: Renderable = .{
         .pass = .default,
-        .index = .none,
     };
 
     pub fn valid(self: Renderable) bool {
-        return self.index != .none;
+        return self.instance_hdl[1] != 0;
     }
 };
 
