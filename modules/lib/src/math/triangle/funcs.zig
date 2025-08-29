@@ -5,7 +5,7 @@ pub inline fn ccw(a: hym.Vec2, b: hym.Vec2, c: hym.Vec2) bool {
     return determinant(a, b, c) > 0.0;
 }
 
-pub inline fn determinant(a: hym.Vec2, b: hym.Vec2, c: hym.Vec2) f32 {
+pub fn determinant(a: hym.Vec2, b: hym.Vec2, c: hym.Vec2) f32 {
     return (b.x() - a.x()) * (c.y() - a.y()) -
         (b.y() - a.y()) * (c.x() - a.x());
 }
