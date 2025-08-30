@@ -99,10 +99,13 @@ pub const ProcTable = extern struct {
     hy_io_bindPollMouse: *const fn (input: *Input, id: u32, on: hy.input.OnFlags, mouse: hy.MouseButton) callconv(.c) void,
     hy_io_eventPump: *const fn (input: *Input) callconv(.c) hy.ExternSliceConst(u32),
     hy_io_eventClear: *const fn (input: *Input, events: hy.ExternSliceConst(u32)) callconv(.c) void,
-    hy_p2_bodyAdd: *const fn (world: *Phys2, opts: Phys2.BodyAddOptions) callconv(.c) Phys2.Body,
+    hy_p2_reset: *const fn (p2_ctx: *Phys2) callconv(.c) void,
+    hy_p2_bodyAdd: *const fn (p2_ctx: *Phys2, opts: *const hy.p2.BodyAddOptions) callconv(.c) Phys2.Body,
+    hy_p2_bodyShapeAdd: *const fn (body: hy.p2.Body, opts: *const hy.p2.BodyAddOptions.ShapeOptions) callconv(.c) void,
     hy_p2_bodyDestroy: *const fn (body: Phys2.Body) callconv(.c) void,
     hy_p2_bodyUserData: *const fn (body: Phys2.Body) callconv(.c) ?*anyopaque,
-    hy_p2_bodyPosition: *const fn (world: *Phys2, body: Phys2.Body) callconv(.c) hym.Vec2,
+    hy_p2_bodyUserDataSet: *const fn (body: hy.p2.Body, user_data: ?*anyopaque) callconv(.c) void,
+    hy_p2_bodyPosition: *const fn (p2_ctx: *Phys2, body: Phys2.Body) callconv(.c) hym.Vec2,
     hy_p2_bodyPositionSet: *const fn (body: Phys2.Body, pos: hym.Vec2) callconv(.c) void,
     hy_p2_bodyPositionReal: *const fn (body: Phys2.Body) callconv(.c) hym.Vec2,
     hy_p2_bodyType: *const fn (body: Phys2.Body) callconv(.c) Phys2.Body.Type,
@@ -110,11 +113,11 @@ pub const ProcTable = extern struct {
     hy_p2_bodyVelocity: *const fn (body: Phys2.Body) callconv(.c) hym.Vec2,
     hy_p2_bodyVelocitySet: *const fn (body: Phys2.Body, velocity: hym.Vec2) callconv(.c) void,
     hy_p2_shapeBody: *const fn (shape: Phys2.b2.Shape) callconv(.c) Phys2.Body,
-    hy_p2_shapeExtra: *const fn (shape: Phys2.b2.Shape) callconv(.c) Phys2.ShapeExtra,
-    hy_p2_eventPump: *const fn (world: *Phys2, buffer: hy.ExternSlice(u8)) callconv(.c) u32,
-    hy_p2_overlapLeaky: *const fn (world: *Phys2, arena: hy.ExternAllocator, shape: Phys2.ShapeConfig, origin: hym.Vec2) callconv(.c) hy.ExternSlice(Phys2.b2.Shape),
-    hy_p2_castRayLeaky: *const fn (world: *Phys2, arena: hy.ExternAllocator, opts: Phys2.RaycastOptions) callconv(.c) hy.ExternSlice(Phys2.RaycastHit),
-    hy_p2_castCircleLeaky: *const fn (world: *Phys2, arena: hy.ExternAllocator, opts: Phys2.CastCircleOptions) callconv(.c) hy.ExternSlice(Phys2.RaycastHit),
+    hy_p2_shapeExtra: *const fn (shape: Phys2.b2.Shape) callconv(.c) hy.p2.ShapeExtra,
+    hy_p2_eventPump: *const fn (p2_ctx: *Phys2, buffer: hy.ExternSlice(u8)) callconv(.c) u32,
+    hy_p2_overlapLeaky: *const fn (p2_ctx: *Phys2, arena: hy.ExternAllocator, shape: *const hy.p2.ShapeConfig, origin: hym.Vec2) callconv(.c) hy.ExternSlice(Phys2.b2.Shape),
+    hy_p2_castRayLeaky: *const fn (p2_ctx: *Phys2, arena: hy.ExternAllocator, opts: Phys2.RaycastOptions) callconv(.c) hy.ExternSlice(Phys2.RaycastHit),
+    hy_p2_castCircleLeaky: *const fn (p2_ctx: *Phys2, arena: hy.ExternAllocator, opts: Phys2.CastCircleOptions) callconv(.c) hy.ExternSlice(Phys2.RaycastHit),
     hy_ui_globalState: *const fn (ctx: *UI) callconv(.c) UI.GlobalState,
     hy_ui_inputState: *const fn (ctx: *UI) callconv(.c) UI.InputState,
     hy_win_relativeMouseMode: *const fn (window: *Window, toggle: bool) callconv(.c) void,
@@ -171,9 +174,12 @@ pub fn procs() ProcTable {
         .hy_io_bindPollMouse = hy_io_bindPollMouse,
         .hy_io_eventPump = hy_io_eventPump,
         .hy_io_eventClear = hy_io_eventClear,
+        .hy_p2_reset = hy_p2_reset,
         .hy_p2_bodyAdd = hyp2BodyAdd,
+        .hy_p2_bodyShapeAdd = hy_p2_bodyShapeAdd,
         .hy_p2_bodyDestroy = hyp2BodyDestroy,
         .hy_p2_bodyUserData = hyp2BodyUserData,
+        .hy_p2_bodyUserDataSet = hy_p2_bodyUserDataSet,
         .hy_p2_bodyPosition = hyp2BodyGetPosition,
         .hy_p2_bodyPositionSet = hyp2BodyPositionSet,
         .hy_p2_bodyPositionReal = hyp2BodyRealPosition,
@@ -479,8 +485,16 @@ fn hy_io_eventClear(input: *Input, events: hy.ExternSliceConst(u32)) callconv(.c
     input.eventClear(events.asSlice());
 }
 
-fn hyp2BodyAdd(p2d: *Phys2, opts: Phys2.BodyAddOptions) callconv(.c) Phys2.Body {
+fn hy_p2_reset(p2_ctx: *Phys2) callconv(.c) void {
+    return p2_ctx.reset();
+}
+
+fn hyp2BodyAdd(p2d: *Phys2, opts: *const hy.p2.BodyAddOptions) callconv(.c) Phys2.Body {
     return p2d.addBody(opts);
+}
+
+fn hy_p2_bodyShapeAdd(body: hy.p2.Body, opts: *const hy.p2.BodyAddOptions.ShapeOptions) callconv(.c) void {
+    Phys2.bodyShapeAdd(body, opts);
 }
 
 fn hyp2BodyDestroy(body: Phys2.Body) callconv(.c) void {
@@ -489,6 +503,10 @@ fn hyp2BodyDestroy(body: Phys2.Body) callconv(.c) void {
 
 fn hyp2BodyUserData(body: Phys2.Body) callconv(.c) ?*anyopaque {
     return body.getUserData();
+}
+
+fn hy_p2_bodyUserDataSet(body: hy.p2.Body, user_data: ?*anyopaque) callconv(.c) void {
+    Phys2.bodyUserDataSet(body, user_data);
 }
 
 fn hyp2BodyGetPosition(p2d: *Phys2, body: Phys2.Body) callconv(.c) hym.Vec2 {
@@ -519,7 +537,7 @@ fn hyp2BodyVelocitySet(body: Phys2.Body, velocity: hym.Vec2) callconv(.c) void {
     body.setLinearVelocity(@bitCast(velocity));
 }
 
-fn hyp2ShapeExtra(shape: Phys2.b2.Shape) callconv(.c) Phys2.ShapeExtra {
+fn hyp2ShapeExtra(shape: Phys2.b2.Shape) callconv(.c) hy.p2.ShapeExtra {
     return Phys2.shapeExtra(shape);
 }
 
@@ -527,7 +545,7 @@ fn hy_p2_eventPump(p2d: *Phys2, buffer: hy.ExternSlice(u8)) callconv(.c) u32 {
     return p2d.hit_events.pump(buffer.asSlice());
 }
 
-fn hyp2OverlapLeaky(p2d: *Phys2, arena: hy.ExternAllocator, shape: Phys2.ShapeConfig, origin: hym.Vec2) callconv(.c) hy.ExternSlice(Phys2.b2.Shape) {
+fn hyp2OverlapLeaky(p2d: *Phys2, arena: hy.ExternAllocator, shape: *const hy.p2.ShapeConfig, origin: hym.Vec2) callconv(.c) hy.ExternSlice(Phys2.b2.Shape) {
     return .from(p2d.overlapLeaky(arena.allocator(), shape, origin));
 }
 

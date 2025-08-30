@@ -24,17 +24,17 @@ pub const Polygon = extern struct {
     count: u32,
 };
 
-pub const ShapeOptions = hy.ExternTaggedUnion(union(enum) {
+pub const ShapeConfig = union(enum) {
     circle: Circle,
-    box: extern struct {
+    box: Box,
+    polygon: []const hym.Vec2,
+
+    pub const Box = struct {
         width: f32,
         height: f32,
         rot: f32 = 0,
-    },
-    polygon: extern struct {
-        points: hy.ExternSliceConst(hym.Vec2),
-    },
-});
+    };
+};
 
 pub const Body = enum(u64) {
     none = 0,
@@ -57,21 +57,9 @@ pub const Body = enum(u64) {
         }
     };
 
-    pub const AddShapeOptions = extern struct {
-        type: ShapeOptions,
-        density: f32 = 1,
-        sensor: bool = false,
-        filter: Filter = .{},
-    };
-
-    pub const AddOptions = extern struct {
-        type: Type = .dynamic,
-        position: hym.Vec2 = .zero,
-        velocity: hym.Vec2 = .zero,
-        shape: hy.ExternSliceConst(AddShapeOptions),
-        bullet: bool = false,
-        user_data: ?*anyopaque = null,
-    };
+    pub fn shapeAdd(body: Body, opts: BodyAddOptions.ShapeOptions) void {
+        proc.hy_p2_bodyShapeAdd(body, opts);
+    }
 
     pub fn destroy(body: Body) void {
         return proc.hy_p2_bodyDestroy(body);
@@ -103,6 +91,10 @@ pub const Body = enum(u64) {
 
     pub fn userData(body: Body) ?*anyopaque {
         return proc.hy_p2_bodyUserData(body);
+    }
+
+    pub fn userDataSet(body: Body, user_data: ?*anyopaque) void {
+        return proc.hy_p2_bodyUserDataSet(body, user_data);
     }
 };
 
@@ -175,29 +167,49 @@ pub const Event = extern struct {
 
 pub const OverlapCallback = *const fn (Body, ?*anyopaque) callconv(.c) bool;
 
-pub const World = struct {
-    pub fn bodyAdd(world: *World, opts: Body.AddOptions) Body {
-        return proc.hy_p2_bodyAdd(world, opts);
+pub const BodyAddOptions = struct {
+    type: Body.Type = .dynamic,
+    position: hym.Vec2 = .zero,
+    velocity: hym.Vec2 = .zero,
+    shapes: []const ShapeOptions,
+    bullet: bool = false,
+    user_data: ?*anyopaque = null,
+
+    pub const ShapeOptions = struct {
+        config: ShapeConfig,
+        density: f32 = 1,
+        sensor: bool = false,
+        filter: Body.Filter = .{},
+    };
+};
+
+pub const Context = struct {
+    pub fn reset(ctx: *Context) void {
+        proc.hy_p2_reset(ctx);
     }
 
-    pub fn bodyPosition(world: *World, body: Body) hym.Vec2 {
+    pub fn bodyAdd(ctx: *Context, opts: *const BodyAddOptions) Body {
+        return proc.hy_p2_bodyAdd(ctx, opts);
+    }
+
+    pub fn bodyPosition(world: *Context, body: Body) hym.Vec2 {
         return proc.hy_p2_bodyPosition(world, body);
     }
 
-    pub fn eventPump(world: *World, buffer: []u8) []align(1) Event {
+    pub fn eventPump(world: *Context, buffer: []u8) []align(1) Event {
         const len = proc.hy_p2_eventPump(world, .from(buffer));
         return @ptrCast(buffer[0..len]);
     }
 
-    pub fn overlapLeaky(phys2: *World, arena: std.mem.Allocator, shape: ShapeOptions, origin: hym.Vec2) []Shape {
+    pub fn overlapLeaky(phys2: *Context, arena: std.mem.Allocator, shape: *const ShapeConfig, origin: hym.Vec2) []Shape {
         return proc.hy_p2_overlapLeaky(phys2, .of(arena), shape, origin).asSlice();
     }
 
-    pub fn raycastLeaky(phys2: *World, arena: std.mem.Allocator, opts: RaycastOptions) []RaycastHit {
+    pub fn raycastLeaky(phys2: *Context, arena: std.mem.Allocator, opts: RaycastOptions) []RaycastHit {
         return proc.hy_p2_castRayLeaky(phys2, .of(arena), opts).asSlice();
     }
 
-    pub fn castCircleLeaky(phys2: *World, arena: std.mem.Allocator, opts: CastCircleOptions) []RaycastHit {
+    pub fn castCircleLeaky(phys2: *Context, arena: std.mem.Allocator, opts: CastCircleOptions) []RaycastHit {
         return proc.hy_p2_castCircleLeaky(phys2, .of(arena), opts).asSlice();
     }
 };

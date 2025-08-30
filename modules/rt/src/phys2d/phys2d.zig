@@ -66,6 +66,11 @@ pub fn deinit(self: *Phys2) void {
     self.prev_positions.deinit(self.allocator);
 }
 
+pub fn reset(self: *Phys2) void {
+    self.world.destroy();
+    self.world = .create(&.{ .gravity = .zero });
+}
+
 pub const ShapeType = enum(u32) {
     circle,
     capsule,
@@ -75,51 +80,10 @@ pub const ShapeType = enum(u32) {
     count,
 };
 
-pub const AddShapeOptions = extern struct {
-    type: ShapeConfig,
-    density: f32,
-    sensor: bool = false,
-    filter: b2.Filter = .{},
-
-    comptime {
-        hy.meta.assertMatches(AddShapeOptions, hy.p2.Body.AddShapeOptions);
-    }
-};
-
-pub const ShapeConfig = hy.ExternTaggedUnion(union(enum) {
-    circle: extern struct {
-        radius: f32,
-        center: hym.Vec2,
-    },
-    box: extern struct {
-        width: f32,
-        height: f32,
-        rot: f32,
-    },
-    polygon: extern struct {
-        points: hy.ExternSliceConst(hym.Vec2),
-    },
-});
-
-pub const ShapeExtra = hy.p2.ShapeExtra;
-
-pub const BodyAddOptions = extern struct {
-    type: b2.Body.Type,
-    position: hym.Vec2,
-    velocity: hym.Vec2 = .zero,
-    shape: hy.ExternSliceConst(AddShapeOptions),
-    bullet: bool = false,
-    user_data: ?*anyopaque = null,
-
-    comptime {
-        hy.meta.assertMatches(BodyAddOptions, hy.p2.Body.AddOptions);
-    }
-};
-
-pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
+pub fn addBody(self: *Phys2, opts: *const hy.p2.BodyAddOptions) b2.Body {
     const body: b2.Body = blk: {
         break :blk .create(self.world, &.{
-            .type = opts.type,
+            .type = @enumFromInt(@intFromEnum(opts.type)),
             .position = @bitCast(opts.position),
             .linear_velocity = @bitCast(opts.velocity),
             .is_bullet = opts.bullet,
@@ -127,43 +91,52 @@ pub fn addBody(self: *Phys2, opts: BodyAddOptions) b2.Body {
         });
     };
 
-    for (opts.shape.asSlice()) |shape| {
-        switch (shape.type.revert()) {
-            .circle => |c| {
-                const circle: b2.Shape.Circle = .{
-                    .radius = c.radius,
-                    .center = @bitCast(c.center),
-                };
-
-                _ = b2.Shape.createCircleShape(body, &.{
-                    .density = shape.density,
-                    .is_sensor = shape.sensor,
-                    .enable_hit_events = true,
-                    .filter = shape.filter,
-                }, &circle);
-            },
-            .box => |b| {
-                const box: b2.Shape.Polygon = .makeBox(b.width, b.height);
-                _ = b2.Shape.createPolygonShape(body, &.{
-                    .density = shape.density,
-                    .enable_hit_events = true,
-                    .filter = shape.filter,
-                }, &box);
-            },
-            .polygon => |p| {
-                const hull = b2.computeHull(@ptrCast(p.points.ptr), @intCast(p.points.len));
-                const polygon = b2.makePolygon(&hull, 0);
-                _ = b2.Shape.createPolygonShape(body, &.{
-                    .density = shape.density,
-                    .enable_hit_events = true,
-                    .filter = shape.filter,
-                }, &polygon);
-            },
-        }
-    }
+    for (opts.shapes) |shape| bodyShapeAdd(@enumFromInt(@intFromEnum(body)), &shape);
 
     self.prev_positions.put(self.allocator, body, @bitCast(body.getPosition())) catch hy.err.oom();
     return body;
+}
+
+pub fn bodyShapeAdd(body: hy.p2.Body, shape: *const hy.p2.BodyAddOptions.ShapeOptions) void {
+    const b2_body: b2.Body = @enumFromInt(@intFromEnum(body));
+
+    switch (shape.config) {
+        .circle => |c| {
+            const circle: b2.Shape.Circle = .{
+                .radius = c.radius,
+                .center = @bitCast(c.center),
+            };
+
+            _ = b2.Shape.createCircleShape(b2_body, &.{
+                .density = shape.density,
+                .is_sensor = shape.sensor,
+                .enable_hit_events = true,
+                .filter = @bitCast(shape.filter),
+            }, &circle);
+        },
+        .box => |b| {
+            const box: b2.Shape.Polygon = .makeBox(b.width, b.height);
+            _ = b2.Shape.createPolygonShape(b2_body, &.{
+                .density = shape.density,
+                .enable_hit_events = true,
+                .filter = @bitCast(shape.filter),
+            }, &box);
+        },
+        .polygon => |p| {
+            const hull = b2.computeHull(@ptrCast(p.ptr), @intCast(p.len));
+            const polygon = b2.makePolygon(&hull, 0);
+            _ = b2.Shape.createPolygonShape(b2_body, &.{
+                .density = shape.density,
+                .enable_hit_events = true,
+                .filter = @bitCast(shape.filter),
+            }, &polygon);
+        },
+    }
+}
+
+pub fn bodyUserDataSet(body: hy.p2.Body, user_data: ?*anyopaque) void {
+    const b2_body: b2.Body = @enumFromInt(@intFromEnum(body));
+    b2_body.setUserData(user_data);
 }
 
 pub fn step(self: *Phys2) void {
@@ -204,7 +177,7 @@ pub fn bodyPositionSet(body: Body, pos: hym.Vec2) void {
     body.setTransform(@bitCast(pos), body.getRotation());
 }
 
-pub fn shapeExtra(shape: b2.Shape) ShapeExtra {
+pub fn shapeExtra(shape: b2.Shape) hy.p2.ShapeExtra {
     const shape_type = shape.getType();
     return blk: switch (shape_type) {
         .circle => {
@@ -233,10 +206,10 @@ const OverlapContext = struct {
     results: std.ArrayListUnmanaged(b2.Shape),
 };
 
-pub fn overlapLeaky(self: *Phys2, arena: std.mem.Allocator, shape: ShapeConfig, origin: hym.Vec2) []b2.Shape {
+pub fn overlapLeaky(self: *Phys2, arena: std.mem.Allocator, shape: *const hy.p2.ShapeConfig, origin: hym.Vec2) []b2.Shape {
     var ctx: OverlapContext = .{ .arena = arena, .results = .empty };
 
-    switch (shape.revert()) {
+    switch (shape.*) {
         .circle => |c| {
             const circle: b2.Shape.Circle = .{
                 .radius = @bitCast(c.radius),
@@ -263,7 +236,7 @@ pub fn overlapLeaky(self: *Phys2, arena: std.mem.Allocator, shape: ShapeConfig, 
                 .p = @bitCast(origin),
                 .q = .identity,
             };
-            const hull = b2.computeHull(@ptrCast(p.points.ptr), @intCast(p.points.len));
+            const hull = b2.computeHull(@ptrCast(p.ptr), @intCast(p.len));
             const polygon = b2.makePolygon(&hull, 0);
             const filter: b2.QueryFilter = .{};
             _ = self.world.overlapPolygon(&polygon, transform, filter, overlapsCollect, &ctx);

@@ -500,8 +500,8 @@ pub const World = enum(u32) {
     };
 
     pub const create = b2CreateWorld;
-    pub const Destroy = b2DestroyWorld;
-    pub const IsValid = b2World_IsValid;
+    pub const destroy = b2DestroyWorld;
+    pub const isValid = b2World_IsValid;
     pub const step = b2World_Step;
     pub const draw = b2World_Draw;
     pub const getBodyEvents = b2World_GetBodyEvents;
@@ -550,6 +550,7 @@ pub const World = enum(u32) {
 
 pub const Body = enum(u64) {
     null = 0,
+    _,
 
     pub const Type = enum(u32) { static, kinematic, dynamic, count };
     pub const Definition = extern struct {

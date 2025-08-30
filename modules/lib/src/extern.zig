@@ -100,5 +100,19 @@ pub fn ExternTaggedUnion(Base: type) type {
                 .payload = payload,
             };
         }
+
+        pub fn from(value: Base) @This() {
+            switch (value) {
+                inline else => |payload, tag| {
+                    const converted_tag: BaseTag = @enumFromInt(std.meta.fieldIndex(BaseTag, @tagName(tag)).?);
+                    var converted_payload: Payload = undefined;
+                    @field(converted_payload, @tagName(tag)) = payload;
+                    return .{
+                        .tag = converted_tag,
+                        .payload = converted_payload,
+                    };
+                }
+            }
+        }
     };
 }

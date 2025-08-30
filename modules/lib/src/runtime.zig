@@ -15,7 +15,7 @@ pub const w = @import("runtime/window.zig");
 pub const Input = input.Input;
 pub const Gpu = gfx.Gpu;
 pub const Audio = aud;
-pub const Phys2 = p2.World;
+pub const Phys2 = p2.Context;
 pub const Strint = strint;
 pub const Window = w.Window;
 pub const UI = ui.UI;
@@ -69,7 +69,7 @@ pub const Engine = opaque {
         return proc.hy_engine_gpu(engine);
     }
 
-    pub fn p2(engine: *Engine) *runtime.p2.World {
+    pub fn p2(engine: *Engine) *runtime.p2.Context {
         return proc.hy_engine_phys2(engine);
     }
 
