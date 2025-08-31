@@ -4,8 +4,8 @@ const hy = @import("hyoga-lib");
 const mt = @import("material.zig");
 const mdl = @import("model.zig");
 const tracy = @import("tracy");
-
 const gfx = @import("root.zig");
+const buf = @import("buffer.zig");
 const SlotMap = @import("hyoga-lib").SlotMap;
 const Gpu = @import("gpu.zig");
 const Mesh = mdl.Mesh;

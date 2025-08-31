@@ -26,7 +26,7 @@ pub const Item =
 pub const Context = struct {
     arena: std.heap.ArenaAllocator,
     buffer_src: std.ArrayListUnmanaged(u8) = .empty,
-    buffer_allocator: buf.BufferAllocator,
+    buffer_allocator: buf.BufferAllocator(.{ .vertex = true, .index = true }),
     items: std.ArrayListUnmanaged(Item) = .empty,
     needs_clear: bool = true,
 

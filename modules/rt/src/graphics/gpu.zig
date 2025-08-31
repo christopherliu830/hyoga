@@ -186,7 +186,8 @@ const Uniform = union(enum) {
 // Allocators
 gpa: std.mem.Allocator,
 arena: std.heap.ArenaAllocator, // Reset after every submit().
-buffer_allocator: buf.BufferAllocator,
+buffer_allocator: buf.BufferAllocator(.{ .vertex = true, .index = true }),
+storage_allocator: buf.BufferAllocator(.{ .graphics_storage_read = true }),
 
 // Engine resources
 device: *sdl.gpu.Device,
@@ -231,7 +232,8 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
     self.* = .{
         .gpa = gpa,
         .arena = .init(gpa),
-        .buffer_allocator = .init(device, .{ .vertex = true, .index = true }, self.gpa),
+        .buffer_allocator = .init(device, self.gpa),
+        .storage_allocator = .init(device, self.gpa),
 
         .device = device,
         .loader = loader,
@@ -250,7 +252,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .uniforms = .empty,
         .im = .{
             .arena = .init(gpa),
-            .buffer_allocator = .init(self.device, .{ .vertex = true, .index = true }, self.gpa),
+            .buffer_allocator = .init(self.device, self.gpa),
         },
 
         .passes = .init(.{
@@ -409,11 +411,11 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         .sphere = sphere,
 
         .sampler = self.device.createSampler(&sampler_info) orelse std.debug.panic("create sampler failure: {s}", .{sdl.getError()}),
-        .sprite_buf = try buf.DynamicBuffer(u128).init(self.device, 1024, "Sprite Atlas Sizes"),
+        .sprite_buf = try buf.DynamicBuffer(u128).init(self.device, &self.storage_allocator, 1024, "Sprite Atlas Sizes"),
         .active_target = null,
     };
 
-    try self.uniforms.put(self.gpa, self.ids.sprites, .{ .buffer = self.default_assets.sprite_buf.hdl });
+    try self.uniforms.put(self.gpa, self.ids.sprites, .{ .buffer = self.default_assets.sprite_buf.buffer.hdl });
 
     return self;
 }
@@ -447,8 +449,8 @@ pub fn shutdown(self: *Gpu) void {
     self.materials.deinit();
 
     self.buffer_allocator.deinit();
+    self.storage_allocator.deinit();
 
-    self.device.releaseBuffer(self.default_assets.sprite_buf.hdl);
     self.device.releaseTexture(self.default_assets.default_texture);
     self.device.releaseTexture(self.default_assets.black_texture);
     self.device.releaseTexture(self.default_assets.white_texture);
@@ -596,7 +598,7 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     try self.uniforms.put(self.gpa, self.ids.viewport_size, .{ .f32x4 = .{ @floatFromInt(self.window_state.prev_drawable_w), @floatFromInt(self.window_state.prev_drawable_h), 0, 0 } });
     try self.uniforms.put(self.gpa, self.ids.time, .{ .f32 = @as(f32, @floatFromInt(time)) / std.time.ns_per_s });
 
-    try self.uploadToBuffer(self.default_assets.sprite_buf.hdl, 0, std.mem.sliceAsBytes(self.materials.param_buf.items));
+    try self.uploadToBuffer(self.default_assets.sprite_buf.buffer.hdl, 0, std.mem.sliceAsBytes(self.materials.param_buf.items));
 
     // Default pass
     const fp = self.passes.getPtr(.default);

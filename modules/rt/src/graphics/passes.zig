@@ -124,16 +124,16 @@ pub const Forward = struct {
             .ds_tex_info = ds_tex_info,
             .ds_target = depth_stencil_target,
             .tex_scale = options.dest_tex_scale,
-            .transforms_buffer = buf.DynamicBuffer(hym.Mat4).init(options.gpu.device, 1024 * 128, "Object Mats") catch unreachable,
+            .transforms_buffer = buf.DynamicBuffer(hym.Mat4).init(options.gpu.device, &options.gpu.storage_allocator, 1024 * 128, "Object Mats") catch unreachable,
             .match_window_size = options.match_window_size,
             .blit_material = options.blit_material,
         };
     }
 
     pub fn deinit(self: *Forward) void {
+        self.gpu.storage_allocator.destroy(self.transforms_buffer.buffer);
         self.device.releaseTexture(self.texture());
         if (self.depthStencilTexture()) |dst| self.device.releaseTexture(dst);
-        self.device.releaseBuffer(self.transforms_buffer.hdl);
         self.render_list.deinit();
     }
 
@@ -184,18 +184,22 @@ pub const Forward = struct {
 
         const gpu = self.gpu;
 
-        var buffer_size: usize = 0;
+        var count: u32 = 0;
         {
             var all_instances = self.render_list.instances.iterator();
             while (all_instances.nextPtr()) |instance| {
-                buffer_size += instance.transforms.array.items.len * @sizeOf(hym.Mat4);
+                count += @intCast(instance.transforms.array.items.len);
             }
         }
+
+        try self.transforms_buffer.resize(&gpu.storage_allocator, count);
+
         {
             const buf_transfer = self.device.createTransferBuffer(&.{
                 .usage = .upload,
-                .size = @intCast(buffer_size),
+                .size = self.transforms_buffer.buffer.size,
             }).?;
+
             defer self.device.releaseTransferBuffer(buf_transfer);
             var map: [*]u8 = @ptrCast(@alignCast(self.device.mapTransferBuffer(buf_transfer, false).?));
 
@@ -219,9 +223,9 @@ pub const Forward = struct {
             };
 
             const dst_region = sdl.gpu.BufferRegion{
-                .buffer = self.transforms_buffer.hdl,
+                .buffer = self.transforms_buffer.buffer.hdl,
                 .offset = 0,
-                .size = @intCast(buffer_size),
+                .size = self.transforms_buffer.buffer.size,
             };
 
             copy_pass.uploadToBuffer(&buf_location, &dst_region, false);
@@ -242,7 +246,7 @@ pub const Forward = struct {
             var all_instances = self.render_list.instances.iterator();
             while (all_instances.next()) |instance| {
                 if (instance.transforms.array.items.len == 0) continue;
-                try gpu.uniforms.put(gpu.gpa, gpu.ids.all_renderables, .{ .buffer = self.transforms_buffer.hdl });
+                try gpu.uniforms.put(gpu.gpa, gpu.ids.all_renderables, .{ .buffer = self.transforms_buffer.buffer.hdl });
                 const mesh = instance.mesh;
                 const num_instances: u32 = @intCast(instance.transforms.array.items.len);
                 try gpu.draw(.{

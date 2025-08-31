@@ -62,6 +62,7 @@ const ImportMesh = struct {
 };
 
 pub const Models = struct {
+    const BufferAllocator = buf.BufferAllocator(.{ .vertex = true, .index = true });
     tsa: std.heap.ThreadSafeAllocator,
     queue: Queue,
     models: SlotMap(?Model),
@@ -78,7 +79,7 @@ pub const Models = struct {
         return m;
     }
 
-    pub fn deinit(self: *@This(), buffer_allocator: *buf.BufferAllocator) void {
+    pub fn deinit(self: *@This(), buffer_allocator: *BufferAllocator) void {
         self.flushQueue() catch std.debug.panic("Could not flush queue", .{});
         const allocator = self.tsa.allocator();
 
@@ -103,7 +104,7 @@ pub const Models = struct {
         return self.models.insert(self.tsa.allocator(), model) catch |e| std.debug.panic("add model failure: {}", .{e});
     }
 
-    pub fn remove(self: *@This(), buffer_allocator: *buf.BufferAllocator, hdl: Handle) void {
+    pub fn remove(self: *@This(), buffer_allocator: *BufferAllocator, hdl: Handle) void {
         const allocator = self.tsa.allocator();
         // Double null here means model doesn't exist
         // Single null (maybe_model) means model isn't loaded
@@ -125,7 +126,7 @@ pub const Models = struct {
         material: mt.Handle = mt.Handle.invalid,
     };
 
-    pub fn dupe(self: *@This(), buffer_allocator: *buf.BufferAllocator, model: Handle, options: DupeModelOptions) !Handle {
+    pub fn dupe(self: *@This(), buffer_allocator: *BufferAllocator, model: Handle, options: DupeModelOptions) !Handle {
         const allocator = self.tsa.allocator();
         var copy = (try self.get(model)).*;
         const meshes = try allocator.dupe(Mesh, copy.children);
