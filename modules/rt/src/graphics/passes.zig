@@ -187,8 +187,8 @@ pub const Forward = struct {
         var buffer_size: usize = 0;
         {
             var all_instances = self.render_list.instances.iterator();
-            while (all_instances.next()) |instance| {
-                buffer_size += instance.transform_buf.items.len * @sizeOf(@TypeOf(instance.transform_buf.items[0]));
+            while (all_instances.nextPtr()) |instance| {
+                buffer_size += instance.transforms.array.items.len * @sizeOf(hym.Mat4);
             }
         }
         {
@@ -201,8 +201,8 @@ pub const Forward = struct {
 
             var all_instances = self.render_list.instances.iterator();
             while (all_instances.next()) |instance| {
-                if (instance.transform_buf.items.len == 0) continue;
-                const data = std.mem.sliceAsBytes(instance.transform_buf.items);
+                if (instance.transforms.array.items.len == 0) continue;
+                const data = std.mem.sliceAsBytes(instance.transforms.array.items);
                 @memcpy(map, data);
                 map += data.len;
             }
@@ -241,10 +241,10 @@ pub const Forward = struct {
         {
             var all_instances = self.render_list.instances.iterator();
             while (all_instances.next()) |instance| {
-                if (instance.transform_buf.items.len == 0) continue;
+                if (instance.transforms.array.items.len == 0) continue;
                 try gpu.uniforms.put(gpu.gpa, gpu.ids.all_renderables, .{ .buffer = self.transforms_buffer.hdl });
                 const mesh = instance.mesh;
-                const num_instances: u32 = @intCast(instance.transform_buf.items.len);
+                const num_instances: u32 = @intCast(instance.transforms.array.items.len);
                 try gpu.draw(.{
                     .cmd = cmd,
                     .pass = pass,

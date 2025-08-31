@@ -5,10 +5,12 @@ const material = @import("material.zig");
 const model = @import("model.zig");
 const texture = @import("texture.zig");
 const passes = @import("passes.zig");
+const rbl = @import("renderable.zig");
 pub const primitives = @import("primitives.zig");
 
 pub const Gpu = @import("gpu.zig");
 
+pub const InstanceHandle = hy.SlotMap(rbl.Instance).Handle;
 pub const Material = material.Material;
 pub const MaterialHandle = material.Handle;
 pub const MaterialTemplate = material.MaterialTemplate;

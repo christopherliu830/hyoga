@@ -5,6 +5,7 @@
             "hy_all_renderables"
         ],
         "uniforms": [
+            "hy_item_offsets",
             "hy_view_projection_matrix"
         ]
     },

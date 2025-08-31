@@ -1102,6 +1102,23 @@ pub const AddRenderableOptions = extern struct {
     }
 };
 
+pub fn instanceAdd(self: *Gpu, opts: AddRenderableOptions) hy.SlotMap(rbl.Instance).Handle {
+    const pass = self.passes.getPtr(opts.pass).?;
+    const model = self.models.get(opts.model).?;
+    const hdl = pass.render_list.instances.insert(self.gpa, .{ .mesh = model.children[0], .transforms = &.{} }) catch unreachable;
+    return hdl;
+}
+
+pub fn instanceUpload(self: *Gpu, pass_hdl: PassType, instance_hdl: hy.SlotMap(rbl.Instance).Handle, items: []const hym.Mat4) void {
+    const pass = self.passes.getPtr(pass_hdl);
+    const instance = pass.render_list.instances.getPtr(instance_hdl).?;
+    if (instance.transforms.len > 0) {
+        self.gpa.free(instance.transforms);
+    } else {
+        instance.transforms = self.gpa.dupe(hym.Mat4, items) catch unreachable;
+    }
+}
+
 pub fn renderableAdd(self: *Gpu, opts: AddRenderableOptions) !RenderItemHandle {
     return .{
         .pass = opts.pass,

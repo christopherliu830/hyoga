@@ -166,6 +166,19 @@ pub fn SlotMapSized(Guard: type, Size: type, comptime T: type) type {
             return null;
         }
 
+        pub fn contains(self: *Self, handle: Self.Handle) bool {
+            const idx = handle.index;
+
+            std.debug.assert(idx < self.end);
+
+            const slot = &self.entries.items[idx];
+            if (self.live_list.isSet(idx)) {
+                return slot.generation <= handle.generation;
+            } else {
+                return false;
+            }
+        }
+
         pub fn at(self: *Self, idx: Size) ?*T {
             std.debug.assert(idx < self.end);
             if (self.live_list.isSet(idx)) {
