@@ -1,6 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+const GenerateBindings = @import("src/build/codegen.zig");
+
 pub const GpuDriver = @import("hyoga_rt").GpuDriver;
 
 pub const InstallShadersStep = @import("src/build/InstallShadersStep.zig");
@@ -11,15 +13,15 @@ pub fn build(b: *std.Build) !void {
 
     const dxc = b.option(bool, "dxc", "enable HLSL support") orelse false;
 
-    const lib = b.dependency("hyoga_lib", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
     const rt = b.dependency("hyoga_rt", .{
         .target = target,
         .optimize = optimize,
         .dxc = dxc,
+    });
+
+    const lib = b.dependency("lib", .{
+        .target = target,
+        .optimize = optimize,
     });
 
     b.modules.put(b.dupe("lib"), lib.module("hyoga-lib")) catch @panic("OOM");
@@ -39,35 +41,27 @@ pub fn build(b: *std.Build) !void {
     _ = wf.addCopyDirectory(b.path("shaders"), "shaders", .{ .include_extensions = &.{".json"} });
     _ = wf.addCopyDirectory(b.path("assets"), "assets", .{});
 
+    const rt_bindings = GenerateBindings.create(b, .{
+        .exports_file = rt.path("src/root.zig"),
+        .mode = .rt,
+    });
+
+    const lib_bindings = GenerateBindings.create(b, .{
+        .exports_file = rt.path("src/root.zig"),
+        .mode = .lib,
+    });
+
+    const update_source = b.addUpdateSourceFiles();
+    update_source.addCopyFileToSource(rt_bindings.getOutput(), "modules/rt/src/generated/proc_table.zig");
+    update_source.addCopyFileToSource(lib_bindings.getOutput(), "modules/lib/src/generated/proc_table.zig");
+
+    rt.artifact("runner").step.dependOn(&update_source.step);
+
+    const codegen = b.step("codegen", "generate code");
+    codegen.dependOn(&update_source.step);
+
     // Language server
 
     const check = b.step("check", "check if run compiles");
     check.dependOn(&rt.artifact("runner").step);
-
-    const test_step = b.step("test", "Run unit tests");
-    const hy_unit_tests = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = lib.path("src/root.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-
-    const run_unit_tests = b.addRunArtifact(hy_unit_tests);
-    test_step.dependOn(&run_unit_tests.step);
-
-    const tri = b.addExecutable(.{
-        .name = "triangle",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("test/triangle.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{.{
-                .name = "hyoga",
-                .module = lib.module("hyoga-lib"),
-            }},
-        }),
-    });
-
-    b.installArtifact(tri);
 }

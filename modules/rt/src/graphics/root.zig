@@ -1,5 +1,5 @@
 const std = @import("std");
-const hy = @import("hyoga-lib");
+const hy = @import("hyoga");
 
 const material = @import("material.zig");
 const model = @import("model.zig");

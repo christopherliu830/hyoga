@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const hy = @import("hyoga-lib");
+const hy = @import("hyoga");
 const root = @import("root.zig");
 
 pub const HotReloader = struct {
@@ -139,7 +139,7 @@ pub fn main() !void {
     defer engine.shutdown();
 
     var gi = game.interface;
-    gi.procs(root.procs());
+    gi.procs(root.proc_table.table);
     var world = gi.init(engine);
 
     while (!world.quit) {
@@ -147,7 +147,7 @@ pub fn main() !void {
 
         if (game.isStale() or world.restart) {
             gi = game.update() orelse gi;
-            gi.procs(root.procs());
+            gi.procs(root.proc_table.table);
             _ = gi.reload(engine, world);
             world.restart = false;
         }

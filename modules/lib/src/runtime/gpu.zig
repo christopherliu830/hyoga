@@ -4,7 +4,7 @@ const std = @import("std");
 const hy = @import("../root.zig");
 const rt = @import("../runtime.zig");
 
-const proc_table = @import("proc_table.zig");
+const proc_table = @import("../generated/proc_table.zig");
 const proc = &proc_table.table;
 
 const hym = @import("../math/math.zig");
@@ -53,6 +53,7 @@ pub const Renderable = extern struct {
 
 pub const MaterialHandle = enum(u64) {
     none = 0,
+    _,
 };
 
 pub const MaterialType = enum(u32) {

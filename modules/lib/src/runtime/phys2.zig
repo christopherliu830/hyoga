@@ -3,7 +3,7 @@ const hy = @import("../root.zig");
 const hym = hy.math;
 const closure = @import("../closure.zig");
 
-const proc = &@import("proc_table.zig").table;
+const proc = &@import("../generated/proc_table.zig").table;
 
 pub const Transform = extern struct {
     p: hym.Vec2 = .zero,
@@ -98,12 +98,17 @@ pub const Body = enum(u64) {
     }
 };
 
-pub const Shape = packed struct(u64) {
-    _reserved: u64,
+pub const Shape = enum(u64) {
+    _,
 
     pub fn body(shape: Shape) Body {
         return proc.hy_p2_shapeBody(shape);
     }
+
+    pub fn valid(shape: Shape) bool {
+        return proc.hy_p2_shapeValid(shape);
+    }
+
     pub fn extra(shape: Shape) ShapeExtra {
         return proc.hy_p2_shapeExtra(shape);
     }

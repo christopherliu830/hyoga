@@ -1,6 +1,7 @@
 .{
     .name = .hyoga_rt,
     .fingerprint = 0x6377b0f79555f86d,
+    .minimum_zig_version = "0.15.1",
     .version = "0.0.0",
     .dependencies = .{
         .box2d = .{ .path = "../box2d" },
@@ -12,6 +13,7 @@
         .hyoga_lib = .{ .path = "../lib" },
         .tracy = .{ .path = "../tracy" },
         .zclay = .{ .path = "../clay" },
+        .codegen = .{ .path = "../codegen" },
     },
     .paths = .{""},
 }

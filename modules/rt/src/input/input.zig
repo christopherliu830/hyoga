@@ -1,6 +1,6 @@
 const std = @import("std");
 const sdl = @import("sdl");
-const hy = @import("hyoga-lib");
+const hy = @import("hyoga");
 const rt = hy.runtime;
 const imgui = @import("imgui");
 const window = @import("../window.zig");

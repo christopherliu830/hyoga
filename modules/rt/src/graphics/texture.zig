@@ -1,5 +1,5 @@
 const std = @import("std");
-const hy = @import("hyoga-lib");
+const hy = @import("hyoga");
 const sdl = @import("sdl");
 const stbi = @import("stb_image");
 const ai = @import("assimp");

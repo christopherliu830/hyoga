@@ -1,12 +1,13 @@
-const std = @import("std");
-const sdl = @import("sdl");
-const imgui = @import("imgui");
+pub const proc_table = @import("generated/proc_table.zig");
 
-const hy = @import("hyoga-lib");
+const std = @import("std");
+const hy = @import("hyoga");
 const hym = hy.math;
 
 const Engine = @import("Engine.zig");
 const gfx = @import("graphics/root.zig");
+
+const ProcTable = proc_table.ProcTable;
 
 const Audio = Engine.Audio;
 const Input = Engine.Input;
@@ -51,229 +52,96 @@ pub const GameInterface = extern struct {
     reload: *const fn (*Engine, World) callconv(.c) bool,
 };
 
-pub const ProcTable = extern struct {
-    hy_init: *const fn () callconv(.c) *Engine,
-    hy_engine_gameAllocator: *const fn (*Engine) callconv(.c) hy.ExternAllocator,
-    hy_engine_gpu: *const fn (*Engine) callconv(.c) *gfx.Gpu,
-    hy_engine_phys2: *const fn (*Engine) callconv(.c) *Phys2,
-    hy_engine_input: *const fn (*Engine) callconv(.c) *Input,
-    hy_engine_window: *const fn (*Engine) callconv(.c) *Window,
-    hy_engine_ui: *const fn (*Engine) callconv(.c) *UI,
-    hy_audio_soundRead: *const fn (path: hy.ExternSliceConst(u8)) callconv(.c) Audio.Sound,
-    hy_audio_soundPlay: *const fn (sound: *Audio.Sound) callconv(.c) void,
-    hy_audio_soundStop: *const fn (sound: *Audio.Sound) callconv(.c) void,
-    hy_gfx_clearColorSet: *const fn (gpu: *gfx.Gpu, color: hym.Vec4) callconv(.c) void,
-    hy_gfx_modelImport: *const fn (gpu: *gfx.Gpu, path: hy.ExternSliceConst(u8), settings: gfx.Models.ImportSettings) callconv(.c) gfx.Model,
-    hy_gfx_modelCreate: *const fn (gpu: *gfx.Gpu, opts: hy.gfx.ModelCreateOptions) callconv(.c) gfx.Model,
-    hy_gfx_modelDestroy: *const fn (gpu: *gfx.Gpu, model: gfx.Model) callconv(.c) void,
-    hy_gfx_modelBounds: *const fn (gpu: *gfx.Gpu, model: gfx.Model) callconv(.c) hym.AxisAligned,
-    hy_gfx_modelDupe: *const fn (gpu: *gfx.Gpu, model: gfx.Model, options: gfx.Models.DupeModelOptions) callconv(.c) gfx.Model,
-    hy_gfx_modelPrimitive: *const fn (gpu: *gfx.Gpu, shape: gfx.Gpu.primitives.Shape) callconv(.c) gfx.Model,
-    hy_gfx_modelWaitLoad: *const fn (gpu: *gfx.Gpu, model: gfx.Model, max: u64) callconv(.c) bool,
-    hy_gfx_materialLoad: *const fn (gpu: *gfx.Gpu, path: hy.ExternSliceConst(u8)) callconv(.c) gfx.MaterialHandle,
-    hy_gfx_materialReload: *const fn (gpu: *gfx.Gpu, hdl: gfx.MaterialHandle) callconv(.c) void,
-    hy_gfx_materialCreate: *const fn (gpu: *gfx.Gpu, type: gfx.MaterialType, tx_set: *const gfx.TextureArray) callconv(.c) gfx.MaterialHandle,
-    hy_gfx_materialDestroy: *const fn (gpu: *gfx.Gpu, hdl: gfx.MaterialHandle) callconv(.c) void,
-    hy_gfx_renderableAdd: *const fn (gpu: *gfx.Gpu, opts: gfx.Gpu.AddRenderableOptions) callconv(.c) gfx.Renderable,
-    hy_gfx_renderableRemove: *const fn (gpu: *gfx.Gpu, hdl: gfx.Renderable) callconv(.c) void,
-    hy_gfx_renderableTransformSet: *const fn (gpu: *gfx.Gpu, hdl: gfx.Renderable, transform: hym.Mat4) callconv(.c) void,
-    hy_gfx_spriteMakeRenderable: *const fn (gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) callconv(.c) gfx.Renderable,
-    hy_gfx_spriteCreate: *const fn (gpu: *gfx.Gpu, opts: gfx.Gpu.SpriteCreateOptions) callconv(.c) gfx.SpriteHandle,
-    hy_gfx_spriteDestroy: *const fn (gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) callconv(.c) void,
-    hy_gfx_spriteWeakPtr: *const fn (gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) callconv(.c) ?*gfx.Sprite,
-    hy_gfx_spriteRenderableWeakPtr: *const fn (gpu: *gfx.Gpu, hdl: gfx.Renderable) callconv(.c) ?*gfx.Sprite,
-    hy_gfx_spriteCurrentAnimationFrame: *const fn (gpu: *gfx.Gpu, hdl: *gfx.Sprite) callconv(.c) u32,
-    hy_gfx_spriteDupe: *const fn (gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) callconv(.c) gfx.SpriteHandle,
-    hy_gfx_textureImport: *const fn (gpu: *gfx.Gpu, path: hy.ExternSliceConst(u8)) callconv(.c) gfx.TextureHandle,
-    hy_gfx_passCreate: *const fn (gpu: *gfx.Gpu, opts: hy.gfx.PassCreateOptions) callconv(.c) gfx.PassHandle,
-    hy_gfx_passDestroy: *const fn (gpu: *gfx.Gpu, hdl: gfx.PassHandle) callconv(.c) void,
-    hy_gfx_passAdd: *const fn (gpu: *gfx.Gpu, opts: gfx.Gpu.PassAddOptions) callconv(.c) gfx.Renderable,
-    hy_gfx_passClear: *const fn (gpu: *gfx.Gpu, hdl: gfx.PassHandle) callconv(.c) void,
-    hy_gfx_immediateDraw: *const fn (gpu: *gfx.Gpu, verts: hy.ExternSliceConst(gfx.UIVertex), idxs: hy.ExternSliceConst(u32), transform: hym.Mat4, material_hdl: gfx.MaterialHandle) callconv(.c) void,
-    hy_gfx_immediateText: *const fn (gpu: *gfx.Gpu, glyphs: hy.ExternSliceConst(u8), transform: hym.Mat4, color: u32) callconv(.c) void,
-    hy_io_reset: *const fn (input: *Input) callconv(.c) void,
-    hy_io_mouse: *const fn (input: *Input, button: hy.MouseButton) callconv(.c) bool,
-    hy_io_mousePosition: *const fn (input: *Input) callconv(.c) hym.Vec2,
-    hy_io_key: *const fn (input: *Input, button: hy.Keycode) callconv(.c) bool,
-    hy_io_bindPoll: *const fn (input: *Input, id: u32, on: hy.input.OnFlags, button: hy.Keycode) callconv(.c) void,
-    hy_io_bindPollMouse: *const fn (input: *Input, id: u32, on: hy.input.OnFlags, mouse: hy.MouseButton) callconv(.c) void,
-    hy_io_eventPump: *const fn (input: *Input) callconv(.c) hy.ExternSliceConst(u32),
-    hy_io_eventClear: *const fn (input: *Input, events: hy.ExternSliceConst(u32)) callconv(.c) void,
-    hy_p2_reset: *const fn (p2_ctx: *Phys2) callconv(.c) void,
-    hy_p2_bodyAdd: *const fn (p2_ctx: *Phys2, opts: *const hy.p2.BodyAddOptions) callconv(.c) Phys2.Body,
-    hy_p2_bodyShapeAdd: *const fn (body: hy.p2.Body, opts: *const hy.p2.BodyAddOptions.ShapeOptions) callconv(.c) void,
-    hy_p2_bodyDestroy: *const fn (body: Phys2.Body) callconv(.c) void,
-    hy_p2_bodyUserData: *const fn (body: Phys2.Body) callconv(.c) ?*anyopaque,
-    hy_p2_bodyUserDataSet: *const fn (body: hy.p2.Body, user_data: ?*anyopaque) callconv(.c) void,
-    hy_p2_bodyPosition: *const fn (p2_ctx: *Phys2, body: Phys2.Body) callconv(.c) hym.Vec2,
-    hy_p2_bodyPositionSet: *const fn (body: Phys2.Body, pos: hym.Vec2) callconv(.c) void,
-    hy_p2_bodyPositionReal: *const fn (body: Phys2.Body) callconv(.c) hym.Vec2,
-    hy_p2_bodyType: *const fn (body: Phys2.Body) callconv(.c) Phys2.Body.Type,
-    hy_p2_bodyTypeSet: *const fn (body: Phys2.Body, type: Phys2.Body.Type) callconv(.c) void,
-    hy_p2_bodyVelocity: *const fn (body: Phys2.Body) callconv(.c) hym.Vec2,
-    hy_p2_bodyVelocitySet: *const fn (body: Phys2.Body, velocity: hym.Vec2) callconv(.c) void,
-    hy_p2_shapeBody: *const fn (shape: Phys2.b2.Shape) callconv(.c) Phys2.Body,
-    hy_p2_shapeExtra: *const fn (shape: Phys2.b2.Shape) callconv(.c) hy.p2.ShapeExtra,
-    hy_p2_eventPump: *const fn (p2_ctx: *Phys2, buffer: hy.ExternSlice(u8)) callconv(.c) u32,
-    hy_p2_overlapLeaky: *const fn (p2_ctx: *Phys2, arena: hy.ExternAllocator, shape: *const hy.p2.ShapeConfig, origin: hym.Vec2) callconv(.c) hy.ExternSlice(Phys2.b2.Shape),
-    hy_p2_castRayLeaky: *const fn (p2_ctx: *Phys2, arena: hy.ExternAllocator, opts: Phys2.RaycastOptions) callconv(.c) hy.ExternSlice(Phys2.RaycastHit),
-    hy_p2_castCircleLeaky: *const fn (p2_ctx: *Phys2, arena: hy.ExternAllocator, opts: Phys2.CastCircleOptions) callconv(.c) hy.ExternSlice(Phys2.RaycastHit),
-    hy_ui_globalState: *const fn (ctx: *UI) callconv(.c) UI.GlobalState,
-    hy_ui_inputState: *const fn (ctx: *UI) callconv(.c) UI.InputState,
-    hy_win_relativeMouseMode: *const fn (window: *Window, toggle: bool) callconv(.c) void,
-    hy_win_dimensions: *const fn (window: *Window) callconv(.c) hym.Vec2,
-    hy_win_projectionMatrix: *const fn (window: *Window) callconv(.c) hym.Mat4,
-};
-
-pub fn procs() ProcTable {
-    return .{
-        .hy_init = hy_init,
-        .hy_engine_gameAllocator = hy_engine_gameAllocator,
-        .hy_engine_gpu = hy_engine_gpu,
-        .hy_engine_input = hy_engine_input,
-        .hy_engine_phys2 = hy_engine_phys2,
-        .hy_engine_ui = hy_engine_ui,
-        .hy_engine_window = hy_engine_window,
-        .hy_audio_soundPlay = hy_audio_soundPlay,
-        .hy_audio_soundRead = hy_audio_soundRead,
-        .hy_audio_soundStop = hy_audio_soundStop,
-        .hy_gfx_clearColorSet = hy_gfx_clearColorSet,
-        .hy_gfx_modelImport = hy_gfx_modelImport,
-        .hy_gfx_modelCreate = hy_gfx_modelCreate,
-        .hy_gfx_modelDestroy = hy_gfx_modelDestroy,
-        .hy_gfx_modelBounds = hy_gfx_modelBounds,
-        .hy_gfx_modelDupe = hy_gfx_modelDupe,
-        .hy_gfx_modelPrimitive = hy_gfx_modelPrimitive,
-        .hy_gfx_modelWaitLoad = hy_gfx_modelWaitLoad,
-        .hy_gfx_materialLoad = hy_gfx_materialLoad,
-        .hy_gfx_materialReload = hy_gfx_materialReload,
-        .hy_gfx_materialCreate = hy_gfx_materialCreate,
-        .hy_gfx_materialDestroy = hy_gfx_materialDestroy,
-        .hy_gfx_renderableAdd = hy_gfx_renderableAdd,
-        .hy_gfx_renderableRemove = hy_gfx_renderableDestroy,
-        .hy_gfx_renderableTransformSet = hy_gfx_renderableTransformSet,
-        .hy_gfx_spriteMakeRenderable = hy_gfx_spriteMakeRenderable,
-        .hy_gfx_spriteCreate = hy_gfx_spriteCreate,
-        .hy_gfx_spriteDestroy = hy_gfx_spriteDestroy,
-        .hy_gfx_spriteWeakPtr = hy_gfx_spriteWeakPtr,
-        .hy_gfx_spriteRenderableWeakPtr = hy_gfx_spriteRenderableWeakPtr,
-        .hy_gfx_spriteCurrentAnimationFrame = hy_gfx_spriteCurrentAnimationFrame,
-        .hy_gfx_spriteDupe = hy_gfx_spriteDupe,
-        .hy_gfx_textureImport = hy_gfx_textureImport,
-        .hy_gfx_passCreate = hy_gfx_passCreate,
-        .hy_gfx_passDestroy = hy_gfx_passDestroy,
-        .hy_gfx_passAdd = hy_gfx_passAdd,
-        .hy_gfx_passClear = hy_gfx_passClear,
-        .hy_gfx_immediateDraw = hy_gfx_immediateDraw,
-        .hy_gfx_immediateText = hy_gfx_immediateText,
-        .hy_io_reset = hy_io_reset,
-        .hy_io_mouse = hy_io_mouse,
-        .hy_io_mousePosition = hy_io_mousePosition,
-        .hy_io_key = hy_io_key,
-        .hy_io_bindPoll = hy_io_bindPoll,
-        .hy_io_bindPollMouse = hy_io_bindPollMouse,
-        .hy_io_eventPump = hy_io_eventPump,
-        .hy_io_eventClear = hy_io_eventClear,
-        .hy_p2_reset = hy_p2_reset,
-        .hy_p2_bodyAdd = hyp2BodyAdd,
-        .hy_p2_bodyShapeAdd = hy_p2_bodyShapeAdd,
-        .hy_p2_bodyDestroy = hyp2BodyDestroy,
-        .hy_p2_bodyUserData = hyp2BodyUserData,
-        .hy_p2_bodyUserDataSet = hy_p2_bodyUserDataSet,
-        .hy_p2_bodyPosition = hyp2BodyGetPosition,
-        .hy_p2_bodyPositionSet = hyp2BodyPositionSet,
-        .hy_p2_bodyPositionReal = hyp2BodyRealPosition,
-        .hy_p2_bodyType = hyp2BodyGetType,
-        .hy_p2_bodyTypeSet = hyp2BodySetType,
-        .hy_p2_bodyVelocity = hyp2BodyGetVelocity,
-        .hy_p2_bodyVelocitySet = hyp2BodyVelocitySet,
-        .hy_p2_shapeBody = hyp2ShapeBody,
-        .hy_p2_shapeExtra = hyp2ShapeExtra,
-        .hy_p2_eventPump = hy_p2_eventPump,
-        .hy_p2_overlapLeaky = hyp2OverlapLeaky,
-        .hy_p2_castRayLeaky = hyp2RaycastLeaky,
-        .hy_p2_castCircleLeaky = hyp2CastCircleLeaky,
-        .hy_ui_globalState = hyuiGetGlobalState,
-        .hy_ui_inputState = hyuiInputState,
-        .hy_win_relativeMouseMode = hywSetRelativeMouseMode,
-        .hy_win_dimensions = hywDimensions,
-        .hy_win_projectionMatrix = hywProjectionMatrix,
-    };
-}
-
 pub fn init() *Engine {
     return Engine.init() catch |err| {
         std.debug.panic("Engine init failure: {}", .{err});
     };
 }
 
-fn hy_init() callconv(.c) *Engine {
-    return init();
+pub fn hy_init() callconv(.c) *hy.Engine {
+    return @ptrCast(init());
 }
 
-fn hy_engine_gameAllocator(engine: *Engine) callconv(.c) hy.ExternAllocator {
-    return engine.gameAllocator();
+pub fn hy_engine_gameAllocator(engine: *hy.Engine) callconv(.c) hy.ExternAllocator {
+    const rt_engine: *Engine = @ptrCast(@alignCast(engine));
+    return rt_engine.gameAllocator();
 }
 
-fn hy_engine_gpu(engine: *Engine) callconv(.c) *gfx.Gpu {
-    return engine.gpu;
+pub fn hy_engine_gpu(engine: *hy.Engine) callconv(.c) *hy.gfx.Gpu {
+    const rt_engine: *Engine = @ptrCast(@alignCast(engine));
+    return @ptrCast(rt_engine.gpu);
 }
 
-fn hy_engine_input(engine: *Engine) callconv(.c) *Input {
-    return &engine.input;
+pub fn hy_engine_input(engine: *hy.Engine) callconv(.c) *hy.input.Context {
+    const rt_engine: *Engine = @ptrCast(@alignCast(engine));
+    return @ptrCast(&rt_engine.input);
 }
 
-fn hy_engine_phys2(engine: *Engine) callconv(.c) *Phys2 {
-    return &engine.physics;
+pub fn hy_engine_phys2(engine: *hy.Engine) callconv(.c) *hy.p2.Context {
+    const rt_engine: *Engine = @ptrCast(@alignCast(engine));
+    return @ptrCast(&rt_engine.physics);
 }
 
-fn hy_engine_ui(engine: *Engine) callconv(.c) *UI {
-    return &engine.ui;
+pub fn hy_engine_ui(engine: *hy.Engine) callconv(.c) *hy.UI {
+    const rt_engine: *Engine = @ptrCast(@alignCast(engine));
+    return @ptrCast(&rt_engine.ui);
 }
 
-fn hy_engine_window(engine: *Engine) callconv(.c) *Window {
-    return &engine.window;
+pub fn hy_engine_window(engine: *hy.Engine) callconv(.c) *hy.Window {
+    const rt_engine: *Engine = @ptrCast(@alignCast(engine));
+    return @ptrCast(&rt_engine.window);
 }
 
-fn hy_audio_soundRead(path: hy.ExternSliceConst(u8)) callconv(.c) Audio.Sound {
-    return Engine.Audio.read(path.asSliceZ());
-}
-
-fn hy_audio_soundPlay(sound: *Audio.Sound) callconv(.c) void {
-    sound.play();
-}
-
-fn hy_audio_soundStop(sound: *Audio.Sound) callconv(.c) void {
-    sound.stop();
-}
-
-fn hy_gfx_clearColorSet(gpu: *gfx.Gpu, color: hym.Vec4) callconv(.c) void {
-    gpu.clearColorSet(color);
-}
-
-fn hy_gfx_modelImport(gpu: *gfx.Gpu, path: hy.ExternSliceConst(u8), settings: gfx.Models.ImportSettings) callconv(.c) gfx.Model {
-    return gpu.importModel(path.asSliceZ(), settings) catch |e| {
-        std.log.err("import model failure: {}", .{e});
-        return .none;
+pub fn hy_audio_soundRead(path: hy.ExternSliceConst(u8)) callconv(.c) hy.Audio.Sound {
+    const rt_sound = Engine.Audio.read(path.asSliceZ());
+    return .{
+        .chunk = rt_sound.chunk,
+        .channel = @intFromEnum(rt_sound.current_channel),
     };
 }
 
-fn hy_gfx_modelCreate(gpu: *gfx.Gpu, opts: hy.gfx.ModelCreateOptions) callconv(.c) gfx.Model {
-    return gpu.models.create(.{
-        .gpu = gpu,
+pub fn hy_audio_soundPlay(sound: *hy.Audio.Sound) callconv(.c) void {
+    Audio.Sound.rtCast(sound).play();
+}
+
+pub fn hy_audio_soundStop(sound: *hy.Audio.Sound) callconv(.c) void {
+    Audio.Sound.rtCast(sound).stop();
+}
+
+pub fn hy_gfx_clearColorSet(gpu: *hy.gfx.Gpu, color: hym.Vec4) callconv(.c) void {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    rt_gpu.clearColorSet(color);
+}
+
+pub fn hy_gfx_modelImport(gpu: *hy.gfx.Gpu, path: hy.ExternSliceConst(u8), settings: hy.gfx.ImportSettings) callconv(.c) hy.gfx.Model {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const model = rt_gpu.importModel(path.asSliceZ(), settings) catch |e| {
+        std.log.err("import model failure: {}", .{e});
+        return .none;
+    };
+    return @enumFromInt(model.int());
+}
+
+pub fn hy_gfx_modelCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.ModelCreateOptions) callconv(.c) hy.gfx.Model {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const model = rt_gpu.models.create(.{
+        .gpu = rt_gpu,
         .verts = @ptrCast(@alignCast(opts.verts.asSlice())),
         .indices = opts.indices.asSlice(),
         .material = @bitCast(@intFromEnum(opts.material)),
         .transform = opts.transform,
     }) catch unreachable;
+    return @enumFromInt(model.int());
 }
 
-fn hy_gfx_modelDestroy(gpu: *gfx.Gpu, model: gfx.Model) callconv(.c) void {
-    gpu.models.remove(&gpu.buffer_allocator, model);
+pub fn hy_gfx_modelDestroy(gpu: *hy.gfx.Gpu, model: hy.gfx.Model) callconv(.c) void {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    rt_gpu.models.remove(&rt_gpu.buffer_allocator, @bitCast(@intFromEnum(model)));
 }
 
-fn hy_gfx_modelBounds(gpu: *gfx.Gpu, model: gfx.Model) callconv(.c) hym.AxisAligned {
-    if (gpu.models.get(model)) |m| {
+pub fn hy_gfx_modelBounds(gpu: *hy.gfx.Gpu, model: hy.gfx.Model) callconv(.c) hym.AxisAligned {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    if (rt_gpu.models.get(@bitCast(@intFromEnum(model)))) |m| {
         return m.bounds;
     } else |e| {
         std.log.err("get model failure: {}", .{e});
@@ -281,306 +149,340 @@ fn hy_gfx_modelBounds(gpu: *gfx.Gpu, model: gfx.Model) callconv(.c) hym.AxisAlig
     }
 }
 
-fn hy_gfx_modelDupe(gpu: *gfx.Gpu, model: gfx.Model, options: gfx.Models.DupeModelOptions) callconv(.c) gfx.Model {
-    return gpu.models.dupe(&gpu.buffer_allocator, model, options) catch |e| {
+pub fn hy_gfx_modelDupe(gpu: *hy.gfx.Gpu, original_model: hy.gfx.Model, options: hy.gfx.ModelDupeOptions) callconv(.c) hy.gfx.Model {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const model = rt_gpu.models.dupe(
+        &rt_gpu.buffer_allocator,
+        @bitCast(@intFromEnum(original_model)),
+        @bitCast(options),
+    ) catch |e| {
         std.log.err("dupe model failure: {}", .{e});
-        return .invalid;
+        return .none;
     };
+    return @enumFromInt(model.int());
 }
 
-fn hy_gfx_modelPrimitive(gpu: *gfx.Gpu, shape: gfx.primitives.Shape) callconv(.c) gfx.Model {
-    return gpu.modelPrimitive(shape);
+pub fn hy_gfx_modelPrimitive(gpu: *hy.gfx.Gpu, shape: hy.gfx.PrimitiveShape) callconv(.c) hy.gfx.Model {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    return @enumFromInt(rt_gpu.modelPrimitive(@enumFromInt(@intFromEnum(shape))).int());
 }
 
-fn hy_gfx_modelWaitLoad(gpu: *gfx.Gpu, model: gfx.Model, max: u64) callconv(.c) bool {
-    return gpu.models.waitLoad(model, max);
+pub fn hy_gfx_modelWaitLoad(gpu: *hy.gfx.Gpu, model: hy.gfx.Model, max: u64) callconv(.c) bool {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    return rt_gpu.models.waitLoad(@bitCast(@intFromEnum(model)), max);
 }
 
-fn hy_gfx_materialLoad(gpu: *gfx.Gpu, path: hy.ExternSliceConst(u8)) callconv(.c) gfx.MaterialHandle {
-    return gpu.materialLoad(path.asSliceZ()) catch |e| {
+pub fn hy_gfx_materialLoad(gpu: *hy.gfx.Gpu, path: hy.ExternSliceConst(u8)) callconv(.c) hy.gfx.MaterialHandle {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const hdl = rt_gpu.materialLoad(path.asSliceZ()) catch |e| {
         std.log.err("Error loading material: {}\n", .{e});
-        return .invalid;
+        return .none;
     };
+    return @enumFromInt(hdl.int());
 }
 
-fn hy_gfx_materialReload(gpu: *gfx.Gpu, hdl: gfx.MaterialHandle) callconv(.c) void {
-    gpu.materials.reload(hdl) catch |e| {
+pub fn hy_gfx_materialReload(gpu: *hy.gfx.Gpu, hdl: hy.gfx.MaterialHandle) callconv(.c) void {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    rt_gpu.materials.reload(@bitCast(@intFromEnum(hdl))) catch |e| {
         std.log.err("Error reloading material: {}\n", .{e});
     };
 }
 
-fn hy_gfx_materialCreate(gpu: *gfx.Gpu, mt_type: gfx.MaterialType, tx_set: *const gfx.TextureArray) callconv(.c) gfx.MaterialHandle {
-    return gpu.materialCreate(mt_type, tx_set);
+pub fn hy_gfx_materialCreate(gpu: *hy.gfx.Gpu, mt_type: hy.gfx.MaterialType, tx_set: *const hy.gfx.TextureArray) callconv(.c) hy.gfx.MaterialHandle {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const hdl = rt_gpu.materialCreate(@enumFromInt(@intFromEnum(mt_type)), @ptrCast(tx_set));
+    return @enumFromInt(hdl.int());
 }
 
-fn hy_gfx_materialDestroy(gpu: *gfx.Gpu, hdl: gfx.MaterialHandle) callconv(.c) void {
-    gpu.materialDestroy(hdl);
+pub fn hy_gfx_materialDestroy(gpu: *hy.gfx.Gpu, hdl: hy.gfx.MaterialHandle) callconv(.c) void {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    rt_gpu.materialDestroy(@bitCast(@intFromEnum(hdl)));
 }
 
-fn hy_gfx_renderableAdd(gpu: *gfx.Gpu, options: gfx.Gpu.AddRenderableOptions) callconv(.c) gfx.Renderable {
-    return gpu.renderableAdd(options) catch |e| {
+pub fn hy_gfx_renderableAdd(gpu: *hy.gfx.Gpu, options: hy.gfx.AddRenderableOptions) callconv(.c) hy.gfx.Renderable {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const renderable = rt_gpu.renderableAdd(@bitCast(options)) catch |e| {
         std.log.err("add renderable failure: {}", .{e});
         return .none;
     };
+    return @bitCast(renderable);
 }
 
-fn hy_gfx_renderableDestroy(gpu: *gfx.Gpu, item: gfx.Renderable) callconv(.c) void {
-    gpu.renderableDestroy(item);
+pub fn hy_gfx_renderableRemove(gpu: *hy.gfx.Gpu, item: hy.gfx.Renderable) callconv(.c) void {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    rt_gpu.renderableDestroy(@bitCast(item));
 }
 
-fn hy_gfx_renderableTransformSet(gpu: *gfx.Gpu, item: gfx.Renderable, transform: hym.Mat4) callconv(.c) void {
-    gpu.renderableSetTransform(item, transform);
+pub fn hy_gfx_renderableTransformSet(gpu: *hy.gfx.Gpu, item: hy.gfx.Renderable, transform: hym.Mat4) callconv(.c) void {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    rt_gpu.renderableSetTransform(@bitCast(item), transform);
 }
 
-fn hy_gfx_spriteMakeRenderable(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) callconv(.c) gfx.Renderable {
-    return gpu.renderableOfSprite(hdl) catch |e| {
+pub fn hy_gfx_spriteMakeRenderable(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Sprite.Handle) callconv(.c) hy.gfx.Renderable {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const renderable = rt_gpu.renderableOfSprite(@bitCast(@intFromEnum(hdl))) catch |e| {
         std.log.err("sprite dupe failure: {}", .{e});
         return .none;
     };
+    return @bitCast(renderable);
 }
 
-fn hy_gfx_spriteCreate(gpu: *gfx.Gpu, opts: gfx.Gpu.SpriteCreateOptions) callconv(.c) gfx.SpriteHandle {
-    return gpu.spriteCreate(opts) catch |e| {
+pub fn hy_gfx_spriteCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.SpriteCreateOptions) callconv(.c) hy.gfx.Sprite.Handle {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const hdl = rt_gpu.spriteCreate(@bitCast(opts)) catch |e| {
         std.log.err("sprite create failure: {}", .{e});
-        return .invalid;
+        return .none;
     };
+
+    return @enumFromInt(hdl.int());
 }
 
-fn hy_gfx_spriteDestroy(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) callconv(.c) void {
-    gpu.spriteDestroy(hdl);
+pub fn hy_gfx_spriteDestroy(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Sprite.Handle) callconv(.c) void {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    rt_gpu.spriteDestroy(@bitCast(@intFromEnum(hdl)));
 }
 
-fn hy_gfx_spriteWeakPtr(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) callconv(.c) ?*gfx.Gpu.GpuSprite {
-    return gpu.spriteWeakPtr(hdl);
+pub fn hy_gfx_spriteWeakPtr(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Sprite.Handle) callconv(.c) ?*hy.gfx.Sprite {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    return @ptrCast(rt_gpu.spriteWeakPtr(@bitCast(@intFromEnum(hdl))));
 }
 
-fn hy_gfx_spriteRenderableWeakPtr(gpu: *gfx.Gpu, hdl: gfx.Renderable) callconv(.c) ?*gfx.Gpu.GpuSprite {
-    return gpu.spriteRenderableWeakPtr(hdl);
+pub fn hy_gfx_spriteRenderableWeakPtr(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Renderable) callconv(.c) ?*hy.gfx.Sprite {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    return @ptrCast(rt_gpu.spriteRenderableWeakPtr(@bitCast(hdl)));
 }
 
-fn hy_gfx_spriteCurrentAnimationFrame(gpu: *gfx.Gpu, hdl: *gfx.Gpu.GpuSprite) callconv(.c) u32 {
-    return gpu.spriteCurrentAnimationFrame(hdl);
+pub fn hy_gfx_spriteCurrentAnimationFrame(gpu: *hy.gfx.Gpu, sprite: *hy.gfx.Sprite) callconv(.c) u32 {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    return rt_gpu.spriteCurrentAnimationFrame(@ptrCast(sprite));
 }
 
-fn hy_gfx_spriteDupe(gpu: *gfx.Gpu, hdl: gfx.SpriteHandle) callconv(.c) gfx.SpriteHandle {
-    return gpu.spriteDupe(hdl);
+pub fn hy_gfx_spriteDupe(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Sprite.Handle) callconv(.c) hy.gfx.Sprite.Handle {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const dupe_hdl = rt_gpu.spriteDupe(@bitCast(@intFromEnum(hdl)));
+    return @enumFromInt(dupe_hdl.int());
 }
 
-fn hy_gfx_textureImport(gpu: *gfx.Gpu, path: hy.ExternSliceConst(u8)) callconv(.c) gfx.TextureHandle {
-    return gpu.textures.read(path.asSliceZ()) catch |e| {
+pub fn hy_gfx_textureImport(gpu: *hy.gfx.Gpu, path: hy.ExternSliceConst(u8)) callconv(.c) hy.gfx.TextureHandle {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const int = rt_gpu.textures.read(path.asSliceZ()) catch |e| {
         std.log.err("texture import failure: {}", .{e});
-        return .invalid;
+        return .none;
     };
+    return @enumFromInt(int.value);
 }
 
-fn hy_gfx_passCreate(gpu: *gfx.Gpu, opts: hy.gfx.PassCreateOptions) callconv(.c) gfx.PassHandle {
-    return gpu.passCreate(opts);
+pub fn hy_gfx_passCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.PassCreateOptions) callconv(.c) hy.gfx.PassHandle {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const hdl = rt_gpu.passCreate(opts);
+    return @enumFromInt(hdl.int());
 }
 
-fn hy_gfx_passDestroy(gpu: *gfx.Gpu, hdl: gfx.PassHandle) callconv(.c) void {
-    return gpu.passDestroy(hdl);
+pub fn hy_gfx_passDestroy(gpu: *hy.gfx.Gpu, hdl: hy.gfx.PassHandle) callconv(.c) void {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    return rt_gpu.passDestroy(@bitCast(@intFromEnum(hdl)));
 }
 
-fn hy_gfx_passAdd(gpu: *gfx.Gpu, opts: gfx.Gpu.PassAddOptions) callconv(.c) gfx.Renderable {
-    return gpu.passAdd(opts);
+pub fn hy_gfx_passAdd(gpu: *hy.gfx.Gpu, opts: hy.gfx.PassAddOptions) callconv(.c) hy.gfx.Renderable {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const renderable = rt_gpu.passAdd(@bitCast(opts));
+    return @bitCast(renderable);
 }
 
-fn hy_gfx_passClear(gpu: *gfx.Gpu, hdl: gfx.PassHandle) callconv(.c) void {
-    return gpu.passClear(hdl);
+pub fn hy_gfx_passClear(gpu: *hy.gfx.Gpu, hdl: hy.gfx.PassHandle) callconv(.c) void {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    return rt_gpu.passClear(@bitCast(@intFromEnum(hdl)));
 }
 
-fn hy_gfx_immediateDraw(
-    gpu: *gfx.Gpu,
-    verts: hy.ExternSliceConst(gfx.UIVertex),
-    indices: hy.ExternSliceConst(u32),
-    transform: hym.Mat4,
-    material_hdl: gfx.MaterialHandle,
-) callconv(.c) void {
-    gpu.im.drawVerts(verts.asSlice(), indices.asSlice(), .{
+pub fn hy_gfx_immediateDraw(gpu: *hy.gfx.Gpu, verts: hy.ExternSliceConst(hy.gfx.UIVertex), indices: hy.ExternSliceConst(u32), transform: hym.Mat4, material_hdl: hy.gfx.MaterialHandle) callconv(.c) void {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    rt_gpu.im.drawVerts(@ptrCast(verts.asSlice()), indices.asSlice(), .{
         .transform = transform,
-        .material = if (material_hdl.valid()) gpu.materials.getPtr(material_hdl) else null,
+        .material = if (material_hdl != .none) rt_gpu.materials.getPtr(@bitCast(@intFromEnum(material_hdl))) else null,
     });
 }
 
-fn hy_gfx_immediateText(
-    gpu: *gfx.Gpu,
+pub fn hy_gfx_immediateText(
+    gpu: *hy.gfx.Gpu,
     glyphs: hy.ExternSliceConst(u8),
     transform: hym.Mat4,
     color: u32,
 ) callconv(.c) void {
-    gpu.im.drawText(glyphs.asSlice(), .{
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    rt_gpu.im.drawText(glyphs.asSlice(), .{
         .transform = transform,
         .color = hy.Color.hexa(color).asf32x4Norm(),
     });
 }
 
-fn hyioReset(input: *Input) callconv(.c) void {
-    input.reset();
+pub fn hy_io_reset(input: *hy.input.Context) callconv(.c) void {
+    const rt_input: *Input = @ptrCast(@alignCast(input));
+    rt_input.reset();
 }
 
-fn hyioCreateGroup(input: *Input) callconv(.c) Input.Group.Handle {
-    return input.createGroup();
+pub fn hy_io_mouse(input: *hy.input.Context, button: hy.key.MouseButton) callconv(.c) bool {
+    const rt_input: *Input = @ptrCast(@alignCast(input));
+    return rt_input.queryMouse(button);
 }
 
-fn hyioGetGroup(input: *Input, hdl: Input.Group.Handle) callconv(.c) Input.Group.Handle {
-    return input.getGroup(hdl);
+pub fn hy_io_mousePosition(input: *hy.input.Context) callconv(.c) hym.Vec2 {
+    const rt_input: *Input = @ptrCast(@alignCast(input));
+    return rt_input.queryMousePosition();
 }
 
-fn hyioGroupDestroy(input: *Input, hdl: Input.Group.Handle) callconv(.c) void {
-    return input.groupDestroy(hdl);
+pub fn hy_io_key(input: *hy.input.Context, button: hy.key.Keycode) callconv(.c) bool {
+    const rt_input: *Input = @ptrCast(@alignCast(input));
+    return rt_input.queryKey(button);
 }
 
-fn hyioSetGroupEnabled(input: *Input, group: Input.Group.Handle, enabled: bool) callconv(.c) void {
-    input.setGroupEnabled(group, enabled);
-}
-
-fn hyioBind(
-    input: *Input,
-    group: Input.Group.Handle,
-    options: Input.BindOptions,
-    delegate: *hy.closure.Runnable(anyopaque),
-) callconv(.c) void {
-    input.bind(group, options, delegate) catch |e| {
-        std.log.err("Could not bind delegate: {}", .{e});
-    };
-}
-
-fn hy_io_reset(input: *Input) callconv(.c) void {
-    input.reset();
-}
-
-fn hy_io_mouse(input: *Input, button: hy.key.MouseButton) callconv(.c) bool {
-    return input.queryMouse(button);
-}
-
-fn hy_io_mousePosition(input: *Input) callconv(.c) hym.Vec2 {
-    return input.queryMousePosition();
-}
-
-fn hy_io_key(input: *Input, button: hy.key.Keycode) callconv(.c) bool {
-    return input.queryKey(button);
-}
-
-fn hy_io_bindPoll(input: *Input, id: u32, on: hy.input.OnFlags, button: hy.key.Keycode) callconv(.c) void {
-    input.bindPoll(id, on, button) catch |err| {
+pub fn hy_io_bindPoll(input: *hy.input.Context, id: u32, on: hy.input.OnFlags, button: hy.key.Keycode) callconv(.c) void {
+    const rt_input: *Input = @ptrCast(@alignCast(input));
+    rt_input.bindPoll(id, on, button) catch |err| {
         std.log.err("input bind failure: {}", .{err});
     };
 }
 
-fn hy_io_bindPollMouse(input: *Input, id: u32, on: hy.input.OnFlags, mouse: hy.MouseButton) callconv(.c) void {
-    input.bindPollMouse(id, on, mouse) catch |err| {
+pub fn hy_io_bindPollMouse(input: *hy.input.Context, id: u32, on: hy.input.OnFlags, mouse: hy.MouseButton) callconv(.c) void {
+    const rt_input: *Input = @ptrCast(@alignCast(input));
+    rt_input.bindPollMouse(id, on, mouse) catch |err| {
         std.log.err("input bind failure: {}", .{err});
     };
 }
 
-fn hy_io_eventPump(input: *Input) callconv(.c) hy.ExternSliceConst(u32) {
-    const events = input.eventPump() catch |err| {
+pub fn hy_io_eventPump(input: *hy.input.Context) callconv(.c) hy.ExternSliceConst(u32) {
+    const rt_input: *Input = @ptrCast(@alignCast(input));
+    const events = rt_input.eventPump() catch |err| {
         std.log.err("input event pump failure: {}", .{err});
         return .from(&.{});
     };
     return .from(events);
 }
 
-fn hy_io_eventClear(input: *Input, events: hy.ExternSliceConst(u32)) callconv(.c) void {
-    input.eventClear(events.asSlice());
+pub fn hy_io_eventClear(input: *hy.input.Context, events: hy.ExternSliceConst(u32)) callconv(.c) void {
+    const rt_input: *Input = @ptrCast(@alignCast(input));
+    rt_input.eventClear(events.asSlice());
 }
 
-fn hy_p2_reset(p2_ctx: *Phys2) callconv(.c) void {
-    return p2_ctx.reset();
+pub fn hy_p2_reset(p2_ctx: *hy.p2.Context) callconv(.c) void {
+    const rt_p2_ctx: *Phys2 = @ptrCast(@alignCast(p2_ctx));
+    return rt_p2_ctx.reset();
 }
 
-fn hyp2BodyAdd(p2d: *Phys2, opts: *const hy.p2.BodyAddOptions) callconv(.c) Phys2.Body {
-    return p2d.addBody(opts);
+pub fn hy_p2_bodyAdd(p2_ctx: *hy.p2.Context, opts: *const hy.p2.BodyAddOptions) callconv(.c) hy.p2.Body {
+    const rt_p2_ctx: *Phys2 = @ptrCast(@alignCast(p2_ctx));
+    const rt_body = rt_p2_ctx.addBody(@ptrCast(opts));
+    return @enumFromInt(@intFromEnum(rt_body));
 }
 
-fn hy_p2_bodyShapeAdd(body: hy.p2.Body, opts: *const hy.p2.BodyAddOptions.ShapeOptions) callconv(.c) void {
-    Phys2.bodyShapeAdd(body, opts);
+pub fn hy_p2_bodyShapeAdd(body: hy.p2.Body, opts: *const hy.p2.BodyAddOptions.ShapeOptions) callconv(.c) void {
+    Phys2.bodyShapeAdd(@enumFromInt(@intFromEnum(body)), @ptrCast(opts));
 }
 
-fn hyp2BodyDestroy(body: Phys2.Body) callconv(.c) void {
-    return body.destroy();
+pub fn hy_p2_bodyDestroy(body: hy.p2.Body) callconv(.c) void {
+    const rt_body: Phys2.Body = @enumFromInt(@intFromEnum(body));
+    return rt_body.destroy();
 }
 
-fn hyp2BodyUserData(body: Phys2.Body) callconv(.c) ?*anyopaque {
-    return body.getUserData();
+pub fn hy_p2_bodyUserData(body: hy.p2.Body) callconv(.c) ?*anyopaque {
+    const rt_body: Phys2.Body = @enumFromInt(@intFromEnum(body));
+    return rt_body.getUserData();
 }
 
-fn hy_p2_bodyUserDataSet(body: hy.p2.Body, user_data: ?*anyopaque) callconv(.c) void {
+pub fn hy_p2_bodyUserDataSet(body: hy.p2.Body, user_data: ?*anyopaque) callconv(.c) void {
     Phys2.bodyUserDataSet(body, user_data);
 }
 
-fn hyp2BodyGetPosition(p2d: *Phys2, body: Phys2.Body) callconv(.c) hym.Vec2 {
-    return p2d.bodyPosition(body);
+pub fn hy_p2_bodyPosition(p2_ctx: *hy.p2.Context, body: hy.p2.Body) callconv(.c) hym.Vec2 {
+    const rt_p2_ctx: *Phys2 = @ptrCast(@alignCast(p2_ctx));
+    const rt_body: Phys2.Body = @enumFromInt(@intFromEnum(body));
+    return rt_p2_ctx.bodyPosition(rt_body);
 }
 
-fn hyp2BodyPositionSet(body: Phys2.Body, pos: hym.Vec2) callconv(.c) void {
-    Phys2.bodyPositionSet(body, pos);
+pub fn hy_p2_bodyPositionSet(body: hy.p2.Body, pos: hym.Vec2) callconv(.c) void {
+    const rt_body: Phys2.Body = @enumFromInt(@intFromEnum(body));
+    Phys2.bodyPositionSet(rt_body, pos);
 }
 
-fn hyp2BodyRealPosition(body: Phys2.Body) callconv(.c) hym.Vec2 {
-    return @bitCast(body.getPosition());
+pub fn hy_p2_bodyPositionReal(body: hy.p2.Body) callconv(.c) hym.Vec2 {
+    const rt_body: Phys2.Body = @enumFromInt(@intFromEnum(body));
+    return @bitCast(rt_body.getPosition());
 }
 
-fn hyp2BodyGetType(body: Phys2.Body) callconv(.c) Phys2.Body.Type {
-    return @enumFromInt(@intFromEnum(body.getType()));
+pub fn hy_p2_bodyType(body: hy.p2.Body) callconv(.c) hy.p2.Body.Type {
+    const rt_body: Phys2.Body = @enumFromInt(@intFromEnum(body));
+    return @enumFromInt(@intFromEnum(rt_body.getType()));
 }
 
-fn hyp2BodySetType(body: Phys2.Body, body_type: Phys2.Body.Type) callconv(.c) void {
-    body.setType(@enumFromInt(@intFromEnum(body_type)));
+pub fn hy_p2_bodyTypeSet(body: hy.p2.Body, body_type: hy.p2.Body.Type) callconv(.c) void {
+    const rt_body: Phys2.Body = @enumFromInt(@intFromEnum(body));
+    rt_body.setType(@enumFromInt(@intFromEnum(body_type)));
 }
 
-fn hyp2BodyGetVelocity(body: Phys2.Body) callconv(.c) hym.Vec2 {
-    return @bitCast(body.getLinearVelocity());
+pub fn hy_p2_bodyVelocity(body: hy.p2.Body) callconv(.c) hym.Vec2 {
+    const rt_body: Phys2.Body = @enumFromInt(@intFromEnum(body));
+    return @bitCast(rt_body.getLinearVelocity());
 }
 
-fn hyp2BodyVelocitySet(body: Phys2.Body, velocity: hym.Vec2) callconv(.c) void {
-    body.setLinearVelocity(@bitCast(velocity));
+pub fn hy_p2_bodyVelocitySet(body: hy.p2.Body, velocity: hym.Vec2) callconv(.c) void {
+    const rt_body: Phys2.Body = @enumFromInt(@intFromEnum(body));
+    rt_body.setLinearVelocity(@bitCast(velocity));
 }
 
-fn hyp2ShapeExtra(shape: Phys2.b2.Shape) callconv(.c) hy.p2.ShapeExtra {
-    return Phys2.shapeExtra(shape);
+pub fn hy_p2_shapeExtra(shape: hy.p2.Shape) callconv(.c) hy.p2.ShapeExtra {
+    const rt_shape: Phys2.b2.Shape = @enumFromInt(@intFromEnum(shape));
+    return Phys2.shapeExtra(rt_shape);
 }
 
-fn hy_p2_eventPump(p2d: *Phys2, buffer: hy.ExternSlice(u8)) callconv(.c) u32 {
-    return p2d.hit_events.pump(buffer.asSlice());
+pub fn hy_p2_eventPump(p2_ctx: *hy.p2.Context, buffer: hy.ExternSlice(u8)) callconv(.c) u32 {
+    const rt_p2_ctx: *Phys2 = @ptrCast(@alignCast(p2_ctx));
+    return rt_p2_ctx.hit_events.pump(buffer.asSlice());
 }
 
-fn hyp2OverlapLeaky(p2d: *Phys2, arena: hy.ExternAllocator, shape: *const hy.p2.ShapeConfig, origin: hym.Vec2) callconv(.c) hy.ExternSlice(Phys2.b2.Shape) {
-    return .from(p2d.overlapLeaky(arena.allocator(), shape, origin));
+pub fn hy_p2_overlapLeaky(p2_ctx: *hy.p2.Context, arena: hy.ExternAllocator, shape: *const hy.p2.ShapeConfig, origin: hym.Vec2) callconv(.c) hy.ExternSlice(hy.p2.Shape) {
+    const rt_p2_ctx: *Phys2 = @ptrCast(@alignCast(p2_ctx));
+    return .from(@ptrCast(rt_p2_ctx.overlapLeaky(arena.allocator(), shape, origin)));
 }
 
-fn hyp2RaycastLeaky(
-    p2d: *Phys2,
-    arena: hy.ExternAllocator,
-    opts: Phys2.RaycastOptions,
-) callconv(.c) hy.ExternSlice(Phys2.RaycastHit) {
-    return .from(p2d.raycastLeaky(arena.allocator(), opts));
+pub fn hy_p2_castRayLeaky(p2_ctx: *hy.p2.Context, arena: hy.ExternAllocator, opts: hy.p2.RaycastOptions) callconv(.c) hy.ExternSlice(hy.p2.RaycastHit) {
+    const rt_p2_ctx: *Phys2 = @ptrCast(@alignCast(p2_ctx));
+    return .from(@ptrCast(rt_p2_ctx.raycastLeaky(arena.allocator(), @bitCast(opts))));
 }
 
-fn hyp2CastCircleLeaky(p2d: *Phys2, arena: hy.ExternAllocator, opts: Phys2.CastCircleOptions) callconv(.c) hy.ExternSlice(Phys2.RaycastHit) {
-    return .from(p2d.castCircleLeaky(arena.allocator(), opts));
+pub fn hy_p2_castCircleLeaky(p2_ctx: *hy.p2.Context, arena: hy.ExternAllocator, opts: hy.p2.CastCircleOptions) callconv(.c) hy.ExternSlice(hy.p2.RaycastHit) {
+    const rt_p2_ctx: *Phys2 = @ptrCast(@alignCast(p2_ctx));
+    return .from(@ptrCast(rt_p2_ctx.castCircleLeaky(arena.allocator(), @bitCast(opts))));
 }
 
-fn hyp2ShapeBody(shape: Phys2.b2.Shape) callconv(.c) Phys2.Body {
-    return shape.getBody();
+pub fn hy_p2_shapeBody(shape: hy.p2.Shape) callconv(.c) hy.p2.Body {
+    const rt_shape: Phys2.b2.Shape = @enumFromInt(@intFromEnum(shape));
+    return @enumFromInt(@intFromEnum(rt_shape.getBody()));
 }
 
-fn hyuiGetGlobalState(ui: *UI) callconv(.c) UI.GlobalState {
-    return ui.getGlobalState();
+pub fn hy_p2_shapeValid(shape: hy.p2.Shape) callconv(.c) bool {
+    const rt_shape: Phys2.b2.Shape = @enumFromInt(@intFromEnum(shape));
+    return rt_shape.isValid();
 }
 
-fn hyuiInputState(ui: *UI) callconv(.c) UI.InputState {
-    return ui.inputState();
+pub fn hy_ui_globalState(ui: *hy.UI) callconv(.c) hy.ui.State {
+    const rt_ui: *UI = @ptrCast(@alignCast(ui));
+    return @bitCast(rt_ui.getGlobalState());
 }
 
-fn hywSetRelativeMouseMode(window: *Window, on_off: bool) callconv(.c) void {
-    window.setRelativeMouseMode(on_off);
+pub fn hy_ui_inputState(ui: *hy.UI) callconv(.c) hy.ui.InputState {
+    const rt_ui: *UI = @ptrCast(@alignCast(ui));
+    return @bitCast(rt_ui.inputState());
 }
 
-fn hywDimensions(window: *Window) callconv(.c) hym.Vec2 {
-    return window.dimensions();
+pub fn hy_win_relativeMouseMode(window: *hy.Window, on_off: bool) callconv(.c) void {
+    const rt_window: *Window = @ptrCast(@alignCast(window));
+    rt_window.setRelativeMouseMode(on_off);
 }
 
-fn hywProjectionMatrix(window: *Window) callconv(.c) hym.Mat4 {
+pub fn hy_win_dimensions(window: *hy.Window) callconv(.c) hym.Vec2 {
+    const rt_window: *Window = @ptrCast(@alignCast(window));
+    return rt_window.dimensions();
+}
+
+pub fn hy_win_projectionMatrix(window: *hy.Window) callconv(.c) hym.Mat4 {
     return window.projectionMatrix();
 }

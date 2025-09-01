@@ -689,11 +689,9 @@ pub const Body = enum(u64) {
     pub const computeAABB = b2Body_ComputeAABB;
 };
 
-pub const Shape = packed struct(u64) {
-    pub const @"null": Shape = @bitCast(0);
-    idx_1: i32,
-    world_0: u16,
-    generation: u16,
+pub const Shape = enum(u64) {
+    none = 0,
+    _,
 
     pub const Definition = extern struct {
         /// Use this to store application specific shape data.
@@ -1488,7 +1486,7 @@ extern fn b2Body_GetShapeCount(bodyId: Body) c_int;
 
 /// Get the shape ids for all shapes on this body, up to the provided capacity.
 /// @returns the number of shape ids stored in the user array
-extern fn b2Body_GetShapes(bodyId: Body, shapeArray: *Shape, capacity: c_int) c_int;
+extern fn b2Body_GetShapes(bodyId: Body, shapeArray: [*]Shape, capacity: c_int) c_int;
 
 /// Get the number of joints on this body
 extern fn b2Body_GetJointCount(bodyId: Body) c_int;

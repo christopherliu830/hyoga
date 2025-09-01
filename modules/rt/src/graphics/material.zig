@@ -1,13 +1,13 @@
 const std = @import("std");
-const hy = @import("hyoga-lib");
+const hy = @import("hyoga");
 const sdl = @import("sdl");
 const sdlsc = @import("sdl_shadercross");
-const SlotMap = @import("hyoga-lib").SlotMap;
+const SlotMap = @import("hyoga").SlotMap;
 const Gpu = @import("gpu.zig");
 const root = @import("root.zig");
 const tx = @import("texture.zig");
-const Mat4 = @import("hyoga-lib").math.Mat4;
-const Vec3 = @import("hyoga-lib").math.Vec3;
+const Mat4 = @import("hyoga").math.Mat4;
+const Vec3 = @import("hyoga").math.Vec3;
 const Strint = @import("../strintern.zig");
 
 const panic = std.debug.panic;

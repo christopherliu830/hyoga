@@ -84,7 +84,7 @@ pub fn SlotMapSized(Guard: type, Size: type, comptime T: type) type {
             }
         };
 
-        pub const Handle = extern struct {
+        pub const Handle = packed struct {
             generation: Guard = 0,
             index: Size = 0,
 
@@ -110,6 +110,12 @@ pub fn SlotMapSized(Guard: type, Size: type, comptime T: type) type {
                 const slice = std.fmt.bufPrintZ(&buf, "[{}/{}]", .{ self.index, self.generation }) catch unreachable;
                 return slice;
             }
+
+            pub fn int(self: Self.Handle) Backing {
+                return @bitCast(self);
+            }
+
+            const Backing = @typeInfo(Self.Handle).@"struct".backing_integer.?;
         };
 
         pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {

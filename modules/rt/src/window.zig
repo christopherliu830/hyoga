@@ -1,6 +1,6 @@
 const std = @import("std");
 const sdl = @import("sdl");
-const hy = @import("hyoga-lib");
+const hy = @import("hyoga");
 const hym = hy.math;
 
 const Window = @This();

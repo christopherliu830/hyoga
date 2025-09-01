@@ -1,6 +1,6 @@
 pub const hym = @import("../math/math.zig");
 
-const proc_table = @import("proc_table.zig");
+const proc_table = @import("../generated/proc_table.zig");
 const proc = &proc_table.table;
 
 pub const Window = opaque {
@@ -16,4 +16,3 @@ pub const Window = opaque {
         return proc.hy_win_projectionMatrix(window);
     }
 };
-

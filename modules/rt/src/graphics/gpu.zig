@@ -1,6 +1,6 @@
 const std = @import("std");
 const mdl = @import("model.zig");
-const hy = @import("hyoga-lib");
+const hy = @import("hyoga");
 const sdl = @import("sdl");
 const sdlsc = @import("sdl_shadercross");
 const ttf = @import("sdl_ttf");
@@ -10,8 +10,8 @@ const tracy = @import("tracy");
 
 const gfx = @import("root.zig");
 
-const SlotMap = @import("hyoga-lib").SlotMap;
-const hym = @import("hyoga-lib").math;
+const SlotMap = @import("hyoga").SlotMap;
+const hym = hy.math;
 const vec3 = hym.vec3;
 const mat4 = hym.mat4;
 const hym_cam = hym.cam;
@@ -1017,11 +1017,45 @@ pub fn materialDestroy(self: *Gpu, handle: SlotMap(mt.Material).Handle) void {
     self.materials.remove(handle);
 }
 
-pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: Models.ImportSettings) !Model {
+pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: hy.gfx.ImportSettings) !Model {
     const path_slice = std.mem.span(path);
     const allocator = self.arena.allocator();
 
-    var import = ai.importFile(path_slice, settings.post_process);
+    const import_options = settings.post_process;
+    var import = ai.importFile(path_slice, .{
+        .calc_tangent_space = import_options.calc_tangent_space,
+        .join_identical_vertices = import_options.join_identical_vertices,
+        .make_left_handed = import_options.make_left_handed,
+        .triangulate = import_options.triangulate,
+        .remove_component = import_options.remove_component,
+        .gen_normals = import_options.gen_normals,
+        .gen_smooth_normals = import_options.gen_smooth_normals,
+        .split_large_meshes = import_options.split_large_meshes,
+        .pre_transform_vertices = import_options.pre_transform_vertices,
+        .limit_bone_weights = import_options.limit_bone_weights,
+        .validate_data_structure = import_options.validate_data_structure,
+        .improve_cache_locality = import_options.improve_cache_locality,
+        .remove_redundant_materials = import_options.remove_redundant_materials,
+        .fix_infacing_normals = import_options.fix_infacing_normals,
+        .populate_armature_data = import_options.populate_armature_data,
+        .sort_by_ptype = import_options.sort_by_ptype,
+        .find_degenerates = import_options.find_degenerates,
+        .find_invalid_data = import_options.find_invalid_data,
+        .gen_uv_coords = import_options.gen_uv_coords,
+        .transform_uv_coords = import_options.transform_uv_coords,
+        .find_instances = import_options.find_instances,
+        .optimize_meshes = import_options.optimize_meshes,
+        .optimize_graph = import_options.optimize_graph,
+        .flip_uvs = import_options.flip_uvs,
+        .flip_winding_order = import_options.flip_winding_order,
+        .split_by_bone_count = import_options.split_by_bone_count,
+        .debone = import_options.debone,
+        .global_scale = import_options.global_scale,
+        .embed_textures = import_options.embed_textures,
+        .force_gen_normals = import_options.force_gen_normals,
+        .drop_normals = import_options.drop_normals,
+        .gen_bounding_boxes = import_options.gen_bounding_boxes,
+    });
     // Don't release the scene, it will be passed to models for read.
 
     var materials_array = try allocator.alloc(mt.Handle, import.num_materials);
@@ -1315,4 +1349,8 @@ pub fn passAdd(self: *Gpu, opts: PassAddOptions) gfx.Renderable {
 pub fn passClear(self: *Gpu, hdl: gfx.PassHandle) void {
     const pass = self.custom_passes.getPtr(hdl).?;
     pass.render_list.reset();
+}
+
+pub fn rtCast(hy_gpu: *hy.gfx.Gpu) *Gpu {
+    return @ptrCast(hy_gpu);
 }

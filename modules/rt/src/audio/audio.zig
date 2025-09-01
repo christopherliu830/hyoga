@@ -1,3 +1,4 @@
+const hy = @import("hyoga");
 const std = @import("std");
 const sdl = @import("sdl");
 const mix = @import("sdl_mixer");
@@ -23,6 +24,10 @@ pub const Sound = extern struct {
                 self.current_channel = .none;
             }
         }
+    }
+
+    pub fn rtCast(sound: *hy.Audio.Sound) *Sound {
+        return @ptrCast(sound);
     }
 };
 

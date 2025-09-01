@@ -4,7 +4,7 @@ const hym = hy.math;
 const keys = @import("../key.zig");
 const math = @import("../math/math.zig");
 const closure = @import("../closure.zig");
-const proc_table = @import("proc_table.zig");
+const proc_table = @import("../generated/proc_table.zig");
 const proc = &proc_table.table;
 
 pub const Device = enum(u8) {

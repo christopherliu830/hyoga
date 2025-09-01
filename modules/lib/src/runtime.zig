@@ -23,7 +23,7 @@ pub const ProcTable = proc_table.ProcTable;
 
 const runtime = @This();
 const math = @import("math/math.zig");
-const proc_table = @import("runtime/proc_table.zig");
+const proc_table = @import("generated/proc_table.zig");
 const proc = &proc_table.table;
 const key = @import("key.zig");
 const closure = @import("closure.zig");
@@ -87,5 +87,5 @@ pub const Engine = opaque {
 };
 
 pub fn init(table: proc_table.ProcTable) void {
-    proc_table.load(table);
+    proc_table.table = table;
 }

@@ -1,5 +1,5 @@
 const sdl = @import("sdl");
-const hy = @import("hyoga-lib");
+const hy = @import("hyoga");
 
 pub const Keymod = hy.Keymod;
 pub const Keycode = hy.Keycode;

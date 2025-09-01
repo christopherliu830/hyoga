@@ -32,7 +32,6 @@ pub fn build(b: *std.Build) !void {
     });
 
     const box2d = b.dependency("box2d", .{
-        .target = target,
         .optimize = optimize,
     });
 
@@ -76,7 +75,7 @@ pub fn build(b: *std.Build) !void {
 
     runner.root_module.addImport("box2d", box2d.artifact("box2d").root_module);
     runner.root_module.addImport("assimp", assimp.module("root"));
-    runner.root_module.addImport("hyoga-lib", hylib.module("hyoga-lib"));
+    runner.root_module.addImport("hyoga", hylib.module("hyoga-lib"));
     runner.root_module.addImport("sdl", sdl.module("sdl"));
     runner.root_module.addImport("sdl_shadercross", sdl.module("sdl_shadercross"));
     runner.root_module.addImport("sdl_mixer", sdl_mixer.module("sdl_mixer"));
@@ -87,6 +86,7 @@ pub fn build(b: *std.Build) !void {
     runner.root_module.addImport("tracy", tracy.module("tracy"));
 
     b.modules.put(b.dupe("clay"), zclay.module("clay")) catch @panic("OOM");
+    b.modules.put(b.dupe("hyoga-lib"), hylib.module("hyoga-lib")) catch @panic("OOM");
 
     b.installArtifact(runner);
 

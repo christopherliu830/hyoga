@@ -1,5 +1,5 @@
 const std = @import("std");
-const hy = @import("hyoga-lib");
+const hy = @import("hyoga");
 const hym = hy.math;
 const sdl = @import("sdl");
 const Gpu = @import("gpu.zig");

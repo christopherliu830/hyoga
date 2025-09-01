@@ -1,5 +1,5 @@
 const std = @import("std");
-const hy = @import("hyoga-lib");
+const hy = @import("hyoga");
 const hym = hy.math;
 pub const b2 = @import("box2d");
 

@@ -2,7 +2,7 @@ const std = @import("std");
 const sdl = @import("sdl");
 const ai = @import("assimp");
 
-const hy = @import("hyoga-lib");
+const hy = @import("hyoga");
 const hym = hy.math;
 const SlotMap = hy.SlotMap;
 
@@ -24,7 +24,7 @@ const ModelLoadJob = struct {
     dest_hdl: Handle,
     scene: *ai.Scene,
     mats: []mt.Handle,
-    settings: Models.ImportSettings,
+    settings: hy.gfx.ImportSettings,
 
     const Result = struct {
         job: ModelLoadJob,
@@ -193,15 +193,10 @@ pub const Models = struct {
         indices: []const u32,
     };
 
-    pub const ImportSettings = extern struct {
-        transform: hym.Mat4 = .identity,
-        post_process: ai.PostProcessSteps,
-    };
-
     /// This function will return a handle to an initially null slot in the models array.
     /// Once the model is finished loading, the handle's value will be set to the model
     /// data. Trying to get the model before it's finished loading will return an error.
-    pub fn read(self: *@This(), scene: *ai.Scene, mats: []mt.Handle, import: ImportSettings) !Handle {
+    pub fn read(self: *@This(), scene: *ai.Scene, mats: []mt.Handle, import: hy.gfx.ImportSettings) !Handle {
         const allocator = self.tsa.allocator();
         const hdl = try self.models.insert(allocator, null);
 

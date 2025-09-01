@@ -1,6 +1,6 @@
 const std = @import("std");
 const math = @import("std").math;
-const hy = @import("hyoga-lib");
+const hy = @import("hyoga");
 const hym = hy.math;
 
 const Vertex = @import("vertex.zig").Vertex;

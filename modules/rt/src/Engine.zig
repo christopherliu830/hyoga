@@ -11,7 +11,7 @@ pub const Phys2 = @import("phys2d/phys2d.zig");
 const std = @import("std");
 const sdl = @import("sdl");
 const sdl_ttf = @import("sdl_ttf");
-const hy = @import("hyoga-lib");
+const hy = @import("hyoga");
 const tracy = @import("tracy");
 
 const Engine = @This();
