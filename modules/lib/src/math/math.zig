@@ -114,6 +114,16 @@ pub inline fn nanos(sec: f32) u64 {
     return @intFromFloat(std.time.ns_per_s * sec);
 }
 
+pub fn offset(n: anytype, value: anytype) ?@TypeOf(n) {
+    if (value > 0) {
+        return std.math.add(@TypeOf(n), n, std.math.cast(@TypeOf(n), value) orelse return null) catch null;
+    } else if (value < 0) {
+        return std.math.sub(@TypeOf(n), n, std.math.cast(@TypeOf(n), std.math.negate(value) catch return null) orelse return null) catch null;
+    } else {
+        return n;
+    }
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
