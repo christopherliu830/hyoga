@@ -1,12 +1,5 @@
 const std = @import("std");
 
-pub const GpuDriver = enum {
-    none,
-    vulkan,
-    direct3d12,
-    metal,
-};
-
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
