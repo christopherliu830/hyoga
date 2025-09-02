@@ -41,7 +41,7 @@ const Queue = Loader.Queue(ModelLoadJob.Result);
 
 pub const Model = struct {
     bounds: hy.math.AxisAligned = .{},
-    children: []Mesh,
+    mesh: Mesh,
     transform: hym.Mat4 = .identity,
 };
 
@@ -105,16 +105,11 @@ pub const Models = struct {
     }
 
     pub fn remove(self: *@This(), buffer_allocator: *BufferAllocator, hdl: Handle) void {
-        const allocator = self.tsa.allocator();
         // Double null here means model doesn't exist
         // Single null (maybe_model) means model isn't loaded
         if (self.models.get(hdl)) |maybe_model| {
             if (maybe_model) |model| {
-                std.debug.assert(model.children.len > 0);
-                for (model.children) |mesh| {
-                    buffer_allocator.destroy(mesh.buffer.buffer());
-                }
-                allocator.free(model.children);
+                buffer_allocator.destroy(model.mesh.buffer.buffer());
             }
             self.models.remove(hdl);
         } else {
@@ -123,21 +118,19 @@ pub const Models = struct {
     }
 
     pub const DupeModelOptions = extern struct {
-        material: mt.Handle = mt.Handle.invalid,
+        material: mt.Handle = .none,
     };
 
     pub fn dupe(self: *@This(), buffer_allocator: *BufferAllocator, model: Handle, options: DupeModelOptions) !Handle {
-        const allocator = self.tsa.allocator();
-        var copy = (try self.get(model)).*;
-        const meshes = try allocator.dupe(Mesh, copy.children);
-        for (meshes) |*mesh| {
-            if (options.material.valid()) {
-                mesh.material = options.material;
-                buffer_allocator.dupe(mesh.buffer.buffer());
-            }
-        }
-        copy.children = meshes;
-        return self.add(copy);
+        const original = (try self.get(model));
+        buffer_allocator.increment(original.mesh.buffer.buffer());
+        const copy_mesh: Model = .{
+            .mesh = .{
+                .material = if (options.material.valid()) options.material else original.mesh.material,
+                .buffer = original.mesh.buffer,
+            },
+        };
+        return self.add(copy_mesh);
     }
 
     pub const CreateOptions = struct {
@@ -150,7 +143,6 @@ pub const Models = struct {
 
     pub fn create(self: *Models, opts: CreateOptions) !Handle {
         const gpu = opts.gpu;
-        const allocator = self.tsa.allocator();
         const buffer_allocator = &gpu.buffer_allocator;
         const verts = opts.verts;
         const indices = opts.indices;
@@ -171,16 +163,11 @@ pub const Models = struct {
         try gpu.uploadToBuffer(buffer.hdl, buffer.offset, verts);
         try gpu.uploadToBuffer(buffer.hdl, buffer.idx_start, std.mem.sliceAsBytes(indices));
 
-        var mesh = try allocator.alloc(Mesh, 1);
-        errdefer allocator.destroy(mesh);
-
-        mesh[0] = .{
-            .buffer = buffer,
-            .material = material,
-        };
-
         const model: Model = .{
-            .children = mesh,
+            .mesh = .{
+                .buffer = buffer,
+                .material = material,
+            },
             .transform = opts.transform,
         };
 
@@ -283,42 +270,38 @@ fn doRead(queue: *Queue, self: *Models, job: ModelLoadJob) void {
 
     var buf_offset: usize = 0;
 
-    const children = allocator.alloc(Mesh, in_model.meshes.items.len) catch {
-        std.debug.panic("out of memory", .{});
+    std.debug.assert(in_model.meshes.items.len == 1);
+    const mesh = &in_model.meshes.items[0];
+    const mesh_vbuf_size = mesh.vertices.items.len * @sizeOf(Vertex);
+    const mesh_ibuf_size = mesh.indices.items.len * @sizeOf(u32);
+
+    gpu.uploadToBuffer(
+        root_buffer.hdl,
+        @intCast(buf_offset),
+        std.mem.sliceAsBytes(mesh.vertices.items),
+    ) catch std.debug.panic("model load error");
+
+    gpu.uploadToBuffer(
+        root_buffer.hdl,
+        @intCast(buf_offset + root_buffer.idx_start),
+        std.mem.sliceAsBytes(mesh.indices.items),
+    ) catch std.debug.panic("model load error");
+
+    const out_mesh: Mesh = .{
+        .buffer = .{
+            .hdl = root_buffer.hdl,
+            .size = @intCast(mesh_vbuf_size + mesh_ibuf_size),
+            .offset = @intCast(buf_offset),
+            .idx_start = @intCast(buf_offset + mesh_vbuf_size),
+        },
+        .material = mesh.material,
     };
-
-    for (in_model.meshes.items, 0..) |mesh, i| {
-        const mesh_vbuf_size = mesh.vertices.items.len * @sizeOf(Vertex);
-        const mesh_ibuf_size = mesh.indices.items.len * @sizeOf(u32);
-
-        gpu.uploadToBuffer(
-            root_buffer.hdl,
-            @intCast(buf_offset),
-            std.mem.sliceAsBytes(mesh.vertices.items),
-        ) catch std.debug.panic("model load error");
-
-        gpu.uploadToBuffer(
-            root_buffer.hdl,
-            @intCast(buf_offset + root_buffer.idx_start),
-            std.mem.sliceAsBytes(mesh.indices.items),
-        ) catch std.debug.panic("model load error");
-
-        children[i] = .{
-            .buffer = .{
-                .hdl = root_buffer.hdl,
-                .size = @intCast(mesh_vbuf_size + mesh_ibuf_size),
-                .offset = @intCast(buf_offset),
-                .idx_start = @intCast(buf_offset + mesh_vbuf_size),
-            },
-            .material = mesh.material,
-        };
-        buf_offset += mesh_vbuf_size;
-    }
+    buf_offset += mesh_vbuf_size;
 
     queue.push(.{
         .job = job,
         .model = .{
-            .children = children,
+            .mesh = out_mesh,
             .bounds = bounds,
         },
     }) catch |err| std.log.err("[GPU] model load failure: {}", .{err});

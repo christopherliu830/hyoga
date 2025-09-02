@@ -8,7 +8,7 @@ const Strint = @import("../strintern.zig");
 
 pub const Handle = Strint.ID;
 
-const TextureId = struct {
+pub const TextureId = struct {
     handle: ?Handle = null,
     target: ?*sdl.gpu.Texture = null,
 };
@@ -18,23 +18,9 @@ const TextureLoadJob = struct {
     target: *sdl.gpu.Texture,
 };
 
-pub const TextureArray = [std.enums.directEnumArrayLen(TextureType, 0)]Handle;
+pub const TextureSet = std.EnumMap(hy.gfx.TextureType, TextureId);
 
-pub const TextureSet = std.EnumMap(TextureType, TextureId);
-
-pub const TextureType = enum(u32) {
-    diffuse,
-    specular,
-    height,
-    normal,
-    mask,
-
-    comptime {
-        hy.meta.assertMatches(TextureType, hy.gfx.TextureType);
-    }
-};
-
-pub const tex_to_hyoga_type = std.EnumMap(ai.TextureType, TextureType).init(.{
+pub const tex_to_hyoga_type = std.EnumMap(ai.TextureType, hy.gfx.TextureType).init(.{
     .diffuse = .diffuse,
     .specular = .specular,
     .height = .height,

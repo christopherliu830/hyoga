@@ -21,7 +21,7 @@ pub const ShaderDefinition = struct {
     num_storage_textures: u32 = 0,
     num_storage_buffers: u32 = 0,
     num_uniform_buffers: u32 = 0,
-    textures: [4]?tx.TextureType = [_]?tx.TextureType{null} ** 4,
+    textures: [4]?hy.gfx.TextureType = @splat(null),
     storage_buffers: [max_uniform_limit]Strint.ID,
     uniforms: [max_uniform_limit]Strint.ID,
 };
@@ -150,7 +150,7 @@ pub const Materials = struct {
 
         var it = material_info.textures.map.iterator();
         while (it.next()) |entry| {
-            const tag = std.meta.stringToEnum(root.TextureType, entry.key_ptr.*) orelse {
+            const tag = std.meta.stringToEnum(hy.gfx.TextureType, entry.key_ptr.*) orelse {
                 std.log.err("Unknown texture type {s} in material {s}", .{ entry.key_ptr.*, path });
                 return error.MaterialLoadError;
             };
@@ -173,14 +173,26 @@ pub const Materials = struct {
         const template = self.templates.get(mt_type);
 
         const param_size_u32s: u32 = switch (mt_type) {
-            .sprite, .billboard => (@sizeOf(Gpu.GpuSprite) + 3) / 4,
+            .sprite, .billboard => (@sizeOf(Gpu.Sprite) + 3) / 4,
             else => 0,
         };
 
         const mat: Material = Material.fromTemplate(template, self.param_buf.items.len, param_size_u32s, txs);
-        self.param_buf.appendNTimes(self.gpu.gpa, 0, param_size_u32s) catch hy.err.oom();
-        const hdl = self.materials.insert(self.gpu.gpa, mat) catch hy.err.oom();
+        self.param_buf.appendNTimes(self.gpu.gpa, 0, param_size_u32s) catch unreachable;
+        const hdl = self.materials.insert(self.gpu.gpa, mat) catch unreachable;
         return hdl;
+    }
+
+    pub fn dupe(self: *Materials, hdl: Handle) !Handle {
+        if (self.materials.get(hdl)) |mat| {
+            const dupe_mat_hdl = self.materials.insert(self.gpu.gpa, undefined) catch unreachable;
+            const dupe_mat = self.materials.getPtr(dupe_mat_hdl).?;
+            dupe_mat.* = mat;
+
+            dupe_mat.params_start = self.param_buf.items.len;
+            self.param_buf.appendNTimes(self.gpu.gpa, 0, dupe_mat.params_size) catch unreachable;
+            return dupe_mat_hdl;
+        } else return error.NotFound;
     }
 
     pub fn remove(self: *Materials, hdl: Handle) void {
@@ -207,7 +219,7 @@ pub const Materials = struct {
     pub fn createWeak(self: *Materials, mt_type: Material.Type, txs: tx.TextureSet) Material {
         const template = self.templates.get(mt_type);
         const param_size_u32s: u32 = switch (mt_type) {
-            .sprite, .billboard => (@sizeOf(Gpu.GpuSprite) + 3) / 4,
+            .sprite, .billboard => (@sizeOf(Gpu.Sprite) + 3) / 4,
             else => 0,
         };
 
@@ -259,20 +271,7 @@ pub const Materials = struct {
 };
 
 pub const Material = struct {
-    pub const Type = enum(u32) {
-        standard,
-        standard_unlit,
-        sprite,
-        post_process,
-        screen_blit,
-        billboard,
-        ui,
-        ui_sdf,
-
-        comptime {
-            hy.meta.assertMatches(Type, hy.gfx.MaterialType);
-        }
-    };
+    pub const Type = hy.gfx.Program;
 
     source_path: ?[:0]const u8 = null,
     pipeline: *sdl.gpu.GraphicsPipeline,
@@ -339,8 +338,8 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions) !MaterialTemplate {
         .primitive_type = options.primitive_type,
     });
 
-    var vert_textures: [4]?tx.TextureType = [_]?tx.TextureType{null} ** 4;
-    var frag_textures: [4]?tx.TextureType = [_]?tx.TextureType{null} ** 4;
+    var vert_textures: [4]?hy.gfx.TextureType = @splat(null);
+    var frag_textures: [4]?hy.gfx.TextureType = @splat(null);
     var vert_uniforms: [max_uniform_limit]Strint.ID = empty_uniform_array;
     var frag_uniforms: [max_uniform_limit]Strint.ID = empty_uniform_array;
     var vert_storages: [max_uniform_limit]Strint.ID = empty_uniform_array;
@@ -350,37 +349,29 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions) !MaterialTemplate {
         .{ info.vertex, &vert_textures, &vert_uniforms, &vert_storages },
         .{ info.fragment, &frag_textures, &frag_uniforms, &frag_storages },
     }) |opts| {
-        const prog = opts[0];
+        const mb_prog = opts[0];
         const prog_textures = opts[1];
         const prog_uniforms = opts[2];
         const prog_storages = opts[3];
+
         // Convert specified requested samplers in JSON to an array of enum values
-        if (prog != null) {
-            if (prog.?.samplers) |samplers| {
+        if (mb_prog) |prog| {
+            if (prog.samplers) |samplers| {
                 for (samplers, 0..) |name, i| {
-                    var tex_type: ?tx.TextureType = undefined;
-
-                    inline for (@typeInfo(tx.TextureType).@"enum".fields) |field| {
-                        if (std.mem.eql(u8, name, field.name)) {
-                            tex_type = @enumFromInt(field.value);
-                            break;
-                        }
-                    }
-
-                    if (tex_type == null) {
+                    if (std.meta.stringToEnum(hy.gfx.TextureType, name)) |tag| {
+                        prog_textures[i] = tag;
+                    } else {
                         std.debug.panic("Invalid RSL for {s}: Requested invalid texture of type {s}", .{ options.path, name });
                     }
-
-                    prog_textures[i] = tex_type;
                 }
             }
-            if (prog.?.uniforms) |uniforms| {
+            if (prog.uniforms) |uniforms| {
                 for (uniforms, 0..) |uniform, i| {
                     const id = try gpu.strint.from(uniform);
                     prog_uniforms[i] = id;
                 }
             }
-            if (prog.?.storage_buffers) |storages| {
+            if (prog.storage_buffers) |storages| {
                 for (storages, 0..) |storage, i| {
                     const id = try gpu.strint.from(storage);
                     prog_storages[i] = id;

@@ -22,7 +22,6 @@ pub const Renderable = Gpu.RenderItemHandle;
 pub const Sprite = Gpu.GpuSprite;
 pub const SpriteHandle = hy.SlotMap(Gpu.Sprite).Handle;
 pub const TextureHandle = texture.Handle;
-pub const TextureType = texture.TextureType;
 pub const Textures = texture.Textures;
 pub const TextureSet = texture.TextureSet;
 pub const TextureArray = texture.TextureArray;

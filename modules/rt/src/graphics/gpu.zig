@@ -38,7 +38,7 @@ pub const MaterialType = mt.Material.Type;
 pub const Mesh = mdl.Mesh;
 pub const Model = mdl.Handle;
 pub const Models = mdl.Models;
-pub const SpriteHandle = hy.SlotMap(Sprite).Handle;
+pub const SpriteHandle = hy.SlotMap(Sprite.Handle).Handle;
 pub const TextureHandle = tx.Handle;
 pub const Textures = tx.Textures;
 pub const TextureSet = tx.TextureSet;
@@ -87,16 +87,6 @@ pub const StringIDs = struct {
     }
 };
 
-pub const BufferHandle = packed union {
-    buffer: *sdl.gpu.Buffer,
-    transfer: *sdl.gpu.Buffer,
-};
-
-pub const RenderSubmitResult = struct {
-    num_drawn_verts: u32 = 0,
-    num_draw_calls: u32 = 0,
-};
-
 pub const PassType = enum(u32) {
     default,
     outlined,
@@ -104,19 +94,7 @@ pub const PassType = enum(u32) {
     custom,
 };
 
-pub const BuildPipelineParams = struct {
-    format: ?sdl.gpu.TextureFormat,
-    vert: *sdl.gpu.Shader,
-    frag: *sdl.gpu.Shader,
-    pass: gfx.PipelineType,
-    enable_depth: bool,
-    enable_stencil: bool,
-    enable_blend: bool,
-    fill_mode: sdl.gpu.FillMode,
-    primitive_type: sdl.gpu.PrimitiveType,
-};
-
-pub const GpuSprite = extern struct {
+pub const Sprite = extern struct {
     width: u32,
     height: u32,
     offset: u32,
@@ -126,13 +104,12 @@ pub const GpuSprite = extern struct {
     color: [4]f32 = .{ 1, 1, 1, 1 },
 
     comptime {
-        hy.meta.assertMatches(GpuSprite, hy.gfx.Sprite);
+        hy.meta.assertMatches(Sprite, hy.gfx.Sprite);
     }
-};
 
-pub const Sprite = extern struct {
-    model: Model,
-    material: MaterialHandle,
+    pub const Handle = extern struct {
+        model: Model,
+    };
 };
 
 const DefaultAssets = struct {
@@ -151,23 +128,12 @@ const DefaultAssets = struct {
     sprite_buf: buf.DynamicBuffer(u128),
     scene: *Scene = undefined,
     active_target: ?*sdl.gpu.Texture,
-    pending_submit_result: ?RenderSubmitResult = null,
 };
 
 const WindowState = struct {
     msaa_tex: *sdl.gpu.Texture = undefined,
     prev_drawable_w: u32 = 0,
     prev_drawable_h: u32 = 0,
-};
-
-const RenderTarget = struct {
-    target: []sdl.gpu.ColorTargetInfo,
-    scene: *Scene,
-};
-
-const RenderCommand = struct {
-    cmd: *sdl.gpu.CommandBuffer,
-    pass: *sdl.gpu.RenderPass,
 };
 
 const ShaderType = enum { vertex, fragment };
@@ -201,7 +167,7 @@ text_engine: *ttf.TextEngine,
 // Renderable State
 passes: std.EnumArray(PassType, ForwardPass),
 custom_passes: hy.SlotMap(ForwardPass) = .empty,
-sprites: hy.SlotMap(Sprite),
+sprites: hy.SlotMap(Model),
 textures: tx.Textures,
 models: Models,
 materials: mt.Materials,
@@ -456,7 +422,6 @@ pub fn shutdown(self: *Gpu) void {
     self.device.releaseTexture(self.default_assets.white_texture);
     self.device.releaseSampler(self.default_assets.sampler);
 
-    self.sprites.deinit(self.gpa);
     self.uniforms.deinit(self.gpa);
 
     sdlsc.quit();
@@ -513,7 +478,7 @@ pub fn uploadToTexture(self: *Gpu, tex: *sdl.gpu.Texture, w: u32, h: u32, data: 
     const cmd = self.device.acquireCommandBuffer().?;
     const copy_pass = cmd.beginCopyPass().?;
 
-    const buf_src = sdl.gpu.TextureTransferInfo{
+    const buf_src: sdl.gpu.TextureTransferInfo = .{
         .transfer_buffer = buf_transfer,
         .offset = 0,
         .pixels_per_row = w,
@@ -536,8 +501,6 @@ pub fn uploadToTexture(self: *Gpu, tex: *sdl.gpu.Texture, w: u32, h: u32, data: 
 /// screen. Do not use for offscreen buffers as this is not needed.
 /// Returns a command buffer.
 pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
-    self.default_assets.pending_submit_result = .{};
-
     var drawable_w: u32 = undefined;
     var drawable_h: u32 = undefined;
 
@@ -716,17 +679,13 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     }
 }
 
-pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) RenderSubmitResult {
+pub fn submit(self: *Gpu, cmd: *sdl.gpu.CommandBuffer) void {
     const zone_gfx_submit = tracy.initZone(@src(), .{});
     defer zone_gfx_submit.deinit();
 
     _ = cmd.submit();
     _ = self.arena.reset(.retain_capacity);
     self.im.reset();
-    const result = self.default_assets.pending_submit_result.?;
-    self.default_assets.pending_submit_result = null;
-    self.default_assets.active_target = null;
-    return result;
 }
 
 /// The vertex data for postProcessBlit is hard coded into the shader,
@@ -864,6 +823,18 @@ pub fn draw(self: *Gpu, opts: DrawOptions) !void {
     pass.bindIndexBuffer(&.{ .buffer = buffer.hdl, .offset = @intCast(buffer.idx_start) }, .@"32bit");
     pass.drawIndexedPrimitives(buffer.idxCount(), num_instances, 0, 0, 0);
 }
+
+pub const BuildPipelineParams = struct {
+    format: ?sdl.gpu.TextureFormat,
+    vert: *sdl.gpu.Shader,
+    frag: *sdl.gpu.Shader,
+    pass: gfx.PipelineType,
+    enable_depth: bool,
+    enable_stencil: bool,
+    enable_blend: bool,
+    fill_mode: sdl.gpu.FillMode,
+    primitive_type: sdl.gpu.PrimitiveType,
+};
 
 pub fn buildPipeline(self: *Gpu, params: BuildPipelineParams) *sdl.gpu.GraphicsPipeline {
     const sample_count: sdl.gpu.SampleCount = .@"1";
@@ -1003,14 +974,19 @@ pub fn materialLoad(self: *Gpu, path: [:0]const u8) !MaterialHandle {
     return try self.materials.load(path);
 }
 
-pub fn materialCreate(self: *Gpu, mt_type: mt.Material.Type, txs: *const TextureArray) MaterialHandle {
+pub fn materialCreate(self: *Gpu, opts: hy.gfx.MaterialCreateOptions) MaterialHandle {
     var map: tx.TextureSet = .{};
 
-    for (std.meta.tags(tx.TextureType), 0..) |tag, i| {
-        map.put(tag, .{ .handle = txs[i] });
+    for (opts.textures, 0..) |hdl, i| {
+        const tag = hy.gfx.MaterialCreateOptions.Indexer.keyForIndex(i);
+        map.put(tag, .{ .handle = @bitCast(@intFromEnum(hdl)) });
     }
 
-    return self.materials.insert(mt_type, map);
+    return self.materials.insert(opts.program, map);
+}
+
+pub fn materialDupe(self: *Gpu, handle: SlotMap(mt.Material).Handle) mt.Handle {
+    return self.materials.dupe(handle) catch unreachable;
 }
 
 pub fn materialDestroy(self: *Gpu, handle: SlotMap(mt.Material).Handle) void {
@@ -1090,11 +1066,12 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: hy.gfx.ImportSetti
 
                 std.debug.assert(handle != null);
 
-                const hy_tex_type: ?tx.TextureType = tx.tex_to_hyoga_type.get(tex_type);
+                const hy_tex_type: ?hy.gfx.TextureType = tx.tex_to_hyoga_type.get(tex_type);
                 if (hy_tex_type) |htt| {
                     texture_set.put(htt, .{ .handle = handle });
                 } else {
-                    std.log.warn("[GPU]: Unconsumed texture type {s} for object {s}", .{ field.name, path });
+                    std.log.warn("[GPU]: Asset import contains {s} texture @ {s} but this type is" ++
+                        "unsupported by the engine", .{ field.name, path });
                 }
             }
         }
@@ -1203,24 +1180,25 @@ pub const SpriteCreateOptions = extern struct {
     }
 };
 
-pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !hy.SlotMap(Sprite).Handle {
+pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !Model {
     std.debug.assert(opts.width != 0);
     std.debug.assert(opts.height != 0);
 
-    const mat_hdl = blk: {
+    const tex: tx.TextureId = blk: {
         const span = std.mem.span(opts.atlas);
         if (std.mem.eql(u8, span, "white")) {
             const tex = self.default_assets.white_texture;
-            break :blk self.materials.insert(.billboard, .init(.{ .diffuse = .{ .target = tex } }));
+            break :blk .{ .target = tex };
         } else {
             const tex = try self.textures.read(std.mem.span(opts.atlas));
-            break :blk self.materials.insert(.billboard, .init(.{ .diffuse = .{ .handle = tex } }));
+            break :blk .{ .handle = tex };
         }
     };
 
-    const quad = try self.models.dupe(&self.buffer_allocator, self.default_assets.quad, .{ .material = mat_hdl });
+    const hdl = self.materials.insert(.billboard, .init(.{ .diffuse = tex }));
+    const quad = try self.models.dupe(&self.buffer_allocator, self.default_assets.quad, .{ .material = hdl });
 
-    self.materials.setParams(mat_hdl, &Gpu.GpuSprite{
+    self.materials.setParams(hdl, &Gpu.Sprite{
         .width = opts.width,
         .height = opts.height,
         .offset = opts.offset,
@@ -1229,38 +1207,27 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !hy.SlotMap(Sprite).H
         .color = opts.color,
     });
 
-    const sprite_hdl = self.sprites.insert(self.gpa, .{ .model = quad, .material = mat_hdl });
-
-    return sprite_hdl;
+    return quad;
 }
 
-pub fn spriteDestroy(self: *Gpu, hdl: hy.SlotMap(Sprite).Handle) void {
-    const sprite = self.sprites.get(hdl) orelse {
-        std.debug.panic("No sprite found for handle {}", .{hdl});
-    };
-
-    self.materialDestroy(sprite.material);
-    self.models.remove(&self.buffer_allocator, sprite.model);
-}
-
-pub fn spriteRenderableWeakPtr(self: *Gpu, item: RenderItemHandle) ?*GpuSprite {
+pub fn spriteRenderableWeakPtr(self: *Gpu, item: RenderItemHandle) ?*Sprite {
     const render_list = &self.passes.getPtr(item.pass).render_list;
     const instances = render_list.instances.getPtr(item.index.instances_hdl).?;
     const mat_hdl = instances.mesh.material;
     const mat = self.materials.get(mat_hdl) orelse return null;
-    const ptr: *Gpu.GpuSprite = @ptrCast(@alignCast(&self.materials.param_buf.items[mat.params_start]));
+    const ptr: *Gpu.Sprite = @ptrCast(@alignCast(&self.materials.param_buf.items[mat.params_start]));
     return ptr;
 }
 
-pub fn spriteWeakPtr(self: *Gpu, hdl: SpriteHandle) ?*GpuSprite {
-    const sprite = self.sprites.getPtr(hdl).?;
-    const mat_hdl = sprite.material;
+pub fn spriteWeakPtr(self: *Gpu, hdl: Model) ?*Sprite {
+    const model = self.models.get(hdl) catch return null;
+    const mat_hdl = model.mesh.material;
     const mat = self.materials.get(mat_hdl).?;
-    const ptr: *Gpu.GpuSprite = @ptrCast(@alignCast(&self.materials.param_buf.items[mat.params_start]));
+    const ptr: *Gpu.Sprite = @ptrCast(@alignCast(&self.materials.param_buf.items[mat.params_start]));
     return ptr;
 }
 
-pub fn spriteCurrentAnimationFrame(self: *Gpu, sprite: *GpuSprite) u32 {
+pub fn spriteCurrentAnimationFrame(self: *Gpu, sprite: *Sprite) u32 {
     const time = blk: {
         if (self.uniforms.get(self.ids.time)) |t| break :blk t.f32 else break :blk 0;
     };
@@ -1269,33 +1236,15 @@ pub fn spriteCurrentAnimationFrame(self: *Gpu, sprite: *GpuSprite) u32 {
     return index;
 }
 
-pub fn spriteDupe(self: *Gpu, hdl: SpriteHandle) SpriteHandle {
-    const sprite = self.sprites.getPtr(hdl).?;
-    const mat_hdl = sprite.material;
+pub fn spriteDupe(self: *Gpu, hdl: Model) Model {
+    const model = self.models.get(hdl) catch unreachable;
+    const mat_hdl = model.mesh.material;
     const mat = self.materials.get(mat_hdl).?;
-
     const duped_mat = self.materials.insert(.billboard, mat.textures);
-    const sprite_data: *align(1) GpuSprite = @ptrCast(&self.materials.param_buf.items[mat.params_start]);
+    const sprite_data: *align(1) Sprite = @ptrCast(&self.materials.param_buf.items[mat.params_start]);
     self.materials.setParams(duped_mat, sprite_data);
-
-    const quad = self.models.dupe(&self.buffer_allocator, self.default_assets.quad, .{ .material = duped_mat }) catch hy.err.oom();
-    const sprite_hdl = self.sprites.insert(self.gpa, .{ .model = quad, .material = duped_mat }) catch hy.err.oom();
-    return sprite_hdl;
-}
-
-pub fn renderableOfSprite(self: *Gpu, hdl: SpriteHandle) !RenderItemHandle {
-    const sprite = self.sprites.get(hdl).?;
-
-    const renderables = &self.passes.getPtr(.outlined).render_list;
-    const renderable = try renderables.add(.{
-        .model = sprite.model,
-        .time = 0,
-    });
-
-    return .{
-        .pass = .outlined,
-        .index = renderable,
-    };
+    const quad = self.models.dupe(&self.buffer_allocator, hdl, .{ .material = duped_mat }) catch hy.err.oom();
+    return quad;
 }
 
 pub fn clearColorSet(self: *Gpu, color: hym.Vec4) void {

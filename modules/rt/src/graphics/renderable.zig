@@ -86,8 +86,7 @@ pub const RenderList = struct {
         };
 
         if (q_model) |model| {
-            std.debug.assert(model.children.len == 1);
-            const rhs = model.children[0];
+            const rhs = model.mesh;
 
             const instances_hdl: InstanceMap.Handle = blk: {
                 var it = self.instances.iterator();

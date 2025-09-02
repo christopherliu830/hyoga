@@ -56,7 +56,15 @@ pub const MaterialHandle = enum(u64) {
     _,
 };
 
-pub const MaterialType = enum(u32) {
+pub const MaterialCreateOptions = extern struct {
+    pub const Indexer = std.enums.EnumIndexer(TextureType);
+    pub const texture_len = Indexer.count;
+
+    program: Program,
+    textures: [texture_len]TextureHandle,
+};
+
+pub const Program = enum(u32) {
     standard,
     standard_unlit,
     sprite,
@@ -73,16 +81,6 @@ pub const TextureType = enum(u32) {
     height,
     normal,
     mask,
-};
-
-pub const TextureArray = extern struct {
-    const Map = std.EnumMap(TextureType, TextureHandle);
-    pub const Initializer = std.enums.EnumFieldStruct(TextureType, TextureHandle, .none);
-    data: [std.enums.directEnumArrayLen(TextureType, 0)]TextureHandle,
-
-    pub fn make(txs: Initializer) TextureArray {
-        return .{ .data = Map.initFullWithDefault(.none, txs).values };
-    }
 };
 
 pub const PrimitiveShape = enum(u8) {
@@ -232,6 +230,10 @@ pub const Gpu = opaque {
         return proc.hy_gfx_modelPrimitive(gpu, shape);
     }
 
+    pub fn modelMaterial(gpu: *Gpu, model: Model) MaterialHandle {
+        return proc.hy_gfx_modelMaterial(gpu, model);
+    }
+
     pub fn modelWaitLoad(gpu: *Gpu, model: Model, max: u64) bool {
         return proc.hy_gfx_modelWaitLoad(gpu, model, max);
     }
@@ -244,8 +246,12 @@ pub const Gpu = opaque {
         proc.hy_gfx_materialReload(gpu, hdl);
     }
 
-    pub fn materialCreate(gpu: *Gpu, @"type": MaterialType, tx_set: *const TextureArray) MaterialHandle {
-        return proc.hy_gfx_materialCreate(gpu, @"type", tx_set);
+    pub fn materialCreate(gpu: *Gpu, opts: MaterialCreateOptions) MaterialHandle {
+        return proc.hy_gfx_materialCreate(gpu, opts);
+    }
+
+    pub fn materialDupe(gpu: *Gpu, hdl: MaterialHandle) MaterialHandle {
+        return proc.hy_gfx_materialDupe(gpu, hdl);
     }
 
     pub fn materialDestroy(gpu: *Gpu, hdl: MaterialHandle) void {
@@ -264,15 +270,11 @@ pub const Gpu = opaque {
         return proc.hy_gfx_renderableTransformSet(gpu, hdl, transform);
     }
 
-    pub fn spriteMakeRenderable(gpu: *Gpu, hdl: Sprite.Handle) Renderable {
-        return proc.hy_gfx_spriteMakeRenderable(gpu, hdl);
-    }
-
-    pub fn spriteCreate(gpu: *Gpu, opts: SpriteCreateOptions) Sprite.Handle {
+    pub fn spriteCreate(gpu: *Gpu, opts: SpriteCreateOptions) Model {
         return proc.hy_gfx_spriteCreate(gpu, opts);
     }
 
-    pub fn spriteDestroy(gpu: *Gpu, hdl: Sprite.Handle) void {
+    pub fn spriteDestroy(gpu: *Gpu, hdl: Model) void {
         proc.hy_gfx_spriteDestroy(gpu, hdl);
     }
 
@@ -288,7 +290,7 @@ pub const Gpu = opaque {
         return proc.hy_gfx_spriteCurrentAnimationFrame(gpu, hdl);
     }
 
-    pub fn spriteDupe(gpu: *Gpu, hdl: Sprite.Handle) Sprite.Handle {
+    pub fn spriteDupe(gpu: *Gpu, hdl: Model) Model {
         return proc.hy_gfx_spriteDupe(gpu, hdl);
     }
 

@@ -77,6 +77,10 @@ pub const Body = enum(u64) {
         return proc.hy_p2_bodyType(body);
     }
 
+    pub fn valid(body: Body) bool {
+        return proc.hy_p2_bodyValid(body);
+    }
+
     pub fn bodyTypeSet(body: Body, body_type: Type) void {
         return proc.hy_p2_bodyTypeSet(body, body_type);
     }

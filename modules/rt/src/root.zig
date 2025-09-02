@@ -134,6 +134,19 @@ pub fn hy_gfx_modelCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.ModelCreateOptions) cal
     return @enumFromInt(model.int());
 }
 
+pub fn hy_gfx_modelDupe(gpu: *hy.gfx.Gpu, original_model: hy.gfx.Model, options: hy.gfx.ModelDupeOptions) callconv(.c) hy.gfx.Model {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const model = rt_gpu.models.dupe(
+        &rt_gpu.buffer_allocator,
+        @bitCast(@intFromEnum(original_model)),
+        @bitCast(options),
+    ) catch |e| {
+        std.log.err("dupe model failure: {}", .{e});
+        return .none;
+    };
+    return @enumFromInt(model.int());
+}
+
 pub fn hy_gfx_modelDestroy(gpu: *hy.gfx.Gpu, model: hy.gfx.Model) callconv(.c) void {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
     rt_gpu.models.remove(&rt_gpu.buffer_allocator, @bitCast(@intFromEnum(model)));
@@ -149,22 +162,17 @@ pub fn hy_gfx_modelBounds(gpu: *hy.gfx.Gpu, model: hy.gfx.Model) callconv(.c) hy
     }
 }
 
-pub fn hy_gfx_modelDupe(gpu: *hy.gfx.Gpu, original_model: hy.gfx.Model, options: hy.gfx.ModelDupeOptions) callconv(.c) hy.gfx.Model {
-    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
-    const model = rt_gpu.models.dupe(
-        &rt_gpu.buffer_allocator,
-        @bitCast(@intFromEnum(original_model)),
-        @bitCast(options),
-    ) catch |e| {
-        std.log.err("dupe model failure: {}", .{e});
-        return .none;
-    };
-    return @enumFromInt(model.int());
-}
-
 pub fn hy_gfx_modelPrimitive(gpu: *hy.gfx.Gpu, shape: hy.gfx.PrimitiveShape) callconv(.c) hy.gfx.Model {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
     return @enumFromInt(rt_gpu.modelPrimitive(@enumFromInt(@intFromEnum(shape))).int());
+}
+
+pub fn hy_gfx_modelMaterial(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Model) callconv(.c) hy.gfx.MaterialHandle {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    const rt_model: gfx.Model = @bitCast(@intFromEnum(hdl));
+    const model = rt_gpu.models.get(rt_model) catch unreachable;
+    const material = model.mesh.material;
+    return @enumFromInt(material.int());
 }
 
 pub fn hy_gfx_modelWaitLoad(gpu: *hy.gfx.Gpu, model: hy.gfx.Model, max: u64) callconv(.c) bool {
@@ -188,10 +196,15 @@ pub fn hy_gfx_materialReload(gpu: *hy.gfx.Gpu, hdl: hy.gfx.MaterialHandle) callc
     };
 }
 
-pub fn hy_gfx_materialCreate(gpu: *hy.gfx.Gpu, mt_type: hy.gfx.MaterialType, tx_set: *const hy.gfx.TextureArray) callconv(.c) hy.gfx.MaterialHandle {
+pub fn hy_gfx_materialCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.MaterialCreateOptions) callconv(.c) hy.gfx.MaterialHandle {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
-    const hdl = rt_gpu.materialCreate(@enumFromInt(@intFromEnum(mt_type)), @ptrCast(tx_set));
+    const hdl = rt_gpu.materialCreate(opts);
     return @enumFromInt(hdl.int());
+}
+
+pub fn hy_gfx_materialDupe(gpu: *hy.gfx.Gpu, hdl: hy.gfx.MaterialHandle) callconv(.c) hy.gfx.MaterialHandle {
+    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
+    return @enumFromInt(rt_gpu.materialDupe(@bitCast(@intFromEnum(hdl))).int());
 }
 
 pub fn hy_gfx_materialDestroy(gpu: *hy.gfx.Gpu, hdl: hy.gfx.MaterialHandle) callconv(.c) void {
@@ -218,16 +231,7 @@ pub fn hy_gfx_renderableTransformSet(gpu: *hy.gfx.Gpu, item: hy.gfx.Renderable, 
     rt_gpu.renderableSetTransform(@bitCast(item), transform);
 }
 
-pub fn hy_gfx_spriteMakeRenderable(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Sprite.Handle) callconv(.c) hy.gfx.Renderable {
-    const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
-    const renderable = rt_gpu.renderableOfSprite(@bitCast(@intFromEnum(hdl))) catch |e| {
-        std.log.err("sprite dupe failure: {}", .{e});
-        return .none;
-    };
-    return @bitCast(renderable);
-}
-
-pub fn hy_gfx_spriteCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.SpriteCreateOptions) callconv(.c) hy.gfx.Sprite.Handle {
+pub fn hy_gfx_spriteCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.SpriteCreateOptions) callconv(.c) hy.gfx.Model {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
     const hdl = rt_gpu.spriteCreate(@bitCast(opts)) catch |e| {
         std.log.err("sprite create failure: {}", .{e});
@@ -237,9 +241,9 @@ pub fn hy_gfx_spriteCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.SpriteCreateOptions) c
     return @enumFromInt(hdl.int());
 }
 
-pub fn hy_gfx_spriteDestroy(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Sprite.Handle) callconv(.c) void {
+pub fn hy_gfx_spriteDestroy(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Model) callconv(.c) void {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
-    rt_gpu.spriteDestroy(@bitCast(@intFromEnum(hdl)));
+    rt_gpu.models.remove(&rt_gpu.buffer_allocator, @bitCast(@intFromEnum(hdl)));
 }
 
 pub fn hy_gfx_spriteWeakPtr(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Sprite.Handle) callconv(.c) ?*hy.gfx.Sprite {
@@ -257,7 +261,7 @@ pub fn hy_gfx_spriteCurrentAnimationFrame(gpu: *hy.gfx.Gpu, sprite: *hy.gfx.Spri
     return rt_gpu.spriteCurrentAnimationFrame(@ptrCast(sprite));
 }
 
-pub fn hy_gfx_spriteDupe(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Sprite.Handle) callconv(.c) hy.gfx.Sprite.Handle {
+pub fn hy_gfx_spriteDupe(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Model) callconv(.c) hy.gfx.Model {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
     const dupe_hdl = rt_gpu.spriteDupe(@bitCast(@intFromEnum(hdl)));
     return @enumFromInt(dupe_hdl.int());
@@ -372,6 +376,11 @@ pub fn hy_p2_bodyAdd(p2_ctx: *hy.p2.Context, opts: *const hy.p2.BodyAddOptions) 
     const rt_p2_ctx: *Phys2 = @ptrCast(@alignCast(p2_ctx));
     const rt_body = rt_p2_ctx.addBody(@ptrCast(opts));
     return @enumFromInt(@intFromEnum(rt_body));
+}
+
+pub fn hy_p2_bodyValid(body: hy.p2.Body) callconv(.c) bool {
+    const rt_body: Phys2.Body = @enumFromInt(@intFromEnum(body));
+    return rt_body.isValid();
 }
 
 pub fn hy_p2_bodyShapeAdd(body: hy.p2.Body, opts: *const hy.p2.BodyAddOptions.ShapeOptions) callconv(.c) void {

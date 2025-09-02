@@ -134,7 +134,7 @@ pub fn BufferAllocator(comptime usage: sdl.gpu.BufferUsageFlags) type {
             }
         }
 
-        pub fn dupe(self: *Self, buffer: Buffer) void {
+        pub fn increment(self: *Self, buffer: Buffer) void {
             var it = self.buffer_list.first;
             while (it) |node| : (it = node.next) {
                 const buf: *Buf = @fieldParentPtr("node", node);
