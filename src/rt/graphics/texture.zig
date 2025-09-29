@@ -4,13 +4,16 @@ const sdl = @import("sdl");
 const stbi = @import("stb_image");
 const ai = @import("assimp");
 const Loader = @import("loader.zig");
-const Strint = @import("../strintern.zig");
+const StringTable = @import("../strintern.zig");
 
-pub const Handle = Strint.ID;
+pub const Handle = StringTable.Index;
 
-pub const TextureId = struct {
-    handle: ?Handle = null,
-    target: ?*sdl.gpu.Texture = null,
+pub const TextureId = union(enum) {
+    handle: Handle,
+    target: *sdl.gpu.Texture,
+
+    /// Depend on the result of a render pass
+    pass_result: StringTable.Index,
 };
 
 const TextureLoadJob = struct {
@@ -32,16 +35,16 @@ pub const Textures = struct {
     device: *sdl.gpu.Device,
     loader: *Loader,
     queue: Loader.Queue(TextureLoadJob),
-    textures: std.AutoHashMapUnmanaged(Strint.ID, ?*sdl.gpu.Texture) = .{},
-    strint: *Strint,
+    textures: std.AutoHashMapUnmanaged(StringTable.Index, ?*sdl.gpu.Texture) = .{},
+    string_table: *StringTable,
     image_loader: stbi,
 
-    pub fn init(t: *Textures, device: *sdl.gpu.Device, loader: *Loader, strint: *Strint, allocator: std.mem.Allocator) void {
+    pub fn init(t: *Textures, device: *sdl.gpu.Device, loader: *Loader, string_table: *StringTable, allocator: std.mem.Allocator) void {
         t.tsa = .{ .child_allocator = allocator };
         t.queue.init(t.tsa);
         t.device = device;
         t.textures = .{};
-        t.strint = strint;
+        t.string_table = string_table;
         t.loader = loader;
         t.image_loader = stbi.init(t.tsa.allocator());
     }
@@ -69,18 +72,18 @@ pub const Textures = struct {
             if (maybe_tex) |tex| {
                 self.device.releaseTexture(tex);
             } else {
-                std.log.warn("Texture {s} removed before it was finished loading, was this intentional?", .{self.strint.asString(id)});
+                std.log.warn("Texture {s} removed before it was finished loading, was this intentional?", .{self.string_table.lookup(id)});
                 // When the job finishes the texture will be released.
             }
             _ = self.textures.remove(id);
         } else {
-            std.debug.panic("Destroy of invalid texture {s}", .{self.strint.asString(id)});
+            std.debug.panic("Destroy of invalid texture {s}", .{self.string_table.lookup(id)});
         }
     }
 
     pub fn read(self: *@This(), path: [:0]const u8) !Handle {
         const allocator = self.tsa.allocator();
-        const hdl = try self.strint.from(path);
+        const hdl = try self.string_table.from(path);
 
         // Cache check
         if (try self.get(hdl)) |_| {
@@ -96,7 +99,7 @@ pub const Textures = struct {
     pub fn flushQueue(self: *@This()) !void {
         const allocator = self.tsa.allocator();
         while (self.queue.pop()) |entry| {
-            const tex_strint = try self.strint.from(entry.path);
+            const tex_strint = try self.string_table.from(entry.path);
             defer allocator.free(entry.path);
 
             const maybe_tex_slot = self.textures.get(tex_strint);

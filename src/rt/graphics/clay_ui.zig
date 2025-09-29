@@ -231,7 +231,7 @@ pub const UI = struct {
                     const config = &command.render_data.image;
                     const color = @as(@Vector(4, f32), config.background_color) / [_]f32{ 255, 255, 255, 255 };
                     drawRect(gpu, rect, color, transform);
-                    const texture: Gpu.TextureHandle = .{ .value = @intCast(@intFromPtr(config.image_data)) };
+                    const texture: Gpu.TextureHandle = @enumFromInt(@intFromPtr(config.image_data));
                     const start = hym.vec2.create(rect.min.x(), rect.min.y());
                     const scale = hym.mat4.identity.scale(.of(rect.extents().x(), rect.extents().y(), 1));
                     const translate = hym.mat4.identity.translate(start.append(0));

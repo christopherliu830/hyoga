@@ -22,7 +22,7 @@ const buf = @import("buffer.zig");
 const tx = @import("texture.zig");
 const mt = @import("material.zig");
 const Loader = @import("loader.zig");
-const Strint = @import("../strintern.zig");
+const StringTable = @import("../strintern.zig");
 const rbl = @import("renderable.zig");
 const imm = @import("immediate_mode.zig");
 const Scene = @import("../root.zig").Scene;
@@ -53,36 +53,35 @@ const panic = std.debug.panic;
 /// These constant strings are declared in each shader's resource manifest
 /// in order to bind SSBOs and uniforms.
 pub const StringIDs = struct {
-    all_renderables: Strint.ID,
-    selected_renderables: Strint.ID,
-    view: Strint.ID,
-    projection: Strint.ID,
-    view_projection: Strint.ID, // RH, y-up view projection matrix. note that SDL_gpu flips viewports to ensure consistency among all backends.
-    immediate_mvp: Strint.ID,
-    camera_world_position: Strint.ID,
-    light_direction: Strint.ID,
-    viewport_size: Strint.ID,
-    sprites: Strint.ID,
-    /// Vec2 .{ instance_index, material_index }
-    item_offsets: Strint.ID,
-    time: Strint.ID,
+    all_renderables: StringTable.Index,
+    selected_renderables: StringTable.Index,
+    view: StringTable.Index,
+    projection: StringTable.Index,
+    view_projection: StringTable.Index, // RH, y-up view projection matrix. note that SDL_gpu flips viewports to ensure consistency among all backends.
+    immediate_mvp: StringTable.Index,
+    camera_world_position: StringTable.Index,
+    light_direction: StringTable.Index,
+    viewport_size: StringTable.Index,
+    sprites: StringTable.Index,
+    item_offsets: StringTable.Index,
+    time: StringTable.Index,
 
-    pub fn init(strint: *Strint) @This() {
+    pub fn init(string_table: *StringTable) @This() {
         return .{
             // Storage buffers
-            .all_renderables = strint.from("hy_all_renderables") catch hy.err.oom(),
-            .selected_renderables = strint.from("hy_selected_renderables") catch hy.err.oom(),
+            .all_renderables = string_table.from("hy_all_renderables") catch hy.err.oom(),
+            .selected_renderables = string_table.from("hy_selected_renderables") catch hy.err.oom(),
             // Uniform buffers
-            .view = strint.from("hy_view_matrix") catch hy.err.oom(),
-            .projection = strint.from("hy_projection_matrix") catch hy.err.oom(),
-            .view_projection = strint.from("hy_view_projection_matrix") catch hy.err.oom(),
-            .immediate_mvp = strint.from("hy_immediate_mvp") catch hy.err.oom(),
-            .camera_world_position = strint.from("hy_camera_world_position") catch hy.err.oom(),
-            .light_direction = strint.from("hy_light_direction") catch hy.err.oom(),
-            .viewport_size = strint.from("hy_viewport_size") catch hy.err.oom(),
-            .sprites = strint.from("hy_sprites") catch hy.err.oom(),
-            .item_offsets = strint.from("hy_item_offsets") catch hy.err.oom(),
-            .time = strint.from("hy_time") catch hy.err.oom(),
+            .view = string_table.from("hy_view_matrix") catch hy.err.oom(),
+            .projection = string_table.from("hy_projection_matrix") catch hy.err.oom(),
+            .view_projection = string_table.from("hy_view_projection_matrix") catch hy.err.oom(),
+            .immediate_mvp = string_table.from("hy_immediate_mvp") catch hy.err.oom(),
+            .camera_world_position = string_table.from("hy_camera_world_position") catch hy.err.oom(),
+            .light_direction = string_table.from("hy_light_direction") catch hy.err.oom(),
+            .viewport_size = string_table.from("hy_viewport_size") catch hy.err.oom(),
+            .sprites = string_table.from("hy_sprites") catch hy.err.oom(),
+            .item_offsets = string_table.from("hy_item_offsets") catch hy.err.oom(),
+            .time = string_table.from("hy_time") catch hy.err.oom(),
         };
     }
 };
@@ -158,7 +157,7 @@ storage_allocator: buf.BufferAllocator(.{ .graphics_storage_read = true }),
 // Engine resources
 device: *sdl.gpu.Device,
 loader: *Loader,
-strint: *Strint,
+string_table: *StringTable,
 window: *Window,
 default_assets: DefaultAssets = undefined,
 window_state: WindowState = .{},
@@ -167,17 +166,16 @@ text_engine: *ttf.TextEngine,
 // Renderable State
 passes: std.EnumArray(PassType, ForwardPass),
 custom_passes: hy.SlotMap(ForwardPass) = .empty,
-sprites: hy.SlotMap(Model),
 textures: tx.Textures,
 models: Models,
 materials: mt.Materials,
-uniforms: std.AutoHashMapUnmanaged(Strint.ID, Uniform),
+uniforms: std.AutoHashMapUnmanaged(StringTable.Index, Uniform),
 im: imm.Context,
 
 ids: StringIDs,
 clear_color: hym.Vec4 = .of(0.15, 0.15, 0.15, 1),
 
-pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allocator) !*Gpu {
+pub fn init(window: *Window, loader: *Loader, string_table: *StringTable, gpa: std.mem.Allocator) !*Gpu {
     if (build_options.backend) |backend| _ = sdl.hints.setHint("SDL_GPU_DRIVER", backend);
     const backend = if (build_options.backend) |b| b.ptr else null;
 
@@ -203,17 +201,16 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
 
         .device = device,
         .loader = loader,
-        .strint = strint,
+        .string_table = string_table,
         .window = window,
         .window_state = .{},
         .text_engine = ttf.TextEngine.gpuCreate(device) orelse {
             sdl.log("Error creating text engine: %s", sdl.getError());
             return error.SdlError;
         },
-        .ids = .init(self.strint),
-        .sprites = .empty,
+        .ids = .init(self.string_table),
         .textures = undefined,
-        .models = .init(loader, strint, self.gpa),
+        .models = .init(loader, string_table, self.gpa),
         .materials = .init(self),
         .uniforms = .empty,
         .im = .{
@@ -264,7 +261,7 @@ pub fn init(window: *Window, loader: *Loader, strint: *Strint, gpa: std.mem.Allo
         }),
     };
 
-    self.textures.init(self.device, loader, strint, self.gpa);
+    self.textures.init(self.device, loader, string_table, self.gpa);
     self.textures.image_loader.use();
 
     sdlsc.init() catch |e| panic("sdl shader compiler init failure: {}", .{e});
@@ -807,10 +804,10 @@ pub fn draw(self: *Gpu, opts: DrawOptions) !void {
         for (program_def.textures, 0..) |needed_tex_type, i| {
             if (needed_tex_type == null) continue;
             const tex_id = material.textures.get(needed_tex_type.?).?;
-            const texture: *sdl.gpu.Texture = blk: {
-                if (tex_id.target) |target| break :blk target;
-                if (tex_id.handle) |handle| break :blk self.textures.get(handle) catch self.default_assets.default_texture orelse self.default_assets.default_texture;
-                panic("[GPU] Textures must have a handle or direct target defined", .{});
+            const texture: *sdl.gpu.Texture = switch (tex_id) {
+                .target => |target| target,
+                .handle => |handle| self.textures.get(handle) catch self.default_assets.default_texture orelse self.default_assets.default_texture,
+                .pass_result => unreachable,
             };
 
             const binding = [_]sdl.gpu.TextureSamplerBinding{.{ .sampler = self.default_assets.sampler, .texture = texture }};
@@ -979,7 +976,7 @@ pub fn materialCreate(self: *Gpu, opts: hy.gfx.MaterialCreateOptions) MaterialHa
 
     for (opts.textures, 0..) |hdl, i| {
         const tag = hy.gfx.MaterialCreateOptions.Indexer.keyForIndex(i);
-        map.put(tag, .{ .handle = @bitCast(@intFromEnum(hdl)) });
+        map.put(tag, .{ .handle = @enumFromInt(@intFromEnum(hdl)) });
     }
 
     return self.materials.insert(opts.program, map);
@@ -1054,17 +1051,15 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: hy.gfx.ImportSetti
 
                 const ai_tex_id: [:0]u8 = str.data[0..str.len :0];
                 var tex_id: [:0]u8 = ai_tex_id;
-                var handle: ?TextureHandle = null;
-
-                if (import.getEmbeddedTexture(ai_tex_id.ptr)) |tex| {
-                    _ = tex;
-                    unreachable;
-                } else { // Texture is a relative path
-                    tex_id = try std.fs.path.joinZ(self.arena.allocator(), &[_][]const u8{ std.fs.path.dirname(path_slice).?, ai_tex_id });
-                    handle = try self.textures.read(tex_id);
-                }
-
-                std.debug.assert(handle != null);
+                const handle: TextureHandle = blk: {
+                    if (import.getEmbeddedTexture(ai_tex_id.ptr)) |tex| {
+                        _ = tex;
+                        unreachable;
+                    } else { // Texture is a relative path
+                        tex_id = try std.fs.path.joinZ(self.arena.allocator(), &[_][]const u8{ std.fs.path.dirname(path_slice).?, ai_tex_id });
+                        break :blk try self.textures.read(tex_id);
+                    }
+                };
 
                 const hy_tex_type: ?hy.gfx.TextureType = tx.tex_to_hyoga_type.get(tex_type);
                 if (hy_tex_type) |htt| {

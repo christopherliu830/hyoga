@@ -105,13 +105,11 @@ pub fn SlotMapSized(Guard: type, Size: type, comptime T: type) type {
                 return ord;
             }
 
-            pub inline fn toStr(self: Self.Handle) [:0]const u8 {
-                var buf: [32:0]u8 = undefined;
-                const slice = std.fmt.bufPrintZ(&buf, "[{}/{}]", .{ self.index, self.generation }) catch unreachable;
-                return slice;
+            pub fn format(self: Self.Handle, w: *std.io.Writer) std.io.Writer.Error!void {
+                try w.print("[{}/{}]", .{ self.index, self.generation });
             }
 
-            pub fn int(self: Self.Handle) Backing {
+            pub fn bits(self: Self.Handle) Backing {
                 return @bitCast(self);
             }
 
@@ -269,7 +267,7 @@ pub fn SlotMapSized(Guard: type, Size: type, comptime T: type) type {
         pub fn remove(self: *Self, handle: Self.Handle) void {
             const idx = handle.index;
             if (idx >= self.end) {
-                std.debug.panic("slot_map.remove called with handle {} when no element exists", .{handle});
+                std.debug.panic("slot_map.remove called with handle {f} when no element exists", .{handle});
             }
             if (!self.live_list.isSet(idx)) {
                 return;

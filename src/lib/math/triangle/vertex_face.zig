@@ -180,7 +180,7 @@ pub const Triangle = struct {
     const Pool = std.heap.MemoryPool(Triangle);
 };
 
-pub fn CDT(T: type, Context: type) type {
+pub fn CDT(T: type) type {
     return struct {
         const Self = @This();
 
@@ -220,7 +220,7 @@ pub fn CDT(T: type, Context: type) type {
         }
 
         pub fn position(self: *const Self, h: VertexHandle) hym.Vec2 {
-            return Context.position(self.unwrap(h));
+            return T.position(self.unwrap(h));
         }
 
         pub fn unwrap(self: *const Self, h: VertexHandle) T {
@@ -233,12 +233,12 @@ pub fn CDT(T: type, Context: type) type {
             const dupe = try gpa.dupe(T, initial_vertices);
             defer gpa.free(dupe);
 
-            std.sort.heap(T, dupe, {}, Context.lessThan);
+            std.sort.heap(T, dupe, {}, T.lessThan);
 
             // Remove duplicate points
             for (dupe) |vertex| {
                 if (self.vertices.items.len == 0 or
-                    !Context.eql(vertex, self.vertices.getLast().data))
+                    !T.eql(vertex, self.vertices.getLast().data))
                 {
                     try self.vertices.append(gpa, .{ .data = vertex });
                 } else continue;
@@ -544,10 +544,10 @@ pub fn CDT(T: type, Context: type) type {
 
                 const org_vertex = self.unwrap(start_triangle.org());
                 const dest_vertex = self.unwrap(start_triangle.dest());
-                const org_pos = Context.position(org_vertex);
-                const dest_pos = Context.position(dest_vertex);
+                const org_pos = T.position(org_vertex);
+                const dest_pos = T.position(dest_vertex);
 
-                if (Context.eql(point, org_vertex)) {
+                if (T.eql(point, org_vertex)) {
                     log.debug("\tearly out", .{});
                     self.vertexDelete(vertex);
                     return;
@@ -555,7 +555,7 @@ pub fn CDT(T: type, Context: type) type {
 
                 var stack: std.ArrayListUnmanaged(Triangle.Ref) = .empty;
 
-                if (funcs.determinant(org_pos, dest_pos, Context.position(point)) == 0.0) {
+                if (funcs.determinant(org_pos, dest_pos, T.position(point)) == 0.0) {
                     // The point is collinear on the line between org and dest.
                     // Split the triangle and its neighbor into four.
                     // `left` and `right` are from the perspective of org_pos
@@ -679,9 +679,9 @@ pub fn CDT(T: type, Context: type) type {
                         while (true) {
                             const org_vertex = self.unwrap(outside_triangle.lprev().org());
                             const dest_vertex = self.unwrap(outside_triangle.lprev().dest());
-                            const org_pos = Context.position(org_vertex);
-                            const dest_pos = Context.position(dest_vertex);
-                            const point_pos = Context.position(point);
+                            const org_pos = T.position(org_vertex);
+                            const dest_pos = T.position(dest_vertex);
+                            const point_pos = T.position(point);
                             const det = funcs.determinant(point_pos, org_pos, dest_pos);
 
                             if (det > 0) {
@@ -693,7 +693,7 @@ pub fn CDT(T: type, Context: type) type {
                             else if (det == 0) {
                                 const min = @min(org_pos.v, dest_pos.v);
                                 const max = @max(org_pos.v, dest_pos.v);
-                                if (Context.eql(point, org_vertex) or Context.eql(point, dest_vertex)) {
+                                if (T.eql(point, org_vertex) or T.eql(point, dest_vertex)) {
                                     // Point already exists..
                                     return;
                                 } else if (min[0] <= point_pos.x() and point_pos.x() <= max[0] and
@@ -802,11 +802,11 @@ pub fn CDT(T: type, Context: type) type {
                     std.log.err("Locate failure!\n", .{});
                     return error.LocateFailure;
                 };
-                if (Context.eql(pt, self.unwrap(start.org()))) {
+                if (T.eql(pt, self.unwrap(start.org()))) {
                     break :blk start;
-                } else if (Context.eql(pt, self.unwrap(start.dest()))) {
+                } else if (T.eql(pt, self.unwrap(start.dest()))) {
                     break :blk start.lnext();
-                } else if (Context.eql(pt, self.unwrap(start.apex()))) {
+                } else if (T.eql(pt, self.unwrap(start.apex()))) {
                     break :blk start.lprev();
                 } else {
                     std.log.err("point {} not found. Located a triangle of {f}.", .{ pt, start });
@@ -960,11 +960,11 @@ pub fn CDT(T: type, Context: type) type {
 
             const start_vertex: Triangle.Ref = blk: {
                 const start = self.locateVertex(start_pt) orelse return error.LocateFailure;
-                if (start.apex() != .none and Context.eql(start_pt, self.unwrap(start.apex()))) {
+                if (start.apex() != .none and T.eql(start_pt, self.unwrap(start.apex()))) {
                     break :blk start;
-                } else if (start.org() != .none and Context.eql(start_pt, self.unwrap(start.org()))) {
+                } else if (start.org() != .none and T.eql(start_pt, self.unwrap(start.org()))) {
                     break :blk start.lnext();
-                } else if (start.dest() != .none and Context.eql(start_pt, self.unwrap(start.dest()))) {
+                } else if (start.dest() != .none and T.eql(start_pt, self.unwrap(start.dest()))) {
                     break :blk start.lprev();
                 } else {
                     std.log.err("constrain point not found: {} {}", .{ start_pt, end_pt });
@@ -978,12 +978,12 @@ pub fn CDT(T: type, Context: type) type {
                 var search_edge = start_vertex;
                 while (true) {
                     if (search_edge.org() != .none) {
-                        if (Context.eql(end_pt, self.unwrap(search_edge.org()))) {
+                        if (T.eql(end_pt, self.unwrap(search_edge.org()))) {
                             search_edge.lprev().constrainedSet(true);
                             search_edge.lprev().sym().constrainedSet(true);
                             return;
                         } else if (search_edge.dest() == .none) {
-                            if (Context.eql(self.unwrap(search_edge.org()), end_pt)) {
+                            if (T.eql(self.unwrap(search_edge.org()), end_pt)) {
                                 start_vertex.constrainedSet(true);
                                 start_vertex.sym().constrainedSet(true);
                                 return;
@@ -991,13 +991,13 @@ pub fn CDT(T: type, Context: type) type {
                         } else {
                             const org_right = funcs.rightOf(
                                 self.position(search_edge.org()),
-                                Context.position(start_pt),
-                                Context.position(end_pt),
+                                T.position(start_pt),
+                                T.position(end_pt),
                             );
                             const dest_left = funcs.leftOf(
                                 self.position(search_edge.dest()),
-                                Context.position(start_pt),
-                                Context.position(end_pt),
+                                T.position(start_pt),
+                                T.position(end_pt),
                             );
 
                             if (org_right and dest_left) {
@@ -1032,7 +1032,7 @@ pub fn CDT(T: type, Context: type) type {
                 const v_sym = tri_sym.apex();
 
                 try to_delete.append(arena, tri_sym);
-                if (Context.eql(end_pt, self.unwrap(v_sym))) {
+                if (T.eql(end_pt, self.unwrap(v_sym))) {
                     try left.append(arena, tri_sym.lprev().sym());
                     try right.append(arena, tri_sym.lnext().sym());
                     tri = tri.sym();
@@ -1041,8 +1041,8 @@ pub fn CDT(T: type, Context: type) type {
 
                 if (funcs.leftOf(
                     self.position(v_sym),
-                    Context.position(start_pt),
-                    Context.position(end_pt),
+                    T.position(start_pt),
+                    T.position(end_pt),
                 )) {
                     try left.append(arena, tri_sym.lprev().sym());
 
@@ -1186,11 +1186,11 @@ pub fn CDT(T: type, Context: type) type {
 
             var loop_protection: u16 = 10_000;
             while (loop_protection > 0) : (loop_protection -= 1) {
-                if (Context.eql(point, self.unwrap(edge.org()))) {
+                if (T.eql(point, self.unwrap(edge.org()))) {
                     return edge;
                 }
 
-                if (Context.eql(point, self.unwrap(edge.dest()))) {
+                if (T.eql(point, self.unwrap(edge.dest()))) {
                     return edge.sym();
                 }
 
@@ -1198,7 +1198,7 @@ pub fn CDT(T: type, Context: type) type {
                     if (funcs.determinant(
                         self.position(edge.org()),
                         self.position(edge.dest()),
-                        Context.position(point),
+                        T.position(point),
                     ) < f32_tolerance) {
                         edge = edge.dprev().lnext();
                         continue;
@@ -1490,7 +1490,7 @@ pub fn CDT(T: type, Context: type) type {
 
         fn leftOf(self: *Self, point: T, edge: Triangle.Ref) bool {
             return funcs.leftOf(
-                Context.position(point),
+                T.position(point),
                 self.position(edge.org()),
                 self.position(edge.dest()),
             );
@@ -1498,7 +1498,7 @@ pub fn CDT(T: type, Context: type) type {
 
         fn rightOf(self: *Self, point: T, edge: Triangle.Ref) bool {
             return funcs.rightOf(
-                Context.position(point),
+                T.position(point),
                 self.position(edge.org()),
                 self.position(edge.dest()),
             );

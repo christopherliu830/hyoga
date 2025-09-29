@@ -24,7 +24,7 @@ pub const Mat4 = extern struct {
     }
 
     pub inline fn translate(self: *const Mat4, other: Vec3) Mat4 {
-        return translation(self.*, other);
+        return root.translation(self.*, other);
     }
 
     pub inline fn rotate(self: *const Mat4, deg: f32, axis: vec3.Vec3) Mat4 {

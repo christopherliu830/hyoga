@@ -2,9 +2,9 @@ const std = @import("std");
 
 const Self = @This();
 
-pub const ID = extern struct {
-    value: u32,
-    pub const invalid: ID = .{ .value = std.math.maxInt(u32) };
+pub const Index = enum(u32) {
+    none = std.math.maxInt(u32),
+    _,
 };
 
 inline fn sliceAt(self: *@This(), start: u32) []const u8 {
@@ -40,7 +40,6 @@ const SliceAdapter = struct {
 };
 
 arena: std.heap.ArenaAllocator,
-strint_count: u32 = 0,
 string_bytes: std.ArrayListUnmanaged(u8) = .{},
 map: std.HashMapUnmanaged(u32, void, IndexContext, std.hash_map.default_max_load_percentage) = .{},
 
@@ -55,9 +54,9 @@ pub fn shutdown(self: *Self) void {
     self.arena.deinit();
 }
 
-pub fn from(self: *Self, str: []const u8) !ID {
+pub fn from(self: *Self, str: []const u8) !Index {
     if (self.map.getEntryAdapted(str, SliceAdapter{ .parent = self })) |entry| {
-        return .{ .value = entry.key_ptr.* };
+        return @enumFromInt(entry.key_ptr.*);
     }
 
     const index: u32 = @intCast(self.string_bytes.items.len);
@@ -67,13 +66,13 @@ pub fn from(self: *Self, str: []const u8) !ID {
     // and for compatibility
     if (self.string_bytes.items[self.string_bytes.items.len - 1] != 0) try self.string_bytes.append(self.arena.allocator(), 0);
     try self.map.putContext(self.arena.allocator(), index, {}, IndexContext{ .parent = self });
-    return .{ .value = index };
+    return @enumFromInt(index);
 }
 
-pub fn asString(self: *Self, id: ID) []const u8 {
-    return self.sliceAt(id.value);
+pub fn lookup(self: *Self, id: Index) []const u8 {
+    return self.sliceAt(@intFromEnum(id));
 }
 
-pub fn asStringZ(self: *Self, id: ID) [:0]const u8 {
-    return std.mem.span(@as([*:0]const u8, @ptrCast(self.string_bytes.items.ptr)) + id.value);
+pub fn lookupZ(self: *Self, id: Index) [:0]const u8 {
+    return std.mem.span(@as([*:0]const u8, @ptrCast(self.string_bytes.items.ptr)) + @intFromEnum(id));
 }

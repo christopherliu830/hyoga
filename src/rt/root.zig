@@ -119,7 +119,7 @@ pub fn hy_gfx_modelImport(gpu: *hy.gfx.Gpu, path: hy.ExternSliceConst(u8), setti
         std.log.err("import model failure: {}", .{e});
         return .none;
     };
-    return @enumFromInt(model.int());
+    return @enumFromInt(model.bits());
 }
 
 pub fn hy_gfx_modelCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.ModelCreateOptions) callconv(.c) hy.gfx.Model {
@@ -131,7 +131,7 @@ pub fn hy_gfx_modelCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.ModelCreateOptions) cal
         .material = @bitCast(@intFromEnum(opts.material)),
         .transform = opts.transform,
     }) catch unreachable;
-    return @enumFromInt(model.int());
+    return @enumFromInt(model.bits());
 }
 
 pub fn hy_gfx_modelDupe(gpu: *hy.gfx.Gpu, original_model: hy.gfx.Model, options: hy.gfx.ModelDupeOptions) callconv(.c) hy.gfx.Model {
@@ -144,7 +144,7 @@ pub fn hy_gfx_modelDupe(gpu: *hy.gfx.Gpu, original_model: hy.gfx.Model, options:
         std.log.err("dupe model failure: {}", .{e});
         return .none;
     };
-    return @enumFromInt(model.int());
+    return @enumFromInt(model.bits());
 }
 
 pub fn hy_gfx_modelDestroy(gpu: *hy.gfx.Gpu, model: hy.gfx.Model) callconv(.c) void {
@@ -164,7 +164,7 @@ pub fn hy_gfx_modelBounds(gpu: *hy.gfx.Gpu, model: hy.gfx.Model) callconv(.c) hy
 
 pub fn hy_gfx_modelPrimitive(gpu: *hy.gfx.Gpu, shape: hy.gfx.PrimitiveShape) callconv(.c) hy.gfx.Model {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
-    return @enumFromInt(rt_gpu.modelPrimitive(@enumFromInt(@intFromEnum(shape))).int());
+    return @enumFromInt(rt_gpu.modelPrimitive(@enumFromInt(@intFromEnum(shape))).bits());
 }
 
 pub fn hy_gfx_modelMaterial(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Model) callconv(.c) hy.gfx.MaterialHandle {
@@ -172,7 +172,7 @@ pub fn hy_gfx_modelMaterial(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Model) callconv(.c) hy
     const rt_model: gfx.Model = @bitCast(@intFromEnum(hdl));
     const model = rt_gpu.models.get(rt_model) catch unreachable;
     const material = model.mesh.material;
-    return @enumFromInt(material.int());
+    return @enumFromInt(material.bits());
 }
 
 pub fn hy_gfx_modelWaitLoad(gpu: *hy.gfx.Gpu, model: hy.gfx.Model, max: u64) callconv(.c) bool {
@@ -186,7 +186,7 @@ pub fn hy_gfx_materialLoad(gpu: *hy.gfx.Gpu, path: hy.ExternSliceConst(u8)) call
         std.log.err("Error loading material: {}\n", .{e});
         return .none;
     };
-    return @enumFromInt(hdl.int());
+    return @enumFromInt(hdl.bits());
 }
 
 pub fn hy_gfx_materialReload(gpu: *hy.gfx.Gpu, hdl: hy.gfx.MaterialHandle) callconv(.c) void {
@@ -199,12 +199,12 @@ pub fn hy_gfx_materialReload(gpu: *hy.gfx.Gpu, hdl: hy.gfx.MaterialHandle) callc
 pub fn hy_gfx_materialCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.MaterialCreateOptions) callconv(.c) hy.gfx.MaterialHandle {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
     const hdl = rt_gpu.materialCreate(opts);
-    return @enumFromInt(hdl.int());
+    return @enumFromInt(hdl.bits());
 }
 
 pub fn hy_gfx_materialDupe(gpu: *hy.gfx.Gpu, hdl: hy.gfx.MaterialHandle) callconv(.c) hy.gfx.MaterialHandle {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
-    return @enumFromInt(rt_gpu.materialDupe(@bitCast(@intFromEnum(hdl))).int());
+    return @enumFromInt(rt_gpu.materialDupe(@bitCast(@intFromEnum(hdl))).bits());
 }
 
 pub fn hy_gfx_materialDestroy(gpu: *hy.gfx.Gpu, hdl: hy.gfx.MaterialHandle) callconv(.c) void {
@@ -238,7 +238,7 @@ pub fn hy_gfx_spriteCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.SpriteCreateOptions) c
         return .none;
     };
 
-    return @enumFromInt(hdl.int());
+    return @enumFromInt(hdl.bits());
 }
 
 pub fn hy_gfx_spriteDestroy(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Model) callconv(.c) void {
@@ -264,7 +264,7 @@ pub fn hy_gfx_spriteCurrentAnimationFrame(gpu: *hy.gfx.Gpu, sprite: *hy.gfx.Spri
 pub fn hy_gfx_spriteDupe(gpu: *hy.gfx.Gpu, hdl: hy.gfx.Model) callconv(.c) hy.gfx.Model {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
     const dupe_hdl = rt_gpu.spriteDupe(@bitCast(@intFromEnum(hdl)));
-    return @enumFromInt(dupe_hdl.int());
+    return @enumFromInt(dupe_hdl.bits());
 }
 
 pub fn hy_gfx_textureImport(gpu: *hy.gfx.Gpu, path: hy.ExternSliceConst(u8)) callconv(.c) hy.gfx.TextureHandle {
@@ -273,13 +273,13 @@ pub fn hy_gfx_textureImport(gpu: *hy.gfx.Gpu, path: hy.ExternSliceConst(u8)) cal
         std.log.err("texture import failure: {}", .{e});
         return .none;
     };
-    return @enumFromInt(int.value);
+    return @enumFromInt(@intFromEnum(int));
 }
 
 pub fn hy_gfx_passCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.PassCreateOptions) callconv(.c) hy.gfx.PassHandle {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
     const hdl = rt_gpu.passCreate(opts);
-    return @enumFromInt(hdl.int());
+    return @enumFromInt(hdl.bits());
 }
 
 pub fn hy_gfx_passDestroy(gpu: *hy.gfx.Gpu, hdl: hy.gfx.PassHandle) callconv(.c) void {

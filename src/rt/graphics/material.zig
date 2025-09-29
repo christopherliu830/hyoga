@@ -12,7 +12,6 @@ const Strint = @import("../strintern.zig");
 
 const panic = std.debug.panic;
 const max_uniform_limit = 8;
-const empty_uniform_array = [_]Strint.ID{.invalid} ** 8;
 
 pub const Handle = SlotMap(Material).Handle;
 
@@ -22,8 +21,8 @@ pub const ShaderDefinition = struct {
     num_storage_buffers: u32 = 0,
     num_uniform_buffers: u32 = 0,
     textures: [4]?hy.gfx.TextureType = @splat(null),
-    storage_buffers: [max_uniform_limit]Strint.ID,
-    uniforms: [max_uniform_limit]Strint.ID,
+    storage_buffers: [max_uniform_limit]Strint.Index,
+    uniforms: [max_uniform_limit]Strint.Index,
 };
 
 // Specification for the resource JSON
@@ -340,10 +339,10 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions) !MaterialTemplate {
 
     var vert_textures: [4]?hy.gfx.TextureType = @splat(null);
     var frag_textures: [4]?hy.gfx.TextureType = @splat(null);
-    var vert_uniforms: [max_uniform_limit]Strint.ID = empty_uniform_array;
-    var frag_uniforms: [max_uniform_limit]Strint.ID = empty_uniform_array;
-    var vert_storages: [max_uniform_limit]Strint.ID = empty_uniform_array;
-    var frag_storages: [max_uniform_limit]Strint.ID = empty_uniform_array;
+    var vert_uniforms: [max_uniform_limit]Strint.Index = @splat(.none);
+    var frag_uniforms: [max_uniform_limit]Strint.Index = @splat(.none);
+    var vert_storages: [max_uniform_limit]Strint.Index = @splat(.none);
+    var frag_storages: [max_uniform_limit]Strint.Index = @splat(.none);
 
     inline for (.{
         .{ info.vertex, &vert_textures, &vert_uniforms, &vert_storages },
@@ -367,13 +366,13 @@ pub fn readFromPath(gpu: *Gpu, options: MaterialReadOptions) !MaterialTemplate {
             }
             if (prog.uniforms) |uniforms| {
                 for (uniforms, 0..) |uniform, i| {
-                    const id = try gpu.strint.from(uniform);
+                    const id = try gpu.string_table.from(uniform);
                     prog_uniforms[i] = id;
                 }
             }
             if (prog.storage_buffers) |storages| {
                 for (storages, 0..) |storage, i| {
-                    const id = try gpu.strint.from(storage);
+                    const id = try gpu.string_table.from(storage);
                     prog_storages[i] = id;
                 }
             }
