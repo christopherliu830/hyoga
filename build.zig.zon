@@ -6,6 +6,15 @@
     .dependencies = .{
         .lib = .{ .path = "modules/lib" },
         .hyoga_rt = .{ .path = "modules/rt" },
+        .box2d = .{ .path = "modules/box2d" },
+        .sdl = .{ .path = "modules/sdl" },
+        .sdl_mixer = .{ .path = "modules/sdl_mixer" },
+        .sdl_ttf = .{ .path = "modules/sdl_ttf" },
+        .assimp = .{ .path = "modules/assimp" },
+        .stb_image = .{ .path = "modules/stb_image" },
+        .hyoga_lib = .{ .path = "modules/lib" },
+        .tracy = .{ .path = "modules/tracy" },
+        .zclay = .{ .path = "modules/clay" },
     },
     .paths = .{""},
 }

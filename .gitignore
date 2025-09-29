@@ -1,10 +1,10 @@
 .DS_Store
+.idea
+.vs
 
 .zig-cache
 zig-cache
 zig-out
-.idea
-.vs
 assets
 
 # Built shader files

@@ -442,9 +442,10 @@ pub fn hy_p2_shapeExtra(shape: hy.p2.Shape) callconv(.c) hy.p2.ShapeExtra {
     return Phys2.shapeExtra(rt_shape);
 }
 
-pub fn hy_p2_eventPump(p2_ctx: *hy.p2.Context, buffer: hy.ExternSlice(u8)) callconv(.c) u32 {
+pub fn hy_p2_eventPump(p2_ctx: *hy.p2.Context, buffer: hy.ExternSlice(hy.p2.Event)) callconv(.c) u32 {
     const rt_p2_ctx: *Phys2 = @ptrCast(@alignCast(p2_ctx));
-    return rt_p2_ctx.hit_events.pump(buffer.asSlice());
+    const copy_len = rt_p2_ctx.eventPump(buffer.asSlice());
+    return copy_len;
 }
 
 pub fn hy_p2_overlapLeaky(p2_ctx: *hy.p2.Context, arena: hy.ExternAllocator, shape: *const hy.p2.ShapeConfig, origin: hym.Vec2) callconv(.c) hy.ExternSlice(hy.p2.Shape) {

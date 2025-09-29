@@ -172,6 +172,13 @@ pub const Event = extern struct {
     other: Body,
     point: hym.Vec2,
     normal: hym.Vec2,
+
+    pub const nil: Event = .{
+        .body = .none,
+        .other = .none,
+        .point = .zero,
+        .normal = .zero,
+    };
 };
 
 pub const OverlapCallback = *const fn (Body, ?*anyopaque) callconv(.c) bool;
@@ -205,9 +212,9 @@ pub const Context = struct {
         return proc.hy_p2_bodyPosition(world, body);
     }
 
-    pub fn eventPump(world: *Context, buffer: []u8) []align(1) Event {
+    pub fn eventPump(world: *Context, buffer: []Event) u32 {
         const len = proc.hy_p2_eventPump(world, .from(buffer));
-        return @ptrCast(buffer[0..len]);
+        return len;
     }
 
     pub fn overlapLeaky(phys2: *Context, arena: std.mem.Allocator, shape: *const ShapeConfig, origin: hym.Vec2) []Shape {

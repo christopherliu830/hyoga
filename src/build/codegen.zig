@@ -147,16 +147,20 @@ fn printFile(alloc: std.mem.Allocator, ast: std.zig.Ast, mode: Mode) ![:0]u8 {
     var aw: std.Io.Writer.Allocating = .init(alloc);
     const w = &aw.writer;
 
-    try w.print("/// Hyoga generated file.\n", .{});
-    try w.print("const std = @import(\"std\");\n", .{});
+    try w.print(
+        \\/// Hyoga generated file.
+        \\const std = @import("std");
+    , .{});
 
     switch (mode) {
-        .rt => try w.print("const hy = @import(\"hyoga\");", .{}),
-        .lib => try w.print("const hy = @import(\"../root.zig\");", .{}),
+        .rt => try w.print("const hy = @import(\"hyoga\");\n", .{}),
+        .lib => try w.print("const hy = @import(\"../root.zig\");\n", .{}),
     }
 
-    try w.print("const hym = hy.math;", .{});
-    try w.print("pub const ProcTable = extern struct {{", .{});
+    try w.print(
+        \\const hym = hy.math;
+        \\pub const ProcTable = extern struct {{
+    , .{});
 
     for (ast.rootDecls()) |node_idx| {
         switch (ast.nodeTag(node_idx)) {
@@ -180,8 +184,10 @@ fn printFile(alloc: std.mem.Allocator, ast: std.zig.Ast, mode: Mode) ![:0]u8 {
     try w.print("}};\n\n", .{});
 
     if (mode == .rt) {
-        try w.print("const root = @import(\"../root.zig\");", .{});
-        try w.print("pub const table: ProcTable = .{{", .{});
+        try w.print(
+            \\const root = @import("../root.zig");
+            \\pub const table: ProcTable = .{{
+        , .{});
 
         for (ast.rootDecls()) |node_idx| {
             switch (ast.nodeTag(node_idx)) {

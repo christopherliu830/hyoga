@@ -71,7 +71,7 @@ pub const ProcTable = extern struct {
     hy_p2_bodyVelocity: *const fn (body: hy.p2.Body) callconv(.c) hym.Vec2,
     hy_p2_bodyVelocitySet: *const fn (body: hy.p2.Body, velocity: hym.Vec2) callconv(.c) void,
     hy_p2_shapeExtra: *const fn (shape: hy.p2.Shape) callconv(.c) hy.p2.ShapeExtra,
-    hy_p2_eventPump: *const fn (p2_ctx: *hy.p2.Context, buffer: hy.ExternSlice(u8)) callconv(.c) u32,
+    hy_p2_eventPump: *const fn (p2_ctx: *hy.p2.Context, buffer: hy.ExternSlice(hy.p2.Event)) callconv(.c) u32,
     hy_p2_overlapLeaky: *const fn (p2_ctx: *hy.p2.Context, arena: hy.ExternAllocator, shape: *const hy.p2.ShapeConfig, origin: hym.Vec2) callconv(.c) hy.ExternSlice(hy.p2.Shape),
     hy_p2_castRayLeaky: *const fn (p2_ctx: *hy.p2.Context, arena: hy.ExternAllocator, opts: hy.p2.RaycastOptions) callconv(.c) hy.ExternSlice(hy.p2.RaycastHit),
     hy_p2_castCircleLeaky: *const fn (p2_ctx: *hy.p2.Context, arena: hy.ExternAllocator, opts: hy.p2.CastCircleOptions) callconv(.c) hy.ExternSlice(hy.p2.RaycastHit),

@@ -12,7 +12,7 @@ timestep: f32 = 1.0 / 120.0,
 interp_alpha: f32 = 1,
 prev_positions: std.AutoArrayHashMapUnmanaged(Body, hym.Vec2) = .{},
 gpu: *gfx.Gpu,
-hit_events: hy.event.EventQueue(Event) = .empty,
+hit_events: std.ArrayList(hy.p2.Event) = .empty,
 
 /// accumulated time of simulation in ns since engine start.
 current_time: u64 = 0,
@@ -34,8 +34,12 @@ pub const HitEvent = extern struct {
 pub const Event = extern struct {
     body: b2.Body,
     other: b2.Body,
-    normal: hym.Vec2,
     point: hym.Vec2,
+    normal: hym.Vec2,
+
+    comptime {
+        hy.meta.assertMatches(Event, hy.p2.Event);
+    }
 };
 
 comptime {
@@ -62,7 +66,7 @@ pub fn init(allocator: std.mem.Allocator, gpu: *gfx.Gpu) Phys2 {
 }
 
 pub fn deinit(self: *Phys2) void {
-    self.hit_events.array.deinit(self.allocator);
+    self.hit_events.deinit(self.allocator);
     self.prev_positions.deinit(self.allocator);
 }
 
@@ -387,9 +391,9 @@ fn emitContacts(self: *Phys2) void {
         const body_a = hit.shape_a.getBody();
         const body_b = hit.shape_b.getBody();
 
-        self.hit_events.array.append(self.allocator, .{
-            .body = body_a,
-            .other = body_b,
+        self.hit_events.append(self.allocator, .{
+            .body = @enumFromInt(@intFromEnum(body_a)),
+            .other = @enumFromInt(@intFromEnum(body_b)),
             .normal = @bitCast(hit.normal),
             .point = @bitCast(hit.point),
         }) catch unreachable;
@@ -406,13 +410,20 @@ fn emitOverlaps(self: *Phys2) void {
         const db_pos: hym.Vec2 = @bitCast(dynamic_body.getPosition());
         const s_pos: hym.Vec2 = @bitCast(sensor_body.getPosition());
         const normal = s_pos.sub(db_pos).normal();
-        self.hit_events.array.append(self.allocator, .{
-            .body = sensor_body,
-            .other = dynamic_body,
+        self.hit_events.append(self.allocator, .{
+            .body = @enumFromInt(@intFromEnum(sensor_body)),
+            .other = @enumFromInt(@intFromEnum(dynamic_body)),
             .normal = normal,
             .point = db_pos,
         }) catch unreachable;
     }
+}
+
+pub fn eventPump(self: *Phys2, buffer: []hy.p2.Event) u32 {
+    const copy_len = @min(buffer.len, self.hit_events.items.len);
+    @memcpy(buffer[0..copy_len], self.hit_events.items[0..copy_len]);
+    self.hit_events.replaceRangeAssumeCapacity(0, copy_len, &.{});
+    return @intCast(copy_len);
 }
 
 fn debugDrawSolidPolygon(transform: b2.Transform, vertices: [*]const b2.Vec2, vertex_count: c_int, radius: f32, hex_color: b2.HexColor, context: ?*anyopaque) callconv(.c) void {
