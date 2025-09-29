@@ -49,8 +49,13 @@ const PipelineInfo = struct {
 
 const MaterialInfo = struct {
     program: [:0]const u8,
-    textures: std.json.ArrayHashMap([:0]const u8) = .{},
+    textures: std.json.ArrayHashMap(TextureInfo) = .{},
     params_size: u32 = 0,
+
+    const TextureInfo = union(enum) {
+        path: [:0]const u8,
+        pass_result: [:0]const u8,
+    };
 
     fn load(path: []const u8, arena: std.mem.Allocator) !MaterialInfo {
         const info_path = try std.mem.concat(arena, u8, &.{ path, ".mat.json" });
@@ -153,8 +158,13 @@ pub const Materials = struct {
                 std.log.err("Unknown texture type {s} in material {s}", .{ entry.key_ptr.*, path });
                 return error.MaterialLoadError;
             };
-            const texture = try self.gpu.textures.read(entry.value_ptr.*);
-            textures.put(tag, .{ .handle = texture });
+
+            const texture: tx.TextureId = switch (entry.value_ptr.*) {
+                .path => |tx_path| .{ .handle = try self.gpu.textures.read(tx_path) },
+                .pass_result => |tx_pass_name| .{ .pass_result = try self.gpu.string_table.from(tx_pass_name) },
+            };
+
+            textures.put(tag, texture);
         }
 
         return .{

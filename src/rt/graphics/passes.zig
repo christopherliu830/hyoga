@@ -2,6 +2,7 @@ const std = @import("std");
 const hy = @import("hyoga");
 const sdl = @import("sdl");
 const Gpu = @import("gpu.zig");
+const StringTable = @import("../strintern.zig");
 const gfx = @import("root.zig");
 const mt = @import("material.zig");
 const mdl = @import("model.zig");
@@ -17,7 +18,7 @@ const panic = std.debug.panic;
 /// Render objects onto a texture
 pub const Forward = struct {
     device: *sdl.gpu.Device,
-    name: [:0]const u8,
+    name: StringTable.Index,
     gpu: *Gpu,
     target: sdl.gpu.ColorTargetInfo,
     tex_info: sdl.gpu.TextureCreateInfo,
@@ -28,11 +29,14 @@ pub const Forward = struct {
     transforms_buffer: buf.DynamicBuffer(hym.Mat4),
     match_window_size: bool,
 
+    // <0 is reserved for builtins
+    order: i32,
+
     render_list: rbl.RenderList,
 
     pub const ForwardOptions = struct {
         gpu: *Gpu,
-        name: [:0]const u8,
+        name: StringTable.Index,
         clear_color: sdl.pixels.FColor = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
 
         load_op: sdl.gpu.LoadOp = .clear,
@@ -51,6 +55,7 @@ pub const Forward = struct {
         match_window_size: bool = true,
 
         blit_material: gfx.MaterialHandle = .none,
+        order: i32,
     };
 
     pub fn init(device: *sdl.gpu.Device, options: ForwardOptions) Forward {
@@ -71,7 +76,8 @@ pub const Forward = struct {
         };
 
         const dest_tex = device.createTexture(&tex_info) catch panic("could not create texture", .{});
-        device.setTextureName(dest_tex, options.name.ptr);
+        const name = options.gpu.string_table.lookupZ(options.name);
+        device.setTextureName(dest_tex, name.ptr);
 
         const target: sdl.gpu.ColorTargetInfo = .{
             .texture = dest_tex,
@@ -99,7 +105,7 @@ pub const Forward = struct {
                 };
 
                 const depth_tex = device.createTexture(&ds_tex_info) catch panic("could not create texture", .{});
-                device.setTextureName(depth_tex, options.name.ptr);
+                device.setTextureName(depth_tex, name.ptr);
 
                 break :blk .{
                     .clear_depth = 1,
@@ -127,14 +133,17 @@ pub const Forward = struct {
             .transforms_buffer = buf.DynamicBuffer(hym.Mat4).init(options.gpu.device, &options.gpu.storage_allocator, 1024 * 128, "Object Mats") catch unreachable,
             .match_window_size = options.match_window_size,
             .blit_material = options.blit_material,
+            .order = options.order,
         };
     }
 
     pub fn deinit(self: *Forward) void {
+        if (self.order == std.math.minInt(u32)) return;
         self.gpu.storage_allocator.destroy(self.transforms_buffer.buffer);
         self.device.releaseTexture(self.texture());
         if (self.depthStencilTexture()) |dst| self.device.releaseTexture(dst);
         self.render_list.deinit();
+        self.order = std.math.minInt(i32);
     }
 
     pub fn targets(self: *const Forward) Gpu.PassTargets {
@@ -158,11 +167,12 @@ pub const Forward = struct {
         self.device.releaseTexture(self.texture());
         self.device.releaseTexture(self.depthStencilTexture());
 
+        const name = self.gpu.string_table.lookupZ(self.name);
         self.target.texture = self.device.createTexture(&self.tex_info) catch @panic("error creating texture");
-        self.device.setTextureName(self.target.texture, self.name.ptr);
+        self.device.setTextureName(self.target.texture, name.ptr);
         if (self.ds_target) |*target| {
             target.texture = self.device.createTexture(&self.ds_tex_info.?) catch @panic("error creating texture");
-            self.device.setTextureName(target.texture, self.name.ptr);
+            self.device.setTextureName(target.texture, name.ptr);
         }
     }
 
@@ -260,5 +270,48 @@ pub const Forward = struct {
                 total_instances_rendered += num_instances;
             }
         }
+    }
+
+    pub const BlitOptions = struct {
+        cmd: *sdl.gpu.CommandBuffer,
+        target: *sdl.gpu.Texture,
+        load_op: sdl.gpu.LoadOp,
+        clear_color: sdl.FColor,
+    };
+
+    pub fn blit(self: Forward, opts: BlitOptions) !void {
+        const cmd = opts.cmd;
+
+        const fp_color: sdl.gpu.ColorTargetInfo = .{
+            .texture = opts.target,
+            .load_op = opts.load_op,
+            .store_op = .store,
+            .clear_color = opts.clear_color,
+            .cycle = false,
+        };
+
+        const rp = cmd.beginRenderPass(&.{fp_color}, 1, null) orelse {
+            std.log.err("error begin render pass {s}", .{sdl.getError()});
+            return error.SdlError;
+        };
+        defer rp.end();
+
+        if (self.blit_material.valid()) {
+            const material = self.gpu.materials.get(self.blit_material).?;
+            rp.bindGraphicsPipeline(material.pipeline);
+            self.gpu.materialBind(cmd, rp, material);
+        } else {
+            const pipeline = self.gpu.materials.templates.get(.screen_blit).pipeline;
+            rp.bindGraphicsPipeline(pipeline);
+
+            const binding: sdl.gpu.TextureSamplerBinding = .{
+                .sampler = self.gpu.default_assets.sampler,
+                .texture = self.texture(),
+            };
+
+            rp.bindFragmentSamplers(0, &.{binding}, 1);
+        }
+
+        rp.drawPrimitives(3, 1, 0, 0);
     }
 };

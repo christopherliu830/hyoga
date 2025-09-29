@@ -86,12 +86,7 @@ pub const StringIDs = struct {
     }
 };
 
-pub const PassType = enum(u32) {
-    default,
-    outlined,
-    ui,
-    custom,
-};
+pub const PassIndex = hy.gfx.PassIndex;
 
 pub const Sprite = extern struct {
     width: u32,
@@ -164,8 +159,7 @@ window_state: WindowState = .{},
 text_engine: *ttf.TextEngine,
 
 // Renderable State
-passes: std.EnumArray(PassType, ForwardPass),
-custom_passes: hy.SlotMap(ForwardPass) = .empty,
+custom_passes: std.ArrayList(ForwardPass) = .empty,
 textures: tx.Textures,
 models: Models,
 materials: mt.Materials,
@@ -189,8 +183,6 @@ pub fn init(window: *Window, loader: *Loader, string_table: *StringTable, gpa: s
 
     log.info("[GPU] Selected backend: {s}", .{device.getDeviceDriver()});
 
-    const dims = sdl.video.windowSizeInPixels(window.hdl) catch unreachable;
-
     var self = gpa.create(Gpu) catch hy.err.oom();
 
     self.* = .{
@@ -213,53 +205,39 @@ pub fn init(window: *Window, loader: *Loader, string_table: *StringTable, gpa: s
         .models = .init(loader, string_table, self.gpa),
         .materials = .init(self),
         .uniforms = .empty,
+
         .im = .{
             .arena = .init(gpa),
             .buffer_allocator = .init(self.device, self.gpa),
         },
 
-        .passes = .init(.{
-            .default = .init(self.device, .{
-                .name = "standard",
-                .gpu = self,
-                .depth_enabled = true,
-                .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
-                .dest_usage = .{ .color_target = true, .sampler = true },
-                .dest_tex_width = @as(u16, @intCast(dims[0])),
-                .dest_tex_height = @as(u16, @intCast(dims[1])),
-                .dest_tex_scale = 0.6,
-            }),
-
-            .outlined = .init(self.device, .{
-                .name = "outline",
-                .gpu = self,
-                .depth_enabled = false,
-                .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
-                .dest_usage = .{ .color_target = true, .sampler = true },
-                .dest_tex_width = @as(u16, @intCast(dims[0])),
-                .dest_tex_height = @as(u16, @intCast(dims[1])),
-                .dest_tex_scale = 0.6,
-                .depth_load_op = .load,
-            }),
-
-            .ui = .init(self.device, .{
-                .name = "ui",
-                .gpu = self,
-                .sample_count = .@"1",
-                .depth_enabled = false,
-                .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
-                .dest_usage = .{
-                    .color_target = true,
-                    .sampler = true,
-                },
-                .dest_tex_width = @as(u16, @intCast(dims[0])),
-                .dest_tex_height = @as(u16, @intCast(dims[1])),
-                .dest_tex_scale = 1,
-            }),
-
-            .custom = undefined,
-        }),
+        .custom_passes = .empty,
     };
+
+    try self.custom_passes.ensureUnusedCapacity(self.gpa, std.enums.values(PassIndex).len);
+
+    const default_pass = try self.passCreate(.{
+        .name = .from("hy_standard"),
+        .depth_enabled = true,
+        .scale = 0.6,
+        .order = -1,
+    });
+    std.debug.assert(default_pass == .default);
+
+    const outline_pass = try self.passCreate(.{
+        .name = .from("hy_outline"),
+        .depth_enabled = false,
+        .scale = 0.6,
+        .order = -1,
+    });
+    std.debug.assert(outline_pass == .outlined);
+
+    const ui_pass = try self.passCreate(.{
+        .name = .from("hy_ui"),
+        .depth_enabled = false,
+        .order = -1,
+    });
+    std.debug.assert(ui_pass == .ui);
 
     self.textures.init(self.device, loader, string_table, self.gpa);
     self.textures.image_loader.use();
@@ -388,21 +366,8 @@ pub fn shutdown(self: *Gpu) void {
         std.debug.panic("Could not wait for idle: {s}", .{sdl.getError()});
     };
 
-    {
-        var it = self.custom_passes.iterator();
-        while (it.nextPtr()) |pass| {
-            pass.deinit();
-        }
-        self.custom_passes.deinit(self.gpa);
-    }
-
-    {
-        var it = self.passes.iterator();
-        while (it.next()) |kv| {
-            if (kv.key == .custom) continue;
-            kv.value.deinit();
-        }
-    }
+    for (self.custom_passes.items) |*pass| pass.deinit();
+    self.custom_passes.deinit(self.gpa);
 
     self.device.releaseWindow(self.window.hdl);
 
@@ -512,21 +477,9 @@ pub fn begin(self: *Gpu) !?*sdl.gpu.CommandBuffer {
         return error.AcquireSwapchainError;
     } else if (swapchain) |s| {
         if (self.window_state.prev_drawable_w != drawable_w or self.window_state.prev_drawable_h != drawable_h) {
-            {
-                var it = self.passes.iterator();
-                while (it.next()) |kv| {
-                    if (kv.value.match_window_size) {
-                        kv.value.resize(drawable_w, drawable_h);
-                    }
-                }
-            }
-
-            {
-                var it = self.custom_passes.iterator();
-                while (it.nextPtr()) |pass| {
-                    if (pass.match_window_size) {
-                        pass.resize(drawable_w, drawable_h);
-                    }
+            for (self.custom_passes.items) |*pass| {
+                if (pass.match_window_size) {
+                    pass.resize(drawable_w, drawable_h);
                 }
             }
         }
@@ -561,118 +514,88 @@ pub fn render(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, scene: *Scene, time: u64)
     try self.uploadToBuffer(self.default_assets.sprite_buf.buffer.hdl, 0, std.mem.sliceAsBytes(self.materials.param_buf.items));
 
     // Default pass
-    const fp = self.passes.getPtr(.default);
+    const fp = &self.custom_passes.items[@intFromEnum(PassIndex.default)];
     {
         const zone_fp_render = tracy.initZone(@src(), .{ .name = "gfx.fp.render" });
         defer zone_fp_render.deinit();
         try fp.render(cmd);
-
-        const fp_color: sdl.gpu.ColorTargetInfo = .{
-            .texture = self.default_assets.active_target.?,
+        try fp.blit(.{
+            .cmd = cmd,
+            .target = self.default_assets.active_target.?,
             .load_op = .clear,
-            .store_op = .store,
             .clear_color = @bitCast(self.clear_color),
-            .cycle = false,
-        };
-
-        const fp_pass = cmd.beginRenderPass(&.{fp_color}, 1, null) orelse
-            panic("error begin render pass {s}", .{sdl.getError()});
-        defer fp_pass.end();
-        fp_pass.bindGraphicsPipeline(self.materials.templates.get(.screen_blit).pipeline);
-        const binding: sdl.gpu.TextureSamplerBinding = .{
-            .sampler = self.default_assets.sampler,
-            .texture = self.passes.getPtr(.default).texture(),
-        };
-        fp_pass.bindFragmentSamplers(0, &.{binding}, 1);
-        fp_pass.drawPrimitives(3, 1, 0, 0);
+        });
     }
 
     // Copy default pass depth texture to outlined (they share depth)
-    const op = self.passes.getPtr(.outlined);
+    const op = &self.custom_passes.items[@intFromEnum(PassIndex.outlined)];
     op.ds_target = fp.ds_target;
     op.ds_target.?.load_op = .load;
     op.ds_target.?.cycle = false;
     defer op.ds_target = null;
 
-    // Blit outline pass onto screen using post process shader
-    try self.passes.getPtr(.outlined).render(cmd);
+    // Blit outline pass onto screen using post process (outline) shader
+    try op.render(cmd);
     self.postProcessBlit(
         cmd,
         self.default_assets.active_target.?,
-        self.passes.getPtr(.outlined).texture(),
-        self.passes.getPtr(.outlined).texture(),
+        op.texture(),
+        op.texture(),
         self.uniforms.get(self.ids.viewport_size).?.f32x4,
     );
 
     {
-        var it = self.custom_passes.iterator();
-        while (it.nextPtr()) |pass| {
+        for (self.custom_passes.items[@intFromEnum(PassIndex.custom_start)..]) |*pass| {
+            if (pass.order < 0) continue;
             const zone_custom_render = tracy.initZone(@src(), .{ .name = "gfx.custom.render" });
             defer zone_custom_render.deinit();
             try pass.render(cmd);
 
-            const color: sdl.gpu.ColorTargetInfo = .{
-                .texture = self.default_assets.active_target.?,
+            try pass.blit(.{
+                .cmd = cmd,
+                .target = self.default_assets.active_target.?,
                 .load_op = .load,
-                .store_op = .store,
                 .clear_color = @bitCast(self.clear_color),
-                .cycle = false,
-            };
-
-            const render_pass = cmd.beginRenderPass((&color)[0..1], 1, null) orelse
-                panic("error begin render pass {s}", .{sdl.getError()});
-            defer render_pass.end();
-
-            const pipeline = if (pass.blit_material.valid())
-                self.materials.get(pass.blit_material).?.pipeline
-            else
-                self.materials.templates.get(.screen_blit).pipeline;
-
-            render_pass.bindGraphicsPipeline(pipeline);
-
-            const binding = [_]sdl.gpu.TextureSamplerBinding{
-                .{ .sampler = self.default_assets.sampler, .texture = pass.texture() },
-                .{ .sampler = self.default_assets.sampler, .texture = fp.texture() },
-            };
-
-            render_pass.bindFragmentSamplers(0, &binding, 2);
-
-            render_pass.drawPrimitives(3, 1, 0, 0);
+            });
         }
     }
 
-    const im_drawn = try self.im.draw(
-        self,
-        cmd,
-        self.passes.getPtr(.ui).texture(),
-    );
+    const uip = self.custom_passes.items[@intFromEnum(PassIndex.ui)];
+    const im_drawn = try self.im.draw(self, cmd, uip.texture());
 
     if (im_drawn) {
-        // Blit UI Immediates onto screen
-        const color: sdl.gpu.ColorTargetInfo = .{
-            .texture = self.default_assets.active_target.?,
+        try uip.blit(.{
+            .cmd = cmd,
+            .target = self.default_assets.active_target.?,
             .load_op = .load,
-            .store_op = .store,
             .clear_color = @bitCast(self.clear_color),
-            .cycle = false,
-        };
+        });
 
-        const pass = cmd.beginRenderPass(&.{color}, 1, null) orelse
-            panic("error begin render pass {s}", .{sdl.getError()});
-        defer pass.end();
+        // Blit UI Immediates onto screen
+        // const color: sdl.gpu.ColorTargetInfo = .{
+        //     .texture = self.default_assets.active_target.?,
+        //     .load_op = .load,
+        //     .store_op = .store,
+        //     .clear_color = @bitCast(self.clear_color),
+        //     .cycle = false,
+        // };
 
-        pass.bindGraphicsPipeline(self.materials.templates.get(.screen_blit).pipeline);
+        // const pass = cmd.beginRenderPass(&.{color}, 1, null) orelse
+        //     panic("error begin render pass {s}", .{sdl.getError()});
+        // defer pass.end();
 
-        const binding = [_]sdl.gpu.TextureSamplerBinding{
-            .{
-                .sampler = self.default_assets.sampler,
-                .texture = self.passes.getPtr(.ui).texture(),
-            },
-        };
+        // pass.bindGraphicsPipeline(self.materials.templates.get(.screen_blit).pipeline);
 
-        pass.bindFragmentSamplers(0, &binding, 1);
+        // const binding = [_]sdl.gpu.TextureSamplerBinding{
+        //     .{
+        //         .sampler = self.default_assets.sampler,
+        //         .texture = self.custom_passes.items[@intFromEnum(PassIndex.ui)].texture(),
+        //     },
+        // };
 
-        pass.drawPrimitives(3, 1, 0, 0);
+        // pass.bindFragmentSamplers(0, &binding, 1);
+
+        // pass.drawPrimitives(3, 1, 0, 0);
     }
 }
 
@@ -736,7 +659,7 @@ pub fn draw(self: *Gpu, opts: DrawOptions) !void {
     defer zone_pass_draw.deinit();
 
     const cmd = opts.cmd;
-    const pass = opts.pass;
+    const render_pass = opts.pass;
     const num_first_instance = opts.num_first_instance;
     const num_instances = opts.num_instances;
     const mesh = opts.mesh;
@@ -749,7 +672,7 @@ pub fn draw(self: *Gpu, opts: DrawOptions) !void {
     const buffer = mesh.buffer;
 
     if (last_pipeline.* != material.pipeline) {
-        pass.bindGraphicsPipeline(material.pipeline);
+        render_pass.bindGraphicsPipeline(material.pipeline);
         last_pipeline.* = material.pipeline;
     }
 
@@ -760,6 +683,14 @@ pub fn draw(self: *Gpu, opts: DrawOptions) !void {
         0,
     } });
 
+    self.materialBind(cmd, render_pass, material);
+
+    render_pass.bindVertexBuffers(0, &.{ .buffer = buffer.hdl, .offset = @intCast(buffer.offset) }, 1);
+    render_pass.bindIndexBuffer(&.{ .buffer = buffer.hdl, .offset = @intCast(buffer.idx_start) }, .@"32bit");
+    render_pass.drawIndexedPrimitives(buffer.idxCount(), num_instances, 0, 0, 0);
+}
+
+pub fn materialBind(self: *Gpu, cmd: *sdl.gpu.CommandBuffer, render_pass: *sdl.gpu.RenderPass, material: mt.Material) void {
     inline for (.{
         .{
             material.vert_program_def,
@@ -781,7 +712,7 @@ pub fn draw(self: *Gpu, opts: DrawOptions) !void {
 
         for (program_def.storage_buffers, 0..) |storage_buffer_name, i| {
             if (self.uniforms.get(storage_buffer_name)) |value| {
-                pushStorageBuffer(pass, @intCast(i), &[_]*sdl.gpu.Buffer{value.buffer}, 1);
+                pushStorageBuffer(render_pass, @intCast(i), &[_]*sdl.gpu.Buffer{value.buffer}, 1);
             }
         }
 
@@ -807,18 +738,21 @@ pub fn draw(self: *Gpu, opts: DrawOptions) !void {
             const texture: *sdl.gpu.Texture = switch (tex_id) {
                 .target => |target| target,
                 .handle => |handle| self.textures.get(handle) catch self.default_assets.default_texture orelse self.default_assets.default_texture,
-                .pass_result => unreachable,
+                .pass_result => |name| blk: {
+                    for (self.custom_passes.items) |pass| {
+                        if (name == pass.name) {
+                            break :blk pass.texture();
+                        }
+                    }
+                    std.debug.panic("A material requested the result of pass {s} which doesn't exist", .{self.string_table.lookup(name)});
+                },
             };
 
             const binding = [_]sdl.gpu.TextureSamplerBinding{.{ .sampler = self.default_assets.sampler, .texture = texture }};
 
-            pushSampler(pass, @intCast(i), &binding, 1);
+            pushSampler(render_pass, @intCast(i), &binding, 1);
         }
     }
-
-    pass.bindVertexBuffers(0, &.{ .buffer = buffer.hdl, .offset = @intCast(buffer.offset) }, 1);
-    pass.bindIndexBuffer(&.{ .buffer = buffer.hdl, .offset = @intCast(buffer.idx_start) }, .@"32bit");
-    pass.drawIndexedPrimitives(buffer.idxCount(), num_instances, 0, 0, 0);
 }
 
 pub const BuildPipelineParams = struct {
@@ -1051,6 +985,7 @@ pub fn importModel(self: *Gpu, path: [*:0]const u8, settings: hy.gfx.ImportSetti
 
                 const ai_tex_id: [:0]u8 = str.data[0..str.len :0];
                 var tex_id: [:0]u8 = ai_tex_id;
+
                 const handle: TextureHandle = blk: {
                     if (import.getEmbeddedTexture(ai_tex_id.ptr)) |tex| {
                         _ = tex;
@@ -1089,7 +1024,7 @@ pub fn modelPrimitive(self: *Gpu, shape: primitives.Shape) Model {
 
 pub const RenderItemHandle = extern struct {
     index: rbl.RenderHandle,
-    pass: PassType,
+    pass: PassIndex,
 
     pub const none: RenderItemHandle = .{
         .pass = .default,
@@ -1103,7 +1038,7 @@ pub const RenderItemHandle = extern struct {
 pub const AddRenderableOptions = extern struct {
     model: mdl.Handle,
     time: u64 = 0,
-    pass: PassType,
+    pass: PassIndex,
 
     comptime {
         hy.meta.assertMatches(AddRenderableOptions, hy.gfx.AddRenderableOptions);
@@ -1111,14 +1046,14 @@ pub const AddRenderableOptions = extern struct {
 };
 
 pub fn instanceAdd(self: *Gpu, opts: AddRenderableOptions) hy.SlotMap(rbl.Instance).Handle {
-    const pass = self.passes.getPtr(opts.pass).?;
+    const pass = self.custom_passes.items[@intFromEnum(opts.pass)];
     const model = self.models.get(opts.model).?;
     const hdl = pass.render_list.instances.insert(self.gpa, .{ .mesh = model.children[0], .transforms = &.{} }) catch unreachable;
     return hdl;
 }
 
-pub fn instanceUpload(self: *Gpu, pass_hdl: PassType, instance_hdl: hy.SlotMap(rbl.Instance).Handle, items: []const hym.Mat4) void {
-    const pass = self.passes.getPtr(pass_hdl);
+pub fn instanceUpload(self: *Gpu, pass_hdl: PassIndex, instance_hdl: hy.SlotMap(rbl.Instance).Handle, items: []const hym.Mat4) void {
+    const pass = self.custom_passes.items[@intFromEnum(pass_hdl)];
     const instance = pass.render_list.instances.getPtr(instance_hdl).?;
     if (instance.transforms.len > 0) {
         self.gpa.free(instance.transforms);
@@ -1128,9 +1063,11 @@ pub fn instanceUpload(self: *Gpu, pass_hdl: PassType, instance_hdl: hy.SlotMap(r
 }
 
 pub fn renderableAdd(self: *Gpu, opts: AddRenderableOptions) !RenderItemHandle {
+    const pass = &self.custom_passes.items[@intFromEnum(opts.pass)];
+
     return .{
         .pass = opts.pass,
-        .index = try self.passes.getPtr(opts.pass).render_list.add(.{ .model = opts.model, .time = opts.time }),
+        .index = try pass.render_list.add(.{ .model = opts.model, .time = opts.time }),
     };
 }
 
@@ -1139,14 +1076,14 @@ pub fn renderableSetTransform(
     item: RenderItemHandle,
     transform: mat4.Mat4,
 ) void {
-    const pass = self.passes.getPtr(item.pass);
+    const pass = &self.custom_passes.items[@intFromEnum(item.pass)];
     const transform_ptr = pass.render_list.transformPtr(item.index);
     transform_ptr.* = transform;
 }
 
-pub fn renderableDestroy(self: *Gpu, handle: RenderItemHandle) void {
-    const renderables = &self.passes.getPtr(handle.pass).render_list;
-    renderables.remove(handle.index);
+pub fn renderableDestroy(self: *Gpu, item: RenderItemHandle) void {
+    const renderables = &self.custom_passes.items[@intFromEnum(item.pass)].render_list;
+    renderables.remove(item.index);
 }
 
 pub fn textSize(self: *Gpu, glyphs: []const u8) hym.Vec2 {
@@ -1206,7 +1143,7 @@ pub fn spriteCreate(self: *Gpu, opts: SpriteCreateOptions) !Model {
 }
 
 pub fn spriteRenderableWeakPtr(self: *Gpu, item: RenderItemHandle) ?*Sprite {
-    const render_list = &self.passes.getPtr(item.pass).render_list;
+    const render_list = &self.custom_passes.items[@intFromEnum(item.pass)].render_list;
     const instances = render_list.instances.getPtr(item.index.instances_hdl).?;
     const mat_hdl = instances.mesh.material;
     const mat = self.materials.get(mat_hdl) orelse return null;
@@ -1246,52 +1183,61 @@ pub fn clearColorSet(self: *Gpu, color: hym.Vec4) void {
     self.clear_color = color;
 }
 
-pub fn passCreate(self: *Gpu, opts: hy.gfx.PassCreateOptions) hy.SlotMap(ForwardPass).Handle {
+pub fn passCreate(self: *Gpu, opts: hy.gfx.PassCreateOptions) !PassIndex {
+    const idx: PassIndex = @enumFromInt(self.custom_passes.items.len);
     const width: u16 = if (opts.width != 0) opts.width else @intCast(hy.u32(self.window.dimensions().x()));
     const height: u16 = if (opts.height != 0) opts.height else @intCast(hy.u32(self.window.dimensions().y()));
 
     const clear_color = hy.Color.hexa(opts.clear_color).asf32x4Norm();
 
-    const pass: ForwardPass = .init(self.device, .{
+    const swapchain_format = self.device.getSwapchainTextureFormat(self.window.hdl);
+
+    const string_id = if (opts.name.len > 0)
+        try self.string_table.from(opts.name.asSliceZ())
+    else
+        try self.string_table.from("Unnamed Render Pass");
+
+    try self.custom_passes.append(self.gpa, .init(self.device, .{
         .gpu = self,
-        .name = if (opts.name.len > 0) opts.name.asSliceZ() else "Unnamed Render Pass",
-        .depth_enabled = opts.type != .ui,
-        .dest_format = self.device.getSwapchainTextureFormat(self.window.hdl),
+        .name = string_id,
+        .depth_enabled = opts.depth_enabled,
+        .dest_format = swapchain_format,
         .dest_usage = .{ .color_target = true, .sampler = true },
         .dest_tex_width = width,
         .dest_tex_height = height,
-        .clear_color = .{ .r = clear_color[0], .g = clear_color[1], .b = clear_color[2], .a = clear_color[3] },
+        .dest_tex_scale = opts.scale,
+        .clear_color = .{
+            .r = clear_color[0],
+            .g = clear_color[1],
+            .b = clear_color[2],
+            .a = clear_color[3],
+        },
         .match_window_size = opts.width == 0 and opts.height == 0,
         .blit_material = @bitCast(@intFromEnum(opts.blit_material)),
         .load_op = .clear,
-    });
+        .order = opts.order,
+    }));
 
-    const hdl = self.custom_passes.insert(self.gpa, pass) catch unreachable;
-    return hdl;
+    return idx;
 }
 
-pub fn passDestroy(self: *Gpu, hdl: gfx.PassHandle) void {
-    self.custom_passes.getPtr(hdl).?.deinit();
-    self.custom_passes.remove(hdl);
+pub fn passDestroy(self: *Gpu, hdl: PassIndex) void {
+    self.custom_passes.items[@intFromEnum(hdl)].deinit();
 }
 
-pub const PassAddOptions = extern struct {
-    pass: gfx.PassHandle,
-    model: mdl.Handle,
-    time: u64 = 0,
-};
+pub fn passAdd(self: *Gpu, opts: hy.gfx.PassAddOptions) gfx.Renderable {
+    const pass = &self.custom_passes.items[@intFromEnum(opts.pass)];
+    const model_hdl: mdl.Handle = @bitCast(@intFromEnum(opts.model));
+    const render_item = pass.render_list.add(.{ .model = model_hdl, .time = opts.time }) catch unreachable;
 
-pub fn passAdd(self: *Gpu, opts: PassAddOptions) gfx.Renderable {
-    const pass = self.custom_passes.getPtr(opts.pass).?;
-    const render_item = pass.render_list.add(.{ .model = opts.model, .time = opts.time }) catch unreachable;
     return .{
-        .pass = .custom,
+        .pass = opts.pass,
         .index = render_item,
     };
 }
 
-pub fn passClear(self: *Gpu, hdl: gfx.PassHandle) void {
-    const pass = self.custom_passes.getPtr(hdl).?;
+pub fn passClear(self: *Gpu, hdl: PassIndex) void {
+    const pass = &self.custom_passes.items[@intFromEnum(hdl)];
     pass.render_list.reset();
 }
 

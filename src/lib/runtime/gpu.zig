@@ -32,22 +32,15 @@ pub const TextureHandle = enum(u32) {
     _,
 };
 
-pub const PassHandle = enum(u64) {
-    none = 0,
-    _,
-};
-
 pub const Renderable = extern struct {
-    pass: PassType,
+    pass: PassIndex,
     instance_hdl: [2]u32 = @splat(0),
     transform_hdl: [2]u32 = @splat(0),
 
-    pub const none: Renderable = .{
-        .pass = .default,
-    };
+    pub const none: Renderable = .{ .pass = .none };
 
     pub fn valid(self: Renderable) bool {
-        return self.instance_hdl[1] != 0;
+        return self.pass != .none;
     }
 };
 
@@ -136,24 +129,28 @@ pub const ImportSettings = extern struct {
     },
 };
 
-pub const PassType = enum(u32) {
-    default,
-    outlined,
-    ui,
-    custom,
+pub const PassIndex = enum(u32) {
+    default = 0,
+    outlined = 1,
+    ui = 2,
+    custom_start = 3,
+    none = std.math.maxInt(u32),
+    _,
 };
 
 pub const PassCreateOptions = extern struct {
     name: hy.ExternSliceConst(u8) = .from(&.{}),
-    type: PassType,
+    depth_enabled: bool = true,
     clear_color: u32 = 0,
     width: u16 = 0,
     height: u16 = 0,
+    scale: f32 = 1,
+    order: i32 = 0,
     blit_material: MaterialHandle = .none,
 };
 
 pub const PassAddOptions = extern struct {
-    pass: PassHandle,
+    pass: PassIndex,
     model: Model,
     time: u64 = 0,
 };
@@ -162,7 +159,7 @@ pub const PassAddOptions = extern struct {
 pub const AddRenderableOptions = extern struct {
     model: Model,
     time: u64 = 0,
-    pass: PassType,
+    pass: PassIndex,
 };
 
 pub const ModelDupeOptions = extern struct {
@@ -298,11 +295,11 @@ pub const Gpu = opaque {
         return proc.hy_gfx_textureImport(gpu, .from(path));
     }
 
-    pub fn passCreate(gpu: *Gpu, opts: PassCreateOptions) PassHandle {
+    pub fn passCreate(gpu: *Gpu, opts: PassCreateOptions) PassIndex {
         return proc.hy_gfx_passCreate(gpu, opts);
     }
 
-    pub fn passDestroy(gpu: *Gpu, hdl: PassHandle) void {
+    pub fn passDestroy(gpu: *Gpu, hdl: PassIndex) void {
         return proc.hy_gfx_passDestroy(gpu, hdl);
     }
 
@@ -310,7 +307,7 @@ pub const Gpu = opaque {
         return proc.hy_gfx_passAdd(gpu, opts);
     }
 
-    pub fn passClear(gpu: *Gpu, hdl: PassHandle) void {
+    pub fn passClear(gpu: *Gpu, hdl: PassIndex) void {
         proc.hy_gfx_passClear(gpu, hdl);
     }
 

@@ -25,7 +25,6 @@ pub const TextureHandle = texture.Handle;
 pub const Textures = texture.Textures;
 pub const TextureSet = texture.TextureSet;
 pub const TextureArray = texture.TextureArray;
-pub const PassHandle = hy.SlotMap(passes.Forward).Handle;
 pub const Vertex = @import("vertex.zig").Vertex;
 pub const UIVertex = @import("vertex.zig").UIVertex;
 

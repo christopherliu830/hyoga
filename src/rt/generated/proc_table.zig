@@ -37,10 +37,10 @@ pub const ProcTable = extern struct {
     hy_gfx_spriteCurrentAnimationFrame: *const fn (gpu: *hy.gfx.Gpu, sprite: *hy.gfx.Sprite) callconv(.c) u32,
     hy_gfx_spriteDupe: *const fn (gpu: *hy.gfx.Gpu, hdl: hy.gfx.Model) callconv(.c) hy.gfx.Model,
     hy_gfx_textureImport: *const fn (gpu: *hy.gfx.Gpu, path: hy.ExternSliceConst(u8)) callconv(.c) hy.gfx.TextureHandle,
-    hy_gfx_passCreate: *const fn (gpu: *hy.gfx.Gpu, opts: hy.gfx.PassCreateOptions) callconv(.c) hy.gfx.PassHandle,
-    hy_gfx_passDestroy: *const fn (gpu: *hy.gfx.Gpu, hdl: hy.gfx.PassHandle) callconv(.c) void,
+    hy_gfx_passCreate: *const fn (gpu: *hy.gfx.Gpu, opts: hy.gfx.PassCreateOptions) callconv(.c) hy.gfx.PassIndex,
+    hy_gfx_passDestroy: *const fn (gpu: *hy.gfx.Gpu, hdl: hy.gfx.PassIndex) callconv(.c) void,
     hy_gfx_passAdd: *const fn (gpu: *hy.gfx.Gpu, opts: hy.gfx.PassAddOptions) callconv(.c) hy.gfx.Renderable,
-    hy_gfx_passClear: *const fn (gpu: *hy.gfx.Gpu, hdl: hy.gfx.PassHandle) callconv(.c) void,
+    hy_gfx_passClear: *const fn (gpu: *hy.gfx.Gpu, hdl: hy.gfx.PassIndex) callconv(.c) void,
     hy_gfx_immediateDraw: *const fn (gpu: *hy.gfx.Gpu, verts: hy.ExternSliceConst(hy.gfx.UIVertex), indices: hy.ExternSliceConst(u32), transform: hym.Mat4, material_hdl: hy.gfx.MaterialHandle) callconv(.c) void,
     hy_gfx_immediateText: *const fn (
         gpu: *hy.gfx.Gpu,

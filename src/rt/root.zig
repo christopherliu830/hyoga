@@ -276,15 +276,16 @@ pub fn hy_gfx_textureImport(gpu: *hy.gfx.Gpu, path: hy.ExternSliceConst(u8)) cal
     return @enumFromInt(@intFromEnum(int));
 }
 
-pub fn hy_gfx_passCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.PassCreateOptions) callconv(.c) hy.gfx.PassHandle {
+pub fn hy_gfx_passCreate(gpu: *hy.gfx.Gpu, opts: hy.gfx.PassCreateOptions) callconv(.c) hy.gfx.PassIndex {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
-    const hdl = rt_gpu.passCreate(opts);
-    return @enumFromInt(hdl.bits());
+    return rt_gpu.passCreate(opts) catch |e| {
+        std.debug.panic("{}", .{e});
+    };
 }
 
-pub fn hy_gfx_passDestroy(gpu: *hy.gfx.Gpu, hdl: hy.gfx.PassHandle) callconv(.c) void {
+pub fn hy_gfx_passDestroy(gpu: *hy.gfx.Gpu, hdl: hy.gfx.PassIndex) callconv(.c) void {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
-    return rt_gpu.passDestroy(@bitCast(@intFromEnum(hdl)));
+    return rt_gpu.passDestroy(hdl);
 }
 
 pub fn hy_gfx_passAdd(gpu: *hy.gfx.Gpu, opts: hy.gfx.PassAddOptions) callconv(.c) hy.gfx.Renderable {
@@ -293,9 +294,9 @@ pub fn hy_gfx_passAdd(gpu: *hy.gfx.Gpu, opts: hy.gfx.PassAddOptions) callconv(.c
     return @bitCast(renderable);
 }
 
-pub fn hy_gfx_passClear(gpu: *hy.gfx.Gpu, hdl: hy.gfx.PassHandle) callconv(.c) void {
+pub fn hy_gfx_passClear(gpu: *hy.gfx.Gpu, hdl: hy.gfx.PassIndex) callconv(.c) void {
     const rt_gpu: *gfx.Gpu = @ptrCast(@alignCast(gpu));
-    return rt_gpu.passClear(@bitCast(@intFromEnum(hdl)));
+    return rt_gpu.passClear(hdl);
 }
 
 pub fn hy_gfx_immediateDraw(gpu: *hy.gfx.Gpu, verts: hy.ExternSliceConst(hy.gfx.UIVertex), indices: hy.ExternSliceConst(u32), transform: hym.Mat4, material_hdl: hy.gfx.MaterialHandle) callconv(.c) void {
