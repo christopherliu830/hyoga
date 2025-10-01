@@ -28,7 +28,7 @@ pub const Mat4 = extern struct {
     }
 
     pub inline fn rotate(self: *const Mat4, deg: f32, axis: vec3.Vec3) Mat4 {
-        return self.mul(rotation(deg, axis));
+        return self.mul(root.rotation(deg, axis));
     }
 
     pub inline fn scale(self: *const Mat4, s: Vec3) Mat4 {
@@ -298,7 +298,7 @@ pub inline fn rotation(deg: f32, axis: vec3.Vec3) Mat4 {
     const axisn = axis.normal();
 
     const v = vec3.mul(axisn, 1 - c);
-    const vs = vec3.mul(axisn, @sin(std.math.radiansToDegrees(deg)));
+    const vs = vec3.mul(axisn, @sin(std.math.degreesToRadians(deg)));
 
     m.m[0] = vec3.append(vec3.mul(axisn, v.v[0]), 0).v;
     m.m[1] = vec3.append(vec3.mul(axisn, v.v[1]), 0).v;
