@@ -57,7 +57,7 @@ pub const Body = enum(u64) {
         }
     };
 
-    pub fn shapeAdd(body: Body, opts: BodyAddOptions.ShapeOptions) void {
+    pub fn shapeAdd(body: Body, opts: *const BodyAddOptions.ShapeOptions) void {
         proc.hy_p2_bodyShapeAdd(body, opts);
     }
 
