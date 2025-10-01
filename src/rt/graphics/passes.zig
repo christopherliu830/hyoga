@@ -138,7 +138,7 @@ pub const Forward = struct {
     }
 
     pub fn deinit(self: *Forward) void {
-        if (self.order == std.math.minInt(u32)) return;
+        if (self.order == std.math.minInt(i32)) return;
         self.gpu.storage_allocator.destroy(self.transforms_buffer.buffer);
         self.device.releaseTexture(self.texture());
         if (self.depthStencilTexture()) |dst| self.device.releaseTexture(dst);
